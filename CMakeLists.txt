@@ -1,0 +1,82 @@
+cmake_minimum_required(VERSION 3.10)
+
+project(MangoGraphicsEngine
+    VERSION 1.0
+    DESCRIPTION "The Mango Engine."
+    LANGUAGES CXX
+)
+
+set(CMAKE_COLOR_MAKEFILE ON)
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Debug" CACHE STRING
+      "Choose the type of build, options are: Debug, Release" FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
+if(NOT CMAKE_INSTALL_PREFIX)
+  set(CMAKE_INSTALL_PREFIX "C:/Program Files/mango" FORCE)
+endif(NOT CMAKE_INSTALL_PREFIX)
+
+option(BUILD_DOC   "Build documentation" ON)
+option(BUILD_TESTS "Build Unit Tests" ON)
+
+set(VERSION_MAJOR 0 CACHE STRING "Project major version number.")
+set(VERSION_MINOR 0 CACHE STRING "Project minor version number.")
+set(VERSION_PATCH 1 CACHE STRING "Project patch version number.")
+mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
+message(STATUS "Mango Build type: " ${CMAKE_BUILD_TYPE})
+
+set(CMAKE_CXX_FLAGS_DEBUG          "-g")
+set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE        "-O4 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
+
+macro(find_package_verbose)
+    if(NOT ${ARGV0} IN_LIST AS_SUBPROJECT)
+        find_package(${ARGV0})
+        message(STATUS "Found ${ARGV0}.")
+    endif()
+endmacro()
+
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    set(CMAKE_CXX_STANDARD 11)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+    if(BUILD_DOC)
+        find_package_verbose(Doxygen)
+        if(DOXYGEN_FOUND)
+            add_subdirectory(doc)
+        else()
+            message(WARNING "Doxygen not found, documentation will not be build. Please Install Doxygen to build the documentation!")
+        endif()
+    endif()
+endif()
+
+file(TO_CMAKE_PATH "${PROJECT_BINARY_DIR}/CMakeLists.txt" LOC_PATH)
+if(EXISTS "${LOC_PATH}")
+    message(FATAL_ERROR "You cannot build in a source directory (or any directory with a CMakeLists.txt file).
+                Please make a build subdirectory. Feel free to remove CMakeCache.txt and CMakeFiles.")
+endif()
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
+
+set(OpenGL_GL_PREFERENCE "GLVND")
+find_package_verbose(OpenGL REQUIRED)
+
+set(AS_SUBPROJECT glfw)
+
+add_subdirectory(dependencies/glfw)
+message(STATUS "Added glfw.")
+
+add_subdirectory(dependencies/glad)
+message(STATUS "Added GLAD.")
+
+if(BUILD_TESTS)
+    add_subdirectory(dependencies/googletest)
+    message(STATUS "Added googletest.")
+    add_subdirectory(test)
+endif()
+
+add_subdirectory(mango)
+add_subdirectory(editor)

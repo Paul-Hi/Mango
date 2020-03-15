@@ -1,0 +1,28 @@
+<!-- start footer part -->
+<!--BEGIN GENERATE_TREEVIEW-->
+<div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
+  <ul>
+    $navpath
+    <li class="footer">
+    $generatedby
+    <a href="http://www.doxygen.org/index.html">
+    <img class="footer" src="$relpath^doxygen.png" alt="doxygen"/></a> </li>
+    <li class="footer">
+    Mango is licensed under the terms and conditions of the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0</a> </li>
+    <li class="footer">
+    Copyright &copy; Paul Himmler </li>
+  </ul>
+</div>
+<!--END GENERATE_TREEVIEW-->
+<!--BEGIN !GENERATE_TREEVIEW-->
+<hr class="footer"/><address class="footer"><small>
+Mango is licensed under the terms and conditions of the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0</a> <br>
+Copyright &copy; Paul Himmler <br>
+$generatedby
+<a href="http://www.doxygen.org/index.html">
+<img class="footer" src="$relpath^doxygen.png" alt="doxygen"/></a>
+</small></address>
+
+<!--END !GENERATE_TREEVIEW-->
+</body>
+</html>

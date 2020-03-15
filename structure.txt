@@ -1,0 +1,42 @@
+Planned structure for Mango - Graphics Engine:
+
+mango
+|
+|
+|
+|   createSolution.py
+|   CMakeLists.txt
+|
+|---build
+|
+|---mango
+|   |   CMakeLists.txt
+|   |
+|   |---include
+|   |   |---mango
+|   |   |   |   public_header1.hpp
+|   |---src
+|   |   |---sub_folder1
+|   |   |   |   private_header1.hpp
+|   |   |   |   implementation1.cpp
+|   |   |---sub_folder2
+|   |   |   |   private_header2.hpp
+|   |   |   |   implementation2.cpp
+|
+|---application
+|   |   CMakeLists.txt
+|   |
+|   |---src
+|   |   |   header1.hpp
+|   |   |   implementation1.cpp
+|
+|---dependencies
+|
+|---doc
+|   |   CMakeLists.txt
+|
+|---test
+|   |   CMakeLists.txt
+|
+|
+|

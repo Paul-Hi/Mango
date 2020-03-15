@@ -1,0 +1,14 @@
+# VSC Files
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+# CMake Files
+CMakeFiles/*
+CMakeCache.txt
+# Build
+build/*
+# Dependencies
+dependencies/*

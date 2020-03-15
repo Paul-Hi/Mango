@@ -1,0 +1,30 @@
+body {
+        background-color: white;
+        color: #0D0D0D;
+        margin: 0;
+}
+
+div.contents {
+        margin-bottom: 10px;
+        padding: 12px;
+        margin-left: 16px;
+        margin-right: 16px;
+        width: auto;
+        border-style: solid;
+        border-color: #FFCC22;
+        border-radius: 8px;
+}
+
+#titlearea {
+        color: #FFCC22;
+}
+
+.footer {
+        color: #0D0D0D;
+}
+
+div.caption {
+        text-align: left;
+        margin-left: 8px;
+}
+
