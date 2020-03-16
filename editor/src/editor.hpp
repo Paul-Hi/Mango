@@ -9,14 +9,14 @@
 
 #include <mango/mango.hpp>
 
-using namespace mango;
-
 //! \brief Editor class.
 //! \details An application that provides an user interface to create, load, change and save scenes.
-class editor : public application
+class editor : public mango::application
 {
   public:
-    editor();
+    bool create() override;
+    void update(float dt) override;
+    void destroy() override;
 };
 
 #endif // EDITOR_HPP

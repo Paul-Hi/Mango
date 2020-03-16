@@ -6,17 +6,25 @@
 
 #include "editor.hpp"
 
+using namespace mango;
+
 MANGO_DEFINE_APPLICATION_MAIN(editor)
 
-editor::editor()
+bool editor::create()
 {
     weak_ptr<context> c = get_context();
-    if (auto sp = c.lock())
-    {
-        printf("Context is accessible!");
-    }
-    else
+    if (!c.lock())
     {
         printf("Context is expired!");
+        return false;
     }
+
+    return true;
 }
+
+void editor::update(float dt)
+{
+    MANGO_UNUSED(dt);
+}
+
+void editor::destroy() {}

@@ -1,6 +1,8 @@
 project(mangotests)
 
 add_executable(AllTests
+    mock_classes.hpp
+
     test_main.cpp
     init_test.cpp
 )
