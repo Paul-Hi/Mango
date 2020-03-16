@@ -9,6 +9,8 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/application.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/context.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/types.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/log.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/assert.hpp
 )
 
 set(PRIVATE_HEADERS
@@ -44,7 +46,7 @@ set_target_properties(mango
 
 target_link_libraries(mango
     PUBLIC
-
+        spdlog::spdlog
     PRIVATE
         ${OPENGL_LIBRARIES}
         glfw
@@ -58,7 +60,7 @@ target_compile_features(mango
 
 target_compile_definitions(mango
     PUBLIC
-        $<$<CONFIG:Debug>:WIPE_DEBUG>
+        $<$<CONFIG:Debug>:MANGO_DEBUG>
     PRIVATE
         $<$<BOOL:${WIN32}>:WIN32>
         $<$<BOOL:${LINUX}>:LINUX>

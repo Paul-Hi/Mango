@@ -1,4 +1,4 @@
-//! \file      init_test.hpp
+//! \file      init_test.cpp
 //! \author    Paul Himmler
 //! \version   1.0
 //! \date      2020

@@ -14,17 +14,18 @@ Keep in mind that I do this in my spare time, besides studying and working.
 ## Features
 
 * The build runs :D
+* We have some functioning logging and assertion capabilities.
 
 ## Requirements
 
-* Pythion Version 3.x
+* Python Version 3.x
 * minimum CMake Version 3.10
 * some c++11 compatible compiler using the posic thread model.
 * optional: Doxygen for generating the documentation
 
 ## Build
 
-For an easy build you (hopefully) just need to run the ```createSolution.py``` script.
+For an easy build you (hopefully) just need to run the ```create_solution.py``` script.
 This will query all dependencies and populate the dependencies folder.
 The script should also run ```cmake``` and the correct ```make```.
 
@@ -59,6 +60,7 @@ There is nothing useful right now. So .... Yeah.
 
 * GLAD
 * GLFW3
+* spdlog
 
 * googletest (Testing)
 * Doxygen (Documentation)

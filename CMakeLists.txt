@@ -72,6 +72,9 @@ message(STATUS "Added glfw.")
 add_subdirectory(dependencies/glad)
 message(STATUS "Added GLAD.")
 
+add_subdirectory(dependencies/spdlog)
+message(STATUS "Added spdlog.")
+
 if(MANGO_BUILD_TESTS)
     add_subdirectory(dependencies/googletest)
     message(STATUS "Added googletest.")

@@ -17,6 +17,10 @@ namespace mango
       public:
         context_impl();
         ~context_impl();
+        void set_application(const shared_ptr<application>& application) override;
+
+      private:
+        shared_ptr<application> m_application;
     };
 } // namespace mango
 

@@ -1,9 +1,9 @@
 //! \file      types.hpp
+//! This file has different typedefs mostly for convenience and some perfect forwarding helper functions for standard types as well as some helpful macro definitions.
 //! \author    Paul Himmler
 //! \version   1.0
 //! \date      2020
 //! \copyright Apache License 2.0
-//! \details This file has different typedefs mostly for convenience and some perfect forwarding helper functions for standard types as well as some helpful macro definitions.
 
 #ifndef MANGO_TYPES_HPP
 #define MANGO_TYPES_HPP

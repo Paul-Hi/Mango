@@ -6,6 +6,7 @@ def getDependencies():
     os.mkdir('dependencies')
     os.chdir('dependencies')
 
+    # glfw
     repository = 'https://github.com/glfw/glfw.git'
     folder = 'glfw'
     gitCmd = ['git', 'clone', repository, folder]
@@ -13,8 +14,9 @@ def getDependencies():
     if result != 0:
         return False
 
-    repository='https://github.com/Dav1dde/glad.git'
-    folder='glad/gen'
+    # glad
+    repository ='https://github.com/Dav1dde/glad.git'
+    folder ='glad/gen'
     gitCmd = ['git', 'clone', repository, folder]
     result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
     if result != 0:
@@ -29,14 +31,24 @@ def getDependencies():
 
     os.chdir('../..')
 
-    f= open('./glad/CMakeLists.txt','w+')
+    f = open('./glad/CMakeLists.txt','w+')
     f.write('project(glad)\r\n')
     f.write('add_library(glad src/glad.c include/glad/glad.h include/KHR/khrplatform.h)\r\n')
     f.write('target_include_directories(glad PUBLIC include)\r\n')
     f.close()
 
-    repository='https://github.com/google/googletest.git'
-    folder='googletest'
+    # googletest
+    repository ='https://github.com/google/googletest.git'
+    folder ='googletest'
+
+    gitCmd = ['git', 'clone', repository, folder]
+    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+    if result != 0:
+        return False
+
+    # spdlog
+    repository ='https://github.com/gabime/spdlog.git'
+    folder ='spdlog'
 
     gitCmd = ['git', 'clone', repository, folder]
     result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)

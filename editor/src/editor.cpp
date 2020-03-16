@@ -13,11 +13,7 @@ MANGO_DEFINE_APPLICATION_MAIN(editor)
 bool editor::create()
 {
     weak_ptr<context> c = get_context();
-    if (!c.lock())
-    {
-        printf("Context is expired!");
-        return false;
-    }
+    MANGO_ASSERT(c.lock(), "Context is expired!");
 
     return true;
 }

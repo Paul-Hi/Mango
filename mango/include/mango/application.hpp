@@ -19,25 +19,41 @@
 #include <windows.h>
 
 //! \brief A macro to define an application main.
-//! \param[in] class_name Name of the inheriting from mango::application to run
+//! \param[in] class_name Name of the application to run inheriting from mango::application.
 //! \return 0 on success, 1 else.
 #define MANGO_DEFINE_APPLICATION_MAIN(class_name)                                                 \
     int WINAPI WinMain(HINSTANCE hIntance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow) \
     {                                                                                             \
-        class_name application;                                                                   \
-        return application.run();                                                                 \
+        class_name app;                                                                           \
+        weak_ptr<context> c = app.get_context();                                                  \
+        if (auto sp = c.lock())                                                                   \
+        {                                                                                         \
+            sp->set_application(shared_ptr<class_name>(&app));                                    \
+            return app.run();                                                                     \
+        }                                                                                         \
+        MANGO_LOG_CRITICAL("Context is expired");                                                 \
+        std::cin.get();                                                                           \
+        return 1;                                                                                 \
     }
 
 #else
 
 //! \brief A macro to define an application main.
-//! \param[in] class_name Name of the inheriting from mango::application to run
+//! \param[in] class_name Name of the application to run inheriting from mango::application.
 //! \return 0 on success, 1 else.
-#define MANGO_DEFINE_APPLICATION_MAIN(class_name) \
-    int main(int argc, char** argv)               \
-    {                                             \
-        class_name application;                   \
-        return application.run(argc, argv);       \
+#define MANGO_DEFINE_APPLICATION_MAIN(class_name)              \
+    int main(int argc, char** argv)                            \
+    {                                                          \
+        class_name app;                                        \
+        weak_ptr<context> c = app.get_context();               \
+        if (auto sp = c.lock())                                \
+        {                                                      \
+            sp->set_application(shared_ptr<class_name>(&app)); \
+            return app.run(argc, argv);                        \
+        }                                                      \
+        MANGO_LOG_CRITICAL("Context is expired");              \
+        std::cin.get();                                        \
+        return 1;                                              \
     }
 
 #endif // WIN32
@@ -62,10 +78,10 @@ namespace mango
 
         //! \brief Runs the application.
         //! \details This includes the application loop that runs until the termination.
-        //! \param[in] t_argc Number of command line arguments.
-        //! \param[in] t_argv Command line arguments.
+        //! \param[in] argc Number of command line arguments \a argv.
+        //! \param[in] argv Command line arguments.
         //! \return 0 on success, else 1.
-        uint32 run(uint32 t_argc = 0, char** t_argv = nullptr);
+        uint32 run(uint32 argc = 0, char** argv = nullptr);
 
         //! \brief Calls the application specific update routine.
         //! \details This has to be overriden by the inheriting application.
@@ -79,6 +95,15 @@ namespace mango
         //! \details All the necessary application specific cleanup should be done in here not in the destructor.
         //! \details The function gets called by mango and should not be called elsewhere.
         virtual void destroy() = 0;
+
+        //! \brief Returns the name of the application.
+        //! \details This can be overriden by the inheriting application.
+        //! \details Returns a default name for the application if not set.
+        //! \return The name of the application.
+        virtual const char* get_name()
+        {
+            return "Mango Application";
+        }
 
         //! \brief Returns the current mango application context.
         //! \return A weak pointer to the context.

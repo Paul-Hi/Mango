@@ -17,6 +17,10 @@ class editor : public mango::application
     bool create() override;
     void update(float dt) override;
     void destroy() override;
+    const char* get_name() override
+    {
+        return "Editor";
+    }
 };
 
 #endif // EDITOR_HPP
