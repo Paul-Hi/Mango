@@ -16,5 +16,13 @@ application::application()
 
 uint32 application::run(uint32 t_argc, char** t_argv)
 {
+    MANGO_UNUSED(t_argc);
+    MANGO_UNUSED(t_argv);
+
     return 0;
+}
+
+weak_ptr<context> application::get_context()
+{
+    return std::static_pointer_cast<context>(m_context);
 }

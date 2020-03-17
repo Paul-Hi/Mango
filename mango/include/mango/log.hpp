@@ -11,11 +11,12 @@
 
 namespace mango
 {
+    //! \namespace mango::log A namespace used to enable logging capabilities.
     namespace log
     {
         //! \brief The log level that can be specified for logging.
-        //! \details \a info and \a critical are enabled anytime.
-        //! \details \a trace, \a debug, \a warn and \a error are only enabled in debug.
+        //! \details \a info and \a critical are enabled anytime,
+        //! \a trace, \a debug, \a warn and \a error are only enabled in debug.
         enum level
         {
             info,
@@ -28,7 +29,7 @@ namespace mango
 
         //! \brief The core of the logging system.
         //! \details This function can be used to log to the console with different log levels.
-        //! \details The message can contain arguments "{0}" to "{n}"" which are specified in args.
+        //! The message can contain arguments "{0}" to "{n}"" which are specified in args.
         //! \param[in] level The log level in { info, debug, trace, warn, error, critical }.
         //! \param[in] message The message string to display containing optional arguments.
         //! \param[in] args 0 to n optional arguments that will be displayed in \a message.

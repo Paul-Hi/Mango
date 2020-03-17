@@ -6,6 +6,11 @@ project(MangoGraphicsEngine
     LANGUAGES CXX
 )
 
+if(UNIX AND NOT APPLE)
+    set(LINUX TRUE)
+endif()
+
+
 set(CMAKE_COLOR_MAKEFILE ON)
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -32,13 +37,12 @@ set(CMAKE_CXX_FLAGS_RELEASE        "-O4 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
 
 macro(find_package_verbose)
-    if(NOT ${ARGV0} IN_LIST AS_SUBPROJECT)
         find_package(${ARGV0})
         message(STATUS "Found ${ARGV0}.")
-    endif()
 endmacro()
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    message(STATUS "Setting project standards.")
     set(CMAKE_CXX_STANDARD 11)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
     set(CMAKE_CXX_EXTENSIONS OFF)
@@ -64,8 +68,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 set(OpenGL_GL_PREFERENCE "GLVND")
 find_package_verbose(OpenGL REQUIRED)
 
-set(AS_SUBPROJECT glfw)
-
 add_subdirectory(dependencies/glfw)
 message(STATUS "Added glfw.")
 
@@ -82,4 +84,5 @@ if(MANGO_BUILD_TESTS)
 endif()
 
 add_subdirectory(mango)
+spdlog_enable_warnings(mango)
 add_subdirectory(editor)

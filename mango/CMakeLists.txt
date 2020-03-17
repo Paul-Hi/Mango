@@ -1,9 +1,5 @@
 project(mango)
 
-if(UNIX AND NOT APPLE)
-    set(LINUX TRUE)
-endif()
-
 set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/mango.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/application.hpp
@@ -18,7 +14,7 @@ set(PRIVATE_HEADERS
 )
 
 set(SOURCES
-${CMAKE_CURRENT_SOURCE_DIR}/src/core/application.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/application.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.cpp
 )
 
@@ -51,11 +47,6 @@ target_link_libraries(mango
         ${OPENGL_LIBRARIES}
         glfw
         glad
-)
-
-target_compile_features(mango
-    PUBLIC
-        cxx_std_11
 )
 
 target_compile_definitions(mango

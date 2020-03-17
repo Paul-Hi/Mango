@@ -70,8 +70,8 @@ def tryRunningMake():
             break
 
     if status != 0:
-        print ('Can not get the available make derivate.')
-        print ('Please run your \'make\' in the bild directory!')
+        print ('Can not get the available make derivate or failed building Mango.')
+        print ('Please run your \'make\' in the build directory!')
         input('PRESS ENTER TO CONTINUE.')
         os._exit(1)
 

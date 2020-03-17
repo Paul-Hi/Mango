@@ -60,9 +60,10 @@
 
 namespace mango
 {
+    class context_impl;
     //! \brief Application interface.
     //! \details The application is the base for all applications using the mango graphics engine.
-    //! \details Every application needs to inherit from this.
+    //! Every application needs to inherit from this.
     class application
     {
       public:
@@ -71,8 +72,8 @@ namespace mango
 
         //! \brief Creation function for every application.
         //! \details This has to be overriden by the inheriting application.
-        //! \details All the necessary application specific setup should be done in here not in the constructor.
-        //! \details The function gets called by mango and should not be called elsewhere.
+        //! All the necessary application specific setup should be done in here not in the constructor.
+        //! The function gets called by mango and should not be called elsewhere.
         //! \return True on creation success, else false.
         virtual bool create() = 0;
 
@@ -85,20 +86,20 @@ namespace mango
 
         //! \brief Calls the application specific update routine.
         //! \details This has to be overriden by the inheriting application.
-        //! \details All the necessary application specific updates can be done in here.
-        //! \details The function gets called by mango and should not be called elsewhere.
+        //! All the necessary application specific updates can be done in here.
+        //! The function gets called by mango and should not be called elsewhere.
         //! \param[in] dt Past time since last call. Can be used for frametime independent motion.
         virtual void update(float dt) = 0;
 
         //! \brief Destroys the application.
         //! \details This has to be overriden by the inheriting application.
-        //! \details All the necessary application specific cleanup should be done in here not in the destructor.
-        //! \details The function gets called by mango and should not be called elsewhere.
+        //! All the necessary application specific cleanup should be done in here not in the destructor.
+        //! The function gets called by mango and should not be called elsewhere.
         virtual void destroy() = 0;
 
         //! \brief Returns the name of the application.
         //! \details This can be overriden by the inheriting application.
-        //! \details Returns a default name for the application if not set.
+        //! Returns a default name for the application if not set.
         //! \return The name of the application.
         virtual const char* get_name()
         {
@@ -107,14 +108,11 @@ namespace mango
 
         //! \brief Returns the current mango application context.
         //! \return A weak pointer to the context.
-        inline weak_ptr<context> get_context()
-        {
-            return m_context;
-        };
+        weak_ptr<context> get_context();
 
       private:
         //! \brief The context of the application.
-        shared_ptr<context> m_context;
+        shared_ptr<context_impl> m_context;
     };
 
 } // namespace mango
