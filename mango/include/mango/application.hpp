@@ -24,12 +24,12 @@
 #define MANGO_DEFINE_APPLICATION_MAIN(class_name)                                                 \
     int WINAPI WinMain(HINSTANCE hIntance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow) \
     {                                                                                             \
-        class_name app;                                                                           \
-        weak_ptr<context> c = app.get_context();                                                  \
+        shared_ptr<class_name> app = make_shared<class_name>();                                   \
+        weak_ptr<context> c        = app->get_context();                                          \
         if (auto sp = c.lock())                                                                   \
         {                                                                                         \
-            sp->set_application(shared_ptr<class_name>(&app));                                    \
-            return app.run();                                                                     \
+            sp->set_application(app);                                                             \
+            return app->run();                                                                    \
         }                                                                                         \
         MANGO_LOG_CRITICAL("Context is expired");                                                 \
         std::cin.get();                                                                           \
@@ -41,19 +41,19 @@
 //! \brief A macro to define an application main.
 //! \param[in] class_name Name of the application to run inheriting from mango::application.
 //! \return 0 on success, 1 else.
-#define MANGO_DEFINE_APPLICATION_MAIN(class_name)              \
-    int main(int argc, char** argv)                            \
-    {                                                          \
-        class_name app;                                        \
-        weak_ptr<context> c = app.get_context();               \
-        if (auto sp = c.lock())                                \
-        {                                                      \
-            sp->set_application(shared_ptr<class_name>(&app)); \
-            return app.run(argc, argv);                        \
-        }                                                      \
-        MANGO_LOG_CRITICAL("Context is expired");              \
-        std::cin.get();                                        \
-        return 1;                                              \
+#define MANGO_DEFINE_APPLICATION_MAIN(class_name)               \
+    int main(int argc, char** argv)                             \
+    {                                                           \
+        shared_ptr<class_name> app = make_shared<class_name>(); \
+        weak_ptr<context> c        = app->get_context();        \
+        if (auto sp = c.lock())                                 \
+        {                                                       \
+            sp->set_application(app);                           \
+            return app->run();                                  \
+        }                                                       \
+        MANGO_LOG_CRITICAL("Context is expired");               \
+        std::cin.get();                                         \
+        return 1;                                               \
     }
 
 #endif // WIN32
