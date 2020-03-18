@@ -72,7 +72,7 @@ namespace mango
 
         //! \brief Creation function for every application.
         //! \details This has to be overriden by the inheriting application.
-        //! All the necessary application specific setup should be done in here not in the constructor.
+        //! All the necessary application specific setup should be done in here and not in the constructor.
         //! The function gets called by mango and should not be called elsewhere.
         //! \return True on creation success, else false.
         virtual bool create() = 0;
@@ -93,7 +93,7 @@ namespace mango
 
         //! \brief Destroys the application.
         //! \details This has to be overriden by the inheriting application.
-        //! All the necessary application specific cleanup should be done in here not in the destructor.
+        //! All the necessary application specific cleanup should be done in here and not in the destructor.
         //! The function gets called by mango and should not be called elsewhere.
         virtual void destroy() = 0;
 

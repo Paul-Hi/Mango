@@ -14,7 +14,8 @@ Keep in mind that I do this in my spare time, besides studying and working.
 ## Features
 
 * The build runs :D
-* We have some functioning logging and assertion capabilities.
+* Some functioning logging and assertion capabilities.
+* Window creation with glfw is possible.
 
 ## Requirements
 

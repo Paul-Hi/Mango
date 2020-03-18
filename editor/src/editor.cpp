@@ -12,8 +12,14 @@ MANGO_DEFINE_APPLICATION_MAIN(editor)
 
 bool editor::create()
 {
-    weak_ptr<context> c = get_context();
-    MANGO_ASSERT(c.lock(), "Context is expired!");
+    shared_ptr<context> mango_context = get_context().lock();
+    MANGO_ASSERT(mango_context, "Context is expired!");
+
+    window_configuration window_config;
+    window_config.set_width(1920).set_height(1080).set_title("Editor");
+    shared_ptr<window_system> mango_ws = mango_context->get_window_system().lock();
+    MANGO_ASSERT(mango_ws, "Window System is expired!");
+    mango_ws->configure(window_config);
 
     return true;
 }

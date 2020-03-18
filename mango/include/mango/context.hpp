@@ -12,6 +12,7 @@
 namespace mango
 {
     class application;
+    class window_system;
 
     //! \brief Context interface.
     //! \details The context holds shared pointers to the various subsystems of mango.
@@ -24,6 +25,11 @@ namespace mango
         //! This function is called by the \a MANGO_DEFINE_APPLICATION_MAIN main function and should not be called elsewhere.
         //! \param[in] application The application to set in the context.
         virtual void set_application(const shared_ptr<application>& application) = 0;
+
+        //! \brief Queries and returns a weak pointer to mangos \a window_system.
+        //! \details Can be used to configure the window shown by mango.
+        //! \return A weak pointer to the mango \a window_system.
+        virtual weak_ptr<window_system> get_window_system() = 0;
     };
 } // namespace mango
 

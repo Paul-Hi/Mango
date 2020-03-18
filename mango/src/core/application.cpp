@@ -6,12 +6,15 @@
 
 #include <core/context_impl.hpp>
 #include <mango/application.hpp>
+#include <mango/assert.hpp>
+#include <core/window_system_impl.hpp>
 
 using namespace mango;
 
 application::application()
 {
     m_context = make_shared<context_impl>();
+    m_context->create();
 }
 
 uint32 application::run(uint32 t_argc, char** t_argv)
@@ -19,10 +22,32 @@ uint32 application::run(uint32 t_argc, char** t_argv)
     MANGO_UNUSED(t_argc);
     MANGO_UNUSED(t_argv);
 
+    bool should_close = false;
+
+    while (!should_close)
+    {
+        shared_ptr<window_system_impl> ws = m_context->get_window_system_internal().lock();
+        MANGO_ASSERT(ws, "Window System is expired!");
+
+        // update
+        ws->update(0.0f);
+
+
+        // render
+
+
+        // swap buffers
+        ws->swap_buffers();
+
+        // poll events
+        ws->poll_events();
+        should_close = ws->should_close();
+    }
+
     return 0;
 }
 
 weak_ptr<context> application::get_context()
 {
-    return std::static_pointer_cast<context>(m_context);
+    return m_context;
 }
