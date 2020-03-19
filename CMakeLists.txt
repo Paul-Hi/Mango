@@ -23,7 +23,7 @@ if(NOT CMAKE_INSTALL_PREFIX)
 endif(NOT CMAKE_INSTALL_PREFIX)
 
 option(MANGO_BUILD_DOC   "Build documentation" ON)
-option(MANGO_BUILD_TESTS "Build Unit Tests" ON)
+option(MANGO_BUILD_TESTS "Build Unit Tests" OFF)
 
 set(VERSION_MAJOR 0 CACHE STRING "Project major version number.")
 set(VERSION_MINOR 0 CACHE STRING "Project minor version number.")

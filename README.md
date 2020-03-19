@@ -30,6 +30,10 @@ For an easy build you (hopefully) just need to run the ```create_solution.py``` 
 This will query all dependencies and populate the dependencies folder.
 The script should also run ```cmake``` and the correct ```make```.
 
+There are two extra options in the cmake configuration:
+* MANGO_BUILD_TESTS (Default OFF): This enables the "Testing Mode" in mango and builds the tests. This should ONLY be enabled, if you plan to run the tests. It enables and disables functionalities in mango.
+* MANGO_BUILD_DOC (Default ON): This builds the documentation for mango.
+
 If the dependency population fails you could try to populate the directory by yourself.
 If ```cmake``` or ```make``` fails you could also try to build it manually like that:
 

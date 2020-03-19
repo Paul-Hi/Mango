@@ -61,6 +61,7 @@ target_link_libraries(mango
 target_compile_definitions(mango
     PUBLIC
         $<$<CONFIG:Debug>:MANGO_DEBUG>
+        $<$<BOOL:${MANGO_BUILD_TESTS}>:MANGO_TEST>
     PRIVATE
         $<$<BOOL:${WIN32}>:WIN32>
         $<$<BOOL:${LINUX}>:LINUX>

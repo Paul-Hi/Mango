@@ -5,11 +5,13 @@ add_executable(AllTests
 
     test_main.cpp
     init_test.cpp
+    window_system_test.cpp
 )
 
 target_include_directories(AllTests
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../mango/src
 )
 
 target_compile_definitions(AllTests
