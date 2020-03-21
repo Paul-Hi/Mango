@@ -14,7 +14,7 @@ namespace mango
     class window_system_impl;
     class render_system_impl;
     //! \brief The implementation of the public context.
-    class context_impl : public context
+    class context_impl : public context, public std::enable_shared_from_this<context_impl>
     {
       public:
         context_impl();
@@ -39,6 +39,15 @@ namespace mango
         //! \return A weak pointer to the internal \a render_system.
         weak_ptr<render_system_impl> get_render_system_internal();
 
+        //! \brief Queries and returns a mangos loading procedure for opengl.
+        //! \return Mangos loading procedure for opengl.
+        const mango_gl_load_proc& get_gl_loading_procedure();
+
+        //! \brief Sets mangos loading procedure for opengl.
+        //! \details This is usually called by the \a window_system.
+        //! \param[in] procedure Mangos loading procedure for opengl.
+        void set_gl_loading_procedure(mango_gl_load_proc procedure);
+
         //! \brief Destruction function for the context.
         //! \details Destriys various systems like \a window_system.
         //! This function is only callable by mango internally.
@@ -51,6 +60,9 @@ namespace mango
         shared_ptr<window_system_impl> m_window_system;
         //! \brief A shared pointer to the \a render_system of mango.
         shared_ptr<render_system_impl> m_render_system;
+        //! \brief The gl loading procedure of mango.
+        //! \details This is usually set by the \a window_system on creation and can be used in the \a render_system to initialize opengl.
+        mango_gl_load_proc m_procedure;
     };
 } // namespace mango
 

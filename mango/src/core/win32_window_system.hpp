@@ -15,7 +15,9 @@ namespace mango
     class win32_window_system : public window_system_impl
     {
       public:
-        win32_window_system();
+        //! \brief Constructs the \a win32_window_system.
+        //! \param[in] context The internally shared context of mango.
+        win32_window_system(const shared_ptr<context_impl>& context);
         ~win32_window_system();
         bool create() override;
         void configure(const window_configuration& configuration) override;

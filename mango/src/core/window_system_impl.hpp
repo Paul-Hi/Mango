@@ -7,6 +7,7 @@
 #ifndef MANGO_WINDOW_SYSTEM_IMPL_HPP
 #define MANGO_WINDOW_SYSTEM_IMPL_HPP
 
+#include <core/context_impl.hpp>
 #include <mango/window_system.hpp>
 
 namespace mango
@@ -15,7 +16,7 @@ namespace mango
     class window_system_impl : public window_system
     {
       public:
-        virtual bool create() = 0;
+        virtual bool create()                                             = 0;
         virtual void configure(const window_configuration& configuration) = 0;
 
         //! \brief Swaps the buffers in the \a window_system.
@@ -35,6 +36,10 @@ namespace mango
         //! \details The \a window_system for example should close, if the window received a close event from the os.
         //! \return True if the window_system should close, else false.
         virtual bool should_close() = 0;
+
+      protected:
+        //! \brief Mangos internal context for shared usage in all \a window_systems.
+        shared_ptr<context_impl> m_shared_context;
     };
 
 } // namespace mango

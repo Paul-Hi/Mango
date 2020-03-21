@@ -52,17 +52,27 @@ weak_ptr<render_system_impl> context_impl::get_render_system_internal()
     return m_render_system;
 }
 
+const mango_gl_load_proc& context_impl::get_gl_loading_procedure()
+{
+    return m_procedure;
+}
+
+void context_impl::set_gl_loading_procedure(mango_gl_load_proc procedure)
+{
+    m_procedure = procedure;
+}
+
 bool context_impl::create()
 {
     bool success = true;
 #if defined(WIN32)
-    m_window_system = make_shared<win32_window_system>();
+    m_window_system = std::make_shared<win32_window_system>(shared_from_this());
 #elif defined(LINUX)
-    m_window_system = make_shared<linux_window_system>();
+    m_window_system = std::make_shared<linux_window_system>(shared_from_this());
 #endif
     success = success && m_window_system->create();
 
-    m_render_system = make_shared<render_system_impl>();
+    m_render_system = std::make_shared<render_system_impl>(shared_from_this());
     success         = success && m_render_system->create();
 
     return success;

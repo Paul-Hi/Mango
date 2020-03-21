@@ -15,7 +15,9 @@ namespace mango
     class linux_window_system : public window_system_impl
     {
       public:
-        linux_window_system();
+        //! \brief Constructs the \a linux_window_system.
+        //! \param[in] context The internally shared context of mango.
+        linux_window_system(const shared_ptr<context_impl>& context);
         ~linux_window_system();
         bool create() override;
         void configure(const window_configuration& configuration) override;

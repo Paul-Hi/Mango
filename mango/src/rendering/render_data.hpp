@@ -32,7 +32,7 @@ namespace mango
 
     //! \brief The command that can be submitted to any \a render_system.
     //! \details These commands get collected and in the end gpu calls will be generated and executed.
-    class render_command
+    struct render_command
     {
         render_command_type type; //!< The type to identify usage and data.
         //! \brief The data that is used to provide more information and relevant resources.
@@ -101,6 +101,7 @@ namespace mango
     //! \details This will directly translate into a gpu draw call.
     enum gpu_draw_call
     {
+        clear_call,             //!< Clear the screen.
         draw_arrays,            //!< Draw not indexed vertex data.
         draw_elements,          //!< Draw indexed vertex data.
         draw_arrays_instanced,  //!< Draw not indexed vertex data instanced.
@@ -117,6 +118,12 @@ namespace mango
         points          //!< Points. A point for every point.
     };
 
+    //! \brief This state describes if depth testing should be enabled and if so which depth compare function is used.
+    enum depth_state
+    {
+        depth_off,  //!< No depth test.
+        depth_less, //!< Primitives pass if the incoming depth value is less than the stored depth value. Default setting.
+    };
     //! \brief This state describes if faces should be culled and if so, which ones.
     enum cull_state
     {
@@ -124,12 +131,14 @@ namespace mango
         cull_backface, //!< Backface culling.
         cull_frontface //! Frontface culling.
     };
+
     //! \brief This state describes if wireframe rendering should be used.
     enum wireframe_state
     {
         wireframe_off, //!< No wireframe.
         wireframe_on   //!< Wireframe rendering is turned on.
     };
+
     //! \brief This describes the blend state and if it is turned on specifies the blend function to use.
     enum blend_state
     {
@@ -137,18 +146,31 @@ namespace mango
         blend_src_alpha_and_one_minus_src_aplha //!< Blending enabled. Standard blend function for basic transparency.
     };
 
+    //! \brief A simple structure for the clear color specification.
+    struct clear_color
+    {
+        float r; //!< The red component of the color.
+        float g; //!< The green component of the color.
+        float b; //!< The blue component of the color.
+        float a; //!< The alpha component of the color.
+    };
+
     //! \brief This should be used to inform about CHANGES in the render state.
     //! \details If there are no changes in the state this should explicitly be set to avoid update checks.
     //! Other things will be compared to the current state and used for potential updates.
     struct render_state
     {
-        bool changed; //!< True, if the system should check for changes, else false.
+        bool changed = false; //!< True, if the system should check for changes, else false.
+        //! \brief The \a clear_color of the \a render_state.
+        clear_color color_clear = { 0.0f, 0.0f, 0.0f, 1.0f };
+        //! \brief The \a depth_state of the \a render_state.
+        depth_state depth = depth_less;
         //! \brief The \a cull_state of the \a render_state.
-        cull_state cull;
+        cull_state cull = cull_backface;
         //! \brief The \a wireframe_state of the \a render_state.
-        wireframe_state wireframe;
+        wireframe_state wireframe = wireframe_off;
         //! \brief The \a blend_state of the \a render_state.
-        blend_state blending;
+        blend_state blending = blend_off;
     };
 
     //! \brief The data for a \a render_command of \a render_command_type::draw_call

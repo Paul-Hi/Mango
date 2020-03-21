@@ -16,7 +16,9 @@ namespace mango
     class deferred_pbr_render_system : public render_system_impl
     {
       public:
-        deferred_pbr_render_system();
+        //! \brief Constructs the \a deferred_pbr_render_system.
+        //! \param[in] context The internally shared context of mango.
+        deferred_pbr_render_system(const shared_ptr<context_impl>& context);
         ~deferred_pbr_render_system();
 
         virtual bool create() override;

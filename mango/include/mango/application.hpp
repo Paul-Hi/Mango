@@ -24,7 +24,7 @@
 #define MANGO_DEFINE_APPLICATION_MAIN(class_name)                                                 \
     int WINAPI WinMain(HINSTANCE hIntance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow) \
     {                                                                                             \
-        shared_ptr<class_name> app = make_shared<class_name>();                                   \
+        shared_ptr<class_name> app = std::make_shared<class_name>();                                   \
         weak_ptr<context> c        = app->get_context();                                          \
         if (auto sp = c.lock())                                                                   \
         {                                                                                         \
@@ -44,7 +44,7 @@
 #define MANGO_DEFINE_APPLICATION_MAIN(class_name)               \
     int main(int argc, char** argv)                             \
     {                                                           \
-        shared_ptr<class_name> app = make_shared<class_name>(); \
+        shared_ptr<class_name> app = std::make_shared<class_name>(); \
         weak_ptr<context> c        = app->get_context();        \
         if (auto sp = c.lock())                                 \
         {                                                       \

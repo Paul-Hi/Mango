@@ -38,15 +38,6 @@ namespace mango
     template <typename T>
     using shared_ptr = std::shared_ptr<T>;
 
-    //! \brief  Create an object that is owned by a shared_ptr.
-    //! \param[in]  args  Arguments for the \a T object's constructor.
-    //! \return A shared_ptr that owns the newly created object.
-    template <typename T, typename... Args>
-    shared_ptr<T> make_shared(Args&&... args)
-    {
-        return std::shared_ptr<T>(new T(std::forward<Args>(args)...));
-    }
-
     //! \brief Type alias for a std::weak_ptr.
     template <typename T>
     using weak_ptr = std::weak_ptr<T>;
@@ -63,6 +54,9 @@ namespace mango
     {
         return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
     }
+
+    //! \brief The pointer to the procedure address loading function type for opengl.
+    typedef void* (*mango_gl_load_proc)(const char*);
 
 } // namespace mango
 

@@ -19,7 +19,7 @@ class editor : public mango::application
     void destroy() override;
     const char* get_name() override
     {
-        return "Editor";
+        return "Mango Editor";
     }
 };
 

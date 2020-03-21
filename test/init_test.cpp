@@ -25,7 +25,7 @@ class init_test : public ::testing::Test
 
 TEST_F(init_test, init_does_not_fail_on_context_creation)
 {
-    ASSERT_NO_FATAL_FAILURE(m_application = mango::make_shared<fake_application>());
+    ASSERT_NO_FATAL_FAILURE(m_application = std::make_shared<fake_application>());
     auto mango_context = m_application->get_context().lock();
     ASSERT_NE(nullptr, mango_context);
     ASSERT_NE(nullptr, mango_context->get_window_system().lock());
@@ -33,7 +33,7 @@ TEST_F(init_test, init_does_not_fail_on_context_creation)
 
 TEST_F(init_test, no_crash_on_public_function_calls)
 {
-    ASSERT_NO_FATAL_FAILURE(m_application = mango::make_shared<fake_application>());
+    ASSERT_NO_FATAL_FAILURE(m_application = std::make_shared<fake_application>());
     auto mango_context = m_application->get_context().lock();
     auto mango_ws = mango_context->get_window_system().lock();
     mango::window_configuration window_config(100, 100, "Test");

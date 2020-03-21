@@ -4,16 +4,18 @@
 //! \date      2020
 //! \copyright Apache License 2.0
 
+#define GLFW_INCLUDE_NONE // for glad
 #include <GLFW/glfw3.h>
 #include <core/linux_window_system.hpp>
 #include <mango/assert.hpp>
 
 using namespace mango;
 
-linux_window_system::linux_window_system()
+linux_window_system::linux_window_system(const shared_ptr<context_impl>& context)
     : m_window_configuration()
     , m_window_handle(nullptr)
 {
+    m_shared_context = context;
 }
 
 linux_window_system::~linux_window_system() {}
@@ -78,6 +80,13 @@ void linux_window_system::configure(const window_configuration& configuration)
 
     MANGO_LOG_DEBUG("Window Position is ({0}, {1})", pos_x, pos_y);
     MANGO_LOG_DEBUG("Window Size is {0} x {1}", width, height);
+
+#ifdef MANGO_DEBUG
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+#endif // MANGO_DEBUG
+
+    glfwMakeContextCurrent(window);                                                                       // TODO Paul: Should this be done here or before creating the gl context.
+    m_shared_context->set_gl_loading_procedure(reinterpret_cast<mango_gl_load_proc>(glfwGetProcAddress)); // TODO Paul: Should this be done here or before creating the gl context.
 }
 
 void linux_window_system::update(float dt)

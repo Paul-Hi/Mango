@@ -32,7 +32,7 @@ class window_system_test : public ::testing::Test
 
 TEST_F(window_system_test, win32_window_system_no_failure_on_function_calls)
 {
-    ASSERT_NO_FATAL_FAILURE(m_window_system = mango::make_shared<platform_window_system_impl>());
+    ASSERT_NO_FATAL_FAILURE(m_window_system = std::make_shared<platform_window_system_impl>());
     ASSERT_NE(nullptr, m_window_system);
     ASSERT_TRUE(m_window_system->create());
     mango::window_configuration window_config(100, 100, "Test");

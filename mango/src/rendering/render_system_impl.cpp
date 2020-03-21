@@ -4,12 +4,15 @@
 //! \date      2020
 //! \copyright Apache License 2.0
 
-#include <rendering/render_system_impl.hpp>
 #include <rendering/pipelines/deferred_pbr_render_system.hpp>
+#include <rendering/render_system_impl.hpp>
 
 using namespace mango;
 
-render_system_impl::render_system_impl() {}
+render_system_impl::render_system_impl(const shared_ptr<context_impl>& context)
+    : m_shared_context(context)
+{
+}
 
 render_system_impl::~render_system_impl() {}
 
@@ -32,7 +35,7 @@ void render_system_impl::configure(const render_configuration& configuration)
         switch (configured_pipeline)
         {
         case deferred_pbr:
-            m_current_render_system = make_shared<deferred_pbr_render_system>();
+            m_current_render_system = std::make_shared<deferred_pbr_render_system>(m_shared_context);
             MANGO_ASSERT(m_current_render_system->create(), "Creation of the deferred pbr render system did fail!");
             break;
 
@@ -85,4 +88,9 @@ render_pipeline render_system_impl::get_base_render_pipeline()
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
     return m_current_render_system->get_base_render_pipeline();
+}
+
+void render_system_impl::updateState(const render_state& state)
+{
+    m_render_state = state;
 }

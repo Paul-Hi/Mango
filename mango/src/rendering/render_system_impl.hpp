@@ -7,6 +7,7 @@
 #ifndef MANGO_RENDER_SYSTEM_IMPL_HPP
 #define MANGO_RENDER_SYSTEM_IMPL_HPP
 
+#include <core/context_impl.hpp>
 #include <mango/render_system.hpp>
 #include <queue>
 #include <rendering/render_data.hpp>
@@ -18,7 +19,9 @@ namespace mango
     class render_system_impl : public render_system
     {
       public:
-        render_system_impl();
+        //! \brief Constructs the \a render_system_impl.
+        //! \param[in] context The internally shared context of mango.
+        render_system_impl(const shared_ptr<context_impl>& context);
         ~render_system_impl();
 
         virtual bool create() override;
@@ -55,13 +58,24 @@ namespace mango
         virtual render_pipeline get_base_render_pipeline();
 
       protected:
-        //! \brief A shared pointer to the currently used internal \a render_system.
-        //! \details This is used to make runtime switching of different \a render_systems possible.
-        shared_ptr<render_system_impl> m_current_render_system;
-
         //! \brief The queue for the \a render_commands.
         //! \details This is cleared before each new frame in \a start_frame(). Is sorted in \a finish_frame().
         std::queue<render_command> m_command_queue;
+
+        //! \brief Mangos internal context for shared usage in all \a render_systems.
+        shared_ptr<context_impl> m_shared_context;
+
+        //! \brief The current internal \a render_state of the \a render_system.
+        render_state m_render_state;
+
+        //! \brief Updates the current \a render_state.
+        //! \param[in] state The \a render_state to copy from.
+        void updateState(const render_state& state);
+
+      private:
+        //! \brief A shared pointer to the currently used internal \a render_system.
+        //! \details This is used to make runtime switching of different \a render_systems possible.
+        shared_ptr<render_system_impl> m_current_render_system;
     };
 
 } // namespace mango
