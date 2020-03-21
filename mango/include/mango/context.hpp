@@ -13,6 +13,7 @@ namespace mango
 {
     class application;
     class window_system;
+    class render_system;
 
     //! \brief Context interface.
     //! \details The context holds shared pointers to the various subsystems of mango.
@@ -30,6 +31,11 @@ namespace mango
         //! \details Can be used to configure the window shown by mango.
         //! \return A weak pointer to the mango \a window_system.
         virtual weak_ptr<window_system> get_window_system() = 0;
+
+        //! \brief Queries and returns a weak pointer to mangos \a render_system.
+        //! \details Can be used to configure the \a rendering_pipeline used by mango.
+        //! \return A weak pointer to the mango \a render_system.
+        virtual weak_ptr<render_system> get_render_system() = 0;
     };
 } // namespace mango
 

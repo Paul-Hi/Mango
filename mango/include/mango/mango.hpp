@@ -19,6 +19,7 @@ namespace mango
 #include <mango/log.hpp>
 #include <mango/system.hpp>
 #include <mango/window_system.hpp>
+#include <mango/render_system.hpp>
 #include <mango/types.hpp>
 
 #endif // MANGO_HPP

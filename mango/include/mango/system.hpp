@@ -17,7 +17,7 @@ namespace mango
     //! They are designed and abstracted to be modular so they may have platform or api specific implementations.
     class system
     {
-      public:
+      protected:
         virtual ~system() = default;
         //! \brief Creation function for every system.
         //! \details All the necessary system specific setup should be done in here and not in the constructor.

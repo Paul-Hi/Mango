@@ -12,6 +12,7 @@
 #elif defined(LINUX)
 #include <core/linux_window_system.hpp>
 #endif
+#include <rendering/render_system_impl.hpp>
 
 using namespace mango;
 
@@ -36,18 +37,41 @@ weak_ptr<window_system> context_impl::get_window_system()
     return m_window_system;
 }
 
+weak_ptr<render_system> context_impl::get_render_system()
+{
+    return m_render_system;
+}
+
 weak_ptr<window_system_impl> context_impl::get_window_system_internal()
 {
     return m_window_system;
 }
 
+weak_ptr<render_system_impl> context_impl::get_render_system_internal()
+{
+    return m_render_system;
+}
+
 bool context_impl::create()
 {
+    bool success = true;
 #if defined(WIN32)
     m_window_system = make_shared<win32_window_system>();
 #elif defined(LINUX)
     m_window_system = make_shared<linux_window_system>();
 #endif
-    m_window_system->create();
-    return true;
+    success = success && m_window_system->create();
+
+    m_render_system = make_shared<render_system_impl>();
+    success         = success && m_render_system->create();
+
+    return success;
+}
+
+void context_impl::destroy()
+{
+    MANGO_ASSERT(m_render_system, "Render System is invalid!");
+    m_render_system->destroy();
+    MANGO_ASSERT(m_window_system, "Window System is invalid!");
+    m_window_system->destroy();
 }

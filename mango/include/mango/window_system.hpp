@@ -99,14 +99,14 @@ namespace mango
     class window_system : public system
     {
       public:
-        virtual bool create() = 0;
-
         //! \brief Does the configuration of the \a window_system.
         //! \details After creation this function should be called.
         //! Changes the configuration in the \a window_system to \a configuration.
         //! \param[in] configuration The \a window_configuration to use for the window.
         virtual void configure(const window_configuration& configuration) = 0;
 
+      protected:
+        virtual bool create()         = 0;
         virtual void update(float dt) = 0;
         virtual void destroy()        = 0;
     };

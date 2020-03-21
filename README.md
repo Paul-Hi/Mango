@@ -49,7 +49,7 @@ If you still have a problem just reach out to me on GitHub and I'll try to fix i
 
 ## Usage
 
-There is nothing useful right now. So .... Yeah.
+Just head into ```\build\debug\bin``` or ```\build\release\bin``` and run the editor executable.
 
 ## Roadmap (unordered and incomplete)
 
@@ -57,7 +57,7 @@ There is nothing useful right now. So .... Yeah.
 * Deferred RenderPipeline with OpenGL Backend
 * Physically Based Rendering
 * Scene Description
-* Entity Component System
+* Entity Component System and/or some graph structure
 * GUI integrating DearImGui
 * Editor and ExampleApplications
 

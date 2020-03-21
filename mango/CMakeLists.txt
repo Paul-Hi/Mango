@@ -9,11 +9,15 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/assert.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/window_system.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/render_system.hpp
 )
 
 set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/window_system_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.hpp
 
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.hpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.hpp>
@@ -22,6 +26,8 @@ set(PRIVATE_HEADERS
 set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/application.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.cpp
 
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.cpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.cpp>

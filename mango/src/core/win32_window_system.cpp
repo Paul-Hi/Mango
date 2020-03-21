@@ -101,5 +101,6 @@ void win32_window_system::destroy()
 {
     MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
     glfwDestroyWindow(static_cast<GLFWwindow*>(m_window_handle));
+    m_window_handle = nullptr;
     glfwTerminate();
 }

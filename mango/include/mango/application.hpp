@@ -68,7 +68,7 @@ namespace mango
     {
       public:
         application();
-        ~application() = default;
+        ~application();
 
         //! \brief Creation function for every application.
         //! \details This has to be overriden by the inheriting application.

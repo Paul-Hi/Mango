@@ -21,6 +21,12 @@ bool editor::create()
     MANGO_ASSERT(mango_ws, "Window System is expired!");
     mango_ws->configure(window_config);
 
+    render_configuration render_config;
+    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(true);
+    shared_ptr<render_system> mango_rs = mango_context->get_render_system().lock();
+    MANGO_ASSERT(mango_rs, "Render System is expired!");
+    mango_rs->configure(render_config);
+
     return true;
 }
 
