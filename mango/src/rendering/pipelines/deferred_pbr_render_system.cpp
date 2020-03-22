@@ -111,7 +111,7 @@ render_pipeline deferred_pbr_render_system::get_base_render_pipeline()
 
 #ifdef MANGO_DEBUG
 
-static std::string getStringForType(GLenum type)
+static const char* getStringForType(GLenum type)
 {
     switch (type)
     {
@@ -135,7 +135,7 @@ static std::string getStringForType(GLenum type)
     }
 }
 
-static std::string getStringForSource(GLenum source)
+static const char* getStringForSource(GLenum source)
 {
     switch (source)
     {
@@ -157,7 +157,7 @@ static std::string getStringForSource(GLenum source)
     }
 }
 
-static std::string getStringForSeverity(GLenum severity)
+static const char* getStringForSeverity(GLenum severity)
 {
     switch (severity)
     {
@@ -181,9 +181,9 @@ static void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLen
     (void)length;
     (void)userParam;
     std::cout << "\n--------------OpenGL Debug Output--------------" << std::endl;
-    std::cout << "Source: " << getStringForSource(source).c_str() << std::endl;
-    std::cout << "Type: " << getStringForType(type).c_str() << std::endl;
-    std::cout << "Severity: " << getStringForSeverity(severity).c_str() << std::endl;
+    std::cout << "Source: " << getStringForSource(source) << std::endl;
+    std::cout << "Type: " << getStringForType(type) << std::endl;
+    std::cout << "Severity: " << getStringForSeverity(severity) << std::endl;
     std::cout << "Debug call: " << message << std::endl;
     std::cout << "-----------------------------------------------" << std::endl;
 }

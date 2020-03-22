@@ -32,7 +32,9 @@ bool linux_window_system::create()
     uint32 height     = m_window_configuration.get_height();
     const char* title = m_window_configuration.get_title();
 
-    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+    // Hints valid for all windows
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 
     GLFWwindow* window = glfwCreateWindow(width, height, title, NULL, NULL);
     if (!window)
@@ -49,6 +51,7 @@ bool linux_window_system::create()
 
     MANGO_LOG_DEBUG("Window Position is ({0}, {1})", pos_x, pos_y);
     MANGO_LOG_DEBUG("Window Size is {0} x {1}", width, height);
+
     return true;
 }
 
@@ -69,9 +72,13 @@ void linux_window_system::configure(const window_configuration& configuration)
     uint32 height     = m_window_configuration.get_height();
     const char* title = m_window_configuration.get_title();
 
-    glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
-
     GLFWwindow* window = glfwCreateWindow(width, height, title, NULL, NULL);
+    if (!window)
+    {
+        MANGO_LOG_ERROR("glfwCreateWindow failed! No window is created!");
+        return;
+    }
+    m_window_handle = static_cast<void*>(window);
 
     const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
     uint32 pos_x            = mode->width / 2 - width / 2;

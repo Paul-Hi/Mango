@@ -29,17 +29,19 @@ TEST_F(init_test, init_does_not_fail_on_context_creation)
     auto mango_context = m_application->get_context().lock();
     ASSERT_NE(nullptr, mango_context);
     ASSERT_NE(nullptr, mango_context->get_window_system().lock());
+    ASSERT_NE(nullptr, mango_context->get_render_system().lock());
 }
 
-TEST_F(init_test, no_crash_on_public_function_calls)
+TEST_F(init_test, no_crash_on_public_configuration_calls)
 {
     ASSERT_NO_FATAL_FAILURE(m_application = std::make_shared<fake_application>());
     auto mango_context = m_application->get_context().lock();
     auto mango_ws = mango_context->get_window_system().lock();
     mango::window_configuration window_config(100, 100, "Test");
     ASSERT_NO_FATAL_FAILURE(mango_ws->configure(window_config));
-    ASSERT_NO_FATAL_FAILURE(mango_ws->update(0.0f));
-    ASSERT_NO_FATAL_FAILURE(mango_ws->destroy());
+    auto mango_rs = mango_context->get_render_system().lock();
+    mango::render_configuration render_config(mango::render_pipeline::deferred_pbr, true);
+    ASSERT_NO_FATAL_FAILURE(mango_rs->configure(render_config));
 }
 
 //! \endcond

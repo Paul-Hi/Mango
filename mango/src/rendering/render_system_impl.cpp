@@ -20,6 +20,7 @@ bool render_system_impl::create()
 {
     if (m_current_render_system)
         return m_current_render_system->create();
+
     return true;
 }
 
@@ -80,8 +81,8 @@ void render_system_impl::update(float dt)
 
 void render_system_impl::destroy()
 {
-    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->destroy();
+    if (m_current_render_system)
+        m_current_render_system->destroy();
 }
 
 render_pipeline render_system_impl::get_base_render_pipeline()

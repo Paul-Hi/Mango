@@ -4,9 +4,9 @@
 //! \date      2020
 //! \copyright Apache License 2.0
 
+#include "mock_classes.hpp"
 #include <gtest/gtest.h>
 #include <mango/mango.hpp>
-#include "mock_classes.hpp"
 #if defined(WIN32)
 #include <core/win32_window_system.hpp>
 #define platform_window_system_impl mango::win32_window_system
@@ -30,9 +30,9 @@ class window_system_test : public ::testing::Test
     mango::shared_ptr<platform_window_system_impl> m_window_system;
 };
 
-TEST_F(window_system_test, win32_window_system_no_failure_on_function_calls)
+TEST_F(window_system_test, platform_window_system_no_failure_on_function_calls)
 {
-    ASSERT_NO_FATAL_FAILURE(m_window_system = std::make_shared<platform_window_system_impl>());
+    ASSERT_NO_FATAL_FAILURE(m_window_system = std::make_shared<platform_window_system_impl>(std::make_shared<fake_context>()));
     ASSERT_NE(nullptr, m_window_system);
     ASSERT_TRUE(m_window_system->create());
     mango::window_configuration window_config(100, 100, "Test");

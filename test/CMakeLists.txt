@@ -6,6 +6,7 @@ add_executable(AllTests
     test_main.cpp
     init_test.cpp
     window_system_test.cpp
+    render_system_test.cpp
 )
 
 target_include_directories(AllTests

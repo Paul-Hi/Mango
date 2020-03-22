@@ -16,7 +16,7 @@ bool editor::create()
     MANGO_ASSERT(mango_context, "Context is expired!");
 
     window_configuration window_config;
-    window_config.set_width(1920).set_height(1080).set_title("Editor");
+    window_config.set_width(1920).set_height(1080).set_title(get_name());
     shared_ptr<window_system> mango_ws = mango_context->get_window_system().lock();
     MANGO_ASSERT(mango_ws, "Window System is expired!");
     mango_ws->configure(window_config);

@@ -38,6 +38,10 @@ uint32 application::run(uint32 t_argc, char** t_argv)
         shared_ptr<render_system_impl> rs = m_context->get_render_system_internal().lock();
         MANGO_ASSERT(rs, "Render System is expired!");
 
+        // poll events
+        ws->poll_events();
+        should_close = ws->should_close();
+
         // update
         ws->update(0.0f);
         rs->update(0.0f);
@@ -62,9 +66,6 @@ uint32 application::run(uint32 t_argc, char** t_argv)
         // swap buffers
         ws->swap_buffers();
 
-        // poll events
-        ws->poll_events();
-        should_close = ws->should_close();
     }
 
     return 0;

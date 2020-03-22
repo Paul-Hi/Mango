@@ -51,7 +51,7 @@ namespace mango
         //! \brief Destruction function for the context.
         //! \details Destriys various systems like \a window_system.
         //! This function is only callable by mango internally.
-        virtual void destroy();
+        void destroy();
 
       private:
         //! \brief A shared pointer to the current active application.
