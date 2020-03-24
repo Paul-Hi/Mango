@@ -29,7 +29,8 @@ void context_impl::set_application(const shared_ptr<application>& application)
     }
     m_application = application;
     MANGO_LOG_INFO("Setting the application to '{0}'.", m_application->get_name());
-    MANGO_ASSERT(m_application->create(), "Creation of application '{0}' failed!", m_application->get_name());
+    bool success = m_application->create();
+    MANGO_ASSERT(success, "Creation of application '{0}' failed!", m_application->get_name());
 }
 
 weak_ptr<window_system> context_impl::get_window_system()

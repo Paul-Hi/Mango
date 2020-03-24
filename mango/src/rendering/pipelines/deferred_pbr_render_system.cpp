@@ -37,7 +37,7 @@ bool deferred_pbr_render_system::create()
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(debugCallback, 0);
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
-    // glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, NULL, GL_FALSE);
+    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, NULL, GL_FALSE);
     // glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, 0, GL_DEBUG_SEVERITY_NOTIFICATION, -1, "Test Message GLDebug!");
 #endif // MANGO_DEBUG
 
@@ -60,25 +60,112 @@ void deferred_pbr_render_system::submit(const render_command& command)
     m_command_queue.push(command);
 }
 
-void deferred_pbr_render_system::finish_frame() {}
+void deferred_pbr_render_system::finish_frame()
+{
+    // TODO Paul: Add all the deferred pipeline steps to the command queue.
+    // It should look like this in a first version:
+    // Before -> The queue is filled with some simple scene.
+    // m_command_queue = { clear, shader_bind, vao_bind, draw}
+    // Now -> We add input and output from the pipeline.
+    // m_command_queue = { out_framebuffer_bind(gbuffer),
+    //                     clear, shader_bind, vao_bind, draw,
+    //                     out_framebuffer_bind(backbuffer),
+    //                     in_framebuffer_textures_bind(gbuffer),
+    //                     shader_bind(copy_shader), draw }
+    // This queue now has a geometry pass and a lighting pass IS a deferred pipeline.
+    // Left to think about: What to do, if custom geometry shaders do not have all the gbuffer outputs?
+    // Left to insert: Check, if there is a custom shader, if not add standard or material specific geometry shaders.
+}
 
 void deferred_pbr_render_system::render()
 {
-    // TODO Paul: This handling should not be done in an if-else. This function has to be done before continuing other work!
+    // TODO Paul: This handling should not be done in an if-else.
     for (; !m_command_queue.empty(); m_command_queue.pop())
     {
         render_command& command = m_command_queue.front();
-        if (command.type == render_command_type::draw_call)
+        switch (command.type)
+        {
+        case vao_binding:
+        {
+            vao_binding_data* data = static_cast<vao_binding_data*>(command.data);
+            glBindVertexArray(data->handle);
+            break;
+        }
+        case shader_program_binding:
+        {
+            shader_program_binding_data* data = static_cast<shader_program_binding_data*>(command.data);
+            glUseProgram(data->handle);
+            // TODO Paul: The shaders binding_data needs to be cached somewhere for the currently used program.
+            break;
+        }
+        case input_binding: // TODO Paul
+        {
+            resource_binding_data* data = static_cast<resource_binding_data*>(command.data);
+            MANGO_UNUSED(data);
+            // TODO Paul: Check with the shaders binding_data.
+            break;
+        }
+        case output_binding: // TODO Paul
+        {
+            resource_binding_data* data = static_cast<resource_binding_data*>(command.data);
+            MANGO_UNUSED(data);
+            // TODO Paul: Check with the shaders binding_data.
+            break;
+        }
+        case uniform_binding: // TODO Paul
+        {
+            uniform_binding_data* data = static_cast<uniform_binding_data*>(command.data);
+            MANGO_UNUSED(data);
+            // TODO Paul: Check with the shaders binding_data.
+            break;
+        }
+        case draw_call:
         {
             draw_call_data* data = static_cast<draw_call_data*>(command.data);
             if (data->state.changed)
                 updateState(data->state);
 
-            if (data->gpu_call == gpu_draw_call::clear_call)
+            if (data->gpu_call == clear_call)
             {
                 glClearColor(m_render_state.color_clear.r, m_render_state.color_clear.g, m_render_state.color_clear.b, m_render_state.color_clear.a);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // TODO Paul: This should be specified in the command as well I guess.
             }
+            else // geometry draw calls
+            {
+                // clang-format off
+                GLenum mode = data->gpu_primitive == triangles      ? GL_TRIANGLES      :
+                              data->gpu_primitive == triangle_strip ? GL_TRIANGLE_STRIP :
+                              data->gpu_primitive == lines          ? GL_LINES          :
+                              data->gpu_primitive == line_strip     ? GL_LINE_STRIP     :
+                              data->gpu_primitive == points         ? GL_POINTS         :
+                                                                      GL_INVALID_ENUM;
+                // clang-format on
+
+                if (mode == GL_INVALID_ENUM)
+                    return; // We don't print warnings and just ignore strange or invalid commands.
+
+                switch (data->gpu_call)
+                {
+                case draw_arrays:
+                    glDrawArrays(mode, 0, data->count);
+                    break;
+                case draw_elements:
+                    glDrawElements(mode, data->count, GL_UNSIGNED_INT, 0); // TODO Paul: Always UNSIGNED_INT?
+                    break;
+                case draw_arrays_instanced:
+                    glDrawArraysInstanced(mode, 0, data->count, data->instances);
+                    break;
+                case draw_elements_instanced:
+                    glDrawElementsInstanced(mode, data->count, GL_UNSIGNED_INT, 0, data->instances); // TODO Paul: Always UNSIGNED_INT?
+                    break;
+                default: // We don't print warnings and just ignore strange or invalid commands.
+                    break;
+                }
+            }
+            break;
+        }
+        default:
+            break;
         }
     }
 }

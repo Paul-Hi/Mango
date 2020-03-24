@@ -15,7 +15,7 @@
 namespace mango
 {
 //! \brief A macro to avoid warnings because of unused variables.
-#define MANGO_UNUSED(var) (void)var
+#define MANGO_UNUSED(var) (void)(var)
 
     //! \brief Type alias for an 8 bit integer.
     using int8 = ::int8_t;

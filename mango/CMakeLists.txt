@@ -60,8 +60,8 @@ target_link_libraries(mango
         spdlog::spdlog
     PRIVATE
         ${OPENGL_LIBRARIES}
-        glfw
         glad
+        glfw
 )
 
 target_compile_definitions(mango
