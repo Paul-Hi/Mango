@@ -48,6 +48,10 @@ namespace mango
         //! \param[in] procedure Mangos loading procedure for opengl.
         void set_gl_loading_procedure(mango_gl_load_proc procedure);
 
+        //! \brief Makes this context the current one.
+        //! \details This should be called before making changes to the \a window_system and \a render_system.
+        void make_current();
+
         //! \brief Destruction function for the context.
         //! \details Destriys various systems like \a window_system.
         //! This function is only callable by mango internally.

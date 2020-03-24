@@ -30,6 +30,7 @@ namespace mango
         virtual void update(float dt) override;
         virtual void destroy() override;
         virtual render_pipeline get_base_render_pipeline() override;
+        virtual void updateState(const render_state& state) override;
     };
 
 } // namespace mango

@@ -37,6 +37,9 @@ namespace mango
         //! \return True if the window_system should close, else false.
         virtual bool should_close() = 0;
 
+        //! \brief Makes the window context of the \a window_system the current one.
+        virtual void make_window_context_current() = 0;
+
       protected:
         //! \brief Mangos internal context for shared usage in all \a window_systems.
         shared_ptr<context_impl> m_shared_context;

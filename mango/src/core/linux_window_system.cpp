@@ -92,7 +92,7 @@ void linux_window_system::configure(const window_configuration& configuration)
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 #endif // MANGO_DEBUG
 
-    glfwMakeContextCurrent(window);                                                                       // TODO Paul: Should this be done here or before creating the gl context.
+    make_window_context_current();
     m_shared_context->set_gl_loading_procedure(reinterpret_cast<mango_gl_load_proc>(glfwGetProcAddress)); // TODO Paul: Should this be done here or before creating the gl context.
 }
 
@@ -110,6 +110,12 @@ bool linux_window_system::should_close()
 {
     MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
     return glfwWindowShouldClose(static_cast<GLFWwindow*>(m_window_handle));
+}
+
+void linux_window_system::make_window_context_current()
+{
+    MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
+    glfwMakeContextCurrent(static_cast<GLFWwindow*>(m_window_handle));
 }
 
 void linux_window_system::destroy()

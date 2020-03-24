@@ -26,6 +26,7 @@ namespace mango
         void poll_events() override;
         bool should_close() override;
         void destroy() override;
+        void make_window_context_current() override;
 
       private:
         //! \brief The \a window_configuration for the \a linux_window_system.

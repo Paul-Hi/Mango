@@ -70,7 +70,7 @@ namespace mango
 
         //! \brief Updates the current \a render_state.
         //! \param[in] state The \a render_state to copy from.
-        void updateState(const render_state& state);
+        virtual void updateState(const render_state& state);
 
       private:
         //! \brief A shared pointer to the currently used internal \a render_system.

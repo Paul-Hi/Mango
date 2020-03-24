@@ -78,6 +78,11 @@ bool context_impl::create()
     return success;
 }
 
+void context_impl::make_current()
+{
+    m_window_system->make_window_context_current();
+}
+
 void context_impl::destroy()
 {
     MANGO_ASSERT(m_render_system, "Render System is invalid!");

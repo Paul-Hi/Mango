@@ -24,6 +24,7 @@ deferred_pbr_render_system::~deferred_pbr_render_system() {}
 
 bool deferred_pbr_render_system::create()
 {
+    m_shared_context->make_current();
     GLADloadproc proc = static_cast<GLADloadproc>(m_shared_context->get_gl_loading_procedure());
     if (!gladLoadGLLoader(proc))
     {
@@ -72,26 +73,11 @@ void deferred_pbr_render_system::render()
             draw_call_data* data = static_cast<draw_call_data*>(command.data);
             if (data->state.changed)
                 updateState(data->state);
-            // state updates
-            if (m_render_state.depth == depth_less)
-                glEnable(GL_DEPTH_TEST);
-            if (m_render_state.depth == depth_off)
-                glDisable(GL_DEPTH_TEST);
-            if (m_render_state.cull == cull_backface)
-                glEnable(GL_CULL_FACE);
-            if (m_render_state.cull == cull_off)
-                glDisable(GL_CULL_FACE);
-            if (m_render_state.wireframe == wireframe_off)
-                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-            if (m_render_state.wireframe == wireframe_on)
-                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-            if (m_render_state.blending == blend_off)
-                glDisable(GL_BLEND);
 
             if (data->gpu_call == gpu_draw_call::clear_call)
             {
                 glClearColor(m_render_state.color_clear.r, m_render_state.color_clear.g, m_render_state.color_clear.b, m_render_state.color_clear.a);
-                glClear(GL_COLOR_BUFFER_BIT);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // TODO Paul: This should be specified in the command as well I guess.
             }
         }
     }
@@ -107,6 +93,49 @@ void deferred_pbr_render_system::destroy() {}
 render_pipeline deferred_pbr_render_system::get_base_render_pipeline()
 {
     return render_pipeline::deferred_pbr;
+}
+
+void deferred_pbr_render_system::updateState(const render_state& state)
+{
+    render_system_impl::updateState(state);
+
+    // depth
+    if (m_render_state.depth == depth_off)
+        glDisable(GL_DEPTH_TEST);
+    if (m_render_state.depth == depth_less)
+    {
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+    }
+
+    // culling
+    if (m_render_state.cull == cull_off)
+        glDisable(GL_CULL_FACE);
+    if (m_render_state.cull == cull_backface)
+    {
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+    }
+    if (m_render_state.cull == cull_frontface)
+    {
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_FRONT);
+    }
+
+    // wireframe
+    if (m_render_state.wireframe == wireframe_off)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    if (m_render_state.wireframe == wireframe_on)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    // blending
+    if (m_render_state.blending == blend_off)
+        glDisable(GL_BLEND);
+    if (m_render_state.blending == blend_src_alpha_and_one_minus_src_aplha)
+    {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
 }
 
 #ifdef MANGO_DEBUG
