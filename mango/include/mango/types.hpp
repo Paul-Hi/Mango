@@ -11,6 +11,7 @@
 #include <memory>
 #include <stdint.h>
 #include <string>
+#include <unordered_map>
 
 namespace mango
 {
@@ -23,6 +24,8 @@ namespace mango
     using int16 = ::int16_t;
     //! \brief Type alias for a 32 bit integer.
     using int32 = ::int32_t;
+    //! \brief Type alias for a 64 bit integer.
+    using int64 = ::int64_t;
 
     //! \brief Type alias for an 8 bit unsigned integer.
     using uint8 = ::uint8_t;
@@ -30,6 +33,8 @@ namespace mango
     using uint16 = ::uint16_t;
     //! \brief Type alias for a 32 bit unsigned integer.
     using uint32 = ::uint32_t;
+    //! \brief Type alias for a 64 bit unsigned integer.
+    using uint64 = ::uint64_t;
 
     //! \brief Type alias for a std::string.
     using string = std::string;
@@ -57,6 +62,24 @@ namespace mango
 
     //! \brief The pointer to the procedure address loading function type for opengl.
     typedef void* (*mango_gl_load_proc)(const char*);
+
+    //! \brief The type of the resource used in a shader program by the gpu.
+    enum gpu_resource_type
+    {
+        gpu_float,                //!< The representation of a float on the gpu.
+        gpu_vec2,                 //!< The representation of a float vec2 on the gpu.
+        gpu_vec3,                 //!< The representation of a float vec3 on the gpu.
+        gpu_vec4,                 //!< The representation of a float vec4 on the gpu.
+        gpu_int,                  //!< The representation of a int on the gpu.
+        gpu_ivec2,                //!< The representation of a int vec2 on the gpu.
+        gpu_ivec3,                //!< The representation of a int vec3 on the gpu.
+        gpu_ivec4,                //!< The representation of a int vec4 on the gpu.
+        gpu_mat3,                 //!< The representation of a float mat3 on the gpu.
+        gpu_mat4,                 //!< The representation of a float mat4 on the gpu.
+        gpu_sampler_texture_2d,   //!< A texture sampler with two dimensions.
+        gpu_sampler_texture_cube, //!< A cube texture sampler with six faces and two dimensions each.
+        gpu_framebuffer           //!< A framebuffer resource which can be used e.g. as an output.
+    };
 
 } // namespace mango
 

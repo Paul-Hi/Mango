@@ -5,14 +5,15 @@
 //! \copyright Apache License 2.0
 
 #include <core/context_impl.hpp>
-#include <mango/application.hpp>
-#include <mango/assert.hpp>
 #if defined(WIN32)
 #include <core/win32_window_system.hpp>
 #elif defined(LINUX)
 #include <core/linux_window_system.hpp>
 #endif
+#include <mango/application.hpp>
+#include <mango/assert.hpp>
 #include <rendering/render_system_impl.hpp>
+#include <resources/shader_system.hpp>
 
 using namespace mango;
 
@@ -53,6 +54,11 @@ weak_ptr<render_system_impl> context_impl::get_render_system_internal()
     return m_render_system;
 }
 
+weak_ptr<shader_system> context_impl::get_shader_system_internal()
+{
+    return m_shader_system;
+}
+
 const mango_gl_load_proc& context_impl::get_gl_loading_procedure()
 {
     return m_procedure;
@@ -76,6 +82,9 @@ bool context_impl::create()
     m_render_system = std::make_shared<render_system_impl>(shared_from_this());
     success         = success && m_render_system->create();
 
+    m_shader_system = std::make_shared<shader_system>(shared_from_this());
+    success         = success && m_shader_system->create();
+
     return success;
 }
 
@@ -86,6 +95,8 @@ void context_impl::make_current()
 
 void context_impl::destroy()
 {
+    MANGO_ASSERT(m_shader_system, "Shader System is invalid!");
+    m_shader_system->destroy();
     MANGO_ASSERT(m_render_system, "Render System is invalid!");
     m_render_system->destroy();
     MANGO_ASSERT(m_window_system, "Window System is invalid!");

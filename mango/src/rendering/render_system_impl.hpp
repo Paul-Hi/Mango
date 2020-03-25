@@ -10,7 +10,7 @@
 #include <core/context_impl.hpp>
 #include <mango/render_system.hpp>
 #include <queue>
-#include <rendering/render_data.hpp>
+#include <rendering/render_structures.hpp>
 
 namespace mango
 {

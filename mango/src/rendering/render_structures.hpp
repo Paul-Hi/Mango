@@ -1,11 +1,11 @@
-//! \file      render_data.hpp
+//! \file      render_structures.hpp
 //! \author    Paul Himmler
 //! \version   1.0
 //! \date      2020
 //! \copyright Apache License 2.0
 
-#ifndef MANGO_RENDER_DATA_HPP
-#define MANGO_RENDER_DATA_HPP
+#ifndef MANGO_RENDER_STRUCTURES_HPP
+#define MANGO_RENDER_STRUCTURES_HPP
 
 #include <mango/types.hpp>
 
@@ -47,29 +47,11 @@ namespace mango
         uint32 handle; //!< The handle of the vertex array object that should be bound.
     };
 
-    //! \brief The type of the resource used in a shader program by the gpu.
-    enum gpu_resource_type
-    {
-        gpu_float,                //!< The representation of a float on the gpu.
-        gpu_vec2,                 //!< The representation of a float vec2 on the gpu.
-        gpu_vec3,                 //!< The representation of a float vec3 on the gpu.
-        gpu_vec4,                 //!< The representation of a float vec4 on the gpu.
-        gpu_int,                  //!< The representation of a int on the gpu.
-        gpu_ivec2,                //!< The representation of a int vec2 on the gpu.
-        gpu_ivec3,                //!< The representation of a int vec3 on the gpu.
-        gpu_ivec4,                //!< The representation of a int vec4 on the gpu.
-        gpu_mat3,                 //!< The representation of a float mat3 on the gpu.
-        gpu_mat4,                 //!< The representation of a float mat4 on the gpu.
-        gpu_sampler_texture_2d,   //!< A texture sampler with two dimensions.
-        gpu_sampler_texture_cube, //!< A cube texture sampler with six faces and two dimensions each.
-        gpu_framebuffer           //!< A framebuffer resource which can be used e.g. as an output.
-    };
-
     //! \brief The data for a \a render_command of \a render_command_type::shader_program_binding
     struct shader_program_binding_data
     {
-        uint32 handle; //!< The handle of the shader progran that should be used.
-        //! \brief The data to check provided inputs against.
+        uint32 handle; //!< The handle of the shader program that should be used.
+        //! \brief The data to check provided inputs and outputs against.
         //! \details This maps names to a pair of \a gpu_resource_types and binding locations.
         //! This should be set for every sampler and uniform input in the shader.
         std::unordered_map<const char*, std::pair<gpu_resource_type, uint32>> binding_data;
@@ -190,4 +172,4 @@ namespace mango
     };
 } // namespace mango
 
-#endif // #define MANGO_RENDER_DATA_HPP
+#endif // #define MANGO_RENDER_STRUCTURES_HPP

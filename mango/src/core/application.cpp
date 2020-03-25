@@ -9,10 +9,11 @@
 #include <mango/application.hpp>
 #include <mango/assert.hpp>
 #include <rendering/render_system_impl.hpp>
+#include <resources/shader_system.hpp>
 
 using namespace mango;
 
-static void hello_rectangle(uint32& vao, uint32& shader_program);
+static void hello_rectangle(uint32& vao);
 
 application::application()
 {
@@ -35,19 +36,23 @@ uint32 application::run(uint32 t_argc, char** t_argv)
 
     // hello_rectangle
     uint32 vao;
-    uint32 shader_program;
-    hello_rectangle(vao, shader_program);
+    hello_rectangle(vao);
 
+    shader_configuration shaders[2]     = { { "res/shader/v_hello_rectangle.glsl", vertex_shader }, { "res/shader/f_hello_rectangle.glsl", fragment_shader } };
+    shader_program_configuration config = { 2, &shaders[0] };
+
+    shared_ptr<shader_system> shs = m_context->get_shader_system_internal().lock();
+    MANGO_ASSERT(shs, "Shader System is expired!");
+
+    shader_program_binding_data shader_structures;
+    shader_structures.handle = shs->get_shader_program(config);
     vao_binding_data vao_data;
     vao_data.handle = vao;
-    shader_program_binding_data shader_data;
-    shader_data.handle = shader_program;
 
     render_command vao_bind_command    = { vao_binding, &vao_data };
-    render_command shader_bind_command = { shader_program_binding, &shader_data };
+    render_command shader_bind_command = { shader_program_binding, &shader_structures };
     render_state state;
-    state.changed   = true;
-    state.wireframe = wireframe_on;
+    state.changed   = false;
     draw_call_data rectangle_draw_data;
     rectangle_draw_data.gpu_call          = draw_elements;
     rectangle_draw_data.state             = state;
@@ -105,57 +110,8 @@ weak_ptr<context> application::get_context()
 
 #include <glad/glad.h>
 
-static void hello_rectangle(uint32& vao, uint32& shader_program)
+static void hello_rectangle(uint32& vao)
 {
-    const char* vertex_shader_source = "#version 430 core\n"
-                                       "layout (location = 0) in vec3 v_position;\n"
-                                       "void main()\n"
-                                       "{\n"
-                                       "   gl_Position = vec4(v_position, 1.0);\n"
-                                       "}\0";
-
-    const char* fragment_shader_source = "#version 430 core\n"
-                                         "out vec4 frag_color;\n"
-                                         "void main()\n"
-                                         "{\n"
-                                         "   frag_color = vec4(vec3(0.0f), 1.0f);\n"
-                                         "}\n\0";
-
-    uint32 vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
-    glCompileShader(vertex_shader);
-    int32 success;
-    char info_log[512];
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertex_shader, 512, NULL, info_log);
-        MANGO_LOG_ERROR("Compiling vertex shader failed with message {0}!", info_log);
-    }
-
-    uint32 fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
-    glCompileShader(fragment_shader);
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragment_shader, 512, NULL, info_log);
-        MANGO_LOG_ERROR("Compiling fragment shader failed with message {0}!", info_log);
-    }
-
-    shader_program = glCreateProgram();
-    glAttachShader(shader_program, vertex_shader);
-    glAttachShader(shader_program, fragment_shader);
-    glLinkProgram(shader_program);
-    glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
-    if (!success)
-    {
-        glGetProgramInfoLog(shader_program, 512, NULL, info_log);
-        MANGO_LOG_ERROR("Linking shader program failed with message {0}!", info_log);
-    }
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-
     float vertices[] = { 0.5f, -0.5f, 0.0f, 0.5f, 0.5f, 0.0f, -0.5f, -0.5f, 0.0f, -0.5f, 0.5f, 0.0f };
     uint32 indices[] = { 0, 1, 2, 3 };
 
