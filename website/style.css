@@ -1,0 +1,107 @@
+.bg-mango-color {
+    background-color: #FFCC22;
+}
+
+.mango-color {
+    background-color: #FFCC22;
+}
+
+.mango-link {
+    color: black;
+    text-decoration: underline;
+}
+
+.mango-link:focus,
+.mango-link:hover {
+    color: #FFCC22;
+    text-shadow: 1px 1px 5px #00000022;
+}
+
+
+.full-mango-title {
+    color: white;
+    font-size: 42px;
+    text-shadow: 2px 2px 10px #000000FF;
+    display: inline-block;
+}
+
+.short-mango-title {
+    color: white;
+    font-size: 42px;
+    text-shadow: 2px 2px 10px #000000FF;
+    display: none;
+}
+
+
+@media (max-width: 767.98px) {
+    .full-mango-title, .short-mango-title {
+        font-size: 32px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .full-mango-title {
+        font-size: 22px;
+        display: none;
+    }
+    .short-mango-title {
+        font-size: 22px;
+        display: inline-block;
+    }
+}
+
+.navbar-mango .navbar-nav .active .nav-item a,
+.navbar-mango .navbar-nav .nav-item a:focus,
+.navbar-mango .navbar-nav .nav-item a:hover {
+    color: white;
+    text-shadow: 1px 1px 5px #000000AA;
+}
+
+/* bootstrap */
+
+body {
+    font-family: cursive;
+    background-color: #FFF8E1;
+    margin-bottom: 9rem;
+}
+
+footer {
+    height: 9rem;
+    z-index: -1 !important;
+}
+
+.navbar {
+    margin-bottom: 0;
+    border-radius: 0;
+    border: 0;
+}
+
+.navbar-brand {
+    min-height: 55px;
+}
+
+.container-fluid {
+    max-width: 1600px;
+}
+
+.footer-hider {
+    background-color: #FFF8E1;
+}
+
+/* font awesome */
+
+i {
+    color: black;
+}
+
+i:hover,
+i:focus {
+    color: white;
+    text-shadow: 1px 1px 5px #000000AA;
+}
+
+.mango-link i:hover,
+.mango-link i:focus {
+    color: #FFCC22;
+    text-shadow: 1px 1px 5px #00000022;
+}
