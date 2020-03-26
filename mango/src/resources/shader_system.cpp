@@ -6,13 +6,16 @@
 
 #include <fstream>
 #include <glad/glad.h>
+#include <mango/assert.hpp>
 #include <mango/log.hpp>
 #include <resources/shader_system.hpp>
+#include <sstream>
 
 using namespace mango;
 
 static const string load_shader_source(const string& path);
 static GLenum map_shader_type(const shader_type& type);
+static gpu_resource_type get_uniform_type(const string& shader_name);
 
 shader_system::shader_system(const shared_ptr<context_impl>& context)
     : m_shared_context(context)
@@ -33,12 +36,12 @@ void shader_system::update(float dt)
 
 void shader_system::destroy() {}
 
-uint32 shader_system::get_shader_program(const shader_program_configuration& configuration)
+const shader_program* shader_system::get_shader_program(const shader_program_configuration& configuration)
 {
     // check if shader_program is cached
     auto it = m_shader_program_cache.find(configuration);
     if (it != m_shader_program_cache.end())
-        return it->second.handle;
+        return &(it->second);
 
     uint32 program_handle = glCreateProgram();
     shader_program program;
@@ -54,12 +57,11 @@ uint32 shader_system::get_shader_program(const shader_program_configuration& con
         if (gl_type == GL_INVALID_ENUM)
         {
             MANGO_LOG_ERROR("Shader type is unknown. Can not create shader program!");
-            return 0;
+            return nullptr;
         }
-        program.binding_data.insert(data->binding_data.begin(), data->binding_data.end());
-        uint32 shader = glCreateShader(gl_type);
+        uint32 shader                 = glCreateShader(gl_type);
         const GLchar* source_c_string = data->source.c_str();
-        glShaderSource(shader, 1,  &source_c_string, 0);
+        glShaderSource(shader, 1, &source_c_string, 0);
         glCompileShader(shader);
         GLint compile_status = 0;
         glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_status);
@@ -74,7 +76,7 @@ uint32 shader_system::get_shader_program(const shader_program_configuration& con
             glDeleteShader(shader);
 
             MANGO_LOG_ERROR("Shader link failure (idx: {0}):\n {1} Can not create shader program!", i, info_log.data());
-            return 0;
+            return nullptr;
         }
 
         glAttachShader(program_handle, shader);
@@ -99,16 +101,22 @@ uint32 shader_system::get_shader_program(const shader_program_configuration& con
             glDeleteShader(shader_handles[i]);
 
         MANGO_LOG_ERROR("Program link failure:\n {0} Can not create shader program!", info_log.data());
-        return 0;
+        return nullptr;
     }
 
     for (uint32 i = 0; i < shader_handle; ++i)
-        glDetachShader(program_handle, shader_handles[i]);
+    {
+        glDeleteShader(shader_handles[i]);
+
+        shader_configuration shader_config = configuration.shader_configs[i];
+        const shader_data* data            = get_shader_data(shader_config);
+        populate_binding_data(program.binding_data, data->source, program_handle);
+    }
 
     m_shader_program_cache.insert({ configuration, program });
 
     it = m_shader_program_cache.find(configuration);
-    return it->second.handle;
+    return &(it->second);
 }
 
 const shader_data* shader_system::get_shader_data(const shader_configuration& configuration)
@@ -128,6 +136,35 @@ const shader_data* shader_system::get_shader_data(const shader_configuration& co
 
     it = m_shader_cache.find(configuration);
     return &(it->second);
+}
+
+void shader_system::populate_binding_data(std::unordered_map<string, std::pair<gpu_resource_type, uint32>>& binding_data, const string& source, uint32 program)
+{
+    // basic uniforms
+    auto next = source.find("uniform");
+    while (next != source.npos)
+    {
+        next += 7;
+        string info = source.substr(next, source.find(";", next) - next);
+        std::istringstream iss(info);
+        std::vector<std::string> parts((std::istream_iterator<std::string>(iss)), std::istream_iterator<std::string>());
+        MANGO_ASSERT(parts.size() >= 2, "Invalid uniform!");
+        gpu_resource_type resource_type = get_uniform_type(parts.at(0));
+        if (resource_type == gpu_unknown)
+        {
+            next = source.find("uniform", next);
+            continue;
+        }
+        int32 location = glGetUniformLocation(program, parts.at(1).c_str());
+        if (location < 0)
+        {
+            next = source.find("uniform", next);
+            continue;
+        }
+        MANGO_LOG_DEBUG("Uniform {0} of type {1} at location {2}.", parts.at(1), parts.at(0), location);
+        binding_data.insert({ parts.at(1), { resource_type, static_cast<uint32>(location) } });
+        next = source.find("uniform", next);
+    }
 }
 
 static const string load_shader_source(const string& path)
@@ -158,4 +195,35 @@ static GLenum map_shader_type(const shader_type& type)
     default:
         return GL_INVALID_ENUM;
     }
+}
+
+static gpu_resource_type get_uniform_type(const string& shader_name)
+{
+    if (shader_name == "float")
+        return gpu_float;
+    if (shader_name == "vec2")
+        return gpu_vec2;
+    if (shader_name == "vec3")
+        return gpu_vec3;
+    if (shader_name == "vec4")
+        return gpu_vec4;
+    if (shader_name == "int")
+        return gpu_int;
+    if (shader_name == "ivec2")
+        return gpu_ivec2;
+    if (shader_name == "ivec3")
+        return gpu_ivec3;
+    if (shader_name == "ivec4")
+        return gpu_ivec4;
+    if (shader_name == "mat3")
+        return gpu_mat3;
+    if (shader_name == "mat4")
+        return gpu_mat4;
+    if (shader_name == "sampler2D")
+        return gpu_sampler_texture_2d;
+    if (shader_name == "samplerCube")
+        return gpu_sampler_texture_cube;
+
+    MANGO_LOG_ERROR("Unknown uniform type: {0}.", shader_name);
+    return gpu_unknown;
 }

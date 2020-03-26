@@ -29,19 +29,25 @@ namespace mango
         virtual void update(float dt) override;
         virtual void destroy() override;
 
-        //! \brief Returns the handle from a \a shader_program specified by \a configuration.
+        //! \brief Returns the pointer to a \a shader_program specified by \a configuration.
         //! \details This checks, if the \a shader_program is already created and cached.
         //! \param[in] configuration The \a shader_program_configuration specifying the \a shader_program to retrieve.
-        //! \return The handle for the \a shader_program.
-        uint32 get_shader_program(const shader_program_configuration& configuration);
+        //! \return The pointer to the \a shader_program.
+        const shader_program* get_shader_program(const shader_program_configuration& configuration);
 
+      private:
         //! \brief Returns pointer to the \a shader_data of a shader specified by \a configuration.
         //! \details This checks, if the \a shader_data is already created and cached.
         //! \param[in] configuration The \a shader_configuration specifying the \a shader_data to retrieve.
         //! \return The pointer to the \a shader_data.
         const shader_data* get_shader_data(const shader_configuration& configuration);
 
-      private:
+        //! \brief Populates the binding data by parsing a certain shader \a source and querying the uniform location in the \a program.
+        //! \param[out] binding_data The binding data to populate.
+        //! \param[in] source The shader source to parse inputs and outputs.
+        //! \param[in] program The program the \a source is bound to. Used for getting the uniform location.
+        void populate_binding_data(std::unordered_map<string, std::pair<gpu_resource_type, uint32>>& binding_data, const string& source, uint32 program);
+
         //! \brief Mangos internal context for shared usage in the \a shader_system.
         shared_ptr<context_impl> m_shared_context;
 

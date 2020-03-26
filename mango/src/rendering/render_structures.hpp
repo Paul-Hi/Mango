@@ -54,7 +54,7 @@ namespace mango
         //! \brief The data to check provided inputs and outputs against.
         //! \details This maps names to a pair of \a gpu_resource_types and binding locations.
         //! This should be set for every sampler and uniform input in the shader.
-        std::unordered_map<const char*, std::pair<gpu_resource_type, uint32>> binding_data;
+        std::unordered_map<string, std::pair<gpu_resource_type, uint32>> binding_data;
     };
 
     //! \brief The data for \a render_commands of \a render_command_type::input_binding or \a render_command_type::output_binding

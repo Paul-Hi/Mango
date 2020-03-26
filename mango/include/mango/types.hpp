@@ -66,6 +66,7 @@ namespace mango
     //! \brief The type of the resource used in a shader program by the gpu.
     enum gpu_resource_type
     {
+        gpu_unknown,              //!< The representation of an unknown type on the gpu.
         gpu_float,                //!< The representation of a float on the gpu.
         gpu_vec2,                 //!< The representation of a float vec2 on the gpu.
         gpu_vec3,                 //!< The representation of a float vec3 on the gpu.

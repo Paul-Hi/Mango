@@ -13,6 +13,8 @@ static void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLen
 
 using namespace mango;
 
+static void setUniform(std::pair<gpu_resource_type, uint32>& binding, void* value);
+
 deferred_pbr_render_system::deferred_pbr_render_system(const shared_ptr<context_impl>& context)
     : render_system_impl(context)
 {
@@ -95,7 +97,7 @@ void deferred_pbr_render_system::render()
         {
             shader_program_binding_data* data = static_cast<shader_program_binding_data*>(command.data);
             glUseProgram(data->handle);
-            // TODO Paul: The shaders binding_data needs to be cached somewhere for the currently used program.
+            m_current_binding_data = &(data->binding_data);
             break;
         }
         case input_binding: // TODO Paul
@@ -112,11 +114,15 @@ void deferred_pbr_render_system::render()
             // TODO Paul: Check with the shaders binding_data.
             break;
         }
-        case uniform_binding: // TODO Paul
+        case uniform_binding:
         {
             uniform_binding_data* data = static_cast<uniform_binding_data*>(command.data);
             MANGO_UNUSED(data);
-            // TODO Paul: Check with the shaders binding_data.
+            auto binding = m_current_binding_data->find(data->binding_name);
+            if (binding != m_current_binding_data->end())
+            {
+                setUniform(binding->second, data->value);
+            }
             break;
         }
         case draw_call:
@@ -222,6 +228,86 @@ void deferred_pbr_render_system::updateState(const render_state& state)
     {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
+}
+
+static void setUniform(std::pair<gpu_resource_type, uint32>& binding, void* value)
+{
+    switch (binding.first)
+    {
+    case gpu_float:
+    {
+        glUniform1f(binding.second, *static_cast<float*>(value));
+        break;
+    }
+    case gpu_vec2:
+    {
+        float* vec2 = static_cast<float*>(value);
+        glUniform2f(binding.second, vec2[0], vec2[1]);
+        break;
+    }
+    case gpu_vec3:
+    {
+        float* vec3 = static_cast<float*>(value);
+        glUniform3f(binding.second, vec3[0], vec3[1], vec3[2]);
+        break;
+    }
+    case gpu_vec4:
+    {
+        float* vec4 = static_cast<float*>(value);
+        glUniform4f(binding.second, vec4[0], vec4[1], vec4[2], vec4[3]);
+        break;
+    }
+
+    case gpu_int:
+    {
+        glUniform1i(binding.second, *static_cast<int*>(value));
+        break;
+    }
+    case gpu_ivec2:
+    {
+        int* vec2 = static_cast<int*>(value);
+        glUniform2i(binding.second, vec2[0], vec2[1]);
+        break;
+    }
+    case gpu_ivec3:
+    {
+        int* vec3 = static_cast<int*>(value);
+        glUniform3i(binding.second, vec3[0], vec3[1], vec3[2]);
+        break;
+    }
+    case gpu_ivec4:
+    {
+        int* vec4 = static_cast<int*>(value);
+        glUniform4i(binding.second, vec4[0], vec4[1], vec4[2], vec4[3]);
+        break;
+    }
+    case gpu_mat3:
+    {
+        float* mat3 = static_cast<float*>(value);
+        glUniformMatrix3fv(binding.second, 1, GL_FALSE, mat3);
+        break;
+    }
+    case gpu_mat4:
+    {
+        float* mat4 = static_cast<float*>(value);
+        glUniformMatrix4fv(binding.second, 1, GL_FALSE, mat4);
+        break;
+    }
+    case gpu_sampler_texture_2d: // TODO Paul: Check if this is correct.
+    {
+        glUniform1i(binding.second, binding.second);
+        glActiveTexture(GL_TEXTURE0 + binding.second);
+        glBindTexture(GL_TEXTURE_2D, *static_cast<uint32*>(value));
+        break;
+    }
+    case gpu_sampler_texture_cube: // TODO Paul: Implement!
+    {
+        break;
+    }
+
+    default:
+        break;
     }
 }
 

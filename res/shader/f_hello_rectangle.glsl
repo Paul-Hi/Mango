@@ -2,12 +2,9 @@
 
 out vec4 frag_color;
 
-in shader_shared
-{
-    vec3 position;
-} fs_in;
+uniform vec3 u_color = vec3(1.0f);
 
 void main()
 {
-    frag_color = vec4(fs_in.position, 1.0f);
+    frag_color = vec4(u_color, 1.0f);
 }

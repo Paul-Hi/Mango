@@ -2,13 +2,9 @@
 
 layout (location = 0) in vec3 v_position;
 
-out shader_shared
-{
-    vec3 position;
-} vs_out;
+uniform mat3 u_rotation_matrix;
 
 void main()
 {
-    vs_out.position = v_position;
-    gl_Position = vec4(v_position, 1.0);
+    gl_Position = vec4(u_rotation_matrix * v_position, 1.0);
 }

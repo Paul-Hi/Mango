@@ -45,20 +45,37 @@ uint32 application::run(uint32 t_argc, char** t_argv)
     MANGO_ASSERT(shs, "Shader System is expired!");
 
     shader_program_binding_data shader_structures;
-    shader_structures.handle = shs->get_shader_program(config);
+    const shader_program* program = shs->get_shader_program(config);
+    MANGO_ASSERT(program, "Shader program not available!");
+    shader_structures.handle       = program->handle;
+    shader_structures.binding_data = program->binding_data;
     vao_binding_data vao_data;
     vao_data.handle = vao;
 
     render_command vao_bind_command    = { vao_binding, &vao_data };
     render_command shader_bind_command = { shader_program_binding, &shader_structures };
     render_state state;
-    state.changed   = false;
+    state.changed = false;
     draw_call_data rectangle_draw_data;
     rectangle_draw_data.gpu_call          = draw_elements;
     rectangle_draw_data.state             = state;
     rectangle_draw_data.count             = 6;
     rectangle_draw_data.gpu_primitive     = triangle_strip;
     render_command rectangle_draw_command = { draw_call, &rectangle_draw_data };
+
+    uniform_binding_data uniform_color;
+    uniform_color.binding_name      = "u_color";
+    float col[3]                   = { 1.0f, 0.0f, 0.0f };
+    uniform_color.value             = (void*)col;
+    render_command uniform_color_command = { uniform_binding, &uniform_color };
+
+    uniform_binding_data uniform_rotation;
+    uniform_rotation.binding_name      = "u_rotation_matrix";
+    float rot[9]                   = { 1.0f, 0.0f, 0.0f,
+                                       0.0f, 1.0f, 0.0f,
+                                       0.0f, 0.0f, 1.0f };
+    uniform_rotation.value             = (void*)rot;
+    render_command uniform_rotation_command = { uniform_binding, &uniform_rotation };
     // hello_rectangle end
 
     // clear command
@@ -69,6 +86,7 @@ uint32 application::run(uint32 t_argc, char** t_argv)
     clear_data.state             = state;
     render_command clear_command = { draw_call, &clear_data };
 
+    float change = 0.0f;
     while (!should_close)
     {
         shared_ptr<window_system_impl> ws = m_context->get_window_system_internal().lock();
@@ -83,6 +101,11 @@ uint32 application::run(uint32 t_argc, char** t_argv)
         // update
         ws->update(0.0f);
         rs->update(0.0f);
+        col[1] = sinf(change) * 0.5f + 0.5f;
+        rot[0] = rot[4] = cosf(change);
+        rot[1] = rot[3] = sinf(change);
+        rot[1] *= -1.0f;
+        change += 0.05f;
 
         // render
         rs->start_frame();
@@ -90,6 +113,8 @@ uint32 application::run(uint32 t_argc, char** t_argv)
         rs->submit(clear_command);
         rs->submit(shader_bind_command);
         rs->submit(vao_bind_command);
+        rs->submit(uniform_color_command);
+        rs->submit(uniform_rotation_command);
         rs->submit(rectangle_draw_command);
 
         rs->finish_frame();

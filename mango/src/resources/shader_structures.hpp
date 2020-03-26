@@ -62,11 +62,6 @@ namespace mango
         //! \details This is stored in here to provide reloading possibilities.
         string path;
         string source; //!< The shader source string.
-        //! \brief A mapping from names to \a gpu_resource_types and binding locations.
-        //! \details This should be set for every sampler and uniform input in the shader.
-        //! It will be used later on to determine valid inputs and outputs and to retrieve the correct location.
-        //! This gets populated by the \a shader_system.
-        std::unordered_map<const char*, std::pair<gpu_resource_type, uint32>> binding_data;
     };
 
     //! \brief The configuration data for shader programs.
@@ -112,10 +107,10 @@ namespace mango
         uint32 handle; //!< The handle of the shader program.
 
         //! \brief A mapping from names to \a gpu_resource_types and binding locations for all shaders in the \a shader_program.
-        //! \details This should be set for every sampler and uniform input in the \a shader_programs shaders.
+        //! \details This should be set for every sampler and uniform input and output in the \a shader_programs shaders.
         //! It will be used later on to determine valid inputs and outputs and to retrieve the correct location.
         //! This gets populated by the \a shader_system.
-        std::unordered_map<const char*, std::pair<gpu_resource_type, uint32>> binding_data;
+        std::unordered_map<string, std::pair<gpu_resource_type, uint32>> binding_data;
     };
 } // namespace mango
 

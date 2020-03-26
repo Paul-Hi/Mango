@@ -72,6 +72,10 @@ namespace mango
         //! \param[in] state The \a render_state to copy from.
         virtual void updateState(const render_state& state);
 
+        //! \brief A pointer to the mapping from names to \a gpu_resource_types and binding locations for all shaders in the current \a shader_program.
+        //! \details This is set by the \a render_system when a \a shader_program is in use.
+        std::unordered_map<string, std::pair<gpu_resource_type, uint32>>* m_current_binding_data;
+
       private:
         //! \brief A shared pointer to the currently used internal \a render_system.
         //! \details This is used to make runtime switching of different \a render_systems possible.
