@@ -37,6 +37,10 @@ namespace mango
         //! \return True if the window_system should close, else false.
         virtual bool should_close() = 0;
 
+        //! \brief Enables or disables vertical synchronization in the \a window_system for the current windpw.
+        //! \param[in] enabled Spezifies if vertical synchronization should be enabled or disabled.
+        virtual void set_vsync(bool enabled) = 0;
+
         //! \brief Makes the window context of the \a window_system the current one.
         virtual void make_window_context_current() = 0;
 

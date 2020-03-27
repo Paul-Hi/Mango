@@ -26,6 +26,7 @@ namespace mango
         void poll_events() override;
         bool should_close() override;
         void destroy() override;
+        void set_vsync(bool enabled) override;
         void make_window_context_current() override;
 
       private:

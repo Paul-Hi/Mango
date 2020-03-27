@@ -21,6 +21,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/hashing.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/shader_structures.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/shader_system.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/geometry_objects.hpp
 
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.hpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.hpp>
@@ -32,6 +33,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/shader_system.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/geometry_objects.cpp
 
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.cpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.cpp>

@@ -95,7 +95,7 @@ namespace mango
 
         //! \brief Retrieves and returns the setting for vertical synchronization of the \a render_configuration.
         //! \return The current configurated vertical synchronization setting.
-        inline bool is_vsync_enabled()
+        inline bool is_vsync_enabled() const
         {
             return m_vsync;
         }

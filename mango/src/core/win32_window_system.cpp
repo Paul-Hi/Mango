@@ -112,6 +112,12 @@ bool win32_window_system::should_close()
     return glfwWindowShouldClose(static_cast<GLFWwindow*>(m_window_handle));
 }
 
+void win32_window_system::set_vsync(bool enabled)
+{
+    make_window_context_current();
+    glfwSwapInterval(enabled ? 1 : 0);
+}
+
 void win32_window_system::make_window_context_current()
 {
     MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");

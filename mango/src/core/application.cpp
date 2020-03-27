@@ -11,9 +11,10 @@
 #include <rendering/render_system_impl.hpp>
 #include <resources/shader_system.hpp>
 
-using namespace mango;
+// test
+#include <resources/geometry_objects.hpp>
 
-static void hello_rectangle(uint32& vao);
+using namespace mango;
 
 application::application()
 {
@@ -35,11 +36,24 @@ uint32 application::run(uint32 t_argc, char** t_argv)
     bool should_close = false;
 
     // hello_rectangle
-    uint32 vao;
-    hello_rectangle(vao);
+    // clang-format off
+    float vertices[] = { 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
+                         0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
+                        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f,
+                        -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f };
+    uint32 indices[] = { 0, 1, 2, 3 };
+
+    buffer_layout layout = buffer_layout::create({ buffer_attribute::create("v_position", gpu_vec3, 3, 3 * sizeof(float), false),
+                                                   buffer_attribute::create("v_color",    gpu_vec3, 3, 3 * sizeof(float), false) });
+    // clang-format on
+
+    buffer_configuration buffers = { vertex_buffer_dynamic, index_buffer_static, vertices, sizeof(vertices), layout, indices, sizeof(indices) };
+    uint32 vao                   = create_vertex_array_object(buffers);
 
     shader_configuration shaders[2]     = { { "res/shader/v_hello_rectangle.glsl", vertex_shader }, { "res/shader/f_hello_rectangle.glsl", fragment_shader } };
     shader_program_configuration config = { 2, &shaders[0] };
+    vao_binding_data vao_data;
+    vao_data.handle = vao;
 
     shared_ptr<shader_system> shs = m_context->get_shader_system_internal().lock();
     MANGO_ASSERT(shs, "Shader System is expired!");
@@ -49,8 +63,6 @@ uint32 application::run(uint32 t_argc, char** t_argv)
     MANGO_ASSERT(program, "Shader program not available!");
     shader_structures.handle       = program->handle;
     shader_structures.binding_data = program->binding_data;
-    vao_binding_data vao_data;
-    vao_data.handle = vao;
 
     render_command vao_bind_command    = { vao_binding, &vao_data };
     render_command shader_bind_command = { shader_program_binding, &shader_structures };
@@ -63,18 +75,10 @@ uint32 application::run(uint32 t_argc, char** t_argv)
     rectangle_draw_data.gpu_primitive     = triangle_strip;
     render_command rectangle_draw_command = { draw_call, &rectangle_draw_data };
 
-    uniform_binding_data uniform_color;
-    uniform_color.binding_name      = "u_color";
-    float col[3]                   = { 1.0f, 0.0f, 0.0f };
-    uniform_color.value             = (void*)col;
-    render_command uniform_color_command = { uniform_binding, &uniform_color };
-
     uniform_binding_data uniform_rotation;
-    uniform_rotation.binding_name      = "u_rotation_matrix";
-    float rot[9]                   = { 1.0f, 0.0f, 0.0f,
-                                       0.0f, 1.0f, 0.0f,
-                                       0.0f, 0.0f, 1.0f };
-    uniform_rotation.value             = (void*)rot;
+    uniform_rotation.binding_name           = "u_rotation_matrix";
+    float rot[9]                            = { 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f };
+    uniform_rotation.value                  = (void*)rot;
     render_command uniform_rotation_command = { uniform_binding, &uniform_rotation };
     // hello_rectangle end
 
@@ -101,7 +105,6 @@ uint32 application::run(uint32 t_argc, char** t_argv)
         // update
         ws->update(0.0f);
         rs->update(0.0f);
-        col[1] = sinf(change) * 0.5f + 0.5f;
         rot[0] = rot[4] = cosf(change);
         rot[1] = rot[3] = sinf(change);
         rot[1] *= -1.0f;
@@ -113,7 +116,6 @@ uint32 application::run(uint32 t_argc, char** t_argv)
         rs->submit(clear_command);
         rs->submit(shader_bind_command);
         rs->submit(vao_bind_command);
-        rs->submit(uniform_color_command);
         rs->submit(uniform_rotation_command);
         rs->submit(rectangle_draw_command);
 
@@ -131,31 +133,4 @@ uint32 application::run(uint32 t_argc, char** t_argv)
 weak_ptr<context> application::get_context()
 {
     return m_context;
-}
-
-#include <glad/glad.h>
-
-static void hello_rectangle(uint32& vao)
-{
-    float vertices[] = { 0.5f, -0.5f, 0.0f, 0.5f, 0.5f, 0.0f, -0.5f, -0.5f, 0.0f, -0.5f, 0.5f, 0.0f };
-    uint32 indices[] = { 0, 1, 2, 3 };
-
-    uint32 vbo, ibo;
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
-    glGenBuffers(1, &ibo);
-
-    glBindVertexArray(vao);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
 }

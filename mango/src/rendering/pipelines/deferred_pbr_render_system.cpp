@@ -6,6 +6,7 @@
 
 #include <glad/glad.h>
 #include <rendering/pipelines/deferred_pbr_render_system.hpp>
+#include <core/window_system_impl.hpp>
 
 #ifdef MANGO_DEBUG
 static void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
@@ -48,7 +49,9 @@ bool deferred_pbr_render_system::create()
 
 void deferred_pbr_render_system::configure(const render_configuration& configuration)
 {
-    MANGO_UNUSED(configuration);
+        auto ws = m_shared_context->get_window_system_internal().lock();
+        MANGO_ASSERT(ws, "Window System is expired!");
+        ws->set_vsync(configuration.is_vsync_enabled());
 }
 
 void deferred_pbr_render_system::start_frame()
