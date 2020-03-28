@@ -66,6 +66,7 @@ Just head into ```\build\debug\bin``` or ```\build\release\bin``` and run the ed
 * GLAD
 * GLFW3
 * spdlog
+* stb_image
 
 * googletest (Testing)
 * Doxygen (Documentation)

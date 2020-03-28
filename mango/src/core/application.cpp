@@ -9,6 +9,7 @@
 #include <mango/application.hpp>
 #include <mango/assert.hpp>
 #include <rendering/render_system_impl.hpp>
+#include <resources/resource_system.hpp>
 #include <resources/shader_system.hpp>
 
 // test
@@ -37,18 +38,31 @@ uint32 application::run(uint32 t_argc, char** t_argv)
 
     // hello_rectangle
     // clang-format off
-    float vertices[] = { 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
-                         0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
-                        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f,
-                        -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f };
+    float vertices[] = { 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+                         0.5f,  0.5f, 0.0f, 1.0f, 1.0f,
+                        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
+                        -0.5f,  0.5f, 0.0f, 0.0f, 1.0f};
     uint32 indices[] = { 0, 1, 2, 3 };
 
     buffer_layout layout = buffer_layout::create({ buffer_attribute::create("v_position", gpu_vec3, 3, 3 * sizeof(float), false),
-                                                   buffer_attribute::create("v_color",    gpu_vec3, 3, 3 * sizeof(float), false) });
+                                                   buffer_attribute::create("v_texcoord",    gpu_vec2, 2, 2 * sizeof(float), false) });
     // clang-format on
 
-    buffer_configuration buffers = { vertex_buffer_dynamic, index_buffer_static, vertices, sizeof(vertices), layout, indices, sizeof(indices) };
+    buffer_configuration buffers = { vertex_buffer_static, index_buffer_static, vertices, sizeof(vertices), layout, indices, sizeof(indices) };
     uint32 vao                   = create_vertex_array_object(buffers);
+
+    texture_configuration crate_config = { "crate", filter_linear_mipmap_linear, filter_linear, wrap_repeat, wrap_repeat, false, true };
+
+    shared_ptr<resource_system> rs = m_context->get_resource_system_internal().lock();
+    MANGO_ASSERT(rs, "Resource System is expired!");
+    const texture* crate_texture = rs->load_texture("res/textures/crate.jpg", crate_config);
+    uint32 crate_handle          = crate_texture->handle;
+
+    resource_binding_data crate_texture_data;
+    crate_texture_data.handle = crate_handle;
+    crate_texture_data.binding_name = "u_color_texture";
+    crate_texture_data.resource_type = gpu_sampler_texture_2d;
+    render_command texture_binding_command = { input_binding, &crate_texture_data };
 
     shader_configuration shaders[2]     = { { "res/shader/v_hello_rectangle.glsl", vertex_shader }, { "res/shader/f_hello_rectangle.glsl", fragment_shader } };
     shader_program_configuration config = { 2, &shaders[0] };
@@ -117,6 +131,7 @@ uint32 application::run(uint32 t_argc, char** t_argv)
         rs->submit(shader_bind_command);
         rs->submit(vao_bind_command);
         rs->submit(uniform_rotation_command);
+        rs->submit(texture_binding_command);
         rs->submit(rectangle_draw_command);
 
         rs->finish_frame();

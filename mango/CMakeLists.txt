@@ -22,6 +22,8 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/shader_structures.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/shader_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/geometry_objects.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/texture_structures.hpp
 
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.hpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.hpp>
@@ -34,6 +36,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/shader_system.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/geometry_objects.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.cpp
 
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.cpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.cpp>
@@ -68,6 +71,7 @@ target_link_libraries(mango
         ${OPENGL_LIBRARIES}
         glad
         glfw
+        stb_image
 )
 
 target_compile_definitions(mango

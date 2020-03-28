@@ -4,9 +4,9 @@
 //! \date      2020
 //! \copyright Apache License 2.0
 
+#include <core/window_system_impl.hpp>
 #include <glad/glad.h>
 #include <rendering/pipelines/deferred_pbr_render_system.hpp>
-#include <core/window_system_impl.hpp>
 
 #ifdef MANGO_DEBUG
 static void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
@@ -49,9 +49,9 @@ bool deferred_pbr_render_system::create()
 
 void deferred_pbr_render_system::configure(const render_configuration& configuration)
 {
-        auto ws = m_shared_context->get_window_system_internal().lock();
-        MANGO_ASSERT(ws, "Window System is expired!");
-        ws->set_vsync(configuration.is_vsync_enabled());
+    auto ws = m_shared_context->get_window_system_internal().lock();
+    MANGO_ASSERT(ws, "Window System is expired!");
+    ws->set_vsync(configuration.is_vsync_enabled());
 }
 
 void deferred_pbr_render_system::start_frame()
@@ -106,8 +106,20 @@ void deferred_pbr_render_system::render()
         case input_binding: // TODO Paul
         {
             resource_binding_data* data = static_cast<resource_binding_data*>(command.data);
-            MANGO_UNUSED(data);
-            // TODO Paul: Check with the shaders binding_data.
+            auto binding                = m_current_binding_data->find(data->binding_name);
+            if (binding != m_current_binding_data->end())
+            {
+                if (data->resource_type == gpu_sampler_texture_2d)
+                {
+                    glUniform1i(binding->second.second, binding->second.second);
+                    glActiveTexture(GL_TEXTURE0 + binding->second.second);
+                    glBindTexture(GL_TEXTURE_2D, data->handle);
+                }
+                else if (data->resource_type == gpu_sampler_texture_cube) // TODO Paul: Implement!
+                {
+                    break;
+                }
+            }
             break;
         }
         case output_binding: // TODO Paul
@@ -120,8 +132,7 @@ void deferred_pbr_render_system::render()
         case uniform_binding:
         {
             uniform_binding_data* data = static_cast<uniform_binding_data*>(command.data);
-            MANGO_UNUSED(data);
-            auto binding = m_current_binding_data->find(data->binding_name);
+            auto binding               = m_current_binding_data->find(data->binding_name);
             if (binding != m_current_binding_data->end())
             {
                 setUniform(binding->second, data->value);
@@ -295,17 +306,6 @@ static void setUniform(std::pair<gpu_resource_type, uint32>& binding, void* valu
     {
         float* mat4 = static_cast<float*>(value);
         glUniformMatrix4fv(binding.second, 1, GL_FALSE, mat4);
-        break;
-    }
-    case gpu_sampler_texture_2d: // TODO Paul: Check if this is correct.
-    {
-        glUniform1i(binding.second, binding.second);
-        glActiveTexture(GL_TEXTURE0 + binding.second);
-        glBindTexture(GL_TEXTURE_2D, *static_cast<uint32*>(value));
-        break;
-    }
-    case gpu_sampler_texture_cube: // TODO Paul: Implement!
-    {
         break;
     }
 

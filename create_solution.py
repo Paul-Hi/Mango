@@ -55,6 +55,30 @@ def getDependencies():
     if result != 0:
         return False
 
+    # stb_image
+    repository ='https://github.com/nothings/stb.git'
+    folder ='stb_image'
+
+    gitCmd = ['git', 'clone', '-n', repository, folder]
+    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+    if result != 0:
+        return False
+
+    os.chdir('stb_image')
+
+    gitCmd = ['git', 'checkout', 'HEAD', 'stb_image.h', 'stb_image_write.h']
+    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+    if result != 0:
+        return False
+
+    os.chdir('..')
+
+    f = open('./stb_image/CMakeLists.txt','w+')
+    f.write('project(stb_image)\r\n')
+    f.write('add_library(stb_image INTERFACE)\r\n')
+    f.write('target_include_directories(stb_image INTERFACE .)\r\n')
+    f.close()
+
     os.chdir('..')
     return True
 

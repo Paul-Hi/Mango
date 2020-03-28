@@ -14,6 +14,7 @@
 #include <mango/assert.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/shader_system.hpp>
+#include <resources/resource_system.hpp>
 
 using namespace mango;
 
@@ -59,6 +60,11 @@ weak_ptr<shader_system> context_impl::get_shader_system_internal()
     return m_shader_system;
 }
 
+weak_ptr<resource_system> context_impl::get_resource_system_internal()
+{
+    return m_resource_system;
+}
+
 const mango_gl_load_proc& context_impl::get_gl_loading_procedure()
 {
     return m_procedure;
@@ -82,6 +88,9 @@ bool context_impl::create()
     m_render_system = std::make_shared<render_system_impl>(shared_from_this());
     success         = success && m_render_system->create();
 
+    m_resource_system = std::make_shared<resource_system>(shared_from_this());
+    success         = success && m_resource_system->create();
+
     m_shader_system = std::make_shared<shader_system>(shared_from_this());
     success         = success && m_shader_system->create();
 
@@ -97,6 +106,8 @@ void context_impl::destroy()
 {
     MANGO_ASSERT(m_shader_system, "Shader System is invalid!");
     m_shader_system->destroy();
+    MANGO_ASSERT(m_resource_system, "Resource System is invalid!");
+    m_resource_system->destroy();
     MANGO_ASSERT(m_render_system, "Render System is invalid!");
     m_render_system->destroy();
     MANGO_ASSERT(m_window_system, "Window System is invalid!");

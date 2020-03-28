@@ -12,3 +12,5 @@ CMakeCache.txt
 build/*
 # Dependencies
 dependencies/*
+# Textures
+res/textures/*

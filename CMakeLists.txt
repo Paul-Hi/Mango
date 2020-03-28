@@ -77,6 +77,9 @@ message(STATUS "Added GLAD.")
 add_subdirectory(dependencies/spdlog)
 message(STATUS "Added spdlog.")
 
+add_subdirectory(dependencies/stb_image)
+message(STATUS "Added stb_image.")
+
 if(MANGO_BUILD_TESTS)
     add_subdirectory(dependencies/googletest)
     message(STATUS "Added googletest.")
