@@ -36,6 +36,8 @@ set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE        "-O4 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
 
+# Add path to glm files for find_package.
+set(CMAKE_PREFIX_PATH "dependencies/glm/cmake/glm/")
 macro(find_package_verbose)
         find_package(${ARGV0})
         message(STATUS "Found ${ARGV0}.")
@@ -79,6 +81,8 @@ message(STATUS "Added spdlog.")
 
 add_subdirectory(dependencies/stb_image)
 message(STATUS "Added stb_image.")
+
+find_package_verbose(glm REQUIRED)
 
 if(MANGO_BUILD_TESTS)
     add_subdirectory(dependencies/googletest)

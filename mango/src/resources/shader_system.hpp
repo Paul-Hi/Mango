@@ -10,6 +10,7 @@
 #include <core/context_impl.hpp>
 #include <mango/system.hpp>
 #include <resources/shader_structures.hpp>
+#include <unordered_map>
 
 namespace mango
 {

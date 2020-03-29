@@ -31,7 +31,14 @@ void resource_system::update(float dt)
     MANGO_UNUSED(dt);
 }
 
-void resource_system::destroy() {}
+void resource_system::destroy()
+{
+    for (auto sp : m_texture_storage)
+    {
+        glDeleteTextures(1, &(sp.second->handle));
+    }
+    m_texture_storage.clear();
+}
 
 const shared_ptr<texture> resource_system::load_texture(const string& path, const texture_configuration& configuration)
 {
@@ -45,7 +52,7 @@ const shared_ptr<texture> resource_system::load_texture(const string& path, cons
     }
 
     texture tex;
-    tex.handle = load_texture_from_file(path, configuration);
+    tex.handle        = load_texture_from_file(path, configuration);
     tex.configuration = configuration;
     m_texture_storage.insert({ handle, std::make_shared<texture>(tex) });
     return m_texture_storage.at(handle);
@@ -107,7 +114,7 @@ static uint32 load_texture_from_file(const string& path, const texture_configura
 
     int width = 0, height = 0, components = 0;
 
-    unsigned char* data = stbi_load(path.c_str(), &width, &height, &components, STBI_rgb);
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &components, STBI_rgb_alpha);
 
     if (!data)
     {
@@ -123,7 +130,7 @@ static uint32 load_texture_from_file(const string& path, const texture_configura
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter_parameter(configuration.texture_min_filter));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter_parameter(configuration.texture_mag_filter));
     uint32 internal_format = 0;
-    uint32 format          = GL_RGB;
+    uint32 format          = GL_RGBA;
 
     if (components == 1)
     {

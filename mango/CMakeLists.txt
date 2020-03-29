@@ -53,6 +53,7 @@ add_library(mango::mango ALIAS mango)
 target_include_directories(mango
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/dependencies/glm
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )

@@ -79,6 +79,15 @@ def getDependencies():
     f.write('target_include_directories(stb_image INTERFACE .)\r\n')
     f.close()
 
+    # glm
+    repository ='https://github.com/g-truc/glm.git'
+    folder ='glm'
+
+    gitCmd = ['git', 'clone', repository, folder]
+    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+    if result != 0:
+        return False
+
     os.chdir('..')
     return True
 

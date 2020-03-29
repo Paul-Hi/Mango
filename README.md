@@ -65,6 +65,7 @@ Just head into ```\build\debug\bin``` or ```\build\release\bin``` and run the ed
 
 * GLAD
 * GLFW3
+* glm
 * spdlog
 * stb_image
 

@@ -34,7 +34,14 @@ void shader_system::update(float dt)
     MANGO_UNUSED(dt);
 }
 
-void shader_system::destroy() {}
+void shader_system::destroy()
+{
+    for (auto sp : m_shader_program_cache)
+    {
+        glDeleteProgram(sp.second->handle);
+    }
+    m_shader_program_cache.clear();
+}
 
 const shared_ptr<shader_program> shader_system::get_shader_program(const shader_program_configuration& configuration)
 {
