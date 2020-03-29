@@ -9,6 +9,7 @@
 
 #include <mango/types.hpp>
 #include <util/hashing.hpp>
+#include <vector>
 
 namespace mango
 {
@@ -56,11 +57,8 @@ namespace mango
     //! Main purpose is to cache the data for specific shaders and to provide hot reloading functionality.
     struct shader_data
     {
-        //! \brief The type of the shader this \a shader_data is responsible for.
-        shader_type type;
-        //! \brief The path to the shader source. Relative to the project folder.
-        //! \details This is stored in here to provide reloading possibilities.
-        string path;
+        //! \brief The configuration of the shader this \a shader_data is responsible for.
+        shader_configuration configuration;
         string source; //!< The shader source string.
     };
 
@@ -104,6 +102,8 @@ namespace mango
     //! \details Needs to be bound before rendering.
     struct shader_program
     {
+        //! \brief The configuration of the this \a shader_program.
+        shader_program_configuration configuration;
         uint32 handle; //!< The handle of the shader program.
 
         //! \brief A mapping from names to \a gpu_resource_types and binding locations for all shaders in the \a shader_program.

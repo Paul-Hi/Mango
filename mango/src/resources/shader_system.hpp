@@ -33,14 +33,14 @@ namespace mango
         //! \details This checks, if the \a shader_program is already created and cached.
         //! \param[in] configuration The \a shader_program_configuration specifying the \a shader_program to retrieve.
         //! \return The pointer to the \a shader_program.
-        const shader_program* get_shader_program(const shader_program_configuration& configuration);
+        const shared_ptr<shader_program> get_shader_program(const shader_program_configuration& configuration);
 
       private:
         //! \brief Returns pointer to the \a shader_data of a shader specified by \a configuration.
         //! \details This checks, if the \a shader_data is already created and cached.
         //! \param[in] configuration The \a shader_configuration specifying the \a shader_data to retrieve.
         //! \return The pointer to the \a shader_data.
-        const shader_data* get_shader_data(const shader_configuration& configuration);
+        const shared_ptr<shader_data> get_shader_data(const shader_configuration& configuration);
 
         //! \brief Populates the binding data by parsing a certain shader \a source and querying the uniform location in the \a program.
         //! \param[out] binding_data The binding data to populate.
@@ -53,11 +53,11 @@ namespace mango
 
         //! \brief The cache for \a shader_data.
         //! \details The key is a shader_configuration which is hashed with fnv1a.
-        std::unordered_map<shader_configuration, shader_data, hash<shader_configuration>> m_shader_cache;
+        std::unordered_map<shader_configuration, shared_ptr<shader_data>, hash<shader_configuration>> m_shader_cache;
 
         //! \brief The cache for \a shader_programs.
         //! \details The key is a shader_program_configuratoion which is hashed with fnv1a.
-        std::unordered_map<shader_program_configuration, shader_program, hash<shader_program_configuration>> m_shader_program_cache;
+        std::unordered_map<shader_program_configuration, shared_ptr<shader_program>, hash<shader_program_configuration>> m_shader_program_cache;
     };
 
 } // namespace mango

@@ -51,11 +51,11 @@ uint32 application::run(uint32 t_argc, char** t_argv)
     buffer_configuration buffers = { vertex_buffer_static, index_buffer_static, vertices, sizeof(vertices), layout, indices, sizeof(indices) };
     uint32 vao                   = create_vertex_array_object(buffers);
 
-    texture_configuration crate_config = { "crate", filter_linear_mipmap_linear, filter_linear, wrap_repeat, wrap_repeat, false, true };
+    texture_configuration crate_config = { "crate", filter_linear, filter_linear, wrap_repeat, wrap_repeat, false, false };
 
     shared_ptr<resource_system> rs = m_context->get_resource_system_internal().lock();
     MANGO_ASSERT(rs, "Resource System is expired!");
-    const texture* crate_texture = rs->load_texture("res/textures/crate.jpg", crate_config);
+    const shared_ptr<texture> crate_texture = rs->load_texture("res/textures/crate.jpg", crate_config);
     uint32 crate_handle          = crate_texture->handle;
 
     resource_binding_data crate_texture_data;
@@ -73,7 +73,7 @@ uint32 application::run(uint32 t_argc, char** t_argv)
     MANGO_ASSERT(shs, "Shader System is expired!");
 
     shader_program_binding_data shader_structures;
-    const shader_program* program = shs->get_shader_program(config);
+    const shared_ptr<shader_program> program = shs->get_shader_program(config);
     MANGO_ASSERT(program, "Shader program not available!");
     shader_structures.handle       = program->handle;
     shader_structures.binding_data = program->binding_data;

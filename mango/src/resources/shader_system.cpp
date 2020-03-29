@@ -36,12 +36,12 @@ void shader_system::update(float dt)
 
 void shader_system::destroy() {}
 
-const shader_program* shader_system::get_shader_program(const shader_program_configuration& configuration)
+const shared_ptr<shader_program> shader_system::get_shader_program(const shader_program_configuration& configuration)
 {
     // check if shader_program is cached
     auto it = m_shader_program_cache.find(configuration);
     if (it != m_shader_program_cache.end())
-        return &(it->second);
+        return it->second;
 
     uint32 program_handle = glCreateProgram();
     shader_program program;
@@ -52,8 +52,8 @@ const shader_program* shader_system::get_shader_program(const shader_program_con
     for (uint32 i = 0; i < configuration.pipeline_steps; ++i)
     {
         shader_configuration shader_config = configuration.shader_configs[i];
-        const shader_data* data            = get_shader_data(shader_config);
-        GLenum gl_type                     = map_shader_type(data->type);
+        const shared_ptr<shader_data> data = get_shader_data(shader_config);
+        GLenum gl_type                     = map_shader_type(data->configuration.type);
         if (gl_type == GL_INVALID_ENUM)
         {
             MANGO_LOG_ERROR("Shader type is unknown. Can not create shader program!");
@@ -109,33 +109,29 @@ const shader_program* shader_system::get_shader_program(const shader_program_con
         glDeleteShader(shader_handles[i]);
 
         shader_configuration shader_config = configuration.shader_configs[i];
-        const shader_data* data            = get_shader_data(shader_config);
+        const shared_ptr<shader_data> data = get_shader_data(shader_config);
         populate_binding_data(program.binding_data, data->source, program_handle);
     }
 
-    m_shader_program_cache.insert({ configuration, program });
+    m_shader_program_cache.insert({ configuration, std::make_shared<shader_program>(program) });
 
-    it = m_shader_program_cache.find(configuration);
-    return &(it->second);
+    return m_shader_program_cache.at(configuration);
 }
 
-const shader_data* shader_system::get_shader_data(const shader_configuration& configuration)
+const shared_ptr<shader_data> shader_system::get_shader_data(const shader_configuration& configuration)
 {
     // check if shader is cached
     auto it = m_shader_cache.find(configuration);
     if (it != m_shader_cache.end())
-        return &(it->second);
+        return it->second;
 
     // load shader source
     shader_data data;
-    // data.binding_data -> fill later
-    data.type   = configuration.type;
-    data.path   = configuration.path;
-    data.source = load_shader_source(data.path);
-    m_shader_cache.insert({ configuration, data });
+    data.configuration = configuration;
+    data.source        = load_shader_source(configuration.path);
+    m_shader_cache.insert({ configuration, std::make_shared<shader_data>(data) });
 
-    it = m_shader_cache.find(configuration);
-    return &(it->second);
+    return m_shader_cache.at(configuration);
 }
 
 void shader_system::populate_binding_data(std::unordered_map<string, std::pair<gpu_resource_type, uint32>>& binding_data, const string& source, uint32 program)

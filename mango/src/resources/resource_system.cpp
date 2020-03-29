@@ -33,32 +33,31 @@ void resource_system::update(float dt)
 
 void resource_system::destroy() {}
 
-const texture* resource_system::load_texture(const string& path, const texture_configuration& configuration)
+const shared_ptr<texture> resource_system::load_texture(const string& path, const texture_configuration& configuration)
 {
-    resource_configuration config = { configuration.name };
+    resource_handle handle = { configuration.name };
     // check if texture is already loaded
-    auto it = m_texture_storage.find(config);
+    auto it = m_texture_storage.find(handle);
     if (it != m_texture_storage.end())
     {
         MANGO_LOG_INFO("Texture '{0}' is already loaded!", configuration.name);
-        return &(it->second);
+        return it->second;
     }
 
     texture tex;
     tex.handle = load_texture_from_file(path, configuration);
-    std::pair<resource_configuration, texture> pair(config, tex);
-    m_texture_storage.insert(pair);
-    it = m_texture_storage.find(config);
-    return &(it->second);
+    tex.configuration = configuration;
+    m_texture_storage.insert({ handle, std::make_shared<texture>(tex) });
+    return m_texture_storage.at(handle);
 }
 
-const texture* resource_system::get_texture(const string& name)
+const shared_ptr<texture> resource_system::get_texture(const string& name)
 {
-    resource_configuration config = { name };
+    resource_handle handle = { name };
     // check if texture is loaded
-    auto it = m_texture_storage.find(config);
+    auto it = m_texture_storage.find(handle);
     if (it != m_texture_storage.end())
-        return &(it->second);
+        return it->second;
 
     MANGO_LOG_ERROR("Texture '{0}' is not loaded!", name);
     return nullptr;

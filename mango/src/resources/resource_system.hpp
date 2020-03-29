@@ -14,14 +14,14 @@
 
 namespace mango
 {
-    //! \brief The minimal configuration of a resource only used for storing the real resources.
+    //! \brief The minimal handle of a resource only used for storing the real resources.
     //! \details This is used so that after creation all resources can recieved only via name.
     //! If we use the real configurations, we would have to specify all the parameters each time we want to get the texture.
-    struct resource_configuration
+    struct resource_handle
     {
         string name; //!< The name used for caching.
 
-        //! \brief Hash function for the \a resource_configuration.
+        //! \brief Hash function for the \a resource_handle.
         //! \return The hash value.
         std::size_t hash_code() const
         {
@@ -31,9 +31,9 @@ namespace mango
         }
 
         //! \brief Comparison operator for \a shader_configurations.
-        //! \param[in] other The \a resource_configuration to compare this to.
+        //! \param[in] other The \a resource_handle to compare this to.
         //! \return True if this and other are equal, else false.
-        bool operator==(const resource_configuration& other) const
+        bool operator==(const resource_handle& other) const
         {
             return name == other.name;
         }
@@ -58,20 +58,20 @@ namespace mango
         //! \param[in] path The path to the texture. Relative to the project folder.
         //! \param[in] configuration The \a texture_configuration of the texture.
         //! \return A pointer to the texture loaded before.
-        const texture* load_texture(const string& path, const texture_configuration& configuration);
+        const shared_ptr<texture> load_texture(const string& path, const texture_configuration& configuration);
 
         //! \brief Retrieves an already loaded texture.
         //! \param[in] name The name of the texture specified in the \a texture_configuration on load.
         //! \return A pointer to the texture specified.
-        const texture* get_texture(const string& name);
+        const shared_ptr<texture> get_texture(const string& name);
 
       private:
         //! \brief Mangos internal context for shared usage in the \a resource_system.
         shared_ptr<context_impl> m_shared_context;
 
         //! \brief The storage for \a textures.
-        //! \details The key is a resource_configuration which is hashed with fnv1a.
-        std::unordered_map<resource_configuration, texture, hash<resource_configuration>> m_texture_storage;
+        //! \details The key is a resource_handle which is hashed with fnv1a.
+        std::unordered_map<resource_handle, shared_ptr<texture>, hash<resource_handle>> m_texture_storage;
     };
 
 } // namespace mango

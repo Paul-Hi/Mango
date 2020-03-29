@@ -43,6 +43,8 @@ namespace mango
     {
         //! \brief The handle of the \a texture.
         uint32 handle;
+        //! \brief The \a texture_configuration of this \a texture.
+        texture_configuration configuration;
     };
 
 } // namespace mango
