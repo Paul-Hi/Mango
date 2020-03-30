@@ -21,6 +21,10 @@ class editor : public mango::application
     {
         return "Mango Editor";
     }
+
+  private:
+  //! \brief Main camera. Testing.
+    mango::entity m_main_camera;
 };
 
 #endif // EDITOR_HPP

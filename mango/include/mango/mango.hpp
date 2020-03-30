@@ -17,9 +17,10 @@ namespace mango
 #include <mango/assert.hpp>
 #include <mango/context.hpp>
 #include <mango/log.hpp>
-#include <mango/system.hpp>
-#include <mango/window_system.hpp>
 #include <mango/render_system.hpp>
+#include <mango/scene.hpp>
+#include <mango/system.hpp>
 #include <mango/types.hpp>
+#include <mango/window_system.hpp>
 
 #endif // MANGO_HPP

@@ -14,6 +14,7 @@ namespace mango
     class application;
     class window_system;
     class render_system;
+    class scene;
 
     //! \brief Context interface.
     //! \details The context holds shared pointers to the various subsystems of mango.
@@ -36,6 +37,21 @@ namespace mango
         //! \details Can be used to configure the \a rendering_pipeline used by mango.
         //! \return A weak pointer to the mango \a render_system.
         virtual weak_ptr<render_system> get_render_system() = 0;
+
+        //! \brief Registers a \a scene to mango.
+        //! \details This is used to inject the internal \a context into the scene.
+        //! \param[in] scene The scene to register.
+        virtual void register_scene(shared_ptr<scene>& scene) = 0;
+
+        //! \brief Makes \a scene the current scene in mango.
+        //! \details By making a scene current the old scene will be destroyed if no reference is hold by the user.
+        //! \param[in] scene The scene to make the current one.
+        virtual void make_scene_current(shared_ptr<scene>& scene) = 0;
+
+        //! \brief Retireves the currently active \a scene from mango.
+        //! \details By making a scene current the old scene will be destroyed if no reference is hold by the user.
+        //! \return The current scene.
+        virtual shared_ptr<scene>& get_current_scene() = 0;
     };
 } // namespace mango
 

@@ -24,6 +24,9 @@ namespace mango
         void set_application(const shared_ptr<application>& application) override;
         weak_ptr<window_system> get_window_system() override;
         weak_ptr<render_system> get_render_system() override;
+        void register_scene(shared_ptr<scene>& scene) override;
+        void make_scene_current(shared_ptr<scene>& scene) override;
+        shared_ptr<scene>& get_current_scene() override;
 
         //! \brief Creation function for the context.
         //! \details Creates and initializes various systems like \a window_system.
@@ -80,6 +83,8 @@ namespace mango
         shared_ptr<shader_system> m_shader_system;
         //! \brief A shared pointer to the \a resource_system of mango.
         shared_ptr<resource_system> m_resource_system;
+        //! \brief A shared pointer to the current \a scene of mango.
+        shared_ptr<scene> m_current_scene;
         //! \brief The gl loading procedure of mango.
         //! \details This is usually set by the \a window_system on creation and can be used in the \a render_system to initialize opengl.
         mango_gl_load_proc m_procedure;

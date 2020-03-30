@@ -8,9 +8,9 @@
 #define MANGO_RENDER_SYSTEM_IMPL_HPP
 
 #include <core/context_impl.hpp>
+#include <mango/render_structures.hpp>
 #include <mango/render_system.hpp>
 #include <queue>
-#include <rendering/render_structures.hpp>
 
 namespace mango
 {

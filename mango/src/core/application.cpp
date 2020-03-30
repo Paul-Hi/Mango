@@ -8,6 +8,7 @@
 #include <core/window_system_impl.hpp>
 #include <mango/application.hpp>
 #include <mango/assert.hpp>
+#include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
 #include <resources/shader_system.hpp>
@@ -61,9 +62,9 @@ uint32 application::run(uint32 t_argc, char** t_argv)
     uint32 logo_handle                     = logo_texture->handle;
 
     resource_binding_data logo_texture_data;
-    logo_texture_data.handle              = logo_handle;
-    logo_texture_data.binding_name        = "u_color_texture";
-    logo_texture_data.resource_type       = gpu_sampler_texture_2d;
+    logo_texture_data.handle               = logo_handle;
+    logo_texture_data.binding_name         = "u_color_texture";
+    logo_texture_data.resource_type        = gpu_sampler_texture_2d;
     render_command texture_binding_command = { input_binding, &logo_texture_data };
 
     shader_configuration shaders[2]     = { { "res/shader/v_hello_rectangle.glsl", vertex_shader }, { "res/shader/f_hello_rectangle.glsl", fragment_shader } };
@@ -83,8 +84,9 @@ uint32 application::run(uint32 t_argc, char** t_argv)
     render_command vao_bind_command    = { vao_binding, &vao_data };
     render_command shader_bind_command = { shader_program_binding, &shader_structures };
     render_state state;
-    state.changed = true;
+    state.changed  = true;
     state.blending = blend_src_alpha_and_one_minus_src_aplha;
+    state.cull = cull_off;
     draw_call_data rectangle_draw_data;
     rectangle_draw_data.gpu_call          = draw_elements;
     rectangle_draw_data.state             = state;
@@ -94,15 +96,9 @@ uint32 application::run(uint32 t_argc, char** t_argv)
 
     uniform_binding_data uniform_model;
     uniform_model.binding_name           = "u_model_matrix";
-    glm::mat4 model                      = glm::scale(glm::mat4(1.0f), glm::vec3(4.0f, 4.0f, 1.0f));
+    glm::mat4 model                      = glm::mat4(1.0f);
     uniform_model.value                  = (void*)&model[0];
     render_command uniform_model_command = { uniform_binding, &uniform_model };
-
-    uniform_binding_data uniform_camera;
-    uniform_camera.binding_name           = "u_view_projection_matrix";
-    glm::mat4 vp                          = glm::ortho(-8.0f, 8.0f, -4.5f, 4.5f);
-    uniform_camera.value                  = (void*)&vp[0];
-    render_command uniform_camera_command = { uniform_binding, &uniform_camera };
     // hello_rectangle end
 
     // clear command
@@ -120,15 +116,18 @@ uint32 application::run(uint32 t_argc, char** t_argv)
         MANGO_ASSERT(ws, "Window System is expired!");
         shared_ptr<render_system_impl> rs = m_context->get_render_system_internal().lock();
         MANGO_ASSERT(rs, "Render System is expired!");
+        shared_ptr<scene> scene = m_context->get_current_scene();
 
         // poll events
         ws->poll_events();
         should_close = ws->should_close();
 
         // update
+        update(0.0f);
         ws->update(0.0f);
         rs->update(0.0f);
-        model = glm::scale(glm::rotate(glm::mat4(1.0f), change, glm::vec3(0.0f, 0.0f, -1.0f)), glm::vec3(4.0f, 4.0f, 1.0f));
+        scene->update(0.0f);
+        //model = glm::scale(glm::rotate(glm::mat4(1.0f), change, glm::vec3(0.0f, 0.0f, -1.0f)), glm::vec3(4.0f, 4.0f, 1.0f));
         change += 0.025f;
 
         // render
@@ -136,9 +135,11 @@ uint32 application::run(uint32 t_argc, char** t_argv)
 
         rs->submit(clear_command);
         rs->submit(shader_bind_command);
+
+        scene->render();
+
         rs->submit(vao_bind_command);
         rs->submit(uniform_model_command);
-        rs->submit(uniform_camera_command);
         rs->submit(texture_binding_command);
         rs->submit(rectangle_draw_command);
 

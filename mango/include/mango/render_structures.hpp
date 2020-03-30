@@ -8,6 +8,7 @@
 #define MANGO_RENDER_STRUCTURES_HPP
 
 #include <mango/types.hpp>
+#include <unordered_map>
 
 namespace mango
 {

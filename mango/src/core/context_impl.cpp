@@ -12,9 +12,10 @@
 #endif
 #include <mango/application.hpp>
 #include <mango/assert.hpp>
+#include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
-#include <resources/shader_system.hpp>
 #include <resources/resource_system.hpp>
+#include <resources/shader_system.hpp>
 
 using namespace mango;
 
@@ -43,6 +44,21 @@ weak_ptr<window_system> context_impl::get_window_system()
 weak_ptr<render_system> context_impl::get_render_system()
 {
     return m_render_system;
+}
+
+void context_impl::register_scene(shared_ptr<scene>& scene)
+{
+    scene->m_shared_context = shared_from_this();
+}
+
+void context_impl::make_scene_current(shared_ptr<scene>& scene)
+{
+    m_current_scene = scene;
+}
+
+shared_ptr<scene>& context_impl::get_current_scene()
+{
+    return m_current_scene;
 }
 
 weak_ptr<window_system_impl> context_impl::get_window_system_internal()
@@ -89,7 +105,7 @@ bool context_impl::create()
     success         = success && m_render_system->create();
 
     m_resource_system = std::make_shared<resource_system>(shared_from_this());
-    success         = success && m_resource_system->create();
+    success           = success && m_resource_system->create();
 
     m_shader_system = std::make_shared<shader_system>(shared_from_this());
     success         = success && m_shader_system->create();

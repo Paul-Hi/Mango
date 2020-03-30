@@ -5,6 +5,7 @@
 //! \copyright Apache License 2.0
 
 #include "editor.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 
 using namespace mango;
 
@@ -27,12 +28,28 @@ bool editor::create()
     MANGO_ASSERT(mango_rs, "Render System is expired!");
     mango_rs->configure(render_config);
 
+    shared_ptr<scene> application_scene = std::make_shared<scene>("test_scene");
+    mango_context->register_scene(application_scene);
+
+    m_main_camera = application_scene->create_default_camera();
+
+    mango_context->make_scene_current(application_scene);
+
     return true;
 }
 
 void editor::update(float dt)
 {
     MANGO_UNUSED(dt);
+    static float test                 = 0.0f;
+    shared_ptr<context> mango_context = get_context().lock();
+    MANGO_ASSERT(mango_context, "Context is expired!");
+    transform_component* camera_transform = mango_context->get_current_scene()->get_transform_component(m_main_camera);
+    if (camera_transform)
+    {
+        camera_transform->local_transformation_matrix = glm::lookAt(glm::vec3(sinf(test) * 10.0f, 0.5f, cosf(test) * 10.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    }
+    test += 0.025f;
 }
 
 void editor::destroy() {}
