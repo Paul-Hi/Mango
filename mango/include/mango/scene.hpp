@@ -10,6 +10,13 @@
 #include <mango/scene_component_manager.hpp>
 #include <mango/scene_types.hpp>
 
+namespace tinygltf
+{
+    struct Model;
+    struct Node;
+    struct Mesh;
+} // namespace tinygltf
+
 namespace mango
 {
     class context_impl;
@@ -76,6 +83,22 @@ namespace mango
         }
 
       private:
+        //! \brief Builds one or more entities that describe an entire model with data loaded by tinygltf.
+        //! \details Internally called by create_entities_from_model(...).
+        //! This also creates the hierarchy incl. \a transform_components and \a node_components.
+        //! \param[in] entities The entity array where all entities are inserted.
+        //! \param[in] m The model loaded by tinygltf.
+        //! \param[in] n The node loaded by tinygltf.
+        //! \return The root node of the function call.
+        entity build_model_node(std::vector<entity>& entities, tinygltf::Model& m, tinygltf::Node& n);
+
+        //! \brief Attaches a \a mesh_component to an \a entity with data loaded by tinygltf.
+        //! \details Internally called by create_entities_from_model(...).
+        //!\param[in] node The entity that the \a mesh_component should be attached to.
+        //!\param[in] m The model loaded by tinygltf.
+        //!\param[in] mesh The mesh loaded by tinygltf.
+        void build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& mesh);
+
         friend class context_impl; // TODO Paul: Better way?
         //! \brief Mangos internal context for shared usage in all \a render_systems.
         shared_ptr<context_impl> m_shared_context;
@@ -84,6 +107,8 @@ namespace mango
         scene_component_manager<node_component> m_nodes;
         //! \brief All \a transform_components.
         scene_component_manager<transform_component> m_transformations;
+        //! \brief All \a mesh_components.
+        scene_component_manager<mesh_component> m_meshes;
         //! \brief All \a camera_components.
         scene_component_manager<camera_component> m_cameras;
     };

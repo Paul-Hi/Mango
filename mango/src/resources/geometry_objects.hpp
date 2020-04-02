@@ -84,6 +84,11 @@ namespace mango
     //! \param[in] configuration The \a buffer_configuration for creating the vertex array object.
     //! \return The handle for the created vertex array object.
     uint32 create_vertex_array_object(const buffer_configuration& configuration);
+
+    //! \brief Creates an empty vertex array object.
+    //! \return The handle for the created vertex array object.
+    uint32 create_empty_vertex_array_object();
+
     //! \brief Updates a vertex array object.
     //! \details This updates ALL gpu buffers of the vertex array object. This may kill performance.
     //! \param[in] vertex_array_object The vertex_array_object to update.

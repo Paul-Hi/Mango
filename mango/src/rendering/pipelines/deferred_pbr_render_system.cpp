@@ -152,14 +152,7 @@ void deferred_pbr_render_system::render()
             }
             else // geometry draw calls
             {
-                // clang-format off
-                GLenum mode = data->gpu_primitive == triangles      ? GL_TRIANGLES      :
-                              data->gpu_primitive == triangle_strip ? GL_TRIANGLE_STRIP :
-                              data->gpu_primitive == lines          ? GL_LINES          :
-                              data->gpu_primitive == line_strip     ? GL_LINE_STRIP     :
-                              data->gpu_primitive == points         ? GL_POINTS         :
-                                                                      GL_INVALID_ENUM;
-                // clang-format on
+                GLenum mode = (uint32)data->gpu_primitive;
 
                 if (mode == GL_INVALID_ENUM)
                     return; // We don't print warnings and just ignore strange or invalid commands.
@@ -170,13 +163,13 @@ void deferred_pbr_render_system::render()
                     glDrawArrays(mode, 0, data->count);
                     break;
                 case draw_elements:
-                    glDrawElements(mode, data->count, GL_UNSIGNED_INT, 0); // TODO Paul: Always UNSIGNED_INT?
+                    glDrawElements(mode, data->count, data->component_type, (char*)NULL + data->byte_offset);
                     break;
                 case draw_arrays_instanced:
                     glDrawArraysInstanced(mode, 0, data->count, data->instances);
                     break;
                 case draw_elements_instanced:
-                    glDrawElementsInstanced(mode, data->count, GL_UNSIGNED_INT, 0, data->instances); // TODO Paul: Always UNSIGNED_INT?
+                    glDrawElementsInstanced(mode, data->count, data->component_type, (char*)NULL + data->byte_offset, data->instances);
                     break;
                 default: // We don't print warnings and just ignore strange or invalid commands.
                     break;

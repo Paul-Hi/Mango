@@ -10,6 +10,7 @@
 #include <core/context_impl.hpp>
 #include <mango/system.hpp>
 #include <resources/texture_structures.hpp>
+#include <resources/model_structures.hpp>
 #include <util/hashing.hpp>
 
 namespace mango
@@ -65,6 +66,17 @@ namespace mango
         //! \return A pointer to the texture specified.
         const shared_ptr<texture> get_texture(const string& name);
 
+        //! \brief Loads a gltf model.
+        //! \param[in] path The path to the model. Relative to the project folder.
+        //! \param[in] configuration The \a model_configuration of the model.
+        //! \return A pointer to the model loaded before.
+        const shared_ptr<model> load_gltf(const string& path, const model_configuration& configuration);
+
+        //! \brief Retrieves an already loaded model.
+        //! \param[in] name The name of the model specified in the \a model_configuration on load.
+        //! \return A pointer to the model specified.
+        const shared_ptr<model> get_gltf_model(const string& name);
+
       private:
         //! \brief Mangos internal context for shared usage in the \a resource_system.
         shared_ptr<context_impl> m_shared_context;
@@ -72,6 +84,10 @@ namespace mango
         //! \brief The storage for \a textures.
         //! \details The key is a resource_handle which is hashed with fnv1a.
         std::unordered_map<resource_handle, shared_ptr<texture>, hash<resource_handle>> m_texture_storage;
+
+        //! \brief The storage for \a textures.
+        //! \details The key is a resource_handle which is hashed with fnv1a.
+        std::unordered_map<resource_handle, shared_ptr<model>, hash<resource_handle>> m_model_storage;
     };
 
 } // namespace mango

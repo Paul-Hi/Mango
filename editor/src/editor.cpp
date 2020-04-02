@@ -33,6 +33,8 @@ bool editor::create()
 
     m_main_camera = application_scene->create_default_camera();
 
+    application_scene->create_entities_from_model("res/models/WaterBottle/WaterBottle.gltf");
+
     mango_context->make_scene_current(application_scene);
 
     return true;
@@ -41,15 +43,6 @@ bool editor::create()
 void editor::update(float dt)
 {
     MANGO_UNUSED(dt);
-    static float test                 = 0.0f;
-    shared_ptr<context> mango_context = get_context().lock();
-    MANGO_ASSERT(mango_context, "Context is expired!");
-    transform_component* camera_transform = mango_context->get_current_scene()->get_transform_component(m_main_camera);
-    if (camera_transform)
-    {
-        camera_transform->local_transformation_matrix = glm::lookAt(glm::vec3(sinf(test) * 10.0f, 0.5f, cosf(test) * 10.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    }
-    test += 0.025f;
 }
 
 void editor::destroy() {}

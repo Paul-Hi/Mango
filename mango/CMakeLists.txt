@@ -27,6 +27,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/geometry_objects.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/texture_structures.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/model_structures.hpp
 
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.hpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.hpp>
@@ -77,6 +78,7 @@ target_link_libraries(mango
         glad
         glfw
         stb_image
+        tiny_gltf
 )
 
 target_compile_definitions(mango

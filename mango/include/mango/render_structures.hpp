@@ -95,11 +95,13 @@ namespace mango
     //! \brief The type specification for primitives used in draw calls.
     enum gpu_primitive_type
     {
-        triangles,      //!< Triangles. Make one triangle every three points.
-        triangle_strip, //!< Triangle strips. Make a new triangle for every new point.
-        lines,          //!< Lines. Make one line every two points.
-        line_strip,     //!< Line strips. Make a new line for every new point.
-        points          //!< Points. A point for every point.
+        points         = 0, //!< Points. A point for every point.
+        lines          = 1, //!< Lines. Make one line every two points.
+        line_loop      = 2, //!< Line loop. A line with connection at the end to the start.
+        line_strip     = 3, //!< Line strips. Make a new line for every new point.
+        triangles      = 4, //!< Triangles. Make one triangle every three points.
+        triangle_strip = 5, //!< Triangle strips. Make a new triangle for every new point.
+        triangle_fan   = 6 //!< Triangle fan. Just strange.
     };
 
     //! \brief This state describes if depth testing should be enabled and if so which depth compare function is used.
@@ -170,6 +172,12 @@ namespace mango
         uint32 count;
         //! \brief The number of instances to render.
         uint32 instances;
+
+        // TODO Paul: These to arguments are not a good solution.
+        //! \brief The component type (optional).
+        uint32 component_type = 0x1405; // GL_UNSIGNED_INT
+        //! \brief The byte offset (optional).
+        uint32 byte_offset = 0;
     };
 } // namespace mango
 

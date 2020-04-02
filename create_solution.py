@@ -88,6 +88,31 @@ def getDependencies():
     if result != 0:
         return False
 
+    # tiny_gltf
+    repository ='https://github.com/syoyo/tinygltf.git'
+    folder ='tiny_gltf'
+
+    gitCmd = ['git', 'clone', '-n', repository, folder]
+    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+    if result != 0:
+        return False
+
+    os.chdir('tiny_gltf')
+
+    gitCmd = ['git', 'checkout', 'HEAD', 'json.hpp', 'tiny_gltf.h']
+    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+    if result != 0:
+        return False
+
+    os.chdir('..')
+
+    f = open('./tiny_gltf/CMakeLists.txt','w+')
+    f.write('project(tiny_gltf)\r\n')
+    f.write('add_library(tiny_gltf INTERFACE)\r\n')
+    f.write('target_include_directories(tiny_gltf INTERFACE .)\r\n')
+    f.close()
+
+
     os.chdir('..')
     return True
 

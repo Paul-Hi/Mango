@@ -7,8 +7,14 @@
 #include <glad/glad.h>
 #include <mango/log.hpp>
 #include <resources/resource_system.hpp>
+#define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
+#define TINYGLTF_NO_INCLUDE_STB_IMAGE
+#define TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE
+#include <tiny_gltf.h>
 
 using namespace mango;
 
@@ -67,6 +73,59 @@ const shared_ptr<texture> resource_system::get_texture(const string& name)
         return it->second;
 
     MANGO_LOG_ERROR("Texture '{0}' is not loaded!", name);
+    return nullptr;
+}
+
+const shared_ptr<model> resource_system::load_gltf(const string& path, const model_configuration& configuration)
+{
+    resource_handle handle = { configuration.name };
+    // check if model is already loaded
+    auto it = m_model_storage.find(handle);
+    if (it != m_model_storage.end())
+    {
+        MANGO_LOG_INFO("Model '{0}' is already loaded!", configuration.name);
+        return it->second;
+    }
+
+    model m;
+    tinygltf::TinyGLTF loader;
+    string err;
+    string warn;
+    bool ret = loader.LoadASCIIFromFile(&m.gltf_model, &err, &warn, path);
+    // bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, path); // for binary glTF(.glb)
+
+    if (!warn.empty())
+    {
+        MANGO_LOG_WARN("Warning on loading gltf file {0}:\n {1}", path, warn);
+    }
+
+    if (!err.empty())
+    {
+        MANGO_LOG_ERROR("Error on loading gltf file {0}:\n {1}", path, err);
+    }
+
+    if (!ret)
+    {
+        MANGO_LOG_ERROR("Failed parsing gltf! Model is not valid!");
+        return nullptr;
+    }
+
+    m.configuration = configuration;
+
+    m_model_storage.insert({ handle, std::make_shared<model>(m) });
+
+    return m_model_storage.at(handle);
+}
+
+const shared_ptr<model> resource_system::get_gltf_model(const string& name)
+{
+    resource_handle handle = { name };
+    // check if model is loaded
+    auto it = m_model_storage.find(handle);
+    if (it != m_model_storage.end())
+        return it->second;
+
+    MANGO_LOG_ERROR("Model '{0}' is not loaded!", name);
     return nullptr;
 }
 

@@ -82,6 +82,9 @@ message(STATUS "Added spdlog.")
 add_subdirectory(dependencies/stb_image)
 message(STATUS "Added stb_image.")
 
+add_subdirectory(dependencies/tiny_gltf)
+message(STATUS "Added tiny_gltf.")
+
 find_package_verbose(glm REQUIRED)
 
 if(MANGO_BUILD_TESTS)

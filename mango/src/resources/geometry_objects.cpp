@@ -42,6 +42,13 @@ buffer_layout buffer_layout::create(const std::initializer_list<buffer_attribute
 
 namespace mango
 {
+    uint32 create_empty_vertex_array_object()
+    {
+        uint32 vao;
+        glGenVertexArrays(1, &vao);
+        return vao;
+    }
+
     uint32 create_vertex_array_object(const buffer_configuration& configuration)
     {
         uint32 vao, vbo, ibo;
@@ -95,6 +102,10 @@ namespace mango
             if (attributes.at(i).attrib_divisor > 0)
                 glVertexAttribDivisor(index, attributes.at(i).attrib_divisor);
         }
+
+        glBindVertexArray(0);
+
+        glDeleteBuffers(1, &vbo);
         return vao;
     }
 

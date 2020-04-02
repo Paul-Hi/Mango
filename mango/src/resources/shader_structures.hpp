@@ -77,7 +77,7 @@ namespace mango
         {
             fnv1a hash;
             hash(&pipeline_steps, sizeof(pipeline_steps));
-            uint32 hash_value = static_cast<std::size_t>(hash);
+            std::size_t hash_value = static_cast<std::size_t>(hash);
             for (uint32 i = 0; i < pipeline_steps; ++i)
                 hash_combine(hash_value, shader_configs[i].hash_code());
 

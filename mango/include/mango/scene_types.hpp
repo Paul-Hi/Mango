@@ -40,6 +40,24 @@ namespace mango
         orthographic_camera //!< Orthographic projection. Usually usefull for 2D scenes or UI.
     };
 
+    //! \brief Component used to describe a primitive draw call. Used by \a mesh_component.
+    struct primitive_component
+    {
+        draw_call_data draw_data; //!< The data.
+        render_command primitive_draw_call; //!< The call.
+    };
+
+    //! \brief Component used for renderable mesh geometry. Used for drawing.
+    struct mesh_component
+    {
+        uint32 vertex_array_object_handle; //!< The vertex array object gpu handle.
+        //! \brief A list of \a primitive_components.
+        std::vector<primitive_component> primitives;
+
+        vao_binding_data mesh_binding_data; //!< The data.
+        render_command mesh_binding_command; //!< The call.
+    };
+
     //! \brief Component used for camera entities.
     struct camera_component
     {
