@@ -8,6 +8,7 @@
 #ifndef MANGO_TYPES_HPP
 #define MANGO_TYPES_HPP
 
+#include <limits>
 #include <memory>
 #include <stdint.h>
 #include <string>
@@ -35,6 +36,9 @@ namespace mango
     //! \brief Type alias for a 64 bit unsigned integer.
     using uint64 = ::uint64_t;
 
+    //! \brief Type alias for a size_t.
+    using ptr_size = ::size_t;
+
     //! \brief Type alias for a std::string.
     using string = std::string;
 
@@ -59,6 +63,15 @@ namespace mango
         return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
     }
 
+    //! \brief  Cast an object that is owned by a unique_ptr to an other object type.
+    //! \param[in]  old  unique_ptr of type \a F to cast from.
+    //! \return A unique_ptr holding the object pointer casted from \a F to \a T.
+    template <typename T, typename F>
+    unique_ptr<T> static_unique_pointer_cast(unique_ptr<F>&& old)
+    {
+        return unique_ptr<T>{ static_cast<T*>(old.release()) };
+    }
+
     //! \brief The pointer to the procedure address loading function type for opengl.
     typedef void* (*mango_gl_load_proc)(const char*);
 
@@ -79,6 +92,76 @@ namespace mango
         gpu_sampler_texture_2d,   //!< A texture sampler with two dimensions.
         gpu_sampler_texture_cube, //!< A cube texture sampler with six faces and two dimensions each.
         gpu_framebuffer           //!< A framebuffer resource which can be used e.g. as an output.
+    };
+
+    //! \cond NO_COND
+
+    template <typename e>
+    struct bit_mask_operations
+    {
+        static const bool enable = false;
+    };
+
+    template <typename e>
+    typename std::enable_if<bit_mask_operations<e>::enable, e>::type operator|(e lhs, e rhs)
+    {
+        typedef typename std::underlying_type<e>::type underlying;
+        return static_cast<e>(static_cast<underlying>(lhs) | static_cast<underlying>(rhs));
+    }
+
+    template <typename e>
+    typename std::enable_if<bit_mask_operations<e>::enable, e>::type operator&(e lhs, e rhs)
+    {
+        typedef typename std::underlying_type<e>::type underlying;
+        return static_cast<e>(static_cast<underlying>(lhs) & static_cast<underlying>(rhs));
+    }
+
+    template <typename e>
+    typename std::enable_if<bit_mask_operations<e>::enable, e>::type operator^(e lhs, e rhs)
+    {
+        typedef typename std::underlying_type<e>::type underlying;
+        return static_cast<e>(static_cast<underlying>(lhs) ^ static_cast<underlying>(rhs));
+    }
+
+    template <typename e>
+    typename std::enable_if<bit_mask_operations<e>::enable, e>::type operator~(e lhs)
+    {
+        typedef typename std::underlying_type<e>::type underlying;
+        return static_cast<e>(~static_cast<underlying>(lhs));
+    }
+
+    template <typename e>
+    typename std::enable_if<bit_mask_operations<e>::enable, e&>::type operator|=(e& lhs, e rhs)
+    {
+        typedef typename std::underlying_type<e>::type underlying;
+        lhs = static_cast<e>(static_cast<underlying>(lhs) | static_cast<underlying>(rhs));
+        return lhs;
+    }
+
+    template <typename e>
+    typename std::enable_if<bit_mask_operations<e>::enable, e&>::type operator&=(e& lhs, e rhs)
+    {
+        typedef typename std::underlying_type<e>::type underlying;
+        lhs = static_cast<e>(static_cast<underlying>(lhs) & static_cast<underlying>(rhs));
+        return lhs;
+    }
+
+    template <typename e>
+    typename std::enable_if<bit_mask_operations<e>::enable, e&>::type operator^=(e& lhs, e rhs)
+    {
+        typedef typename std::underlying_type<e>::type underlying;
+        lhs = static_cast<e>(static_cast<underlying>(lhs) ^ static_cast<underlying>(rhs));
+        return lhs;
+    }
+
+    //! \endcond
+
+//! \brief Macro used to enable safe bitmask operations on enum classes.
+#define MANGO_ENABLE_BITMASK_OPERATIONS(e)    \
+    template <>                              \
+    struct bit_mask_operations<e>            \
+    {                                        \
+        static constexpr bool enable = true; \
     };
 
 } // namespace mango

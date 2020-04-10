@@ -94,5 +94,5 @@ if(MANGO_BUILD_TESTS)
 endif()
 
 add_subdirectory(mango)
-spdlog_enable_warnings(mango)
+#spdlog_enable_warnings(mango)
 add_subdirectory(editor)

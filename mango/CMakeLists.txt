@@ -29,6 +29,21 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/texture_structures.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/model_structures.hpp
 
+    # graphics
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_common.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_state.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/command_buffer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_object.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/vertex_array.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/buffer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/shader.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/shader_program.hpp
+    # graphics impl
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/vertex_array_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/buffer_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/shader_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/shader_program_impl.hpp
+
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.hpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.hpp>
 )
@@ -42,6 +57,19 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/geometry_objects.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene.cpp
+
+    # graphics
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_state.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/command_buffer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/vertex_array.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/buffer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/shader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/shader_program.cpp
+    # graphics impl
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/vertex_array_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/buffer_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/shader_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/shader_program_impl.cpp
 
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.cpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.cpp>

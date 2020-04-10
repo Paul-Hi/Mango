@@ -17,6 +17,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <resources/geometry_objects.hpp>
+// #include <graphics/vertex_array.hpp>
+// #include <graphics/command_buffer.hpp>
+// #include <graphics/buffer.hpp>
+// #include <graphics/shader.hpp>
+// #include <graphics/shader_program.hpp>
 
 using namespace mango;
 
