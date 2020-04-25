@@ -7,6 +7,7 @@
 #include <core/context_impl.hpp>
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <graphics/buffer.hpp>
 #include <graphics/shader.hpp>
 #include <graphics/shader_program.hpp>
@@ -21,7 +22,7 @@ using namespace mango;
 //! \brief All data that is also used as an uniform. Put everything in there that is needed.
 struct scene_uniforms : public uniform_data
 {
-    glm::mat4 model_matrix; //!< The transformation matrix.
+    glm::mat4 model_matrix;    //!< The transformation matrix.
     glm::mat4 view_projection; //!< The cameras view projection matrix.
 };
 
@@ -77,10 +78,10 @@ entity scene::create_default_camera()
     camera_component.z_far                  = 100.0f;
     camera_component.vertical_field_of_view = glm::radians(45.0f);
 
-    transform_component.local_transformation_matrix = glm::lookAt(glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    transform_component.local_transformation_matrix = glm::lookAt(glm::vec3(0.0f, 0.0f, 20.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     transform_component.world_transformation_matrix = transform_component.local_transformation_matrix;
 
-    // const float distance = camera_component.z_far - camera_component.z_near
+    // const float distance = camera_component.z_far - camera_component.z_near;
     camera_component.view_projection =
         glm::perspective(camera_component.vertical_field_of_view, camera_component.aspect, camera_component.z_near, camera_component.z_far) * transform_component.world_transformation_matrix;
     // glm::ortho(-camera_component.aspect * distance, camera_component.aspect * distance, -distance, distance);
@@ -215,7 +216,7 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
     if (n.matrix.size() == 16)
     {
         // matrix
-        transform.local_transformation_matrix = glm::mat4(*(float*)n.matrix.data());
+        transform.local_transformation_matrix = glm::make_mat4(n.matrix.data());
     }
     else
     {
@@ -364,7 +365,7 @@ static void scene_graph_update(scene_component_manager<node_component>& nodes, s
             transform_component* parent_transform = transformations.get_component_for_entity(parent_component.parent_entity);
             if (nullptr != child_transform && nullptr != parent_transform)
             {
-                child_transform->world_transformation_matrix = child_transform->local_transformation_matrix * parent_transform->world_transformation_matrix;
+                child_transform->world_transformation_matrix = parent_transform->world_transformation_matrix * child_transform->local_transformation_matrix;
             }
         },
         false);

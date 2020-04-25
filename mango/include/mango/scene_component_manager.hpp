@@ -163,10 +163,12 @@ namespace mango
         {
             if (backwards)
             {
-                for (uint32 i = size() - 1; i >= 0; --i)
+                for (uint32 i = size() - 1; i > 0; --i)
                 {
                     lambda(m_components.at(i), i);
                 }
+                uint32 z = 0;
+                lambda(m_components.at(z), z);
             }
             else
             {
@@ -207,13 +209,13 @@ namespace mango
         }
 
       private:
-      //! \brief The list of \a components.
+        //! \brief The list of \a components.
         std::array<component, max_entities + 1> m_components;
-      //! \brief The list of \a entities.
+        //! \brief The list of \a entities.
         std::array<entity, max_entities + 1> m_entities;
-      //! \brief The current number of entries. Also the next free index.
+        //! \brief The current number of entries. Also the next free index.
         size_t end;
-      //! \brief A mapping from \a entities to indices.
+        //! \brief A mapping from \a entities to indices.
         std::unordered_map<entity, size_t> m_lookup;
 
         //! \brief Asserts the internal state of the \a scene_component_manager.
