@@ -33,7 +33,12 @@ bool editor::create()
 
     m_main_camera = application_scene->create_default_camera();
 
-    application_scene->create_entities_from_model("res/models/WaterBottle/WaterBottle.gltf");
+    auto entities = application_scene->create_entities_from_model("res/models/WaterBottle/WaterBottle.gltf");
+
+    entity top = entities.at(0);
+
+    auto& trafo = application_scene->get_transform_component(top)->local_transformation_matrix;
+    application_scene->get_transform_component(top)->local_transformation_matrix = glm::scale(trafo, glm::vec3(20.0f));
 
     mango_context->make_scene_current(application_scene);
 

@@ -27,12 +27,6 @@ namespace mango
         std::vector<uniform> listed_data;
     };
 
-    //! \brief Correctly aligned parent structure for unifom data.
-    //! \details The alignment of 64 bytes is mandatory.
-    struct alignas(64) uniform_data
-    {
-    };
-
     //! \brief A program containing compiled and linked shaders.
     class shader_program : public graphics_object
     {
@@ -52,16 +46,16 @@ namespace mango
         static shader_program_ptr create_compute_pipeline(shader_ptr compute_shader);
 
         //! \brief Use the \a shader_program.
-        virtual void use();
+        virtual void use() = 0;
 
         //! \brief Retrieves the binding data for the \a shader_program.
         //! \details For this to work there has to be a consistence in the uniform locations.
         //! \return The \a uniform_binding_data of all \a shaders in the \a shader_program.
-        virtual const uniform_binding_data& get_single_bindings();
+        virtual const uniform_binding_data& get_single_bindings() = 0;
 
       protected:
-        shader_program();
-        ~shader_program();
+        shader_program() = default;
+        ~shader_program() = default;
     };
 } // namespace mango
 

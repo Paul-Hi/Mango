@@ -51,11 +51,11 @@ namespace mango
 
         //! \brief Returns the \a shader_type of the \a shader.
         //! \return Type of the \a shader.
-        virtual shader_type get_type();
+        virtual shader_type get_type() = 0;
 
       protected:
-        shader();
-        ~shader();
+        shader() = default;
+        ~shader() = default;
     };
 } // namespace mango
 

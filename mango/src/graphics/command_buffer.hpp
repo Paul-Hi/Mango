@@ -36,8 +36,11 @@ namespace mango
         //! \return A pointer to the newly created \a command_buffer.
         static command_buffer_ptr create()
         {
-            return command_buffer_ptr();
+            return std::make_shared<command_buffer>();
         };
+
+        command_buffer();
+        ~command_buffer();
 
         //! \brief Executes all commands in the \a command_buffer since the lase call to execute().
         //! \details Does traverse the internal linked list and clears it while doing this.
@@ -111,8 +114,9 @@ namespace mango
         //! \param[in] topology The topology used for drawing the bound vertex data.
         //! \param[in] first The first index to start drawing from.
         //! \param[in] count The number of indices to draw.
+        //! \param[in] type The \a index_type of the values in the index buffer.
         //! \param[in] instance_count The number of instances to draw. For normal drawing pass 1.
-        void draw_elements(primitive_topology topology, uint32 first, uint32 count, uint32 instance_count = 1);
+        void draw_elements(primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count = 1);
 
         //! \brief Enables or disables face culling.
         //! \param[in] enabled True if face culling should be enabled, else false.
@@ -147,7 +151,7 @@ namespace mango
                 MANGO_ASSERT(nullptr != m_last, "Last command is null, while first command is not!");
                 MANGO_ASSERT(nullptr == m_last->m_next, "Last command has a successor!");
                 m_last->m_next = std::move(new_command);
-                m_last         = new_command.get();
+                m_last         = m_last->m_next.get();
             }
             else
             {
@@ -158,17 +162,14 @@ namespace mango
         }
 
       private:
-        command_buffer();
-        ~command_buffer();
-
         //! \brief The internal state to retrieve and cache data.
         graphics_state m_state;
 
         //! \brief A unique_ptr to the first command.
-        unique_ptr<command> m_first = nullptr;
+        unique_ptr<command> m_first;
 
         //! \brief Pointer to the last command.
-        command* m_last = nullptr;
+        command* m_last;
     };
 
 } // namespace mango

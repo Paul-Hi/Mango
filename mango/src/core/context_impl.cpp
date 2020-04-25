@@ -15,7 +15,6 @@
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
-#include <resources/shader_system.hpp>
 
 using namespace mango;
 
@@ -107,9 +106,6 @@ bool context_impl::create()
     m_resource_system = std::make_shared<resource_system>(shared_from_this());
     success           = success && m_resource_system->create();
 
-    m_shader_system = std::make_shared<shader_system>(shared_from_this());
-    success         = success && m_shader_system->create();
-
     return success;
 }
 
@@ -120,8 +116,6 @@ void context_impl::make_current()
 
 void context_impl::destroy()
 {
-    MANGO_ASSERT(m_shader_system, "Shader System is invalid!");
-    m_shader_system->destroy();
     MANGO_ASSERT(m_resource_system, "Resource System is invalid!");
     m_resource_system->destroy();
     MANGO_ASSERT(m_render_system, "Render System is invalid!");

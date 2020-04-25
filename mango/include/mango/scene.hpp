@@ -20,6 +20,7 @@ namespace tinygltf
 namespace mango
 {
     class context_impl;
+    class shader_program;
     //! \brief The \a scene of mango.
     //! \details A collection of entities, components and systems. Responsible for handling content in mango.
     class scene
@@ -111,6 +112,9 @@ namespace mango
         scene_component_manager<mesh_component> m_meshes;
         //! \brief All \a camera_components.
         scene_component_manager<camera_component> m_cameras;
+        //! \brief A pointer to the \a shader_program used for the scene.
+        //! \details This could be moved to the rendering section in the future.
+        shared_ptr<shader_program> m_scene_shader_program;
     };
 
 } // namespace mango

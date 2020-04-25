@@ -37,7 +37,7 @@ namespace mango
         //! \brief The data containing information about uniform bindings.
         uniform_binding_data m_binding_data;
 
-        //! \brief Links the \a shader_program_impl.
+        //! \brief Links the \a shader_program.
         void link_program();
     };
 } // namespace mango

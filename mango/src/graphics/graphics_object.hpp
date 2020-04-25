@@ -18,7 +18,7 @@ namespace mango
       public:
         //! \brief Returns if the \a graphics_configuration is valid.
         //! \return True, if the configuration is valid, else false.
-        virtual bool is_valid() const;
+        virtual bool is_valid() const = 0;
 
       protected:
         graphics_configuration()  = default;
@@ -44,8 +44,8 @@ namespace mango
         }
 
       protected:
-        graphics_object();
-        ~graphics_object();
+        graphics_object() = default;
+        ~graphics_object() = default;
 
         //! \brief The name/handle of the \a graphics_object.
         g_uint m_name;

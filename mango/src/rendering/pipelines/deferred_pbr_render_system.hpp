@@ -23,14 +23,10 @@ namespace mango
 
         virtual bool create() override;
         virtual void configure(const render_configuration& configuration) override;
-        virtual void start_frame() override;
-        virtual void submit(const render_command& command) override;
-        virtual void finish_frame() override;
         virtual void render() override;
         virtual void update(float dt) override;
         virtual void destroy() override;
         virtual render_pipeline get_base_render_pipeline() override;
-        virtual void updateState(const render_state& state) override;
     };
 
 } // namespace mango

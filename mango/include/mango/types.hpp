@@ -75,23 +75,32 @@ namespace mango
     //! \brief The pointer to the procedure address loading function type for opengl.
     typedef void* (*mango_gl_load_proc)(const char*);
 
-    //! \brief The type of the resource used in a shader program by the gpu.
-    enum gpu_resource_type
+    //! \brief Correctly aligned parent structure for unifom data.
+    //! \details The alignment of 64 bytes is mandatory.
+    struct alignas(64) uniform_data
     {
-        gpu_unknown,              //!< The representation of an unknown type on the gpu.
-        gpu_float,                //!< The representation of a float on the gpu.
-        gpu_vec2,                 //!< The representation of a float vec2 on the gpu.
-        gpu_vec3,                 //!< The representation of a float vec3 on the gpu.
-        gpu_vec4,                 //!< The representation of a float vec4 on the gpu.
-        gpu_int,                  //!< The representation of a int on the gpu.
-        gpu_ivec2,                //!< The representation of a int vec2 on the gpu.
-        gpu_ivec3,                //!< The representation of a int vec3 on the gpu.
-        gpu_ivec4,                //!< The representation of a int vec4 on the gpu.
-        gpu_mat3,                 //!< The representation of a float mat3 on the gpu.
-        gpu_mat4,                 //!< The representation of a float mat4 on the gpu.
-        gpu_sampler_texture_2d,   //!< A texture sampler with two dimensions.
-        gpu_sampler_texture_cube, //!< A cube texture sampler with six faces and two dimensions each.
-        gpu_framebuffer           //!< A framebuffer resource which can be used e.g. as an output.
+    };
+
+    //! \brief Describes the topology of primitives used for rendering and interpreting geometry data.
+    //! \details Same as OpenGL.
+    enum class primitive_topology : uint8
+    {
+        POINTS,
+        LINES,
+        LINE_LOOP,
+        LINE_STRIP,
+        TRIANGLES,
+        TRIANGLE_STRIP,
+        TRIANGLE_FAN,
+        QUADS
+    };
+
+    //! \brief The data type in index buffers.
+    enum class index_type : uint32
+    {
+        UBYTE  = 0x1401,
+        USHORT = 0x1403,
+        UINT   = 0x1405
     };
 
     //! \cond NO_COND
@@ -157,7 +166,7 @@ namespace mango
     //! \endcond
 
 //! \brief Macro used to enable safe bitmask operations on enum classes.
-#define MANGO_ENABLE_BITMASK_OPERATIONS(e)    \
+#define MANGO_ENABLE_BITMASK_OPERATIONS(e)   \
     template <>                              \
     struct bit_mask_operations<e>            \
     {                                        \

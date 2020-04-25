@@ -6,11 +6,14 @@
 
 #include <graphics/command_buffer.hpp>
 #include <graphics/shader_program.hpp>
+#include <graphics/vertex_array.hpp>
 
 using namespace mango;
 
 command_buffer::command_buffer()
     : m_state()
+    , m_first(nullptr)
+    , m_last(nullptr)
 {
 }
 
@@ -22,6 +25,7 @@ command_buffer::~command_buffer()
     {
         head = std::move(head->m_next);
     }
+    m_last = nullptr;
 }
 
 void command_buffer::execute()
@@ -37,6 +41,7 @@ void command_buffer::execute()
         head->execute(m_state);
         head = std::move(head->m_next);
     }
+    m_last = nullptr;
 }
 
 void command_buffer::set_viewport(uint32 x, uint32 y, uint32 width, uint32 height)
@@ -149,12 +154,48 @@ void command_buffer::set_polygon_mode(polygon_face face, polygon_mode mode)
 
 void command_buffer::bind_vertex_array(vertex_array_ptr vertex_array)
 {
-    MANGO_UNUSED(vertex_array);
+    class bind_vertex_array_cmd : public command
+    {
+      public:
+      vertex_array_ptr m_vertex_array;
+        bind_vertex_array_cmd(vertex_array_ptr vertex_array)
+            : m_vertex_array(vertex_array)
+        {
+        }
+
+        void execute(graphics_state&) override
+        {
+            glBindVertexArray(m_vertex_array->get_name());
+        }
+    };
+
+    if (m_state.bind_vertex_array(vertex_array))
+    {
+        submit<bind_vertex_array_cmd>(vertex_array);
+    }
 }
 
 void command_buffer::bind_shader_program(shader_program_ptr shader_program)
 {
-    MANGO_UNUSED(shader_program);
+    class bind_shader_program_cmd : public command
+    {
+      public:
+        shader_program_ptr m_shader_program;
+        bind_shader_program_cmd(shader_program_ptr shader_program)
+            : m_shader_program(shader_program)
+        {
+        }
+
+        void execute(graphics_state&) override
+        {
+            m_shader_program->use();
+        }
+    };
+
+    if (m_state.bind_shader_program(shader_program))
+    {
+        submit<bind_shader_program_cmd>(shader_program);
+    }
 }
 
 void command_buffer::bind_single_uniforms(void* uniform_data, g_intptr data_size)
@@ -288,7 +329,7 @@ void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachemen
                 if (m_framebuffer_handle == 0)
                 {
                     const float rgb[4] = { m_r, m_g, m_b, m_a };
-                    glClearNamedFramebufferfv(m_framebuffer_handle, GL_COLOR, GL_DRAW_BUFFER0, rgb);
+                    glClearNamedFramebufferfv(m_framebuffer_handle, GL_COLOR, 0, rgb);
                 }
             }
             if ((m_buffer_mask & clear_buffer_mask::DEPTH_BUFFER) != clear_buffer_mask::NONE)
@@ -332,12 +373,39 @@ void command_buffer::draw_arrays(primitive_topology topology, uint32 first, uint
     MANGO_UNUSED(instance_count);
 }
 
-void command_buffer::draw_elements(primitive_topology topology, uint32 first, uint32 count, uint32 instance_count)
+void command_buffer::draw_elements(primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count)
 {
-    MANGO_UNUSED(topology);
-    MANGO_UNUSED(first);
-    MANGO_UNUSED(count);
-    MANGO_UNUSED(instance_count);
+    class draw_elements_cmd : public command
+    {
+      public:
+        primitive_topology m_topology;
+        uint32 m_first;
+        uint32 m_count;
+        index_type m_type;
+        uint32 m_instance_count;
+        draw_elements_cmd(primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count)
+            : m_topology(topology)
+            , m_first(first)
+            , m_count(count)
+            , m_type(type)
+            , m_instance_count(instance_count)
+        {
+        }
+
+        void execute(graphics_state& state) override
+        {
+            if (m_instance_count > 1)
+            {
+                glDrawElementsInstanced(static_cast<g_enum>(m_topology), m_count, static_cast<g_enum>(m_type), nullptr, m_instance_count);
+            }
+            else
+            {
+                glDrawElements(static_cast<g_enum>(m_topology), m_count, static_cast<g_enum>(m_type), nullptr);
+            }
+        }
+    };
+
+    submit<draw_elements_cmd>(topology, first, count, type, instance_count);
 }
 
 void command_buffer::set_face_culling(bool enabled)

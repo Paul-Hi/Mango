@@ -98,14 +98,6 @@ namespace mango
     //! \brief Type alias for GLchar.
     using g_char = GLchar;
 
-    //! \brief The data type in index buffers.
-    enum class index_type : uint8
-    {
-        UBYTE,
-        USHORT,
-        UINT
-    };
-
     //! \brief All kinds of format values.
     //! \details The values are the same as in OpenGl, but sometimes the usage is extended.
     enum class format : uint32 // OpenGL values
@@ -164,6 +156,11 @@ namespace mango
         RG8UI    = 0x8238,
         RG16UI   = 0x823A,
         RG32UI   = 0x823C,
+        RGB8UI   = 0x8D7D,
+        RGB8I    = 0x8D8F,
+        RGB16F   = 0x881B,
+        RGB16UI  = 0x8D77,
+        RGB16I   = 0x8D89,
         RGB32F   = 0x8815,
         RGB32I   = 0x8D83,
         RGB32UI  = 0x8D71,
@@ -289,6 +286,26 @@ namespace mango
             number_of_components = 2;
             normalized           = true;
             return GL_UNSIGNED_INT;
+        case format::RGB8I:
+            number_of_components = 3;
+            normalized           = true;
+            return GL_BYTE;
+        case format::RGB8UI:
+            number_of_components = 3;
+            normalized           = true;
+            return GL_UNSIGNED_BYTE;
+        case format::RGB16F:
+            number_of_components = 3;
+            normalized           = false;
+            return GL_HALF_FLOAT;
+        case format::RGB16I:
+            number_of_components = 3;
+            normalized           = true;
+            return GL_SHORT;
+        case format::RGB16UI:
+            number_of_components = 3;
+            normalized           = true;
+            return GL_UNSIGNED_SHORT;
         case format::RGB32F:
             number_of_components = 3;
             normalized           = false;
@@ -344,6 +361,100 @@ namespace mango
         default:
             MANGO_ASSERT(false, "Invalid format! Could also be, that I did not think of adding this here!");
         }
+    }
+
+    //! \brief Creates an attribute type from component type and count.
+    //! \param[in] f The format for each component.
+    //! \param[in] number_of_components The number of components.
+    //! \return The attribute format fitting.
+    inline format get_attribute_format(const format& f, g_int number_of_components)
+    {
+        switch (f)
+        {
+        case format::BYTE:
+            if (number_of_components == 1)
+                return format::R8I;
+            if (number_of_components == 2)
+                return format::RG8I;
+            if (number_of_components == 3)
+                return format::RGB8I;
+            if (number_of_components == 4)
+                return format::RGBA8I;
+            break;
+        case format::UNSIGNED_BYTE:
+            if (number_of_components == 1)
+                return format::R8UI;
+            if (number_of_components == 2)
+                return format::RG8UI;
+            if (number_of_components == 3)
+                return format::RGB8UI;
+            if (number_of_components == 4)
+                return format::RGBA8UI;
+            break;
+        case format::SHORT:
+            if (number_of_components == 1)
+                return format::R16I;
+            if (number_of_components == 2)
+                return format::RG16I;
+            if (number_of_components == 3)
+                return format::RGB16I;
+            if (number_of_components == 4)
+                return format::RGBA16I;
+            break;
+        case format::UNSIGNED_SHORT:
+            if (number_of_components == 1)
+                return format::R16UI;
+            if (number_of_components == 2)
+                return format::RG16UI;
+            if (number_of_components == 3)
+                return format::RGB16UI;
+            if (number_of_components == 4)
+                return format::RGBA16UI;
+            break;
+        case format::INT:
+            if (number_of_components == 1)
+                return format::R32I;
+            if (number_of_components == 2)
+                return format::RG32I;
+            if (number_of_components == 3)
+                return format::RGB32I;
+            if (number_of_components == 4)
+                return format::RGBA32I;
+            break;
+        case format::UNSIGNED_INT:
+            if (number_of_components == 1)
+                return format::R32UI;
+            if (number_of_components == 2)
+                return format::RG32UI;
+            if (number_of_components == 3)
+                return format::RGB32UI;
+            if (number_of_components == 4)
+                return format::RGBA32UI;
+            break;
+        case format::HALF_FLOAT:
+            if (number_of_components == 1)
+                return format::R16F;
+            if (number_of_components == 2)
+                return format::RG16F;
+            if (number_of_components == 3)
+                return format::RGB16F;
+            if (number_of_components == 4)
+                return format::RGBA16F;
+            break;
+        case format::FLOAT:
+            if (number_of_components == 1)
+                return format::R32F;
+            if (number_of_components == 2)
+                return format::RG32F;
+            if (number_of_components == 3)
+                return format::RGB32F;
+            if (number_of_components == 4)
+                return format::RGBA32F;
+            break;
+        default:
+            MANGO_ASSERT(false, "Invalid format! Could also be, that I did not think of adding this here!");
+        }
+        MANGO_ASSERT(false, "Invalid count! Could also be, that I did not think of adding this here!");
     }
 
     //! \brief Retrieves the number of machine units, or size in bytes for a format.
@@ -628,19 +739,6 @@ namespace mango
         ALL                          = ALL_DRAW_BUFFERS | DEPTH_STENCIL_BUFFER,
     };
     MANGO_ENABLE_BITMASK_OPERATIONS(attachement_mask)
-
-    //! \brief Describes the topology of primitives used for rendering and interpreting geometry data.
-    enum class primitive_topology : uint8
-    {
-        POINTS,
-        LINES,
-        LINE_LOOP,
-        LINE_STRIP,
-        TRIANGLES,
-        TRIANGLE_STRIP,
-        TRIANGLE_FAN,
-        QUADS
-    };
 
     //! \brief The targets buffer can be bound to.
     enum class buffer_target : uint8

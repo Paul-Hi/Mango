@@ -58,7 +58,7 @@ namespace mango
 
         //! \brief Returns the size of the \a buffer in bytes.
         //! \return Size of the \a buffer in bytes.
-        virtual ptr_size byte_length();
+        virtual ptr_size byte_length() = 0;
 
         //! \brief Sets the data of the \a buffer.
         //! \details On creation the flag \a buffer_access::DYNAMIC_STORAGE has to be specified.
@@ -72,15 +72,15 @@ namespace mango
         //! \param[in] type The type of the data. Has to be \a \a UNSIGNED_BYTE, \a BYTE, \a UNSIGNED_SHORT, \a SHORT, \a UNSIGNED_INT, \a INT, \a FLOAT, \a UNSIGNED_BYTE_3_3_2,
         //! \a UNSIGNED_BYTE_2_3_3_REV, \a UNSIGNED_SHORT_5_6_5, \a UNSIGNED_SHORT_5_6_5_REV, \a UNSIGNED_SHORT_4_4_4_4, \a UNSIGNED_SHORT_4_4_4_4_REV, \a UNSIGNED_SHORT_5_5_5_1,
         //! \a UNSIGNED_SHORT_1_5_5_5_REV, \a UNSIGNED_INT_8_8_8_8, \a UNSIGNED_INT_8_8_8_8_REV, \a UNSIGNED_INT_10_10_10_2 or \a UNSIGNED_INT_2_10_10_10_REV.
-        //! \param[in] data The data to set the memory specified before to.
-        virtual void set_data(format internal_format, g_intptr offset, g_sizeiptr size, format pixel_format, format type, const void* data);
+        //! \param[in] data The data to set the memory specified before to. ATTENTION: This is only one value, that gets replicated.
+        virtual void set_data(format internal_format, g_intptr offset, g_sizeiptr size, format pixel_format, format type, const void* data) = 0;
 
         //! \brief Binds the \a buffer to a specific target.
         //! \param[in] target The \a buffer_target to bind the \a buffer to.
         //! \param[in] index The buffer index to bind the \a buffer to.
         //! \param[in] offset The offset in the \a buffer to start the binding from.
         //! \param[in] size The size to bind. Leave empty if the \a buffer should be bound from offset to end.
-        virtual void bind(buffer_target target, g_uint index, g_intptr offset = 0, g_sizeiptr size = MAX_G_SIZE_PTR_SIZE);
+        virtual void bind(buffer_target target, g_uint index, g_intptr offset = 0, g_sizeiptr size = MAX_G_SIZE_PTR_SIZE) = 0;
 
         //! \brief Maps part of the \a buffer and returns it.
         //! \details On creation a flag with \a buffer_access::MAPPED_ACCESS_* has to be specified.
@@ -89,10 +89,10 @@ namespace mango
         //! \param[in] length The length to map.
         //! \param[in] access The \a buffer_access- This has to be the same as specified on creation.
         //! \return A mapping of the specified \a buffer part. Is persistent.
-        virtual void* map(g_intptr offset, g_sizeiptr length, buffer_access access);
+        virtual void* map(g_intptr offset, g_sizeiptr length, buffer_access access) = 0;
 
         //! \brief Unmaps the \a buffer. Not used at the moment, because we map persistent.
-        virtual void unmap();
+        virtual void unmap() = 0;
 
       protected:
         buffer()  = default;

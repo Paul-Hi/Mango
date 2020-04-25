@@ -28,7 +28,8 @@ shader_impl::shader_impl(const shader_configuration& configuration)
 
     m_name                        = glCreateShader(shader_type_to_gl(m_type));
     const g_char* source_c_string = source_string.c_str();
-    glShaderSource(m_name, 2, &source_c_string, 0);
+    // MANGO_LOG_DEBUG(source_c_string);
+    glShaderSource(m_name, 1, &source_c_string, 0);
     glCompileShader(m_name);
     g_int status = 0;
     glGetShaderiv(m_name, GL_COMPILE_STATUS, &status);

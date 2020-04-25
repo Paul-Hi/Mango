@@ -12,6 +12,7 @@ using namespace mango;
 render_system_impl::render_system_impl(const shared_ptr<context_impl>& context)
     : m_shared_context(context)
 {
+    m_command_buffer = command_buffer::create();
 }
 
 render_system_impl::~render_system_impl() {}
@@ -38,6 +39,7 @@ void render_system_impl::configure(const render_configuration& configuration)
         case deferred_pbr:
             m_current_render_system = std::make_shared<deferred_pbr_render_system>(m_shared_context);
             MANGO_ASSERT(m_current_render_system->create(), "Creation of the deferred pbr render system did fail!");
+            m_current_render_system->m_command_buffer = m_command_buffer;
             break;
 
         default:
@@ -47,24 +49,6 @@ void render_system_impl::configure(const render_configuration& configuration)
     }
 
     m_current_render_system->configure(configuration);
-}
-
-void render_system_impl::start_frame()
-{
-    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->start_frame();
-}
-
-void render_system_impl::submit(const render_command& command)
-{
-    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->submit(command);
-}
-
-void render_system_impl::finish_frame()
-{
-    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->finish_frame();
 }
 
 void render_system_impl::render()
@@ -89,9 +73,4 @@ render_pipeline render_system_impl::get_base_render_pipeline()
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
     return m_current_render_system->get_base_render_pipeline();
-}
-
-void render_system_impl::updateState(const render_state& state)
-{
-    m_render_state = state;
 }

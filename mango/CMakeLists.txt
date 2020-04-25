@@ -13,7 +13,6 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/render_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene_component_manager.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/render_structures.hpp
 )
 
 set(PRIVATE_HEADERS
@@ -22,9 +21,6 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/hashing.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/shader_structures.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/shader_system.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/geometry_objects.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/texture_structures.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/model_structures.hpp
@@ -53,8 +49,6 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/shader_system.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/geometry_objects.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene.cpp
 

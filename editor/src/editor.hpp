@@ -23,7 +23,7 @@ class editor : public mango::application
     }
 
   private:
-  //! \brief Main camera. Testing.
+    //! \brief Main camera. Testing.
     mango::entity m_main_camera;
 };
 

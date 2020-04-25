@@ -21,9 +21,9 @@ namespace mango
     };
 
     //! \brief Helper structure to cache vertex buffers.
-    struct vb
+    struct vertex_buffer_cache
     {
-        g_uint name;                                         //!< Name/handle.
+        buffer_ptr buf;                                      //!< The buffer.
         std::map<uint32 /*index*/, attr> enabled_attributes; //!< List of enabled attributes.
     };
 
@@ -37,15 +37,15 @@ namespace mango
         ~vertex_array_impl();
 
         void bind_vertex_buffer(g_uint index, buffer_ptr buffer, g_intptr offset, g_sizei stride) override;
-        void bind_index_buffer(buffer_ptr buffer, index_type type) override;
+        void bind_index_buffer(buffer_ptr buffer) override;
         void set_vertex_attribute(g_uint index, g_uint buffer_index, format attribute_format, g_uint relative_offset) override;
 
       private:
         //! \brief List of bound vertex \a buffers for caching purpose. Maps \a buffer index to vertex buffer.
-        std::array<vb, max_vertex_buffers> m_vertex_buffers;
+        std::array<vertex_buffer_cache, max_vertex_buffers> m_vertex_buffers;
 
-        //! \brief The bound index \a buffer for caching purpose.>
-        g_uint m_index_buffer;
+        //! \brief The bound index \a buffer for caching purpose.
+        buffer_ptr m_index_buffer;
     };
 } // namespace mango
 
