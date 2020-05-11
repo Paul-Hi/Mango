@@ -64,6 +64,7 @@ buffer_impl::buffer_impl(const buffer_configuration& configuration)
 
 buffer_impl::~buffer_impl()
 {
+    MANGO_ASSERT(is_created(), "Buffer not created!");
     if (m_persistent_data)
     {
         MANGO_ASSERT(glUnmapNamedBuffer(m_name), "Unmapping of persistent mapped buffer failed!");

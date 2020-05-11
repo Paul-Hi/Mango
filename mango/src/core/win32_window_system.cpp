@@ -7,7 +7,10 @@
 #define GLFW_INCLUDE_NONE // for glad
 #include <GLFW/glfw3.h>
 #include <core/win32_window_system.hpp>
+#include <graphics/command_buffer.hpp>
 #include <mango/assert.hpp>
+#include <mango/scene.hpp>
+#include <rendering/render_system_impl.hpp>
 
 using namespace mango;
 
@@ -61,6 +64,14 @@ void win32_window_system::swap_buffers()
     glfwSwapBuffers(static_cast<GLFWwindow*>(m_window_handle));
 }
 
+void win32_window_system::set_size(uint32 width, uint32 height)
+{
+    MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
+    m_window_configuration.set_width(width);
+    m_window_configuration.set_height(height);
+    glfwSetWindowSize(static_cast<GLFWwindow*>(m_window_handle), width, height);
+}
+
 void win32_window_system::configure(const window_configuration& configuration)
 {
     MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
@@ -71,6 +82,8 @@ void win32_window_system::configure(const window_configuration& configuration)
     uint32 width      = m_window_configuration.get_width();
     uint32 height     = m_window_configuration.get_height();
     const char* title = m_window_configuration.get_title();
+
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     GLFWwindow* window = glfwCreateWindow(width, height, title, NULL, NULL);
     if (!window)
@@ -94,6 +107,17 @@ void win32_window_system::configure(const window_configuration& configuration)
 
     make_window_context_current();
     m_shared_context->set_gl_loading_procedure(reinterpret_cast<mango_gl_load_proc>(glfwGetProcAddress)); // TODO Paul: Should this be done here or before creating the gl context.
+
+    {
+        // Test just for fun and because it is nice to debug with resizing --- This is BAD. TODO Paul: Make this correct and fancy.
+        glfwSetWindowUserPointer(window, static_cast<void*>(m_shared_context.get()));
+        glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int w, int h) {
+            context_impl* c = static_cast<context_impl*>(glfwGetWindowUserPointer(window));
+            if (h > 0)
+                c->get_current_scene()->get_camera_component(1)->aspect = (float)w / (float)h; // We know that camera is entity 1... because this is dumb.
+            c->get_render_system_internal().lock()->set_viewport(0, 0, w, h);
+        });
+    }
 }
 
 void win32_window_system::update(float dt)

@@ -53,6 +53,7 @@ namespace mango
     {
       public:
         //! \brief Creates a new \a buffer and returns a pointer to it.
+        //! \param[in] configuration The \a buffer_configuration for the new \a buffer.
         //! \return A pointer to the new \a buffer.
         static buffer_ptr create(const buffer_configuration& configuration);
 

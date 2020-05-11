@@ -75,12 +75,6 @@ namespace mango
     //! \brief The pointer to the procedure address loading function type for opengl.
     typedef void* (*mango_gl_load_proc)(const char*);
 
-    //! \brief Correctly aligned parent structure for unifom data.
-    //! \details The alignment of 64 bytes is mandatory.
-    struct alignas(64) uniform_data
-    {
-    };
-
     //! \brief Describes the topology of primitives used for rendering and interpreting geometry data.
     //! \details Same as OpenGL.
     enum class primitive_topology : uint8

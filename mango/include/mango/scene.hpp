@@ -77,10 +77,16 @@ namespace mango
         //! \brief Retrieves the \a camera_component from a specific \a entity.
         //! \param[in] e The \a entity to get the \a camera_component for.
         //! \return The \a camera_component or nullptr if non-existent.
-
         inline camera_component* get_camera_component(entity e)
         {
             return m_cameras.get_component_for_entity(e);
+        }
+
+        //! \brief Retrieves the \a camera_data for the currently active camera.
+        //! \return The \a camera_data or nullptr if non-existent.
+        inline shared_ptr<camera_data> get_active_camera_data()
+        {
+            return m_active_camera_data;
         }
 
       private:
@@ -112,9 +118,8 @@ namespace mango
         scene_component_manager<mesh_component> m_meshes;
         //! \brief All \a camera_components.
         scene_component_manager<camera_component> m_cameras;
-        //! \brief A pointer to the \a shader_program used for the scene.
-        //! \details This could be moved to the rendering section in the future.
-        shared_ptr<shader_program> m_scene_shader_program;
+        //! \brief The \a camera_data for the currently active camera.
+        shared_ptr<camera_data> m_active_camera_data;
     };
 
 } // namespace mango

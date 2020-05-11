@@ -8,6 +8,7 @@
 #define MANGO_RENDER_SYSTEM_IMPL_HPP
 
 #include <core/context_impl.hpp>
+#include <glm/glm.hpp>
 #include <graphics/command_buffer.hpp>
 #include <mango/render_system.hpp>
 #include <queue>
@@ -36,10 +37,23 @@ namespace mango
             return m_command_buffer;
         }
 
+        //! \brief Does all the setup and has to be called before rendering the scene.
+        //! \details Adds setup and clear calls to the \a command_buffer.
+        virtual void begin_render();
+
         //! \brief Renders the current frame.
         //! \details Calls the execute() function of the \a command_buffer, after doing some other things to it.
         //! This includes for example extra framebuffers and passes.
-        virtual void render();
+        virtual void finish_render();
+
+        //! \brief Sets the viewport.
+        //! \details  Should be called on resizing events, instead of scheduling a viewport command directly.
+        //! This manages the resizing of eventually created \a framebuffers internally and schedules the \a command as well.
+        //! \param[in] x The x start coordinate.
+        //! \param[in] y The y start coordinate.
+        //! \param[in] width The width of the viewport after this call.
+        //! \param[in] height The height of the viewport after this call.
+        virtual void set_viewport(uint32 x, uint32 y, uint32 width, uint32 height);
 
         virtual void update(float dt) override;
         virtual void destroy() override;
@@ -48,6 +62,14 @@ namespace mango
         //! \details This needs to be overriden by th real \a render_system_impl.
         //! \return The current set base \a render_pipeline of the \a render_system.
         virtual render_pipeline get_base_render_pipeline();
+
+        //! \brief Sets the model matrix for the next draw calls.
+        //! \param[in] model_matrix The model matrix for the next draw calls.
+        virtual void set_model_matrix(const glm::mat4& model_matrix);
+
+        //! \brief Sets the \a material for the next draw call.
+        //! \param[in] mat The \a material for the next draw call.
+        virtual void push_material(const material_ptr& mat);
 
       protected:
         //! \brief Mangos internal context for shared usage in all \a render_systems.

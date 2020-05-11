@@ -52,16 +52,12 @@ const uniform_binding_data& shader_program_impl::get_single_bindings()
             glGetActiveUniform(m_name, i, max_name_len, &length, &size, &type, uniform_name.data());
 
             uniform_binding_data::uniform u;
-            u.location = glGetUniformLocation(m_name, uniform_name.data());
-            u.type     = shader_resource_type_from_gl(type);
+            g_uint location = glGetUniformLocation(m_name, uniform_name.data());
+            u.type          = shader_resource_type_from_gl(type);
 
-            m_binding_data.listed_data.push_back(u);
+            m_binding_data.listed_data.insert({ location, u });
         }
     }
-
-    // sort with ascending location
-    std::sort(m_binding_data.listed_data.begin(), m_binding_data.listed_data.end(),
-              [](const uniform_binding_data::uniform& a, const uniform_binding_data::uniform& b) { return a.location < b.location; });
 
     return m_binding_data;
 }
@@ -73,21 +69,26 @@ void shader_program_impl::create_graphics_pipeline_impl(shader_ptr vertex_shader
     MANGO_ASSERT(fragment_shader, "Fragment shader is mandatory for a graphics pipeline!");
 
     glAttachShader(m_name, vertex_shader->get_name());
+    m_shaders.push_back(vertex_shader);
 
     if (tess_control_shader)
     {
         glAttachShader(m_name, tess_control_shader->get_name());
+        m_shaders.push_back(tess_control_shader);
     }
     if (tess_eval_shader)
     {
         glAttachShader(m_name, tess_eval_shader->get_name());
+        m_shaders.push_back(tess_eval_shader);
     }
     if (geometry_shader)
     {
         glAttachShader(m_name, geometry_shader->get_name());
+        m_shaders.push_back(geometry_shader);
     }
 
     glAttachShader(m_name, fragment_shader->get_name());
+    m_shaders.push_back(fragment_shader);
 
     link_program();
 }
@@ -98,6 +99,7 @@ void shader_program_impl::create_compute_pipeline_impl(shader_ptr compute_shader
     MANGO_ASSERT(compute_shader, "Vertex shader is mandatory for a compute pipeline!");
 
     glAttachShader(m_name, compute_shader->get_name());
+    m_shaders.push_back(compute_shader);
 
     link_program();
 }

@@ -8,6 +8,7 @@
 #define MANGO_GRAPHICS_COMMON_HPP
 
 #include <glad/glad.h>
+#include <glm/glm.hpp>
 #include <mango/assert.hpp>
 #include <mango/types.hpp>
 
@@ -20,16 +21,10 @@ namespace mango
 #define MANGO_GRAPHICS_OBJECT_IMPL(name) class name_impl;
 
     MANGO_GRAPHICS_OBJECT(command_buffer)
-    MANGO_GRAPHICS_OBJECT(buffer_view)
-    MANGO_GRAPHICS_OBJECT_IMPL(buffer_view)
     MANGO_GRAPHICS_OBJECT(buffer)
     MANGO_GRAPHICS_OBJECT_IMPL(buffer)
     MANGO_GRAPHICS_OBJECT(texture)
     MANGO_GRAPHICS_OBJECT_IMPL(texture)
-    MANGO_GRAPHICS_OBJECT(image)
-    MANGO_GRAPHICS_OBJECT_IMPL(image)
-    MANGO_GRAPHICS_OBJECT(sampler)
-    MANGO_GRAPHICS_OBJECT_IMPL(sampler)
     MANGO_GRAPHICS_OBJECT(shader)
     MANGO_GRAPHICS_OBJECT_IMPL(shader)
     MANGO_GRAPHICS_OBJECT(shader_program)
@@ -42,6 +37,20 @@ namespace mango
 #undef MANGO_GRAPHICS_OBJECT
 #undef MANGO_GRAPHICS_OBJECT_IMPL
     //! \endcond
+
+    //! \brief Structure to store material properties, textures etc.
+    struct material
+    {
+        glm::vec4 base_color; //!< The basic color of the material.
+        float metallic;       //!< The metallic value of the material. Between 0 and 1.
+        float roughness;      //!< The roughness value of the material. Between 0 and 1.
+
+        texture_ptr base_color_texture; //!< The component texture for the basic color value.
+        texture_ptr metallic_texture;   //!< The component texture for the metallic value.
+        texture_ptr roughness_texture;  //!< The component texture for the roughness value.
+        texture_ptr normal_texture;     //!< The texture for normals.
+    };
+    using material_ptr = shared_ptr<material>;
 
     // TODO Paul: Check the following!
     //! \brief Constant for maximum number of bound vertex buffers.
@@ -98,6 +107,77 @@ namespace mango
     //! \brief Type alias for GLchar.
     using g_char = GLchar;
 
+    struct std140_vec2
+    {
+        float x;
+        float y;
+        std140_vec2(const glm::vec2& vec)
+        {
+            x = vec.x;
+            y = vec.y;
+        }
+    };
+
+    struct std140_vec3
+    {
+        float x;
+        float y;
+        float z;
+        std140_vec3(const glm::vec3& vec)
+        {
+            x  = vec.x;
+            y  = vec.y;
+            z  = vec.z;
+            _w = 0.0f;
+        }
+
+      private:
+        float _w = 0.0f;
+    };
+
+    struct std140_vec4
+    {
+        float x;
+        float y;
+        float z;
+        float w;
+        std140_vec4(const glm::vec4& vec)
+        {
+            x = vec.x;
+            y = vec.y;
+            z = vec.z;
+            w = vec.w;
+        }
+    };
+
+    struct std140_mat3
+    {
+        std140_vec3 r0;
+        std140_vec3 r1;
+        std140_vec3 r2;
+        std140_mat3(const glm::mat3& mat)
+            : r0(mat[0])
+            , r1(mat[1])
+            , r2(mat[2])
+        {
+        }
+    };
+
+    struct std140_mat4
+    {
+        std140_vec4 r0;
+        std140_vec4 r1;
+        std140_vec4 r2;
+        std140_vec4 r3;
+        std140_mat4(const glm::mat4& mat)
+            : r0(mat[0])
+            , r1(mat[1])
+            , r2(mat[2])
+            , r3(mat[3])
+        {
+        }
+    };
+
     //! \brief All kinds of format values.
     //! \details The values are the same as in OpenGl, but sometimes the usage is extended.
     enum class format : uint32 // OpenGL values
@@ -136,44 +216,61 @@ namespace mango
         UNSIGNED_INT_2_10_10_10_REV = 0x8368,
         INT_2_10_10_10_REV          = 0x8D9F,
         // internal_formats
-        R8       = 0x8229,
-        R16      = 0x822A,
-        R16F     = 0x822D,
-        R32F     = 0x822E,
-        R8I      = 0x8231,
-        R16I     = 0x8233,
-        R32I     = 0x8235,
-        R8UI     = 0x8232,
-        R16UI    = 0x8234,
-        R32UI    = 0x8236,
-        RG8      = 0x822B,
-        RG16     = 0x822C,
-        RG16F    = 0x822F,
-        RG32F    = 0x8230,
-        RG8I     = 0x8237,
-        RG16I    = 0x8239,
-        RG32I    = 0x823B,
-        RG8UI    = 0x8238,
-        RG16UI   = 0x823A,
-        RG32UI   = 0x823C,
-        RGB8UI   = 0x8D7D,
-        RGB8I    = 0x8D8F,
-        RGB16F   = 0x881B,
-        RGB16UI  = 0x8D77,
-        RGB16I   = 0x8D89,
-        RGB32F   = 0x8815,
-        RGB32I   = 0x8D83,
-        RGB32UI  = 0x8D71,
-        RGBA8    = 0x8058,
-        RGBA16   = 0x805B,
-        RGBA16F  = 0x881A,
-        RGBA32F  = 0x8814,
-        RGBA8I   = 0x8D8E,
-        RGBA16I  = 0x8D88,
-        RGBA32I  = 0x8D82,
-        RGBA8UI  = 0x8D7C,
-        RGBA16UI = 0x8D76,
-        RGBA32UI = 0x8D70,
+        R8                 = 0x8229,
+        R16                = 0x822A,
+        R16F               = 0x822D,
+        R32F               = 0x822E,
+        R8I                = 0x8231,
+        R16I               = 0x8233,
+        R32I               = 0x8235,
+        R8UI               = 0x8232,
+        R16UI              = 0x8234,
+        R32UI              = 0x8236,
+        RG8                = 0x822B,
+        RG16               = 0x822C,
+        RG16F              = 0x822F,
+        RG32F              = 0x8230,
+        RG8I               = 0x8237,
+        RG16I              = 0x8239,
+        RG32I              = 0x823B,
+        RG8UI              = 0x8238,
+        RG16UI             = 0x823A,
+        RG32UI             = 0x823C,
+        RGB4               = 0x804F,
+        RGB5               = 0x8050,
+        RGB8               = 0x8051,
+        RGB10              = 0x8052,
+        RGB12              = 0x8053,
+        RGB16              = 0x8054,
+        SRGB8              = 0x8C41,
+        SRGB8_ALPHA8       = 0x8C43,
+        RGB8UI             = 0x8D7D,
+        RGB8I              = 0x8D8F,
+        RGB16F             = 0x881B,
+        RGB16UI            = 0x8D77,
+        RGB16I             = 0x8D89,
+        RGB32F             = 0x8815,
+        RGB32I             = 0x8D83,
+        RGB32UI            = 0x8D71,
+        RGBA2              = 0x8055,
+        RGBA4              = 0x8056,
+        RGB5_A1            = 0x8057,
+        RGBA8              = 0x8058,
+        RGB10_A2           = 0x8059,
+        RGBA12             = 0x805A,
+        RGBA16             = 0x805B,
+        RGBA16F            = 0x881A,
+        RGBA32F            = 0x8814,
+        RGBA8I             = 0x8D8E,
+        RGBA16I            = 0x8D88,
+        RGBA32I            = 0x8D82,
+        RGBA8UI            = 0x8D7C,
+        RGBA16UI           = 0x8D76,
+        RGBA32UI           = 0x8D70,
+        DEPTH_COMPONENT32F = 0x8CAC,
+        DEPTH_COMPONENT16  = 0x81A5,
+        DEPTH_COMPONENT24  = 0x81A6,
+        DEPTH_COMPONENT32  = 0x81A7,
         // Pixel formats
         DEPTH_COMPONENT = 0x1902,
         STENCIL_INDEX   = 0x1901,
@@ -720,7 +817,7 @@ namespace mango
     MANGO_ENABLE_BITMASK_OPERATIONS(clear_buffer_mask)
 
     //! \brief Mask used to specify attachements that should be cleared.
-    enum class attachement_mask : uint8
+    enum class attachment_mask : uint8
     {
         DRAW_BUFFER0   = 1 << 0,
         DRAW_BUFFER1   = 1 << 1,
@@ -738,7 +835,7 @@ namespace mango
         DEPTH_STENCIL_BUFFER         = DEPTH_BUFFER | STENCIL_BUFFER,
         ALL                          = ALL_DRAW_BUFFERS | DEPTH_STENCIL_BUFFER,
     };
-    MANGO_ENABLE_BITMASK_OPERATIONS(attachement_mask)
+    MANGO_ENABLE_BITMASK_OPERATIONS(attachment_mask)
 
     //! \brief The targets buffer can be bound to.
     enum class buffer_target : uint8
@@ -854,11 +951,81 @@ namespace mango
             return shader_resource_type::MAT3;
         case GL_FLOAT_MAT4:
             return shader_resource_type::MAT4;
+        case GL_SAMPLER_2D:
+            return shader_resource_type::INT; // We only need integers, because the binding of the texture is not done with an uniform.
         default:
             MANGO_LOG_ERROR("GL Uniform type {0} currently not supported!", type);
             return shader_resource_type::NONE;
         }
     }
+
+    //! \brief Some parameters required for creation of a \a texture on the gpu.
+    enum class texture_parameter : uint8
+    {
+        FILTER_NEAREST,
+        FILTER_LINEAR,
+        FILTER_NEAREST_MIPMAP_NEAREST,
+        FILTER_LINEAR_MIPMAP_NEAREST,
+        FILTER_NEAREST_MIPMAP_LINEAR,
+        FILTER_LINEAR_MIPMAP_LINEAR,
+        WRAP_REPEAT,
+        WRAP_CLAMP_TO_EDGE,
+        WRAP_CLAMP_TO_BORDER
+    };
+    //! \brief Converts an wrapping \a texture_parameter to a OpenGl enumeration value.
+    //! \param[in] wrapping The \a texture_parameter to convert.
+    //! \return The g_enum.
+    inline g_enum wrap_parameter_to_gl(const texture_parameter& wrapping)
+    {
+        switch (wrapping)
+        {
+        case texture_parameter::WRAP_REPEAT:
+            return GL_REPEAT;
+        case texture_parameter::WRAP_CLAMP_TO_EDGE:
+            return GL_CLAMP_TO_EDGE;
+        case texture_parameter::WRAP_CLAMP_TO_BORDER:
+            return GL_CLAMP_TO_BORDER;
+        default:
+            MANGO_LOG_ERROR("Unknown texture wrap parameter.");
+            return GL_NONE;
+        }
+    }
+    //! \brief Converts an filter \a texture_parameter to a OpenGl enumeration value.
+    //! \param[in] filtering The \a texture_parameter to convert.
+    //! \return The g_enum.
+    inline g_enum filter_parameter_to_gl(const texture_parameter& filtering)
+    {
+        switch (filtering)
+        {
+        case texture_parameter::FILTER_NEAREST:
+            return GL_NEAREST;
+        case texture_parameter::FILTER_LINEAR:
+            return GL_LINEAR;
+        case texture_parameter::FILTER_NEAREST_MIPMAP_NEAREST:
+            return GL_NEAREST_MIPMAP_NEAREST;
+        case texture_parameter::FILTER_LINEAR_MIPMAP_NEAREST:
+            return GL_LINEAR_MIPMAP_NEAREST;
+        case texture_parameter::FILTER_NEAREST_MIPMAP_LINEAR:
+            return GL_NEAREST_MIPMAP_LINEAR;
+        case texture_parameter::FILTER_LINEAR_MIPMAP_LINEAR:
+            return GL_LINEAR_MIPMAP_LINEAR;
+        default:
+            MANGO_LOG_ERROR("Unknown texture filter parameter.");
+            return GL_NONE;
+        }
+    }
+
+    //! \brief Specification of attachments in a \a framebuffer.
+    enum class framebuffer_attachment : uint8
+    {
+        COLOR_ATTACHMENT0,
+        COLOR_ATTACHMENT1,
+        COLOR_ATTACHMENT2,
+        COLOR_ATTACHMENT3,
+        DEPTH_ATTACHMENT,
+        STENCIL_ATTACHMENT,
+        DEPTH_STENCIL_ATTACHMENT
+    };
 
 } // namespace mango
 

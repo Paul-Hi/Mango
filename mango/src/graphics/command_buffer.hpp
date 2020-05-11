@@ -55,13 +55,13 @@ namespace mango
 
         //! \brief Clears attachments of a framebuffer.
         //! \param[in] buffer_mask The mask describes which buffers should be cleared.
-        //! \param[in] attachment_mask The mask describes which attachments should be cleared.
+        //! \param[in] att_mask The mask describes which attachments should be cleared.
         //! \param[in] r The red component to clear color attachments.
         //! \param[in] g The green component to clear color attachments.
         //! \param[in] b The blue component to clear color attachments.
         //! \param[in] a The alpha component to clear color attachments.
         //! \param[in] framebuffer The pointer to the \a framebuffer to clear. To clear the default framebuffer leave empty or pass nullptr.
-        void clear_framebuffer(clear_buffer_mask buffer_mask, attachement_mask attachment_mask, g_float r, g_float g, g_float b, g_float a, framebuffer_ptr framebuffer = nullptr);
+        void clear_framebuffer(clear_buffer_mask buffer_mask, attachment_mask att_mask, g_float r, g_float g, g_float b, g_float a, framebuffer_ptr framebuffer = nullptr);
 
         //! \brief Enables or disables the depth test.
         //! \param[in] enabled True if the depth test should be enabled, else false.
@@ -84,18 +84,23 @@ namespace mango
         //! \param[in] shader_program A pointer to the \a shader_program to bind.
         void bind_shader_program(shader_program_ptr shader_program);
 
-        //! \brief Binds all \a uniforms not included in uniform buffers for drawing.
-        //! \details The void* \a uniform_data should contain values for all uniforms not included in any uniform buffer object.
-        //! Order is relevant, as well as the 64 byte alignment.
-        //! \param[in] uniform_data Pointer to a \a uniform_data struct. Alignment: 64 bytes.
-        //! \param[in] data_size Size of the \a uniform_data struct in bytes.
-        void bind_single_uniforms(void* uniform_data, g_intptr data_size);
+        //! \brief Binds a single \a uniform not included in uniform buffers for drawing.
+        //! \details The void* \a uniform_data should contain the value for the uniform not included in any uniform buffer object.
+        //! \param[in] location The uniform location to bind the value to.
+        //! \param[in] uniform_value Pointer to a value.
+        //! \param[in] data_size Size of the value in bytes.
+        void bind_single_uniform(g_uint location, void* uniform_value, g_intptr data_size);
+
+        //! \brief Binds an \a uniform \a buffer for drawing.
+        //! \param[in] index The \a uniform \a buffer index to bind the \a buffer to.
+        //! \param[in] uniform_buffer The \a uniform \a buffer to bind.
+        void bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer);
 
         //! \brief Binds a \a texture for drawing.
-        //! \param[in] location The binding location to bind the \a texture too.
+        //! \param[in] binding The binding location to bind the \a texture to.
         //! \param[in] texture A pointer to the \a texture to bind.
-        //! \param[in] sampler A pointer to the \a sampler to use.
-        void bind_texture(uint32 location, texture_ptr texture, sampler_ptr sampler);
+        //! \param[in] uniform_location The location to bind the index integer value to.
+        void bind_texture(uint32 binding, texture_ptr texture, g_uint uniform_location);
 
         //! \brief Binds a \a framebuffer for drawing.
         //! \param[in] framebuffer The pointer to the \a framebuffer to bind.
@@ -162,8 +167,14 @@ namespace mango
         }
 
       private:
-        //! \brief The internal state to retrieve and cache data.
-        graphics_state m_state;
+        //! \brief Building state to build the \a command_buffer.
+        //! \details This state is fictional and used for building up the \a commands.
+        //! It is used to avoid redundant pipeline changes and calls.
+        graphics_state m_building_state;
+
+        //! \brief Execution state used while executing the \a command_buffer.
+        //! \details This is the real state on the gpu used to mirror the state on the cpu while executing calls.
+        graphics_state m_execution_state;
 
         //! \brief A unique_ptr to the first command.
         unique_ptr<command> m_first;

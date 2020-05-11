@@ -39,6 +39,10 @@ namespace mango
 
         //! \brief Links the \a shader_program.
         void link_program();
+
+        //! \brief All \a shaders attached to this \a shader_program.
+        std::vector<shader_ptr> m_shaders;
+
     };
 } // namespace mango
 

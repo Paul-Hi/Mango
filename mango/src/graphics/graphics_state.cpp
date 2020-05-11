@@ -96,13 +96,19 @@ bool graphics_state::bind_shader_program(shader_program_ptr shader_program)
     return false;
 }
 
-bool graphics_state::bind_single_uniforms()
+bool graphics_state::bind_single_uniform()
 {
     // TODO Paul
     return true;
 }
 
-bool graphics_state::bind_texture(uint32 location, uint32 texture_handle, uint32 sampler_handle)
+bool graphics_state::bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer)
+{
+    // TODO Paul
+    return true;
+}
+
+bool graphics_state::bind_texture(uint32 location, uint32 texture_handle)
 {
     // TODO Paul
     return true;

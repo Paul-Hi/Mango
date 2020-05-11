@@ -29,4 +29,4 @@ namespace mango
 
 } // namespace mango
 
-#endif // #define MANGO_MODEL_STRUCTURES_HPP
+#endif // MANGO_MODEL_STRUCTURES_HPP

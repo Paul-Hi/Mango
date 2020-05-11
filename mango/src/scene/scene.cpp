@@ -9,8 +9,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <graphics/buffer.hpp>
-#include <graphics/shader.hpp>
-#include <graphics/shader_program.hpp>
 #include <graphics/vertex_array.hpp>
 #include <mango/scene.hpp>
 #include <mango/scene_types.hpp>
@@ -19,17 +17,10 @@
 
 using namespace mango;
 
-//! \brief All data that is also used as an uniform. Put everything in there that is needed.
-struct scene_uniforms : public uniform_data
-{
-    glm::mat4 model_matrix;    //!< The transformation matrix.
-    glm::mat4 view_projection; //!< The cameras view projection matrix.
-};
-
 static void scene_graph_update(scene_component_manager<node_component>& nodes, scene_component_manager<transform_component>& transformations);
 static void transformation_update(scene_component_manager<node_component>& nodes, scene_component_manager<transform_component>& transformations);
 static void camera_update(scene_component_manager<camera_component>& cameras, scene_component_manager<transform_component>& transformations);
-static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_manager<mesh_component>& meshes, scene_component_manager<transform_component>& transformations, scene_uniforms uniforms);
+static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_manager<mesh_component>& meshes, scene_component_manager<transform_component>& transformations);
 
 scene::scene(const string& name)
     : m_nodes()
@@ -38,20 +29,7 @@ scene::scene(const string& name)
     , m_cameras()
 {
     MANGO_UNUSED(name);
-
-    shader_configuration v_shader_config;
-    v_shader_config.m_path = "res/shader/v_hello_gltf.glsl";
-    v_shader_config.m_type = shader_type::VERTEX_SHADER;
-
-    shader_ptr hello_vertex = shader::create(v_shader_config);
-
-    shader_configuration f_shader_config;
-    f_shader_config.m_path = "res/shader/f_hello_gltf.glsl";
-    f_shader_config.m_type = shader_type::FRAGMENT_SHADER;
-
-    shader_ptr hello_fragment = shader::create(f_shader_config);
-
-    m_scene_shader_program = shader_program::create_graphics_pipeline(hello_vertex, nullptr, nullptr, nullptr, hello_fragment);
+    m_active_camera_data = std::make_shared<camera_data>();
 }
 
 scene::~scene() {}
@@ -85,6 +63,10 @@ entity scene::create_default_camera()
     camera_component.view_projection =
         glm::perspective(camera_component.vertical_field_of_view, camera_component.aspect, camera_component.z_near, camera_component.z_far) * transform_component.world_transformation_matrix;
     // glm::ortho(-camera_component.aspect * distance, camera_component.aspect * distance, -distance, distance);
+
+    // Currently the only camera is the active one.
+    m_active_camera_data->camera_info = &camera_component;
+    m_active_camera_data->transform   = &transform_component;
 
     return camera_entity;
 }
@@ -127,16 +109,11 @@ void scene::render()
     shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
     MANGO_ASSERT(rs, "Render System is expired!");
 
-    scene_uniforms uniforms;
-
     // We have at least one default camera in each scene and at the moment the first camera is the active one everytime.
     if (m_cameras.size() == 0)
         create_default_camera();
-    uniforms.view_projection = m_cameras.component_at(0).view_projection;
 
-    auto cmdb = rs->get_command_buffer();
-    cmdb->bind_shader_program(m_scene_shader_program);
-    render_meshes(rs, m_meshes, m_transformations, uniforms);
+    render_meshes(rs, m_meshes, m_transformations);
 }
 
 void scene::attach(entity child, entity parent)
@@ -258,7 +235,8 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
 
 void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& mesh)
 {
-    auto& component_mesh               = m_meshes.create_component_for(node);
+    auto& component_mesh = m_meshes.create_component_for(node);
+
     component_mesh.vertex_array_object = vertex_array::create();
 
     // Bind vertex buffers later, so we do not bind not used ones and can determine tightly packed buffer stride.
@@ -318,7 +296,23 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
         p.type_index     = static_cast<index_type>(index_accessor.componentType);
         p.instance_count = 1;
 
+        material_component mat;
+        mat.material             = std::make_shared<material>();
+        mat.material->base_color = glm::vec4(glm::vec3(0.9f), 1.0f);
+        mat.material->metallic   = 0.0f;
+        mat.material->roughness  = 1.0f;
+
+        if (primitive.material >= 0)
+        {
+            tinygltf::Material p_m   = m.materials[primitive.material];
+            auto col = p_m.pbrMetallicRoughness.baseColorFactor;
+            mat.material->base_color = glm::vec4((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
+            mat.material->metallic   = p_m.pbrMetallicRoughness.metallicFactor;
+            mat.material->roughness  = p_m.pbrMetallicRoughness.roughnessFactor;
+        }
+
         component_mesh.primitives.push_back(p);
+        component_mesh.materials.push_back(mat);
 
         uint32 vb_idx = 0;
         std::map<int, int> index_to_binding_point;
@@ -334,6 +328,8 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                 attrib_array = 0;
             if (attrib.first.compare("NORMAL") == 0)
                 attrib_array = 1;
+            if (attrib.first.compare("TEXCOORD_0") == 0)
+                attrib_array = 2;
             if (attrib_array > -1)
             {
                 auto it = index_to_vb_data.find(accessor.bufferView);
@@ -405,20 +401,23 @@ static void camera_update(scene_component_manager<camera_component>& cameras, sc
         false);
 }
 
-static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_manager<mesh_component>& meshes, scene_component_manager<transform_component>& transformations, scene_uniforms uniforms)
+static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_manager<mesh_component>& meshes, scene_component_manager<transform_component>& transformations)
 {
     meshes.for_each(
-        [&rs, &meshes, &transformations, &uniforms](mesh_component& c, uint32& index) {
+        [&rs, &meshes, &transformations](mesh_component& c, uint32& index) {
             entity e                       = meshes.entity_at(index);
             transform_component* transform = transformations.get_component_for_entity(e);
             if (transform)
             {
-                uniforms.model_matrix = transform->world_transformation_matrix;
-                auto cmdb             = rs->get_command_buffer();
+                auto cmdb = rs->get_command_buffer();
                 cmdb->bind_vertex_array(c.vertex_array_object);
-                rs->get_command_buffer()->bind_single_uniforms(&uniforms, sizeof(scene_uniforms));
-                for (auto& p : c.primitives)
+                rs->set_model_matrix(transform->world_transformation_matrix);
+
+                for (uint32 i = 0; i < c.primitives.size(); ++i)
                 {
+                    auto m = c.materials[i];
+                    auto p = c.primitives[i];
+                    rs->push_material(m.material);
                     cmdb->draw_elements(p.topology, p.first, p.count, p.type_index, p.instance_count);
                 }
             }

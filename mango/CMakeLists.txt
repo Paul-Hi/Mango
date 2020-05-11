@@ -22,7 +22,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/hashing.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/texture_structures.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/image_structures.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/model_structures.hpp
 
     # graphics
@@ -34,11 +34,15 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/buffer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/shader.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/shader_program.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/texture.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/framebuffer.hpp
     # graphics impl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/vertex_array_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/buffer_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/shader_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/shader_program_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/texture_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/framebuffer_impl.hpp
 
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.hpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.hpp>
@@ -59,11 +63,15 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/buffer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/shader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/shader_program.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/texture.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/framebuffer.cpp
     # graphics impl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/vertex_array_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/buffer_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/shader_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/shader_program_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/texture_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/framebuffer_impl.cpp
 
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.cpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.cpp>

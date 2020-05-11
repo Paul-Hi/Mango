@@ -46,6 +46,7 @@ namespace mango
     {
       public:
         //! \brief Creates a new \a shader and returns a pointer to it.
+        //! \param[in] configuration The \a shader_configuration for the new \a shader.
         //! \return A pointer to the new \a shader.
         static shader_ptr create(const shader_configuration& configuration);
 

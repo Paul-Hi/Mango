@@ -31,8 +31,6 @@ namespace mango
         void unmap() override;
 
       private:
-        friend class buffer_view;
-
         //! \brief The persistent data, if persistent mapping is requested.
         void* m_persistent_data;
 

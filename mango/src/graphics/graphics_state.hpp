@@ -56,17 +56,22 @@ namespace mango
         //! \return True if state changed, else false.
         bool bind_shader_program(shader_program_ptr shader_program);
 
-        //! \brief Binds all non buffered unforms.
+        //! \brief Binds a non buffered uniform.
         //! \details This gets reset after every draw call.
         //! \return True if state changed, else false.
-        bool bind_single_uniforms();
+        bool bind_single_uniform();
+
+        //! \brief Binds an \a uniform \a buffer for drawing.
+        //! \param[in] index The \a uniform \a buffer index to bind the \a buffer to.
+        //! \param[in] uniform_buffer The \a uniform \a buffer to bind.
+        //! \return True if state changed, else false.
+        bool bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer);
 
         //! \brief Binds a \a texture for drawing.
         //! \param[in] location The binding location to bind the \a texture too.
         //! \param[in] texture_handle The handle of the \a texture.
-        //! \param[in] sampler_handle The handle of the \a sampler.
         //! \return True if state changed, else false.
-        bool bind_texture(uint32 location, uint32 texture_handle, uint32 sampler_handle);
+        bool bind_texture(uint32 location, uint32 texture_handle);
 
         //! \brief Binds a \a framebuffer for drawing.
         //! \param[in] framebuffer The pointer to the \a framebuffer to bind.

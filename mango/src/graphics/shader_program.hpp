@@ -8,6 +8,7 @@
 #define MANGO_SHADER_PROGRAM_HPP
 
 #include <graphics/graphics_object.hpp>
+#include <unordered_map>
 
 namespace mango
 {
@@ -17,14 +18,13 @@ namespace mango
         //! \brief Information for uniforms.
         struct uniform
         {
-            //! \brief The \a unifrom binding location.
-            g_uint location;
             //! \brief The \a unifrom type.
             shader_resource_type type;
         };
 
-        //! \brief A list of \a uniform information filled after compiling
-        std::vector<uniform> listed_data;
+        //! \brief A list of \a uniform information filled after compiling.
+        //! \details Maps locations to \a uniforms.
+        std::unordered_map<g_uint, uniform> listed_data;
     };
 
     //! \brief A program containing compiled and linked shaders.

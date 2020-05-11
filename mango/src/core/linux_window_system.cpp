@@ -61,6 +61,14 @@ void linux_window_system::swap_buffers()
     glfwSwapBuffers(static_cast<GLFWwindow*>(m_window_handle));
 }
 
+void linux_window_system::set_size(uint32 width, uint32 height)
+{
+    MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
+    m_window_configuration.set_width(width);
+    m_window_configuration.set_height(height);
+    glfwSetWindowSize(static_cast<GLFWwindow*>(m_window_handle), width, height);
+}
+
 void linux_window_system::configure(const window_configuration& configuration)
 {
     MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
@@ -71,6 +79,8 @@ void linux_window_system::configure(const window_configuration& configuration)
     uint32 width      = m_window_configuration.get_width();
     uint32 height     = m_window_configuration.get_height();
     const char* title = m_window_configuration.get_title();
+
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     GLFWwindow* window = glfwCreateWindow(width, height, title, NULL, NULL);
     if (!window)

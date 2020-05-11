@@ -105,6 +105,17 @@ namespace mango
         //! \param[in] configuration The \a window_configuration to use for the window.
         virtual void configure(const window_configuration& configuration) = 0;
 
+        //! \brief Returns the width of the \a window in pixels.
+        //! \return Width of the \a window in pixels.
+        virtual uint32 get_width() = 0;
+        //! \brief Returns the height of the \a window in pixels.
+        //! \return Height of the \a window in pixels.
+        virtual uint32 get_height() = 0;
+        //! \brief Sets the size of the \a window in pixels.
+        //! \param[in] width of the \a window in pixels.
+        //! \param[in] height of the \a window in pixels.
+        virtual void set_size(uint32 width, uint32 height) = 0;
+
       protected:
         virtual bool create()         = 0;
         virtual void update(float dt) = 0;

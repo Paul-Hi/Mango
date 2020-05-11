@@ -51,10 +51,34 @@ void render_system_impl::configure(const render_configuration& configuration)
     m_current_render_system->configure(configuration);
 }
 
-void render_system_impl::render()
+void render_system_impl::begin_render()
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->render();
+    m_current_render_system->begin_render();
+}
+
+void render_system_impl::finish_render()
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->finish_render();
+}
+
+void render_system_impl::set_viewport(uint32 x, uint32 y, uint32 width, uint32 height)
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->set_viewport(x, y, width, height);
+}
+
+void render_system_impl::set_model_matrix(const glm::mat4& model_matrix)
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->set_model_matrix(model_matrix);
+}
+
+void render_system_impl::push_material(const material_ptr& mat)
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->push_material(mat);
 }
 
 void render_system_impl::update(float dt)
