@@ -33,12 +33,12 @@ bool editor::create()
 
     m_main_camera = application_scene->create_default_camera();
 
-    auto entities = application_scene->create_entities_from_model("res/models/Box/Box.gltf");
+    auto entities = application_scene->create_entities_from_model("res/models/BoomBox/BoomBox.gltf");
 
     entity top = entities.at(0);
 
     auto& trafo = application_scene->get_transform_component(top)->local_transformation_matrix;
-    trafo = glm::translate(glm::rotate(glm::scale(trafo, glm::vec3(4.0f)), glm::radians(-40.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(0.0f, -1.0f, 0.0f));
+    trafo = glm::scale(glm::rotate(glm::translate(trafo, glm::vec3(0.0f, -1.0f, 0.0f)), glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(400.0f));
 
     mango_context->make_scene_current(application_scene);
 
@@ -48,6 +48,13 @@ bool editor::create()
 void editor::update(float dt)
 {
     MANGO_UNUSED(dt);
+    static float v = 0.0f;
+    v += 0.01f;
+    shared_ptr<context> mango_context = get_context().lock();
+    MANGO_ASSERT(mango_context, "Context is expired!");
+    auto application_scene = mango_context->get_current_scene();
+    auto& trafo = application_scene->get_transform_component(m_main_camera)->local_transformation_matrix;
+    trafo = glm::translate(glm::mat4(1.0), glm::vec3(sin(v) * 20.0f, 0.0f, cos(v) * 20.0f));
 }
 
 void editor::destroy() {}

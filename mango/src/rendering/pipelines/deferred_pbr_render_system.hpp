@@ -53,13 +53,17 @@ namespace mango
         struct scene_material_uniforms
         {
             std140_vec4 base_color;
+            std140_vec3 emissive_color;
             g_float metallic;
             g_float roughness;
 
-            bool base_color_texture; //!< Specifies, if the component texture is enabled for the base color value.
-            bool metallic_texture;   //!< Specifies, if the component texture is enabled for the metallic value.
-            bool roughness_texture;  //!< Specifies, if the component texture is enabled for the roughness value.
-            bool normal_texture;     //!< Specifies, if the normal texture is enabled.
+            std140_bool base_color_texture;         //!< Specifies, if the the base color texture is enabled.
+            std140_bool roughness_metallic_texture; //!< Specifies, if the component texture is enabled for the metallic value and the roughness value.
+            std140_bool normal_texture;             //!< Specifies, if the normal texture is enabled.
+            std140_bool emissive_color_texture;     //!< Specifies, if the the emissive color texture is enabled.
+
+            g_float padding0;
+            g_float padding1;
         };
         scene_material_uniforms* m_active_scene_material_uniforms;
         buffer_ptr m_scene_material_uniform_buffer;

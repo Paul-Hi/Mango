@@ -9,6 +9,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <graphics/buffer.hpp>
+#include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
 #include <mango/scene.hpp>
 #include <mango/scene_types.hpp>
@@ -56,13 +57,13 @@ entity scene::create_default_camera()
     camera_component.z_far                  = 100.0f;
     camera_component.vertical_field_of_view = glm::radians(45.0f);
 
-    transform_component.local_transformation_matrix = glm::lookAt(glm::vec3(0.0f, 0.0f, 20.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::vec3 position = glm::vec3(0.0f, 0.0f, 20.0f);
+
+    transform_component.local_transformation_matrix = glm::translate(glm::mat4(1.0f), position);
     transform_component.world_transformation_matrix = transform_component.local_transformation_matrix;
 
-    // const float distance = camera_component.z_far - camera_component.z_near;
-    camera_component.view_projection =
-        glm::perspective(camera_component.vertical_field_of_view, camera_component.aspect, camera_component.z_near, camera_component.z_far) * transform_component.world_transformation_matrix;
-    // glm::ortho(-camera_component.aspect * distance, camera_component.aspect * distance, -distance, distance);
+    camera_component.view_projection = glm::perspective(camera_component.vertical_field_of_view, camera_component.aspect, camera_component.z_near, camera_component.z_far) *
+                                       glm::lookAt(position, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
     // Currently the only camera is the active one.
     m_active_camera_data->camera_info = &camera_component;
@@ -279,7 +280,7 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
 
     for (size_t i = 0; i < mesh.primitives.size(); ++i)
     {
-        tinygltf::Primitive primitive = mesh.primitives[i];
+        const tinygltf::Primitive& primitive = mesh.primitives[i];
 
         if (primitive.indices < 0)
         {
@@ -287,7 +288,7 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
             return;
         }
 
-        tinygltf::Accessor index_accessor = m.accessors[primitive.indices];
+        const tinygltf::Accessor& index_accessor = m.accessors[primitive.indices];
 
         primitive_component p;
         p.count          = index_accessor.count;
@@ -296,22 +297,16 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
         p.type_index     = static_cast<index_type>(index_accessor.componentType);
         p.instance_count = 1;
 
+        component_mesh.primitives.push_back(p);
+
         material_component mat;
         mat.material             = std::make_shared<material>();
         mat.material->base_color = glm::vec4(glm::vec3(0.9f), 1.0f);
         mat.material->metallic   = 0.0f;
         mat.material->roughness  = 1.0f;
 
-        if (primitive.material >= 0)
-        {
-            tinygltf::Material p_m   = m.materials[primitive.material];
-            auto col = p_m.pbrMetallicRoughness.baseColorFactor;
-            mat.material->base_color = glm::vec4((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
-            mat.material->metallic   = p_m.pbrMetallicRoughness.metallicFactor;
-            mat.material->roughness  = p_m.pbrMetallicRoughness.roughnessFactor;
-        }
+        load_material(mat, primitive, m);
 
-        component_mesh.primitives.push_back(p);
         component_mesh.materials.push_back(mat);
 
         uint32 vb_idx = 0;
@@ -319,7 +314,7 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
 
         for (auto& attrib : primitive.attributes)
         {
-            tinygltf::Accessor accessor = m.accessors[attrib.second];
+            const tinygltf::Accessor& accessor = m.accessors[attrib.second];
 
             format attribute_format = get_attribute_format(static_cast<format>(accessor.componentType), accessor.type % 32); // TODO Paul: Type is not handled properly here.
 
@@ -330,6 +325,8 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                 attrib_array = 1;
             if (attrib.first.compare("TEXCOORD_0") == 0)
                 attrib_array = 2;
+            if (attrib.first.compare("TANGENT") == 0)
+                attrib_array = 3;
             if (attrib_array > -1)
             {
                 auto it = index_to_vb_data.find(accessor.bufferView);
@@ -347,6 +344,252 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
             else
                 MANGO_LOG_DEBUG("Vertex attribute array is missing: {0}!", attrib.first);
         }
+    }
+}
+
+void scene::load_material(material_component& material, const tinygltf::Primitive& primitive, tinygltf::Model& m)
+{
+    if (primitive.material < 0)
+        return;
+
+    const tinygltf::Material& p_m = m.materials[primitive.material];
+    if (!p_m.name.empty())
+        MANGO_LOG_DEBUG("Loading material: {0}", p_m.name.c_str());
+
+    auto& pbr = p_m.pbrMetallicRoughness;
+
+    // TODO Paul: Texturing is not perfect at the moment ... And not perfect means pretty bad.
+
+    texture_configuration config;
+    config.m_generate_mipmaps        = true;
+    config.m_is_standard_color_space = true;
+    config.m_texture_min_filter      = texture_parameter::FILTER_LINEAR_MIPMAP_LINEAR;
+    config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
+    config.m_texture_wrap_s          = texture_parameter::WRAP_REPEAT;
+    config.m_texture_wrap_t          = texture_parameter::WRAP_REPEAT;
+
+    if (pbr.baseColorTexture.index < 0)
+    {
+        auto col                      = pbr.baseColorFactor;
+        material.material->base_color = glm::vec4((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
+    }
+    else
+    {
+        // base color
+        const tinygltf::Texture& base_col = m.textures.at(pbr.baseColorTexture.index);
+
+        if (base_col.source < 0)
+            return;
+
+        const tinygltf::Image& image     = m.images[base_col.source];
+        const tinygltf::Sampler& sampler = m.samplers[base_col.sampler];
+
+        if (base_col.sampler >= 0)
+        {
+            config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
+            config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
+            config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
+            config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
+        }
+
+        texture_ptr base_color = texture::create(config);
+
+        format f        = format::RGBA;
+        format internal = format::SRGB8_ALPHA8;
+
+        if (image.component == 1)
+        {
+            f = format::RED;
+        }
+        else if (image.component == 2)
+        {
+            f = format::RG;
+        }
+        else if (image.component == 3)
+        {
+            f        = format::RGB;
+            internal = format::SRGB8;
+        }
+
+        format type = format::UNSIGNED_BYTE;
+        if (image.bits == 16)
+        {
+            type = format::UNSIGNED_SHORT;
+        }
+        else if (image.bits == 32)
+        {
+            type = format::UNSIGNED_INT;
+        }
+
+        base_color->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
+        material.material->base_color_texture = base_color;
+    }
+
+    // metallic / roughness
+    if (pbr.metallicRoughnessTexture.index < 0)
+    {
+        material.material->metallic  = pbr.metallicFactor;
+        material.material->roughness = pbr.roughnessFactor;
+    }
+    else
+    {
+        const tinygltf::Texture& m_r_t = m.textures.at(pbr.metallicRoughnessTexture.index);
+
+        if (m_r_t.source < 0)
+            return;
+
+        const tinygltf::Image& image     = m.images[m_r_t.source];
+        const tinygltf::Sampler& sampler = m.samplers[m_r_t.sampler];
+
+        if (m_r_t.sampler >= 0)
+        {
+            config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
+            config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
+            config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
+            config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
+        }
+
+        texture_ptr m_r = texture::create(config);
+
+        format f        = format::RGBA;
+        format internal = format::RGBA8;
+
+        if (image.component == 1)
+        {
+            f = format::RED;
+        }
+        else if (image.component == 2)
+        {
+            f = format::RG;
+        }
+        else if (image.component == 3)
+        {
+            f        = format::RGB;
+            internal = format::RGB8;
+        }
+
+        format type = format::UNSIGNED_BYTE;
+        if (image.bits == 16)
+        {
+            type = format::UNSIGNED_SHORT;
+        }
+        else if (image.bits == 32)
+        {
+            type = format::UNSIGNED_INT;
+        }
+
+        m_r->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
+        material.material->roughness_metallic_texture = m_r;
+    }
+
+    // normal
+    if (p_m.normalTexture.index >= 0)
+    {
+        const tinygltf::Texture& norm = m.textures.at(p_m.normalTexture.index);
+
+        if (norm.source < 0)
+            return;
+
+        const tinygltf::Image& image     = m.images[norm.source];
+        const tinygltf::Sampler& sampler = m.samplers[norm.sampler];
+
+        if (norm.sampler >= 0)
+        {
+            config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
+            config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
+            config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
+            config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
+        }
+
+        texture_ptr normal_t = texture::create(config);
+
+        format f        = format::RGBA;
+        format internal = format::RGBA8;
+
+        if (image.component == 1)
+        {
+            f = format::RED;
+        }
+        else if (image.component == 2)
+        {
+            f = format::RG;
+        }
+        else if (image.component == 3)
+        {
+            f        = format::RGB;
+            internal = format::RGB8;
+        }
+
+        format type = format::UNSIGNED_BYTE;
+        if (image.bits == 16)
+        {
+            type = format::UNSIGNED_SHORT;
+        }
+        else if (image.bits == 32)
+        {
+            type = format::UNSIGNED_INT;
+        }
+
+        normal_t->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
+        material.material->normal_texture = normal_t;
+    }
+
+    // emissive
+    if (p_m.emissiveTexture.index < 0)
+    {
+        auto col                          = p_m.emissiveFactor;
+        material.material->emissive_color = glm::vec4((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
+        return;
+    }
+    else
+    {
+        const tinygltf::Texture& emissive = m.textures.at(p_m.emissiveTexture.index);
+
+        if (emissive.source < 0)
+            return;
+
+        const tinygltf::Image& image     = m.images[emissive.source];
+        const tinygltf::Sampler& sampler = m.samplers[emissive.sampler];
+
+        if (emissive.sampler >= 0)
+        {
+            config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
+            config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
+            config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
+            config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
+        }
+
+        texture_ptr emissive_color = texture::create(config);
+
+        format f        = format::RGBA;
+        format internal = format::SRGB8_ALPHA8;
+
+        if (image.component == 1)
+        {
+            f = format::RED;
+        }
+        else if (image.component == 2)
+        {
+            f = format::RG;
+        }
+        else if (image.component == 3)
+        {
+            f        = format::RGB;
+            internal = format::SRGB8;
+        }
+
+        format type = format::UNSIGNED_BYTE;
+        if (image.bits == 16)
+        {
+            type = format::UNSIGNED_SHORT;
+        }
+        else if (image.bits == 32)
+        {
+            type = format::UNSIGNED_INT;
+        }
+
+        emissive_color->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
+        material.material->emissive_color_texture = emissive_color;
     }
 }
 
@@ -390,11 +633,13 @@ static void camera_update(scene_component_manager<camera_component>& cameras, sc
             if (transform)
             {
                 if (c.type == camera_type::perspective_camera)
-                    c.view_projection = glm::perspective(c.vertical_field_of_view, c.aspect, c.z_near, c.z_far) * transform->world_transformation_matrix;
+                    c.view_projection = glm::perspective(c.vertical_field_of_view, c.aspect, c.z_near, c.z_far) *
+                                        glm::lookAt(glm::vec3(transform->world_transformation_matrix[3]), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                 else if (c.type == camera_type::orthographic_camera)
                 {
                     const float distance = c.z_far - c.z_near;
-                    c.view_projection    = glm::ortho(-c.aspect * distance, c.aspect * distance, -distance, distance) * transform->world_transformation_matrix;
+                    c.view_projection    = glm::ortho(-c.aspect * distance, c.aspect * distance, -distance, distance) *
+                                        glm::lookAt(glm::vec3(transform->world_transformation_matrix[3]), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                 }
             }
         },

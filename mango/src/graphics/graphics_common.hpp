@@ -41,14 +41,15 @@ namespace mango
     //! \brief Structure to store material properties, textures etc.
     struct material
     {
-        glm::vec4 base_color; //!< The basic color of the material.
-        float metallic;       //!< The metallic value of the material. Between 0 and 1.
-        float roughness;      //!< The roughness value of the material. Between 0 and 1.
+        glm::vec4 base_color;     //!< The basic color of the material.
+        float metallic;           //!< The metallic value of the material. Between 0 and 1.
+        float roughness;          //!< The roughness value of the material. Between 0 and 1.
+        glm::vec3 emissive_color; //!< The emissive color of the material.
 
-        texture_ptr base_color_texture; //!< The component texture for the basic color value.
-        texture_ptr metallic_texture;   //!< The component texture for the metallic value.
-        texture_ptr roughness_texture;  //!< The component texture for the roughness value.
-        texture_ptr normal_texture;     //!< The texture for normals.
+        texture_ptr base_color_texture;         //!< The component texture for the basic color value.
+        texture_ptr roughness_metallic_texture; //!< The component texture for the metallic value and the roughness value.
+        texture_ptr normal_texture;             //!< The texture for normals.
+        texture_ptr emissive_color_texture;     //!< The texture for the emissive color value.
     };
     using material_ptr = shared_ptr<material>;
 
@@ -106,6 +107,21 @@ namespace mango
     using g_clampd = GLclampd;
     //! \brief Type alias for GLchar.
     using g_char = GLchar;
+
+    struct std140_bool
+    {
+        std140_bool(const bool& b)
+        {
+            v = b ? 1 : 0;
+        }
+        bool value()
+        {
+            return v;
+        }
+
+      private:
+        uint32 v;
+    };
 
     struct std140_vec2
     {
@@ -972,7 +988,7 @@ namespace mango
         WRAP_CLAMP_TO_EDGE,
         WRAP_CLAMP_TO_BORDER
     };
-    //! \brief Converts an wrapping \a texture_parameter to a OpenGl enumeration value.
+    //! \brief Converts an wrapping \a texture_parameter to an OpenGl enumeration value.
     //! \param[in] wrapping The \a texture_parameter to convert.
     //! \return The g_enum.
     inline g_enum wrap_parameter_to_gl(const texture_parameter& wrapping)
@@ -990,7 +1006,7 @@ namespace mango
             return GL_NONE;
         }
     }
-    //! \brief Converts an filter \a texture_parameter to a OpenGl enumeration value.
+    //! \brief Converts a filter \a texture_parameter to an OpenGl enumeration value.
     //! \param[in] filtering The \a texture_parameter to convert.
     //! \return The g_enum.
     inline g_enum filter_parameter_to_gl(const texture_parameter& filtering)
@@ -1012,6 +1028,48 @@ namespace mango
         default:
             MANGO_LOG_ERROR("Unknown texture filter parameter.");
             return GL_NONE;
+        }
+    }
+    //! \brief Converts an OpenGl enumeration value to a wrapping \a texture_parameter.
+    //! \param[in] wrapping The enumeration value to convert.
+    //! \return The \a texture_parameter.
+    inline texture_parameter wrap_parameter_from_gl(const g_enum& wrapping)
+    {
+        switch (wrapping)
+        {
+        case GL_REPEAT:
+            return texture_parameter::WRAP_REPEAT;
+        case GL_CLAMP_TO_EDGE:
+            return texture_parameter::WRAP_CLAMP_TO_EDGE;
+        case GL_CLAMP_TO_BORDER:
+            return texture_parameter::WRAP_CLAMP_TO_BORDER;
+        default:
+            MANGO_LOG_ERROR("Unknown texture wrap parameter.");
+            return texture_parameter::WRAP_REPEAT;
+        }
+    }
+    //! \brief Converts an OpenGl enumeration value to a filter \a texture_parameter.
+    //! \param[in] filtering The enumeration value to convert.
+    //! \return The \a texture_parameter.
+    inline texture_parameter filter_parameter_from_gl(const g_enum& filtering)
+    {
+        switch (filtering)
+        {
+        case GL_NEAREST:
+            return texture_parameter::FILTER_NEAREST;
+        case GL_LINEAR:
+            return texture_parameter::FILTER_LINEAR;
+        case GL_NEAREST_MIPMAP_NEAREST:
+            return texture_parameter::FILTER_NEAREST_MIPMAP_NEAREST;
+        case GL_LINEAR_MIPMAP_NEAREST:
+            return texture_parameter::FILTER_LINEAR_MIPMAP_NEAREST;
+        case GL_NEAREST_MIPMAP_LINEAR:
+            return texture_parameter::FILTER_NEAREST_MIPMAP_LINEAR;
+        case GL_LINEAR_MIPMAP_LINEAR:
+            return texture_parameter::FILTER_LINEAR_MIPMAP_LINEAR;
+        default:
+            MANGO_LOG_ERROR("Unknown texture filter parameter.");
+            return texture_parameter::FILTER_NEAREST;
         }
     }
 

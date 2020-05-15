@@ -15,6 +15,7 @@ namespace tinygltf
     struct Model;
     struct Node;
     struct Mesh;
+    struct Primitive;
 } // namespace tinygltf
 
 namespace mango
@@ -105,6 +106,8 @@ namespace mango
         //!\param[in] m The model loaded by tinygltf.
         //!\param[in] mesh The mesh loaded by tinygltf.
         void build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& mesh);
+
+        void load_material(material_component& material, const tinygltf::Primitive& primitive, tinygltf::Model& m);
 
         friend class context_impl; // TODO Paul: Better way?
         //! \brief Mangos internal context for shared usage in all \a render_systems.

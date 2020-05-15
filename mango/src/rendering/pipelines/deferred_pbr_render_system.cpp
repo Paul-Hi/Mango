@@ -72,11 +72,13 @@ bool deferred_pbr_render_system::create()
     attachment_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
 
     config.m_color_attachment0 = texture::create(attachment_config);
-    config.m_color_attachment0->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_BYTE, nullptr);
+    config.m_color_attachment0->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_INT_8_8_8_8, nullptr);
     config.m_color_attachment1 = texture::create(attachment_config);
-    config.m_color_attachment1->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_BYTE, nullptr);
+    config.m_color_attachment1->set_data(format::RGB10_A2, w, h, format::RGBA, format::UNSIGNED_INT_10_10_10_2, nullptr);
     config.m_color_attachment2 = texture::create(attachment_config);
-    config.m_color_attachment2->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_BYTE, nullptr);
+    config.m_color_attachment2->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_INT_8_8_8_8, nullptr);
+    config.m_color_attachment3 = texture::create(attachment_config);
+    config.m_color_attachment3->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_INT_8_8_8_8, nullptr);
     config.m_depth_attachment = texture::create(attachment_config);
     // glTextureParameteri(config.m_depth_attachment->get_name(), GL_TEXTURE_COMPARE_MODE, GL_NONE);
     // glTextureParameteri(config.m_depth_attachment->get_name(), GL_DEPTH_TEXTURE_MODE, GL_LUMINANCE);
@@ -134,7 +136,8 @@ bool deferred_pbr_render_system::create()
     default_vao = vertex_array::create();
     // default texture needed (config is not relevant)
     default_texture = texture::create(attachment_config);
-    default_texture->set_data(format::R8, w, h, format::R8, format::UNSIGNED_BYTE, nullptr);
+    g_ubyte zero = 0;
+    default_texture->set_data(format::R8, 1, 1, format::RED, format::UNSIGNED_BYTE, &zero);
 
     return true;
 }
@@ -170,7 +173,7 @@ void deferred_pbr_render_system::begin_render()
 void deferred_pbr_render_system::finish_render()
 {
     m_command_buffer->bind_framebuffer(nullptr); // bind default.
-    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH_STENCIL, attachment_mask::ALL, 1.0f, 0.8f, 0.133f, 1.0f);
+    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH_STENCIL, attachment_mask::ALL, 0.0f, 0.0f, 0.2f, 1.0f);
     m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::FILL);
     m_command_buffer->bind_shader_program(m_lighting_pass);
 
@@ -180,7 +183,7 @@ void deferred_pbr_render_system::finish_render()
     if (camera && camera->camera_info && camera->transform)
     {
         lp_uniforms.inverse_view_projection = glm::inverse(camera->camera_info->view_projection);
-        lp_uniforms.camera_position         = camera->transform->local_transformation_matrix[3];
+        lp_uniforms.camera_position         = camera->transform->world_transformation_matrix[3];
     }
     else
     {
@@ -191,7 +194,8 @@ void deferred_pbr_render_system::finish_render()
     m_command_buffer->bind_texture(0, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0), 2);
     m_command_buffer->bind_texture(1, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT1), 3);
     m_command_buffer->bind_texture(2, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT2), 4);
-    m_command_buffer->bind_texture(3, m_gbuffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 5);
+    m_command_buffer->bind_texture(3, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT3), 5);
+    m_command_buffer->bind_texture(4, m_gbuffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 6);
 
     // TODO Paul: Check if the binding is better for performance or not.
     m_command_buffer->bind_vertex_array(default_vao);
@@ -203,6 +207,7 @@ void deferred_pbr_render_system::finish_render()
     m_command_buffer->bind_texture(1, nullptr, 3);
     m_command_buffer->bind_texture(2, nullptr, 4);
     m_command_buffer->bind_texture(3, nullptr, 5);
+    m_command_buffer->bind_texture(4, nullptr, 6);
     m_command_buffer->bind_vertex_array(nullptr);
     // We need to unbind the program so we can make changes to the textures.
     m_command_buffer->bind_shader_program(nullptr);
@@ -273,53 +278,53 @@ void deferred_pbr_render_system::push_material(const material_ptr& mat)
             m_uniform_ptr->roughness  = (g_float)m_mat->roughness;
             if (m_mat->base_color_texture)
             {
-                m_uniform_ptr->base_color_texture = true;
+                m_uniform_ptr->base_color_texture = std140_bool(true);
                 m_mat->base_color_texture->bind_texture_unit(0);
                 state.bind_texture(0, m_mat->base_color_texture->get_name());
                 glUniform1i(0, 0);
             }
             else
             {
-                m_uniform_ptr->base_color_texture = false;
+                m_uniform_ptr->base_color_texture = std140_bool(false);
                 default_texture->bind_texture_unit(0);
                 state.bind_texture(0, default_texture->get_name());
             }
-            if (m_mat->metallic_texture)
+            if (m_mat->roughness_metallic_texture)
             {
-                m_uniform_ptr->metallic_texture = true;
-                m_mat->metallic_texture->bind_texture_unit(1);
-                state.bind_texture(1, m_mat->metallic_texture->get_name());
+                m_uniform_ptr->roughness_metallic_texture = std140_bool(true);
+                m_mat->roughness_metallic_texture->bind_texture_unit(1);
+                state.bind_texture(1, m_mat->roughness_metallic_texture->get_name());
                 glUniform1i(1, 1);
             }
             else
             {
-                m_uniform_ptr->metallic_texture = false;
+                m_uniform_ptr->roughness_metallic_texture = std140_bool(false);
                 default_texture->bind_texture_unit(1);
                 state.bind_texture(1, default_texture->get_name());
             }
-            if (m_mat->roughness_texture)
+            if (m_mat->normal_texture)
             {
-                m_uniform_ptr->roughness_texture = true;
-                m_mat->roughness_texture->bind_texture_unit(2);
-                state.bind_texture(2, m_mat->roughness_texture->get_name());
+                m_uniform_ptr->normal_texture = std140_bool(true);
+                m_mat->normal_texture->bind_texture_unit(2);
+                state.bind_texture(2, m_mat->normal_texture->get_name());
                 glUniform1i(2, 2);
             }
             else
             {
-                m_uniform_ptr->roughness_texture = false;
+                m_uniform_ptr->normal_texture = std140_bool(false);
                 default_texture->bind_texture_unit(2);
                 state.bind_texture(2, default_texture->get_name());
             }
-            if (m_mat->normal_texture)
+            if (m_mat->emissive_color_texture)
             {
-                m_uniform_ptr->normal_texture = true;
-                m_mat->normal_texture->bind_texture_unit(3);
-                state.bind_texture(3, m_mat->normal_texture->get_name());
+                m_uniform_ptr->emissive_color_texture = std140_bool(true);
+                m_mat->emissive_color_texture->bind_texture_unit(3);
+                state.bind_texture(3, m_mat->emissive_color_texture->get_name());
                 glUniform1i(3, 3);
             }
             else
             {
-                m_uniform_ptr->normal_texture = false;
+                m_uniform_ptr->emissive_color_texture = std140_bool(false);
                 default_texture->bind_texture_unit(3);
                 state.bind_texture(3, default_texture->get_name());
             }
