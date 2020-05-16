@@ -107,6 +107,11 @@ namespace mango
         //!\param[in] mesh The mesh loaded by tinygltf.
         void build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& mesh);
 
+        //! \brief Loads a \a material and stores it in the component.
+        //! \details Loads all supported component values and textures if they exist.
+        //! \param[out] material The component to store the material in.
+        //! \param[in] primitive The tinygltf primitive the material is linked to.
+        //!\param[in] m The model loaded by tinygltf.
         void load_material(material_component& material, const tinygltf::Primitive& primitive, tinygltf::Model& m);
 
         friend class context_impl; // TODO Paul: Better way?

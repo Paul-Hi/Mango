@@ -22,7 +22,7 @@ float V_SmithGGXCorrelated(in float n_dot_v, in float n_dot_l, in float roughnes
 vec3 F_Schlick(in float dot, in vec3 f0, in float f90);
 float Fd_BurleyRenormalized(in float n_dot_v, in float n_dot_l, in float l_dot_h, in float roughness);
 
-vec3 calculateTestLight(in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in vec3 real_albedo, in vec3 position);
+vec3 calculateTestLight(in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in vec3 real_albedo, in vec3 position, in float occlusion_factor);
 
 vec4 get_base_color()
 {
@@ -39,11 +39,11 @@ vec3 get_emissive()
     return texture(gbuffer_c2, texcoord).rgb;
 }
 
-vec2 get_roughness_and_metallic()
+vec3 get_occlusion_roughness_metallic()
 {
-    vec2 r_m = texture(gbuffer_c3, texcoord).rg;
-    r_m.x = max(r_m.x, 0.089f);
-    return r_m;
+    vec3 o_r_m = texture(gbuffer_c3, texcoord).rgb;
+    o_r_m.x = max(o_r_m.x, 0.089f);
+    return o_r_m;
 }
 
 vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection)
@@ -66,13 +66,14 @@ void main()
         return;
     }
 
-    vec3 position              = world_space_from_depth(depth, texcoord, u_inverse_view_projection);
-    vec3 albedo                = get_base_color().rgb;
-    vec3 normal                = get_normal();
-    vec2 roughness_metallic    = get_roughness_and_metallic();
-    float perceptual_roughness = roughness_metallic.x;
-    float metallic             = roughness_metallic.y;
-    vec3 reflectance           = albedo;
+    vec3 position                        = world_space_from_depth(depth, texcoord, u_inverse_view_projection);
+    vec3 albedo                          = get_base_color().rgb;
+    vec3 normal                          = get_normal();
+    vec3 occlusion_roughness_metallic    = get_occlusion_roughness_metallic();
+    float occlusion_factor               = occlusion_roughness_metallic.r;
+    float perceptual_roughness           = occlusion_roughness_metallic.g;
+    float metallic                       = occlusion_roughness_metallic.b;
+    vec3 reflectance                     = albedo;
 
     vec3 f0          = 0.16 * reflectance * reflectance * (1.0 - metallic) + albedo * metallic;
     vec3 real_albedo = albedo * (1.0 - metallic);
@@ -83,9 +84,9 @@ void main()
     vec3 lighting = vec3(0.0);
 
     vec3 ambient = 0.02 * real_albedo;
-    lighting += ambient;
+    lighting += ambient * occlusion_factor;
 
-    lighting += calculateTestLight(n_dot_v, view_dir, normal, perceptual_roughness, f0, real_albedo, position);
+    lighting += calculateTestLight(n_dot_v, view_dir, normal, perceptual_roughness, f0, real_albedo, position, occlusion_factor);
 
     // improvising gamma correction
     lighting = pow(lighting, vec3(1.0 / 2.2));
@@ -94,7 +95,7 @@ void main()
 }
 
 
-vec3 calculateTestLight(in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in vec3 real_albedo, in vec3 position)
+vec3 calculateTestLight(in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in vec3 real_albedo, in vec3 position, in float occlusion_factor)
 {
     vec3 light_pos[4] = { vec3(-55.0, 35.0,  45.0),
                           vec3( 55.0, 35.0,  45.0),
@@ -128,7 +129,7 @@ vec3 calculateTestLight(in float n_dot_v, in vec3 view_dir, in vec3 normal, in f
         vec3 diffuse = n_dot_l * Fd;
         vec3 specular = n_dot_l * Fr;
 
-        lighting += (diffuse + specular) * light_col;
+        lighting += (diffuse + specular) * light_col * occlusion_factor;
     }
 
     return lighting;

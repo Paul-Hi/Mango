@@ -70,7 +70,6 @@ namespace mango
         std::vector<material_component> materials;
     };
 
-
     //! \brief Component used for camera entities.
     struct camera_component
     {
@@ -87,8 +86,8 @@ namespace mango
     //! \brief Structure used for collecting all the camera data of the current active camera.
     struct camera_data
     {
-        const camera_component* camera_info;
-        const transform_component* transform;
+        const camera_component* camera_info;  //!< Camera specific data is in here.
+        const transform_component* transform; //!< Transform of the camera.
     };
 } // namespace mango
 

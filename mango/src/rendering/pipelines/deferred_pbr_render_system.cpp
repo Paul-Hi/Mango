@@ -22,13 +22,16 @@ static void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLen
 
 using namespace mango;
 
+//! \brief Single uniforms for the lighting pass accessed and utilized only internally by the renderer at the moment.
 struct lighting_pass_uniforms
 {
-    glm::mat4 inverse_view_projection;
-    glm::vec3 camera_position;
+    glm::mat4 inverse_view_projection; //!< The inverse of the queried camera view projection matrix of the current scene.
+    glm::vec3 camera_position;         //!< The position of the queried camera of the current scene.
 };
 
+//! \brief Default vertex array object for second pass with geometry shader generated geometry.
 vertex_array_ptr default_vao;
+//! \brief Default texture that is bound to every texture unit not in use to prevent warnings.
 texture_ptr default_texture;
 
 deferred_pbr_render_system::deferred_pbr_render_system(const shared_ptr<context_impl>& context)
@@ -136,7 +139,7 @@ bool deferred_pbr_render_system::create()
     default_vao = vertex_array::create();
     // default texture needed (config is not relevant)
     default_texture = texture::create(attachment_config);
-    g_ubyte zero = 0;
+    g_ubyte zero    = 0;
     default_texture->set_data(format::R8, 1, 1, format::RED, format::UNSIGNED_BYTE, &zero);
 
     return true;
@@ -289,16 +292,16 @@ void deferred_pbr_render_system::push_material(const material_ptr& mat)
                 default_texture->bind_texture_unit(0);
                 state.bind_texture(0, default_texture->get_name());
             }
-            if (m_mat->roughness_metallic_texture)
+            if (m_mat->occlusion_roughness_metallic_texture)
             {
-                m_uniform_ptr->roughness_metallic_texture = std140_bool(true);
-                m_mat->roughness_metallic_texture->bind_texture_unit(1);
-                state.bind_texture(1, m_mat->roughness_metallic_texture->get_name());
+                m_uniform_ptr->occlusion_roughness_metallic_texture = std140_bool(true);
+                m_mat->occlusion_roughness_metallic_texture->bind_texture_unit(1);
+                state.bind_texture(1, m_mat->occlusion_roughness_metallic_texture->get_name());
                 glUniform1i(1, 1);
             }
             else
             {
-                m_uniform_ptr->roughness_metallic_texture = std140_bool(false);
+                m_uniform_ptr->occlusion_roughness_metallic_texture = std140_bool(false);
                 default_texture->bind_texture_unit(1);
                 state.bind_texture(1, default_texture->get_name());
             }

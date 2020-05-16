@@ -433,15 +433,15 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     }
     else
     {
-        const tinygltf::Texture& m_r_t = m.textures.at(pbr.metallicRoughnessTexture.index);
+        const tinygltf::Texture& o_r_m_t = m.textures.at(pbr.metallicRoughnessTexture.index);
 
-        if (m_r_t.source < 0)
+        if (o_r_m_t.source < 0)
             return;
 
-        const tinygltf::Image& image     = m.images[m_r_t.source];
-        const tinygltf::Sampler& sampler = m.samplers[m_r_t.sampler];
+        const tinygltf::Image& image     = m.images[o_r_m_t.source];
+        const tinygltf::Sampler& sampler = m.samplers[o_r_m_t.sampler];
 
-        if (m_r_t.sampler >= 0)
+        if (o_r_m_t.sampler >= 0)
         {
             config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
             config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
@@ -449,7 +449,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
         }
 
-        texture_ptr m_r = texture::create(config);
+        texture_ptr o_r_m = texture::create(config);
 
         format f        = format::RGBA;
         format internal = format::RGBA8;
@@ -478,8 +478,8 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             type = format::UNSIGNED_INT;
         }
 
-        m_r->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
-        material.material->roughness_metallic_texture = m_r;
+        o_r_m->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
+        material.material->occlusion_roughness_metallic_texture = o_r_m;
     }
 
     // normal

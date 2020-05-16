@@ -12,16 +12,19 @@ layout(binding = 0, std140) uniform scene_vertex_uniforms
     mat4 u_view_projection_matrix;
 };
 
-out vec3 shared_normal;
-out vec2 shared_texcoord;
-out vec3 shared_tangent;
-out vec3 shared_bitangent;
+out shader_shared
+{
+    vec3 shared_normal;
+    vec2 shared_texcoord;
+    vec3 shared_tangent;
+    vec3 shared_bitangent;
+} vs_out;
 
 void main()
 {
-    shared_normal = u_normal_matrix * normalize(v_normal);
-    shared_texcoord = v_texcoord;
-    shared_tangent = u_normal_matrix * normalize(v_tangent);
-    shared_bitangent = cross(shared_normal, shared_tangent);
+    vs_out.shared_normal = u_normal_matrix * normalize(v_normal);
+    vs_out.shared_texcoord = v_texcoord;
+    vs_out.shared_tangent = u_normal_matrix * normalize(v_tangent);
+    vs_out.shared_bitangent = cross(vs_out.shared_normal, vs_out.shared_tangent);
     gl_Position = u_view_projection_matrix * u_model_matrix * vec4(v_position, 1.0);
 }

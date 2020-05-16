@@ -42,16 +42,19 @@ namespace mango
     struct material
     {
         glm::vec4 base_color;     //!< The basic color of the material.
+        glm::vec3 emissive_color; //!< The emissive color of the material.
         float metallic;           //!< The metallic value of the material. Between 0 and 1.
         float roughness;          //!< The roughness value of the material. Between 0 and 1.
-        glm::vec3 emissive_color; //!< The emissive color of the material.
 
-        texture_ptr base_color_texture;         //!< The component texture for the basic color value.
-        texture_ptr roughness_metallic_texture; //!< The component texture for the metallic value and the roughness value.
-        texture_ptr normal_texture;             //!< The texture for normals.
-        texture_ptr emissive_color_texture;     //!< The texture for the emissive color value.
+        texture_ptr base_color_texture;                   //!< The component texture for the basic color value.
+        texture_ptr occlusion_roughness_metallic_texture; //!< The component texture for the metallic value and the roughness value.
+        texture_ptr normal_texture;                       //!< The texture for normals.
+        texture_ptr emissive_color_texture;               //!< The texture for the emissive color value.
     };
+
+    //! \cond NO_COND
     using material_ptr = shared_ptr<material>;
+    //! \endcond
 
     // TODO Paul: Check the following!
     //! \brief Constant for maximum number of bound vertex buffers.
@@ -108,8 +111,10 @@ namespace mango
     //! \brief Type alias for GLchar.
     using g_char = GLchar;
 
+    //! \brief A boolean in the glsl std140 layout.
     struct std140_bool
     {
+        //! \cond NO_COND
         std140_bool(const bool& b)
         {
             v = b ? 1 : 0;
@@ -121,10 +126,13 @@ namespace mango
 
       private:
         uint32 v;
+        //! \endcond
     };
 
+    //! \brief A vec2 in the glsl std140 layout.
     struct std140_vec2
     {
+        //! \cond NO_COND
         float x;
         float y;
         std140_vec2(const glm::vec2& vec)
@@ -132,10 +140,13 @@ namespace mango
             x = vec.x;
             y = vec.y;
         }
+        //! \endcond
     };
 
+    //! \brief A vec3 in the glsl std140 layout.
     struct std140_vec3
     {
+        //! \cond NO_COND
         float x;
         float y;
         float z;
@@ -149,10 +160,13 @@ namespace mango
 
       private:
         float _w = 0.0f;
+        //! \endcond
     };
 
+    //! \brief A vec4 in the glsl std140 layout.
     struct std140_vec4
     {
+        //! \cond NO_COND
         float x;
         float y;
         float z;
@@ -164,10 +178,13 @@ namespace mango
             z = vec.z;
             w = vec.w;
         }
+        //! \endcond
     };
 
+    //! \brief A mat3 in the glsl std140 layout.
     struct std140_mat3
     {
+        //! \cond NO_COND
         std140_vec3 r0;
         std140_vec3 r1;
         std140_vec3 r2;
@@ -177,10 +194,13 @@ namespace mango
             , r2(mat[2])
         {
         }
+        //! \endcond
     };
 
+    //! \brief A mat4 in the glsl std140 layout.
     struct std140_mat4
     {
+        //! \cond NO_COND
         std140_vec4 r0;
         std140_vec4 r1;
         std140_vec4 r2;
@@ -192,6 +212,7 @@ namespace mango
             , r3(mat[3])
         {
         }
+        //! \endcond
     };
 
     //! \brief All kinds of format values.

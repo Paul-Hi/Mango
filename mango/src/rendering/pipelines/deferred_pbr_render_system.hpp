@@ -37,35 +37,45 @@ namespace mango
         //! \brief The gbuffer of the deferred pipeline.
         framebuffer_ptr m_gbuffer;
 
+        //! \brief The \a shader_program for the deferred geometry pass.
+        //! \details This fills the g-buffer for later use in the lighting pass.
         shader_program_ptr m_scene_geometry_pass;
 
+        //! \brief The \a shader_program for the lighting pass.
+        //! \details Utilizes the g-buffer filled before.
         shader_program_ptr m_lighting_pass;
 
+        //! \brief Uniform struct for the geometry passes vertex shader.
         struct scene_vertex_uniforms
         {
             std140_mat4 model_matrix;    //!< The model matrix.
             std140_mat3 normal_matrix;   //!< The normal matrix.
             std140_mat4 view_projection; //!< The cameras view projection matrix.
         };
+        //! \brief Pointer to the currently active scene uniforms for the geometry pass vertex shader.
         scene_vertex_uniforms* m_active_scene_vertex_uniforms;
+        //! \brief The uniform buffer mapping the gpu buffer to the active scene vertex uniforms.
         buffer_ptr m_scene_vertex_uniform_buffer;
 
+        //! \brief Uniform struct for the geometry passes fragment shader to implement \a materials.
         struct scene_material_uniforms
         {
-            std140_vec4 base_color;
-            std140_vec3 emissive_color;
-            g_float metallic;
-            g_float roughness;
+            std140_vec4 base_color;     //!< The base color (rgba). Also used as reflection color for metallic surfaces.
+            std140_vec3 emissive_color; //!< The emissive color of the material if existent, else (0, 0, 0).
+            g_float metallic;           //!< The metallic value of the material.
+            g_float roughness;          //!< The roughness of the material.
 
-            std140_bool base_color_texture;         //!< Specifies, if the the base color texture is enabled.
-            std140_bool roughness_metallic_texture; //!< Specifies, if the component texture is enabled for the metallic value and the roughness value.
-            std140_bool normal_texture;             //!< Specifies, if the normal texture is enabled.
-            std140_bool emissive_color_texture;     //!< Specifies, if the the emissive color texture is enabled.
+            std140_bool base_color_texture;                   //!< Specifies, if the the base color texture is enabled.
+            std140_bool occlusion_roughness_metallic_texture; //!< Specifies, if the component texture is enabled for the metallic value and the roughness value.
+            std140_bool normal_texture;                       //!< Specifies, if the normal texture is enabled.
+            std140_bool emissive_color_texture;               //!< Specifies, if the the emissive color texture is enabled.
 
-            g_float padding0;
-            g_float padding1;
+            g_float padding0; //!< Padding needed for st140 layout.
+            g_float padding1; //!< Padding needed for st140 layout.
         };
+        //! \brief Pointer to the currently active scene material uniforms for the geometry pass fragment shader.
         scene_material_uniforms* m_active_scene_material_uniforms;
+        //! \brief The uniform buffer mapping the gpu buffer to the active scene material fragment uniforms.
         buffer_ptr m_scene_material_uniform_buffer;
     };
 
