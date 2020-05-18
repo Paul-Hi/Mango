@@ -119,9 +119,10 @@ namespace mango
         {
             v = b ? 1 : 0;
         }
+
         bool value()
         {
-            return v;
+            return v == 1 ? true : false;
         }
 
       private:
@@ -1065,7 +1066,7 @@ namespace mango
         case GL_CLAMP_TO_BORDER:
             return texture_parameter::WRAP_CLAMP_TO_BORDER;
         default:
-            MANGO_LOG_ERROR("Unknown texture wrap parameter.");
+            MANGO_LOG_WARN("Unknown texture wrap parameter.");
             return texture_parameter::WRAP_REPEAT;
         }
     }
@@ -1089,7 +1090,7 @@ namespace mango
         case GL_LINEAR_MIPMAP_LINEAR:
             return texture_parameter::FILTER_LINEAR_MIPMAP_LINEAR;
         default:
-            MANGO_LOG_ERROR("Unknown texture filter parameter.");
+            MANGO_LOG_WARN("Unknown texture filter parameter.");
             return texture_parameter::FILTER_NEAREST;
         }
     }

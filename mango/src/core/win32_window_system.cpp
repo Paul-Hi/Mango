@@ -113,9 +113,11 @@ void win32_window_system::configure(const window_configuration& configuration)
         glfwSetWindowUserPointer(window, static_cast<void*>(m_shared_context.get()));
         glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int w, int h) {
             context_impl* c = static_cast<context_impl*>(glfwGetWindowUserPointer(window));
-            if (h > 0)
+            if (w > 0 && h > 0)
+            {
                 c->get_current_scene()->get_camera_component(1)->aspect = (float)w / (float)h; // We know that camera is entity 1... because this is dumb.
-            c->get_render_system_internal().lock()->set_viewport(0, 0, w, h);
+                c->get_render_system_internal().lock()->set_viewport(0, 0, w, h);
+            }
         });
     }
 }

@@ -38,7 +38,7 @@ bool editor::create()
     entity top = entities.at(0);
 
     auto& trafo = application_scene->get_transform_component(top)->local_transformation_matrix;
-    trafo = glm::scale(glm::rotate(glm::translate(trafo, glm::vec3(0.0f, -1.0f, 0.0f)), glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(400.0f));
+    trafo = glm::scale(glm::rotate(glm::translate(trafo, glm::vec3(0.0f, -1.0f, 0.0f)), glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(600.0f));
 
     mango_context->make_scene_current(application_scene);
 

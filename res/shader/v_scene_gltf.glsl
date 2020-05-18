@@ -24,7 +24,19 @@ void main()
 {
     vs_out.shared_normal = u_normal_matrix * normalize(v_normal);
     vs_out.shared_texcoord = v_texcoord;
-    vs_out.shared_tangent = u_normal_matrix * normalize(v_tangent);
-    vs_out.shared_bitangent = cross(vs_out.shared_normal, vs_out.shared_tangent);
+    if(length(v_tangent) > 0.0)
+    {
+        vs_out.shared_tangent = u_normal_matrix * normalize(v_tangent);
+        vs_out.shared_bitangent = cross(vs_out.shared_normal, vs_out.shared_tangent);
+    }
+    else
+    {
+        // TODO Paul: This calculation is just for now and should be changed later. We want to calculate tangents on import.
+        vec3 absnormal = abs(vs_out.shared_normal);
+        float max = max(absnormal.x, max(absnormal.y, absnormal.z));
+        vec3 v = vs_out.shared_normal * step(max, absnormal);
+        vs_out.shared_tangent = normalize(cross(vs_out.shared_normal, v));
+        vs_out.shared_bitangent = cross(vs_out.shared_normal, vs_out.shared_tangent);
+    }
     gl_Position = u_view_projection_matrix * u_model_matrix * vec4(v_position, 1.0);
 }

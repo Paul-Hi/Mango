@@ -20,16 +20,16 @@ layout (location = 3, binding = 3) uniform sampler2D t_emissive_color;
 
 layout(binding = 1, std140) uniform scene_material_uniforms
 {
-    //    name                       // offset // size
-    vec4  base_color;                // 0 // 16
-    vec3  emissive_color;            // 16 // 16
-    float metallic;                  // 32 // 4
-    float roughness;                 // 36 // 4
+    //    name                                 // offset // size
+    vec4  base_color;                          // 0 // 16
+    vec4  emissive_color;                      // 16 // 16 // this is a vec3, but there are annoying bugs with some drivers.
+    float metallic;                            // 32 // 4
+    float roughness;                           // 36 // 4
 
-    bool base_color_texture;         // 40 // 4
+    bool base_color_texture;                   // 40 // 4
     bool occlusion_roughness_metallic_texture; // 44 // 4
-    bool normal_texture;             // 48 // 4
-    bool emissive_color_texture;     // 52 // 4
+    bool normal_texture;                       // 48 // 4
+    bool emissive_color_texture;               // 52 // 4
     // padding 4
     // padding 4
     // size : 64
@@ -42,7 +42,7 @@ vec4 get_base_color()
 
 vec3 get_emissive()
 {
-    return emissive_color_texture ? texture(t_emissive_color, fs_in.shared_texcoord).rgb : emissive_color;
+    return emissive_color_texture ? texture(t_emissive_color, fs_in.shared_texcoord).rgb : emissive_color.rgb;
 }
 
 vec3 get_occlusion_roughness_metallic()

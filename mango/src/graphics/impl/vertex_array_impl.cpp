@@ -28,13 +28,14 @@ void vertex_array_impl::bind_vertex_buffer(g_uint index, buffer_ptr buffer, g_in
 {
     MANGO_ASSERT(is_created(), "Vertex array not created!");
     MANGO_ASSERT(buffer->is_created(), "Buffer not created!");
+    MANGO_ASSERT(buffer->byte_length() > offset, "Buffer is smaller than offset!");
     auto& potential_buffer = m_vertex_buffers.at(index);
     g_uint name            = buffer->get_name();
     if (!potential_buffer.buf || potential_buffer.buf->get_name() != name)
     {
         potential_buffer.buf = buffer;
+        glVertexArrayVertexBuffer(m_name, index, name, offset, stride);
     }
-    glVertexArrayVertexBuffer(m_name, index, name, offset, stride);
 }
 
 void vertex_array_impl::bind_index_buffer(buffer_ptr buffer)

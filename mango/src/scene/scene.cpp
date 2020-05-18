@@ -240,13 +240,12 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
 
     component_mesh.vertex_array_object = vertex_array::create();
 
-    // Bind vertex buffers later, so we do not bind not used ones and can determine tightly packed buffer stride.
-    struct vb_data
+    // Bind vertex buffers later, so we do not bind not used ones and can determine tightly packed attribute offsets later.
+    struct vao_buffer_data
     {
-        buffer_ptr vb;
-        ptr_size stride;
+        buffer_ptr buf;
     };
-    std::map<int, vb_data> index_to_vb_data;
+    std::map<int, vao_buffer_data> index_to_buffer_data;
 
     for (size_t i = 0; i < m.bufferViews.size(); ++i)
     {
@@ -267,15 +266,8 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
         unsigned char* mapped = static_cast<unsigned char*>(buf->map(0, buffer_view.byteLength, buffer_access::MAPPED_ACCESS_WRITE));
         memcpy(mapped, const_cast<unsigned char*>(t_buffer.data.data() + buffer_view.byteOffset), buffer_view.byteLength);
 
-        if (buffer_view.target == GL_ELEMENT_ARRAY_BUFFER)
-        {
-            component_mesh.vertex_array_object->bind_index_buffer(buf);
-        }
-        else
-        {
-            vb_data data = { buf, buffer_view.byteStride };
-            index_to_vb_data.insert({ i, data });
-        }
+        vao_buffer_data data = { buf };
+        index_to_buffer_data.insert({ i, data });
     }
 
     for (size_t i = 0; i < mesh.primitives.size(); ++i)
@@ -299,6 +291,11 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
 
         component_mesh.primitives.push_back(p);
 
+        auto it = index_to_buffer_data.find(index_accessor.bufferView);
+        if (it == index_to_buffer_data.end())
+            continue; // BAD!
+        component_mesh.vertex_array_object->bind_index_buffer(it->second.buf);
+
         material_component mat;
         mat.material             = std::make_shared<material>();
         mat.material->base_color = glm::vec4(glm::vec3(0.9f), 1.0f);
@@ -310,11 +307,15 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
         component_mesh.materials.push_back(mat);
 
         uint32 vb_idx = 0;
-        std::map<int, int> index_to_binding_point;
 
         for (auto& attrib : primitive.attributes)
         {
             const tinygltf::Accessor& accessor = m.accessors[attrib.second];
+            if (accessor.sparse.isSparse)
+            {
+                MANGO_LOG_ERROR("Models with sparse accessors are currently not supported! Undefined behavior!");
+                return;
+            }
 
             format attribute_format = get_attribute_format(static_cast<format>(accessor.componentType), accessor.type % 32); // TODO Paul: Type is not handled properly here.
 
@@ -329,20 +330,17 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                 attrib_array = 3;
             if (attrib_array > -1)
             {
-                auto it = index_to_vb_data.find(accessor.bufferView);
-                if (it != index_to_vb_data.end())
-                {
-                    ptr_size stride = it->second.stride != 0 ? it->second.stride : accessor.ByteStride(m.bufferViews[accessor.bufferView]);
-                    component_mesh.vertex_array_object->bind_vertex_buffer(vb_idx, it->second.vb, 0, stride);
-                    index_to_vb_data.erase(accessor.bufferView); // Remove because we bound it.
-                    index_to_binding_point.insert({ accessor.bufferView, vb_idx });
-                    vb_idx++;
-                }
-
-                component_mesh.vertex_array_object->set_vertex_attribute(attrib_array, index_to_binding_point.at(accessor.bufferView), attribute_format, accessor.byteOffset);
+                auto it = index_to_buffer_data.find(accessor.bufferView);
+                if (it == index_to_buffer_data.end())
+                    continue; // BAD!
+                ptr_size stride = accessor.ByteStride(m.bufferViews[accessor.bufferView]);
+                MANGO_ASSERT(stride > 0, "Broken gltf model! Attribute stride is {0}!", stride);
+                component_mesh.vertex_array_object->bind_vertex_buffer(vb_idx, it->second.buf, accessor.byteOffset, stride);
+                component_mesh.vertex_array_object->set_vertex_attribute(attrib_array, vb_idx, attribute_format, 0);
+                vb_idx++;
             }
             else
-                MANGO_LOG_DEBUG("Vertex attribute array is missing: {0}!", attrib.first);
+                MANGO_LOG_DEBUG("Vertex attribute array is ignored: {0}!", attrib.first);
         }
     }
 }

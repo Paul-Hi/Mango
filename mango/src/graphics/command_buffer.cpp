@@ -549,11 +549,11 @@ void command_buffer::draw_elements(primitive_topology topology, uint32 first, ui
         {
             if (m_instance_count > 1)
             {
-                glDrawElementsInstanced(static_cast<g_enum>(m_topology), m_count, static_cast<g_enum>(m_type), nullptr, m_instance_count);
+                glDrawElementsInstanced(static_cast<g_enum>(m_topology), m_count, static_cast<g_enum>(m_type), (g_byte*)NULL + m_first, m_instance_count);
             }
             else
             {
-                glDrawElements(static_cast<g_enum>(m_topology), m_count, static_cast<g_enum>(m_type), nullptr);
+                glDrawElements(static_cast<g_enum>(m_topology), m_count, static_cast<g_enum>(m_type), (g_byte*)NULL + m_first);
             }
         }
     };
