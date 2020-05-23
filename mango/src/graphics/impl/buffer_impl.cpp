@@ -75,7 +75,7 @@ buffer_impl::~buffer_impl()
 void buffer_impl::set_data(format internal_format, g_intptr offset, g_sizeiptr size, format pixel_format, format type, const void* data)
 {
     g_sizeiptr buffer_size = static_cast<g_sizeiptr>(m_size);
-    size = (size == MAX_G_SIZE_PTR_SIZE) ? m_size - offset : size;
+    size                   = (size == MAX_G_SIZE_PTR_SIZE) ? m_size - offset : size;
     MANGO_ASSERT(is_created(), "Buffer not created!");
     MANGO_ASSERT((m_access_flags & GL_DYNAMIC_STORAGE_BIT), "Can not set the data! Buffer is not created with dynamic storage!");
     MANGO_ASSERT(offset < buffer_size, "Can not set data outside the buffer!");
@@ -145,3 +145,25 @@ void* buffer_impl::map(g_intptr offset, g_sizeiptr length, buffer_access)
 }
 
 void buffer_impl::unmap() {}
+
+void buffer_impl::lock()
+{
+    if (glIsSync(m_sync))
+    {
+        glDeleteSync(m_sync);
+    }
+    m_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+}
+
+void buffer_impl::request_wait()
+{
+    if (glIsSync(m_sync))
+    {
+        while (1)
+        {
+            g_enum wait_return = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, 1);
+            if (wait_return == GL_ALREADY_SIGNALED || wait_return == GL_CONDITION_SATISFIED)
+                return;
+        }
+    }
+}

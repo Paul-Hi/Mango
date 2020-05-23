@@ -71,6 +71,14 @@ namespace mango
         //! \param[in] mat The \a material for the next draw call.
         virtual void push_material(const material_ptr& mat);
 
+        //! \brief Sets the view projection matrix for the next draw calls.
+        //! \param[in] view_projection The view projection for the next draw calls.
+        virtual void set_view_projection_matrix(const glm::mat4& view_projection);
+
+        //! \brief Sets the \a texture for a environment.
+        //! \param[in] hdr_texture The pointer to the hdr \a texture to use as an environment.
+        virtual void set_environment_texture(const texture_ptr& hdr_texture);
+
       protected:
         //! \brief Mangos internal context for shared usage in all \a render_systems.
         shared_ptr<context_impl> m_shared_context;

@@ -81,6 +81,18 @@ void render_system_impl::push_material(const material_ptr& mat)
     m_current_render_system->push_material(mat);
 }
 
+void render_system_impl::set_view_projection_matrix(const glm::mat4& view_projection)
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->set_view_projection_matrix(view_projection);
+}
+
+void render_system_impl::set_environment_texture(const texture_ptr& hdr_texture)
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->set_environment_texture(hdr_texture);
+}
+
 void render_system_impl::update(float dt)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");

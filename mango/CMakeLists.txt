@@ -20,6 +20,8 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/window_system_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/pipeline_step.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/ibl_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/hashing.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/image_structures.hpp
@@ -53,6 +55,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/ibl_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene.cpp
 

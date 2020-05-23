@@ -89,8 +89,12 @@ const shared_ptr<model> resource_system::load_gltf(const string& path, const mod
     tinygltf::TinyGLTF loader;
     string err;
     string warn;
-    bool ret = loader.LoadASCIIFromFile(&m.gltf_model, &err, &warn, path);
-    // bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, path); // for binary glTF(.glb)
+    auto ext = path.substr(path.find_last_of(".") + 1);
+    bool ret = false;
+    if (ext == "gltf")
+        ret = loader.LoadASCIIFromFile(&m.gltf_model, &err, &warn, path);
+    else if (ext == "glb")
+        ret = loader.LoadBinaryFromFile(&m.gltf_model, &err, &warn, path);
 
     if (!warn.empty())
     {
@@ -133,16 +137,29 @@ static image load_image_from_file(const string& path, const image_configuration&
     // stbi_set_flip_vertically_on_load(true); // This is usually needed for OpenGl
 
     int width = 0, height = 0, components = 0;
-
-    unsigned char* data = stbi_load(path.c_str(), &width, &height, &components, STBI_rgb_alpha);
-
-    if (!data)
+    if (!configuration.is_hdr)
     {
-        MANGO_LOG_ERROR("Could not load image from path '{0}! Image resource not valid!", path);
-        return img;
+        unsigned char* data = stbi_load(path.c_str(), &width, &height, &components, STBI_rgb_alpha);
+
+        if (!data)
+        {
+            MANGO_LOG_ERROR("Could not load image from path '{0}! Image resource not valid!", path);
+            return img;
+        }
+        img.data = static_cast<void*>(data);
+    }
+    else
+    {
+        float* data = stbi_loadf(path.c_str(), &width, &height, &components, STBI_rgb_alpha);
+
+        if (!data)
+        {
+            MANGO_LOG_ERROR("Could not load image from path '{0}! Image resource not valid!", path);
+            return img;
+        }
+        img.data = static_cast<void*>(data);
     }
 
-    img.data              = static_cast<void*>(data);
     img.width             = width;
     img.height            = height;
     img.number_components = components;

@@ -15,6 +15,7 @@ namespace mango
     // fwd
     class vertex_array;
     struct material;
+    class texture;
 
     //! \brief An \a entity. Just a integer used as an id.
     using entity = uint32;
@@ -79,6 +80,10 @@ namespace mango
         float z_far;                  //!< Distance of the far plane.
         float vertical_field_of_view; //!< Vertical field of view in radians.
         float aspect;                 //!< Aspect ratio. Width divided by height.
+        //! \brief The view matrix of the \a camera_component.
+        glm::mat4 view;
+        //! \brief The projection matrix of the \a camera_component.
+        glm::mat4 projection;
         //! \brief The view projection matrix of the \a camera_component.
         glm::mat4 view_projection;
     };
@@ -88,6 +93,14 @@ namespace mango
     {
         const camera_component* camera_info;  //!< Camera specific data is in here.
         const transform_component* transform; //!< Transform of the camera.
+    };
+
+    //! \brief Component used for the scene environment.
+    //! \details This could be extended from the entities, because there will be only one active environment in the scene normally.
+    struct environment_component
+    {
+        glm::mat3 rotation_scale_matrix = glm::mat3(1.0f); //!< The rotation and scale of the environment.
+        shared_ptr<texture> hdr_texture;                   //!< The hdr texture used to build the environment.
     };
 } // namespace mango
 

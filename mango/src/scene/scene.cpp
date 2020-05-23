@@ -62,8 +62,9 @@ entity scene::create_default_camera()
     transform_component.local_transformation_matrix = glm::translate(glm::mat4(1.0f), position);
     transform_component.world_transformation_matrix = transform_component.local_transformation_matrix;
 
-    camera_component.view_projection = glm::perspective(camera_component.vertical_field_of_view, camera_component.aspect, camera_component.z_near, camera_component.z_far) *
-                                       glm::lookAt(position, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    camera_component.view            = glm::lookAt(position, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    camera_component.projection      = glm::perspective(camera_component.vertical_field_of_view, camera_component.aspect, camera_component.z_near, camera_component.z_far);
+    camera_component.view_projection = camera_component.projection * camera_component.view;
 
     // Currently the only camera is the active one.
     m_active_camera_data->camera_info = &camera_component;
@@ -95,6 +96,50 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
     }
 
     return scene_entities;
+}
+
+entity scene::create_environment_from_hdr(const string& path, int16 rendered_mip_level)
+{
+    entity environment_entity = create_empty();
+    auto& environment         = m_environments.create_component_for(environment_entity);
+
+    // default rotation and scale
+    environment.rotation_scale_matrix = glm::mat3(1.0f);
+
+    // load image and texture
+    shared_ptr<resource_system> res = m_shared_context->get_resource_system_internal().lock();
+    MANGO_ASSERT(res, "Resource System is expired!");
+
+    image_configuration img_config;
+    img_config.name                    = path.substr(path.find_last_of("/") + 1, path.find_last_of("."));
+    img_config.is_standard_color_space = false;
+    img_config.is_hdr                  = true;
+
+    auto hdr_image = res->load_image(path, img_config);
+
+    texture_configuration tex_config;
+    tex_config.m_generate_mipmaps        = false;
+    tex_config.m_is_standard_color_space = false;
+    tex_config.m_texture_min_filter      = texture_parameter::FILTER_LINEAR;
+    tex_config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
+    tex_config.m_texture_wrap_s          = texture_parameter::WRAP_CLAMP_TO_EDGE;
+    tex_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
+
+    texture_ptr hdr_texture = texture::create(tex_config);
+
+    format f        = format::RGBA;
+    format internal = format::RGBA16F;
+    format type     = format::FLOAT;
+
+    hdr_texture->set_data(internal, hdr_image->width, hdr_image->height, f, type, hdr_image->data);
+
+    environment.hdr_texture = hdr_texture;
+
+    shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
+    MANGO_ASSERT(rs, "Render System is expired!");
+    rs->set_environment_texture(environment.hdr_texture); // TODO Paul: Transformation?
+
+    return environment_entity;
 }
 
 void scene::update(float dt)
@@ -631,13 +676,17 @@ static void camera_update(scene_component_manager<camera_component>& cameras, sc
             if (transform)
             {
                 if (c.type == camera_type::perspective_camera)
-                    c.view_projection = glm::perspective(c.vertical_field_of_view, c.aspect, c.z_near, c.z_far) *
-                                        glm::lookAt(glm::vec3(transform->world_transformation_matrix[3]), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                {
+                    c.view            = glm::lookAt(glm::vec3(transform->world_transformation_matrix[3]), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                    c.projection      = glm::perspective(c.vertical_field_of_view, c.aspect, c.z_near, c.z_far);
+                    c.view_projection = c.projection * c.view;
+                }
                 else if (c.type == camera_type::orthographic_camera)
                 {
+                    c.view               = glm::lookAt(glm::vec3(transform->world_transformation_matrix[3]), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                     const float distance = c.z_far - c.z_near;
-                    c.view_projection    = glm::ortho(-c.aspect * distance, c.aspect * distance, -distance, distance) *
-                                        glm::lookAt(glm::vec3(transform->world_transformation_matrix[3]), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                    c.projection         = glm::ortho(-c.aspect * distance, c.aspect * distance, -distance, distance);
+                    c.view_projection    = c.projection * c.view;
                 }
             }
         },

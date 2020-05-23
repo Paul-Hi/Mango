@@ -32,7 +32,7 @@ namespace mango
     //! Some steps may not be available on certain \a render_systems and \a render_pipelines.
     enum render_step
     {
-        none,
+        ibl,
         // shadow,
         // ssao,
         // voxel_gi,

@@ -95,6 +95,12 @@ namespace mango
         //! \brief Unmaps the \a buffer. Not used at the moment, because we map persistent.
         virtual void unmap() = 0;
 
+        //! \brief Locks the \a buffer. This places a fence that will be removed when commands are finished on gpu.
+        virtual void lock() = 0;
+
+        //! \brief Waits for the \a buffer until it is not longer used by gpu.
+        virtual void request_wait() = 0;
+
       protected:
         buffer()  = default;
         ~buffer() = default;

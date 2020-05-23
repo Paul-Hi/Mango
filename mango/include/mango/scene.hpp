@@ -53,8 +53,17 @@ namespace mango
         //! \brief Creates entities from a model loaded from a gltf file.
         //! \details Internally creates entities with \a mesh_components, \a material_components, \a transform_components and \a node_components.
         //! All the components are filled with data loaded from the gltf file.
+        //! \param[in] path The path to the gltf model to load.
         //! \return A list of all created entities.
         std::vector<entity> create_entities_from_model(const string& path);
+
+        //! \brief Creates an environment entity.
+        //! \details An entity with \a environment_component.
+        //! The environment texture is preprocessed, prefiltered and can be rendered as a cube. This is done with a \a pipeline_step.
+        //! \param[in] path The path to the hdr image to load.
+        //! \param[in] rendered_mip_level The mipmap level to render the texture. -1 if no visualization is wanted.
+        //! \return The created environment entity.
+        entity create_environment_from_hdr(const string& path, int16 rendered_mip_level);
 
         //! \brief Attach an \a entity to another entity in a child <-> parent realationship.
         //! \details Adds a \a node_component. This is mostly useful to describe child objects inheriting the parents transform.
@@ -126,6 +135,8 @@ namespace mango
         scene_component_manager<mesh_component> m_meshes;
         //! \brief All \a camera_components.
         scene_component_manager<camera_component> m_cameras;
+        //! \brief All \a environment_components. There is only one unique at the moment.
+        scene_component_manager<environment_component> m_environments;
         //! \brief The \a camera_data for the currently active camera.
         shared_ptr<camera_data> m_active_camera_data;
     };

@@ -58,6 +58,7 @@ vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_pro
 void main()
 {
     float depth = texture(gbuffer_depth, texcoord).r;
+    gl_FragDepth = depth; // This is for the potential cubemap.
     if(depth >= 1.0) discard;
     vec3 emissive = get_emissive();
     if(length(emissive) > 0.0)

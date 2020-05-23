@@ -8,6 +8,7 @@
 #define MANGO_DEFERRED_PBR_RENDER_SYSTEM_HPP
 
 #include <rendering/render_system_impl.hpp>
+#include <rendering/steps/pipeline_step.hpp>
 
 namespace mango
 {
@@ -32,6 +33,8 @@ namespace mango
 
         void set_model_matrix(const glm::mat4& model_matrix) override;
         void push_material(const material_ptr& mat) override;
+        void set_view_projection_matrix(const glm::mat4& view_projection) override;
+        void set_environment_texture(const texture_ptr& hdr_texture) override;
 
       private:
         //! \brief The gbuffer of the deferred pipeline.
@@ -77,6 +80,9 @@ namespace mango
         scene_material_uniforms* m_active_scene_material_uniforms;
         //! \brief The uniform buffer mapping the gpu buffer to the active scene material fragment uniforms.
         buffer_ptr m_scene_material_uniform_buffer;
+
+        //! \brief Optional additional steps of the deferred pipeline.
+        shared_ptr<pipeline_step> m_pipeline_steps[mango::render_step::number_of_step_types];
     };
 
 } // namespace mango

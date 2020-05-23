@@ -106,6 +106,14 @@ namespace mango
         //! \param[in] framebuffer The pointer to the \a framebuffer to bind.
         void bind_framebuffer(framebuffer_ptr framebuffer);
 
+        //! \brief Locks a \a buffer after a modification.
+        //! \param[in] buffer The pointer to the \a buffer to lock.
+        void lock_buffer(buffer_ptr buffer);
+
+        //! \brief Waits for a \a buffer after a series of gl calls.
+        //! \param[in] buffer The pointer to the \a buffer to wait for.
+        void wait_for_buffer(buffer_ptr buffer);
+
         //! \brief Draws arrays.
         //! \details All the information not given in the argument list is retrieved from the state.
         //! \param[in] topology The topology used for drawing the bound vertex data.

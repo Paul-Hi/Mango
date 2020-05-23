@@ -15,6 +15,7 @@
 #include <graphics/vertex_array.hpp>
 #include <mango/scene.hpp>
 #include <rendering/pipelines/deferred_pbr_render_system.hpp>
+#include <rendering/steps/ibl_step.hpp>
 
 #ifdef MANGO_DEBUG
 static void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
@@ -100,23 +101,55 @@ bool deferred_pbr_render_system::create()
 
     // scene uniform buffers
     buffer_configuration v_buffer_config(sizeof(scene_vertex_uniforms), buffer_target::UNIFORM_BUFFER, buffer_access::MAPPED_ACCESS_WRITE);
-    m_scene_vertex_uniform_buffer  = buffer::create(v_buffer_config);
+    m_scene_vertex_uniform_buffer = buffer::create(v_buffer_config);
+    if (!m_scene_vertex_uniform_buffer)
+    {
+        MANGO_LOG_ERROR("Creation of material uniform buffer failed! Render system not available!");
+        return false;
+    }
+
     m_active_scene_vertex_uniforms = static_cast<scene_vertex_uniforms*>(m_scene_vertex_uniform_buffer->map(0, m_scene_vertex_uniform_buffer->byte_length(), buffer_access::MAPPED_ACCESS_WRITE));
+    if (!m_active_scene_vertex_uniforms)
+    {
+        MANGO_LOG_ERROR("Mapping of scene unforms failed! Render system not available!");
+        return false;
+    }
 
     buffer_configuration m_buffer_config(sizeof(scene_material_uniforms), buffer_target::UNIFORM_BUFFER, buffer_access::MAPPED_ACCESS_WRITE);
     m_scene_material_uniform_buffer = buffer::create(m_buffer_config);
+    if (!m_scene_material_uniform_buffer)
+    {
+        MANGO_LOG_ERROR("Creation of material uniform buffer failed! Render system not available!");
+        return false;
+    }
+
     m_active_scene_material_uniforms =
         static_cast<scene_material_uniforms*>(m_scene_material_uniform_buffer->map(0, m_scene_material_uniform_buffer->byte_length(), buffer_access::MAPPED_ACCESS_WRITE));
-    // scene geometry pass
+    if (!m_active_scene_material_uniforms)
+    {
+        MANGO_LOG_ERROR("Mapping of material unforms failed! Render system not available!");
+        return false;
+    }
 
+    // scene geometry pass
     shader_configuration shader_config;
     shader_config.m_path = "res/shader/v_scene_gltf.glsl";
     shader_config.m_type = shader_type::VERTEX_SHADER;
     shader_ptr d_vertex  = shader::create(shader_config);
+    if (!d_vertex)
+    {
+        MANGO_LOG_ERROR("Creation of geometry pass vertex shader failed! Render system not available!");
+        return false;
+    }
 
     shader_config.m_path  = "res/shader/f_scene_gltf.glsl";
     shader_config.m_type  = shader_type::FRAGMENT_SHADER;
     shader_ptr d_fragment = shader::create(shader_config);
+    if (!d_fragment)
+    {
+        MANGO_LOG_ERROR("Creation of geometry pass fragment shader failed! Render system not available!");
+        return false;
+    }
 
     m_scene_geometry_pass = shader_program::create_graphics_pipeline(d_vertex, nullptr, nullptr, nullptr, d_fragment);
     // shader light pass
@@ -124,22 +157,52 @@ bool deferred_pbr_render_system::create()
     shader_config.m_path = "res/shader/v_empty.glsl";
     shader_config.m_type = shader_type::VERTEX_SHADER;
     d_vertex             = shader::create(shader_config);
+    if (!d_vertex)
+    {
+        MANGO_LOG_ERROR("Creation of lighting vertex shader failed! Render system not available!");
+        return false;
+    }
 
     shader_config.m_path  = "res/shader/g_create_screen_space_quad.glsl";
     shader_config.m_type  = shader_type::GEOMETRY_SHADER;
     shader_ptr d_geometry = shader::create(shader_config);
+    if (!d_geometry)
+    {
+        MANGO_LOG_ERROR("Creation of lighting geometry shader failed! Render system not available!");
+        return false;
+    }
 
     shader_config.m_path = "res/shader/f_deferred_lighting.glsl";
     shader_config.m_type = shader_type::FRAGMENT_SHADER;
     d_fragment           = shader::create(shader_config);
+    if (!d_fragment)
+    {
+        MANGO_LOG_ERROR("Creation of lighting fragment shader failed! Render system not available!");
+        return false;
+    }
 
     m_lighting_pass = shader_program::create_graphics_pipeline(d_vertex, nullptr, nullptr, d_geometry, d_fragment);
+    if (!m_lighting_pass)
+    {
+        MANGO_LOG_ERROR("Creation of lighting pass failed! Render system not available!");
+        return false;
+    }
 
     // default vao needed
     default_vao = vertex_array::create();
+    if (!default_vao)
+    {
+        MANGO_LOG_ERROR("Creation of default vao failed! Render system not available!");
+        return false;
+    }
     // default texture needed (config is not relevant)
     default_texture = texture::create(attachment_config);
-    g_ubyte zero    = 0;
+    if (!default_texture)
+    {
+        MANGO_LOG_ERROR("Creation of default texture failed! Render system not available!");
+        return false;
+    }
+    g_ubyte zero = 0;
     default_texture->set_data(format::R8, 1, 1, format::RED, format::UNSIGNED_BYTE, &zero);
 
     return true;
@@ -150,11 +213,22 @@ void deferred_pbr_render_system::configure(const render_configuration& configura
     auto ws = m_shared_context->get_window_system_internal().lock();
     MANGO_ASSERT(ws, "Window System is expired!");
     ws->set_vsync(configuration.is_vsync_enabled());
+
+    // additional render steps
+    if (configuration.get_render_steps()[mango::render_step::ibl])
+    {
+        // create an extra object that is capable to create cubemaps from equirectangular hdr, preprocess everything and
+        // do all the rendering for the environment.
+        auto step_ibl = std::make_shared<ibl_step>();
+        step_ibl->create();
+        m_pipeline_steps[mango::render_step::ibl] = std::static_pointer_cast<pipeline_step>(step_ibl);
+    }
 }
 
 void deferred_pbr_render_system::begin_render()
 {
     m_command_buffer->set_depth_test(true);
+    m_command_buffer->set_depth_func(compare_operation::LESS);
     m_command_buffer->set_cull_face(polygon_face::FACE_BACK);
     m_command_buffer->bind_framebuffer(m_gbuffer);
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 0.0f, m_gbuffer);
@@ -162,19 +236,24 @@ void deferred_pbr_render_system::begin_render()
 
     auto scene  = m_shared_context->get_current_scene();
     auto camera = scene->get_active_camera_data();
-    if (camera && camera->camera_info && camera->transform)
+    if (camera && camera->camera_info)
     {
-        m_active_scene_vertex_uniforms->view_projection = camera->camera_info->view_projection;
+        set_view_projection_matrix(camera->camera_info->view_projection);
     }
 
     m_command_buffer->bind_uniform_buffer(0, m_scene_vertex_uniform_buffer);
     m_command_buffer->bind_uniform_buffer(1, m_scene_material_uniform_buffer);
+
+    m_command_buffer->lock_buffer(m_scene_vertex_uniform_buffer);
+    m_command_buffer->lock_buffer(m_scene_material_uniform_buffer);
 
     // m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::LINE);
 }
 
 void deferred_pbr_render_system::finish_render()
 {
+    m_command_buffer->lock_buffer(m_scene_vertex_uniform_buffer);
+    m_command_buffer->lock_buffer(m_scene_material_uniform_buffer);
     m_command_buffer->bind_framebuffer(nullptr); // bind default.
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH_STENCIL, attachment_mask::ALL, 0.0f, 0.0f, 0.2f, 1.0f);
     m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::FILL);
@@ -187,10 +266,6 @@ void deferred_pbr_render_system::finish_render()
     {
         lp_uniforms.inverse_view_projection = glm::inverse(camera->camera_info->view_projection);
         lp_uniforms.camera_position         = camera->transform->world_transformation_matrix[3];
-    }
-    else
-    {
-        MANGO_LOG_ERROR("No active camera is set! Rendering will be broken!");
     }
     m_command_buffer->bind_single_uniform(0, &lp_uniforms.inverse_view_projection, sizeof(lp_uniforms.inverse_view_projection));
     m_command_buffer->bind_single_uniform(1, &lp_uniforms.camera_position, sizeof(lp_uniforms.camera_position));
@@ -211,9 +286,22 @@ void deferred_pbr_render_system::finish_render()
     m_command_buffer->bind_texture(2, nullptr, 4);
     m_command_buffer->bind_texture(3, nullptr, 5);
     m_command_buffer->bind_texture(4, nullptr, 6);
+
     m_command_buffer->bind_vertex_array(nullptr);
     // We need to unbind the program so we can make changes to the textures.
     m_command_buffer->bind_shader_program(nullptr);
+
+    if (m_pipeline_steps[mango::render_step::ibl])
+    {
+        // We need the not translated view for skybox rendering.
+        if (camera && camera->camera_info)
+        {
+            set_view_projection_matrix(camera->camera_info->projection * glm::mat4(glm::mat3(camera->camera_info->view)));
+        }
+        m_command_buffer->set_depth_func(compare_operation::LESS_EQUAL);
+        m_pipeline_steps[mango::render_step::ibl]->execute(m_command_buffer);
+        m_command_buffer->lock_buffer(m_scene_vertex_uniform_buffer);
+    }
 
     m_command_buffer->execute();
 }
@@ -257,6 +345,8 @@ void deferred_pbr_render_system::set_model_matrix(const glm::mat4& model_matrix)
         }
     };
 
+    m_command_buffer->lock_buffer(m_scene_vertex_uniform_buffer);
+    m_command_buffer->wait_for_buffer(m_scene_vertex_uniform_buffer);
     m_command_buffer->submit<set_model_matrix_cmd>(m_active_scene_vertex_uniforms, model_matrix);
 }
 
@@ -334,7 +424,42 @@ void deferred_pbr_render_system::push_material(const material_ptr& mat)
         }
     };
 
+    m_command_buffer->lock_buffer(m_scene_material_uniform_buffer);
+    m_command_buffer->wait_for_buffer(m_scene_material_uniform_buffer);
     m_command_buffer->submit<push_material_cmd>(m_active_scene_material_uniforms, mat);
+}
+
+void deferred_pbr_render_system::set_view_projection_matrix(const glm::mat4& view_projection)
+{
+    class set_view_projection_matrix_cmd : public command
+    {
+      public:
+        scene_vertex_uniforms* m_uniform_ptr;
+        glm::mat4 m_view_projection_matrix;
+        set_view_projection_matrix_cmd(scene_vertex_uniforms* uniform_ptr, const glm::mat4& view_projection)
+            : m_uniform_ptr(uniform_ptr)
+            , m_view_projection_matrix(view_projection)
+        {
+        }
+
+        void execute(graphics_state&) override
+        {
+            MANGO_ASSERT(m_uniform_ptr, "Uniforms do not exist anymore.");
+            m_uniform_ptr->view_projection = std140_mat4(m_view_projection_matrix);
+        }
+    };
+
+    m_command_buffer->lock_buffer(m_scene_vertex_uniform_buffer);
+    m_command_buffer->wait_for_buffer(m_scene_vertex_uniform_buffer);
+    m_command_buffer->submit<set_view_projection_matrix_cmd>(m_active_scene_vertex_uniforms, view_projection);
+}
+
+void deferred_pbr_render_system::set_environment_texture(const texture_ptr& hdr_texture)
+{
+    if (m_pipeline_steps[mango::render_step::ibl])
+    {
+        std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl])->load_from_hdr(hdr_texture);
+    }
 }
 
 #ifdef MANGO_DEBUG

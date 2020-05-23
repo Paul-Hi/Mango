@@ -16,7 +16,7 @@ namespace mango
     {
         string name;                  //!< The name of the image. Used to store it and retrieve it later on.
         bool is_standard_color_space; //!< True if the picture is in standard color space (SRGB etc.) , else false.
-        bool generate_mipmaps;        //!< Specifies if mipmaps should be generated.
+        bool is_hdr;                  //!< True if the picture has high dynamic range , else false.
     };
 
     //! \brief A two dimensional image.

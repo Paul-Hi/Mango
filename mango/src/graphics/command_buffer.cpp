@@ -402,6 +402,46 @@ void command_buffer::bind_framebuffer(framebuffer_ptr framebuffer)
     }
 }
 
+void command_buffer::lock_buffer(buffer_ptr buffer)
+{
+    class lock_buffer_cmd : public command
+    {
+      public:
+        buffer_ptr m_buffer;
+        lock_buffer_cmd(buffer_ptr buffer)
+            : m_buffer(buffer)
+        {
+        }
+
+        void execute(graphics_state& state) override
+        {
+            m_buffer->lock();
+        }
+    };
+
+    // TODO Paul: Store that in the state?
+    submit<lock_buffer_cmd>(buffer);
+}
+
+void command_buffer::wait_for_buffer(buffer_ptr buffer) {
+    class wait_for_buffer_cmd : public command
+    {
+      public:
+        buffer_ptr m_buffer;
+        wait_for_buffer_cmd(buffer_ptr buffer)
+            : m_buffer(buffer)
+        {
+        }
+
+        void execute(graphics_state& state) override
+        {
+            m_buffer->request_wait();
+        }
+    };
+
+    // TODO Paul: Store that in the state?
+    submit<wait_for_buffer_cmd>(buffer);}
+
 void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment_mask att_mask, g_float r, g_float g, g_float b, g_float a, framebuffer_ptr framebuffer)
 {
     class clear_cmd : public command
