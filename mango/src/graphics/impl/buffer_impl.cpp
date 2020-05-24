@@ -52,7 +52,7 @@ buffer_impl::buffer_impl(const buffer_configuration& configuration)
     }
 
     glCreateBuffers(1, &m_name);
-    glNamedBufferStorage(m_name, m_size, nullptr, m_access_flags);
+    glNamedBufferStorage(m_name, m_size, configuration.m_data, m_access_flags);
 
     if (persistent)
     {

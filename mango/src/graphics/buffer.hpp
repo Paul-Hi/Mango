@@ -25,7 +25,8 @@ namespace mango
         //! \param[in] size The size for the \a buffer to create.
         //! \param[in] target The \ buffer_target hint for the \a buffer to create.
         //! \param[in] access The \a buffer_access for the \a buffer to create.
-        buffer_configuration(ptr_size size, buffer_target target, buffer_access access)
+        //! \param[in] data Optional data for the \a buffer to create.
+        buffer_configuration(ptr_size size, buffer_target target, buffer_access access, void* data = nullptr)
             : graphics_configuration()
             , m_size(size)
             , m_target(target)
@@ -39,10 +40,12 @@ namespace mango
         buffer_target m_target = buffer_target::NONE;
         //! \brief Access information.
         buffer_access m_access = buffer_access::NONE;
+        //! \brief Data.
+        const void* m_data = nullptr;
 
         bool is_valid() const
         {
-            return m_size && m_access != buffer_access::NONE; // Some buffers do not need a target specified.
+            return m_size && (m_access != buffer_access::NONE || m_data); // Some buffers do not need a target specified.
         }
     };
 

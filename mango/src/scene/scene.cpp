@@ -304,12 +304,13 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
         const tinygltf::Buffer& t_buffer = m.buffers[buffer_view.buffer];
 
         buffer_configuration config;
-        config.m_access       = buffer_access::MAPPED_ACCESS_WRITE;
-        config.m_size         = buffer_view.byteLength;
-        config.m_target       = buffer_view.target == GL_ARRAY_BUFFER ? buffer_target::VERTEX_BUFFER : buffer_target::INDEX_BUFFER;
-        buffer_ptr buf        = buffer::create(config);
-        unsigned char* mapped = static_cast<unsigned char*>(buf->map(0, buffer_view.byteLength, buffer_access::MAPPED_ACCESS_WRITE));
-        memcpy(mapped, const_cast<unsigned char*>(t_buffer.data.data() + buffer_view.byteOffset), buffer_view.byteLength);
+        config.m_access = buffer_access::NONE;
+        config.m_size   = buffer_view.byteLength;
+        config.m_target = buffer_view.target == GL_ARRAY_BUFFER ? buffer_target::VERTEX_BUFFER : buffer_target::INDEX_BUFFER;
+
+        const void* buffer_data = static_cast<const void*>(t_buffer.data.data() + buffer_view.byteOffset);
+        config.m_data           = buffer_data;
+        buffer_ptr buf          = buffer::create(config);
 
         vao_buffer_data data = { buf };
         index_to_buffer_data.insert({ i, data });

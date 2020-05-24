@@ -83,20 +83,21 @@ bool ibl_step::create()
     m_cube_geometry = vertex_array::create();
 
     buffer_configuration b_config;
-    b_config.m_access        = buffer_access::MAPPED_ACCESS_WRITE;
-    b_config.m_size          = sizeof(cubemap_vertices);
-    b_config.m_target        = buffer_target::VERTEX_BUFFER;
-    buffer_ptr vb            = buffer::create(b_config);
-    unsigned char* vb_mapped = static_cast<unsigned char*>(vb->map(0, vb->byte_length(), buffer_access::MAPPED_ACCESS_WRITE));
-    memcpy(vb_mapped, cubemap_vertices, sizeof(cubemap_vertices));
+    b_config.m_access   = buffer_access::NONE;
+    b_config.m_size     = sizeof(cubemap_vertices);
+    b_config.m_target   = buffer_target::VERTEX_BUFFER;
+    const void* vb_data = static_cast<const void*>(cubemap_vertices);
+    b_config.m_data     = vb_data;
+    buffer_ptr vb       = buffer::create(b_config);
 
     m_cube_geometry->bind_vertex_buffer(0, vb, 0, sizeof(float) * 3);
     m_cube_geometry->set_vertex_attribute(0, 0, format::RGB32F, 0);
-    b_config.m_size          = sizeof(cubemap_indices);
-    b_config.m_target        = buffer_target::INDEX_BUFFER;
-    buffer_ptr ib            = buffer::create(b_config);
-    unsigned char* ib_mapped = static_cast<unsigned char*>(ib->map(0, ib->byte_length(), buffer_access::MAPPED_ACCESS_WRITE));
-    memcpy(ib_mapped, cubemap_indices, sizeof(cubemap_indices));
+
+    b_config.m_size     = sizeof(cubemap_indices);
+    b_config.m_target   = buffer_target::INDEX_BUFFER;
+    const void* ib_data = static_cast<const void*>(cubemap_indices);
+    b_config.m_data     = ib_data;
+    buffer_ptr ib       = buffer::create(b_config);
 
     m_cube_geometry->bind_index_buffer(ib);
 
