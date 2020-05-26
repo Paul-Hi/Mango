@@ -98,7 +98,7 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
     return scene_entities;
 }
 
-entity scene::create_environment_from_hdr(const string& path, int16 rendered_mip_level)
+entity scene::create_environment_from_hdr(const string& path, float rendered_mip_level)
 {
     entity environment_entity = create_empty();
     auto& environment         = m_environments.create_component_for(environment_entity);
@@ -118,7 +118,7 @@ entity scene::create_environment_from_hdr(const string& path, int16 rendered_mip
     auto hdr_image = res->load_image(path, img_config);
 
     texture_configuration tex_config;
-    tex_config.m_generate_mipmaps        = false;
+    tex_config.m_generate_mipmaps        = 1;
     tex_config.m_is_standard_color_space = false;
     tex_config.m_texture_min_filter      = texture_parameter::FILTER_LINEAR;
     tex_config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
@@ -128,7 +128,7 @@ entity scene::create_environment_from_hdr(const string& path, int16 rendered_mip
     texture_ptr hdr_texture = texture::create(tex_config);
 
     format f        = format::RGBA;
-    format internal = format::RGBA16F;
+    format internal = format::RGBA32F;
     format type     = format::FLOAT;
 
     hdr_texture->set_data(internal, hdr_image->width, hdr_image->height, f, type, hdr_image->data);
@@ -137,7 +137,7 @@ entity scene::create_environment_from_hdr(const string& path, int16 rendered_mip
 
     shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
     MANGO_ASSERT(rs, "Render System is expired!");
-    rs->set_environment_texture(environment.hdr_texture); // TODO Paul: Transformation?
+    rs->set_environment_texture(environment.hdr_texture, rendered_mip_level); // TODO Paul: Transformation?
 
     return environment_entity;
 }
@@ -402,10 +402,10 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
 
     auto& pbr = p_m.pbrMetallicRoughness;
 
-    // TODO Paul: Texturing is not perfect at the moment ... And not perfect means pretty bad.
+    // TODO Paul: Cleanup.
 
     texture_configuration config;
-    config.m_generate_mipmaps        = true;
+    config.m_generate_mipmaps        = 1;
     config.m_is_standard_color_space = true;
     config.m_texture_min_filter      = texture_parameter::FILTER_LINEAR_MIPMAP_LINEAR;
     config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
@@ -436,7 +436,8 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
         }
 
-        texture_ptr base_color = texture::create(config);
+        config.m_generate_mipmaps = calculate_mip_count(image.width, image.height);
+        texture_ptr base_color    = texture::create(config);
 
         format f        = format::RGBA;
         format internal = format::SRGB8_ALPHA8;
@@ -493,6 +494,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
         }
 
+        config.m_generate_mipmaps = calculate_mip_count(image.width, image.height);
         texture_ptr o_r_m = texture::create(config);
 
         format f        = format::RGBA;
@@ -545,6 +547,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
         }
 
+        config.m_generate_mipmaps = calculate_mip_count(image.width, image.height);
         texture_ptr normal_t = texture::create(config);
 
         format f        = format::RGBA;
@@ -603,6 +606,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
         }
 
+        config.m_generate_mipmaps = calculate_mip_count(image.width, image.height);
         texture_ptr emissive_color = texture::create(config);
 
         format f        = format::RGBA;

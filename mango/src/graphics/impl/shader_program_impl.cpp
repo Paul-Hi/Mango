@@ -96,7 +96,7 @@ void shader_program_impl::create_graphics_pipeline_impl(shader_ptr vertex_shader
 void shader_program_impl::create_compute_pipeline_impl(shader_ptr compute_shader)
 {
     MANGO_ASSERT(is_created(), "Shader program not created!");
-    MANGO_ASSERT(compute_shader, "Vertex shader is mandatory for a compute pipeline!");
+    MANGO_ASSERT(compute_shader, "Compute shader is mandatory for a compute pipeline!");
 
     glAttachShader(m_name, compute_shader->get_name());
     m_shaders.push_back(compute_shader);

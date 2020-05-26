@@ -216,6 +216,16 @@ namespace mango
         //! \endcond
     };
 
+    static uint32 calculate_mip_count(uint32 width, uint32 height)
+    {
+        uint32 levels = 1;
+        while ((width | height) >> levels)
+        {
+            ++levels;
+        }
+        return levels;
+    }
+
     //! \brief All kinds of format values.
     //! \details The values are the same as in OpenGl, but sometimes the usage is extended.
     enum class format : uint32 // OpenGL values
@@ -896,6 +906,32 @@ namespace mango
     };
     MANGO_ENABLE_BITMASK_OPERATIONS(buffer_access)
 
+    //! \brief A set of access bits used for general access.
+    enum class base_access : uint8
+    {
+        NONE = 0,
+        READ_ONLY,
+        WRITE_ONLY,
+        READ_WRITE
+    };
+    //! \brief Converts a \a base_access to an OpenGl enumeration value.
+    //! \param[in] access The \a base_access to convert.
+    //! \return The gl enumeration specifying a \a base_access.
+    inline g_enum base_access_to_gl(const base_access& access)
+    {
+        switch (access)
+        {
+        case base_access::READ_ONLY:
+            return GL_READ_ONLY;
+        case base_access::WRITE_ONLY:
+            return GL_WRITE_ONLY;
+        case base_access::READ_WRITE:
+            return GL_READ_WRITE;
+        default:
+            return GL_NONE;
+        }
+    }
+
     //! \brief The type of a \a shader.
     enum class shader_type : uint8
     {
@@ -990,7 +1026,12 @@ namespace mango
         case GL_FLOAT_MAT4:
             return shader_resource_type::MAT4;
         case GL_SAMPLER_2D:
+        case GL_SAMPLER_CUBE:
             return shader_resource_type::INT; // We only need integers, because the binding of the texture is not done with an uniform.
+        case GL_IMAGE_2D:
+        case GL_IMAGE_2D_ARRAY:
+        case GL_IMAGE_CUBE:
+            return shader_resource_type::NONE; // We don't need that, because the binding of the image texture is not done with an uniform.
         default:
             MANGO_LOG_ERROR("GL Uniform type {0} currently not supported!", type);
             return shader_resource_type::NONE;
@@ -1106,6 +1147,65 @@ namespace mango
         STENCIL_ATTACHMENT,
         DEPTH_STENCIL_ATTACHMENT
     };
+
+    //! \brief Specification of barrier bits to block Opengl.
+    enum class memory_barrier_bit : uint8
+    {
+        VERTEX_ATTRIB_ARRAY_BARRIER_BIT,
+        ELEMENT_ARRAY_BARRIER_BIT,
+        UNIFORM_BARRIER_BIT,
+        TEXTURE_FETCH_BARRIER_BIT,
+        SHADER_IMAGE_ACCESS_BARRIER_BIT,
+        COMMAND_BARRIER_BIT,
+        PIXEL_BUFFER_BARRIER_BIT,
+        TEXTURE_UPDATE_BARRIER_BIT,
+        BUFFER_UPDATE_BARRIER_BIT,
+        FRAMEBUFFER_BARRIER_BIT,
+        TRANSFORM_FEEDBACK_BARRIER_BIT,
+        ATOMIC_COUNTER_BARRIER_BIT,
+        SHADER_STORAGE_BARRIER_BIT,
+        QUERY_BUFFER_BARRIER_BIT
+    };
+    //! \brief Converts a \a memory_barrier_bit to an OpenGl enumeration value.
+    //! \param[in] barrier_bit The \a memory_barrier_bit to convert.
+    //! \return The corresponding enumeration value.
+    inline g_enum memory_barrier_bit_to_gl(const memory_barrier_bit& barrier_bit)
+    {
+        switch (barrier_bit)
+        {
+        case memory_barrier_bit::VERTEX_ATTRIB_ARRAY_BARRIER_BIT:
+            return GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT;
+        case memory_barrier_bit::ELEMENT_ARRAY_BARRIER_BIT:
+            return GL_ELEMENT_ARRAY_BARRIER_BIT;
+        case memory_barrier_bit::UNIFORM_BARRIER_BIT:
+            return GL_UNIFORM_BARRIER_BIT;
+        case memory_barrier_bit::TEXTURE_FETCH_BARRIER_BIT:
+            return GL_TEXTURE_FETCH_BARRIER_BIT;
+        case memory_barrier_bit::SHADER_IMAGE_ACCESS_BARRIER_BIT:
+            return GL_SHADER_IMAGE_ACCESS_BARRIER_BIT;
+        case memory_barrier_bit::COMMAND_BARRIER_BIT:
+            return GL_COMMAND_BARRIER_BIT;
+        case memory_barrier_bit::PIXEL_BUFFER_BARRIER_BIT:
+            return GL_PIXEL_BUFFER_BARRIER_BIT;
+        case memory_barrier_bit::TEXTURE_UPDATE_BARRIER_BIT:
+            return GL_TEXTURE_UPDATE_BARRIER_BIT;
+        case memory_barrier_bit::BUFFER_UPDATE_BARRIER_BIT:
+            return GL_BUFFER_UPDATE_BARRIER_BIT;
+        case memory_barrier_bit::FRAMEBUFFER_BARRIER_BIT:
+            return GL_FRAMEBUFFER_BARRIER_BIT;
+        case memory_barrier_bit::TRANSFORM_FEEDBACK_BARRIER_BIT:
+            return GL_TRANSFORM_FEEDBACK_BARRIER_BIT;
+        case memory_barrier_bit::ATOMIC_COUNTER_BARRIER_BIT:
+            return GL_ATOMIC_COUNTER_BARRIER_BIT;
+        case memory_barrier_bit::SHADER_STORAGE_BARRIER_BIT:
+            return GL_SHADER_STORAGE_BARRIER_BIT;
+        case memory_barrier_bit::QUERY_BUFFER_BARRIER_BIT:
+            return GL_QUERY_BUFFER_BARRIER_BIT;
+        default:
+            MANGO_LOG_WARN("Unknown memory barrier bit.");
+            return GL_NONE;
+        }
+    }
 
 } // namespace mango
 

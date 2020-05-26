@@ -27,10 +27,10 @@ namespace mango
 
         inline uint32 get_height() override
         {
-            return m_width;
+            return m_height;
         }
 
-        inline bool mipmaps_enabled() override
+        inline uint32 mipmaps() override
         {
             return m_generate_mipmaps;
         }
@@ -75,6 +75,11 @@ namespace mango
             return m_texture_wrap_t;
         }
 
+        inline bool is_cubemap() override
+        {
+            return m_is_cubemap;
+        }
+
         void set_data(format internal_format, uint32 width, uint32 height, format pixel_format, format type, const void* data) override;
         void bind_texture_unit(g_uint unit) override;
         void unbind() override;
@@ -101,8 +106,10 @@ namespace mango
         texture_parameter m_texture_wrap_t;
         //! \brief Specifies if the \a texture should be interpreted as SRGB etc.
         bool m_is_standard_color_space;
-        //! \brief Specifies if a mipchain should be generated.
-        bool m_generate_mipmaps;
+        //! \brief Number of mipmap levels.
+        uint32 m_generate_mipmaps;
+        //! \brief Specifies if the texture is a cubemap.
+        bool m_is_cubemap;
     };
 } // namespace mango
 

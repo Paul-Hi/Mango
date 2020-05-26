@@ -63,7 +63,7 @@ namespace mango
         //! \param[in] path The path to the hdr image to load.
         //! \param[in] rendered_mip_level The mipmap level to render the texture. -1 if no visualization is wanted.
         //! \return The created environment entity.
-        entity create_environment_from_hdr(const string& path, int16 rendered_mip_level);
+        entity create_environment_from_hdr(const string& path, float rendered_mip_level);
 
         //! \brief Attach an \a entity to another entity in a child <-> parent realationship.
         //! \details Adds a \a node_component. This is mostly useful to describe child objects inheriting the parents transform.

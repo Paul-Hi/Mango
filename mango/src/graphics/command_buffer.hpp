@@ -102,9 +102,23 @@ namespace mango
         //! \param[in] uniform_location The location to bind the index integer value to.
         void bind_texture(uint32 binding, texture_ptr texture, g_uint uniform_location);
 
+        //! \brief Binds a \a texture as an image.
+        //! \param[in] binding The binding location to bind the \a texture to.
+        //! \param[in] texture A pointer to the \a texture to bind.
+        //! \param[in] level The level of the image that should be bound.
+        //! \param[in] layered Specifies whether a layered texture binding is to be established.
+        //! \param[in] layer Spezifies the layer if \a layered is false.
+        //! \param[in] access The \a base_access type.
+        //! \param[in] element_format The format used for formatted stores.
+        void bind_image_texture(uint32 binding, texture_ptr texture, g_int level, bool layered, g_int layer, base_access access, format element_format);
+
         //! \brief Binds a \a framebuffer for drawing.
         //! \param[in] framebuffer The pointer to the \a framebuffer to bind.
         void bind_framebuffer(framebuffer_ptr framebuffer);
+
+        //! \brief Adds a memory barrier.
+        //! \param[in] barrier_bit The \a memory_barrier_bit to add the barrier to.
+        void add_memory_barrier(memory_barrier_bit barrier_bit);
 
         //! \brief Locks a \a buffer after a modification.
         //! \param[in] buffer The pointer to the \a buffer to lock.
@@ -113,6 +127,11 @@ namespace mango
         //! \brief Waits for a \a buffer after a series of gl calls.
         //! \param[in] buffer The pointer to the \a buffer to wait for.
         void wait_for_buffer(buffer_ptr buffer);
+
+        //! \brief Calcukates the mipmaps for the \a texture.
+        //! \details This is used to recalculate the mipmaps after the pixels where changed by a compute shader.
+        //! \param[in] texture The pointer to the \a texture to calculate the mipmaps.
+        void calculate_mipmaps(texture_ptr texture);
 
         //! \brief Draws arrays.
         //! \details All the information not given in the argument list is retrieved from the state.
@@ -134,6 +153,12 @@ namespace mango
         //! \brief Enables or disables face culling.
         //! \param[in] enabled True if face culling should be enabled, else false.
         void set_face_culling(bool enabled);
+
+        //! \brief Dispatches the bound compute \a shader.
+        //! \param[in] num_x_groups The number of work groups in x direction.
+        //! \param[in] num_y_groups The number of work groups in y direction.
+        //! \param[in] num_z_groups The number of work groups in z direction.
+        void dispatch_compute(uint32 num_x_groups, uint32 num_y_groups, uint32 num_z_groups);
 
         //! \brief Sets the \a polygon_face for face culling.
         //! \param[in] face The \a polygon_face to use for face culling.

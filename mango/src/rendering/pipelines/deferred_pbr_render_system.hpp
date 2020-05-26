@@ -34,7 +34,7 @@ namespace mango
         void set_model_matrix(const glm::mat4& model_matrix) override;
         void push_material(const material_ptr& mat) override;
         void set_view_projection_matrix(const glm::mat4& view_projection) override;
-        void set_environment_texture(const texture_ptr& hdr_texture) override;
+        void set_environment_texture(const texture_ptr& hdr_texture, float render_level) override;
 
       private:
         //! \brief The gbuffer of the deferred pipeline.

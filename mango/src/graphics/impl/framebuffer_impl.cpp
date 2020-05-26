@@ -78,7 +78,7 @@ void framebuffer_impl::resize(uint32 width, uint32 height)
     texture_configuration config;
     if (nullptr != m_color_attachment0)
     {
-        config.m_generate_mipmaps        = m_color_attachment0->mipmaps_enabled();
+        config.m_generate_mipmaps        = m_color_attachment0->mipmaps();
         config.m_is_standard_color_space = m_color_attachment0->is_in_standard_color_space();
         config.m_texture_min_filter      = m_color_attachment0->min_filter();
         config.m_texture_mag_filter      = m_color_attachment0->mag_filter();
@@ -94,7 +94,7 @@ void framebuffer_impl::resize(uint32 width, uint32 height)
     }
     if (nullptr != m_color_attachment1)
     {
-        config.m_generate_mipmaps        = m_color_attachment1->mipmaps_enabled();
+        config.m_generate_mipmaps        = m_color_attachment1->mipmaps();
         config.m_is_standard_color_space = m_color_attachment1->is_in_standard_color_space();
         config.m_texture_min_filter      = m_color_attachment1->min_filter();
         config.m_texture_mag_filter      = m_color_attachment1->mag_filter();
@@ -110,7 +110,7 @@ void framebuffer_impl::resize(uint32 width, uint32 height)
     }
     if (nullptr != m_color_attachment2)
     {
-        config.m_generate_mipmaps        = m_color_attachment2->mipmaps_enabled();
+        config.m_generate_mipmaps        = m_color_attachment2->mipmaps();
         config.m_is_standard_color_space = m_color_attachment2->is_in_standard_color_space();
         config.m_texture_min_filter      = m_color_attachment2->min_filter();
         config.m_texture_mag_filter      = m_color_attachment2->mag_filter();
@@ -126,7 +126,7 @@ void framebuffer_impl::resize(uint32 width, uint32 height)
     }
     if (nullptr != m_color_attachment3)
     {
-        config.m_generate_mipmaps        = m_color_attachment3->mipmaps_enabled();
+        config.m_generate_mipmaps        = m_color_attachment3->mipmaps();
         config.m_is_standard_color_space = m_color_attachment3->is_in_standard_color_space();
         config.m_texture_min_filter      = m_color_attachment3->min_filter();
         config.m_texture_mag_filter      = m_color_attachment3->mag_filter();
@@ -142,7 +142,7 @@ void framebuffer_impl::resize(uint32 width, uint32 height)
     }
     if (nullptr != m_depth_attachment)
     {
-        config.m_generate_mipmaps        = m_depth_attachment->mipmaps_enabled();
+        config.m_generate_mipmaps        = m_depth_attachment->mipmaps();
         config.m_is_standard_color_space = m_depth_attachment->is_in_standard_color_space();
         config.m_texture_min_filter      = m_depth_attachment->min_filter();
         config.m_texture_mag_filter      = m_depth_attachment->mag_filter();
@@ -158,7 +158,7 @@ void framebuffer_impl::resize(uint32 width, uint32 height)
     }
     if (nullptr != m_stencil_attachment)
     {
-        config.m_generate_mipmaps        = m_stencil_attachment->mipmaps_enabled();
+        config.m_generate_mipmaps        = m_stencil_attachment->mipmaps();
         config.m_is_standard_color_space = m_stencil_attachment->is_in_standard_color_space();
         config.m_texture_min_filter      = m_stencil_attachment->min_filter();
         config.m_texture_mag_filter      = m_stencil_attachment->mag_filter();
@@ -174,7 +174,7 @@ void framebuffer_impl::resize(uint32 width, uint32 height)
     }
     if (nullptr != m_depth_stencil_attachment)
     {
-        config.m_generate_mipmaps        = m_depth_stencil_attachment->mipmaps_enabled();
+        config.m_generate_mipmaps        = m_depth_stencil_attachment->mipmaps();
         config.m_is_standard_color_space = m_depth_stencil_attachment->is_in_standard_color_space();
         config.m_texture_min_filter      = m_depth_stencil_attachment->min_filter();
         config.m_texture_mag_filter      = m_depth_stencil_attachment->mag_filter();

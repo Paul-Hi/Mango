@@ -35,15 +35,33 @@ bool editor::create()
     m_main_camera = application_scene->create_default_camera();
 
     // gltf
-    auto entities = application_scene->create_entities_from_model("res/models/BoomBox/BoomBox.gltf");
+    {
+        auto entities = application_scene->create_entities_from_model("res/models/DamagedHelmet/DamagedHelmet.glb");
 
-    entity top = entities.at(0);
+        entity top = entities.at(0);
 
-    auto& trafo = application_scene->get_transform_component(top)->local_transformation_matrix;
-    trafo       = glm::scale(glm::rotate(glm::translate(trafo, glm::vec3(0.0f, -1.0f, 0.0f)), glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(600.0f));
+        auto& trafo = application_scene->get_transform_component(top)->local_transformation_matrix;
+        trafo       = glm::scale(glm::rotate(glm::translate(trafo, glm::vec3(6.0f, -1.0f, 0.0f)), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)), glm::vec3(4.0f));
+    }
+    {
+        auto entities = application_scene->create_entities_from_model("res/models/BoomBox/BoomBox.glb");
+
+        entity top = entities.at(0);
+
+        auto& trafo = application_scene->get_transform_component(top)->local_transformation_matrix;
+        trafo       = glm::scale(glm::rotate(glm::translate(trafo, glm::vec3(-6.0f, -1.5f, 0.0f)), glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(350.0f));
+    }
+    {
+        auto entities = application_scene->create_entities_from_model("res/models/WaterBottle/WaterBottle.glb");
+
+        entity top = entities.at(0);
+
+        auto& trafo = application_scene->get_transform_component(top)->local_transformation_matrix;
+        trafo       = glm::scale(glm::rotate(glm::translate(trafo, glm::vec3(0.0f, -1.0f, 0.0f)), glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(24.0f));
+    }
 
     // environment
-    auto environment = application_scene->create_environment_from_hdr("res/textures/spruit_sunrise_2k.hdr", 0);
+    auto environment = application_scene->create_environment_from_hdr("res/textures/venice_sunset_4k.hdr", 0.0);
 
     mango_context->make_scene_current(application_scene);
 
@@ -54,7 +72,7 @@ void editor::update(float dt)
 {
     MANGO_UNUSED(dt);
     static float v = 0.0f;
-    v += 0.01f;
+    v += 0.005f;
     shared_ptr<context> mango_context = get_context().lock();
     MANGO_ASSERT(mango_context, "Context is expired!");
     auto application_scene = mango_context->get_current_scene();

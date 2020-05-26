@@ -161,7 +161,7 @@ void buffer_impl::request_wait()
     {
         while (1)
         {
-            g_enum wait_return = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, 1);
+            g_enum wait_return = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, 10);
             if (wait_return == GL_ALREADY_SIGNALED || wait_return == GL_CONDITION_SATISFIED)
                 return;
         }

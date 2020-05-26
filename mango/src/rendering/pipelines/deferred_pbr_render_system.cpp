@@ -51,6 +51,7 @@ bool deferred_pbr_render_system::create()
         MANGO_LOG_ERROR("Initilization of glad failed! No opengl context is available!");
         return false;
     }
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS); // TODO Paul: Better place?
 
 #ifdef MANGO_DEBUG
     glEnable(GL_DEBUG_OUTPUT);
@@ -68,7 +69,7 @@ bool deferred_pbr_render_system::create()
 
     framebuffer_configuration config;
     texture_configuration attachment_config;
-    attachment_config.m_generate_mipmaps        = false;
+    attachment_config.m_generate_mipmaps        = 1;
     attachment_config.m_is_standard_color_space = false;
     attachment_config.m_texture_min_filter      = texture_parameter::FILTER_NEAREST;
     attachment_config.m_texture_mag_filter      = texture_parameter::FILTER_NEAREST;
@@ -274,6 +275,8 @@ void deferred_pbr_render_system::finish_render()
     m_command_buffer->bind_texture(2, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT2), 4);
     m_command_buffer->bind_texture(3, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT3), 5);
     m_command_buffer->bind_texture(4, m_gbuffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 6);
+    if (m_pipeline_steps[mango::render_step::ibl])
+        std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl])->bind_image_based_light_maps(m_command_buffer);
 
     // TODO Paul: Check if the binding is better for performance or not.
     m_command_buffer->bind_vertex_array(default_vao);
@@ -454,11 +457,13 @@ void deferred_pbr_render_system::set_view_projection_matrix(const glm::mat4& vie
     m_command_buffer->submit<set_view_projection_matrix_cmd>(m_active_scene_vertex_uniforms, view_projection);
 }
 
-void deferred_pbr_render_system::set_environment_texture(const texture_ptr& hdr_texture)
+void deferred_pbr_render_system::set_environment_texture(const texture_ptr& hdr_texture, float render_level)
 {
     if (m_pipeline_steps[mango::render_step::ibl])
     {
-        std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl])->load_from_hdr(hdr_texture);
+        auto ibl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
+        ibl->load_from_hdr(hdr_texture);
+        ibl->set_render_level(render_level);
     }
 }
 
@@ -538,7 +543,7 @@ static void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLen
     std::cout << "Type: " << getStringForType(type) << std::endl;
     std::cout << "Severity: " << getStringForSeverity(severity) << std::endl;
     std::cout << "Debug call: " << message << std::endl;
-    std::cout << "-----------------------------------------------" << std::endl;
+     std::cout << "-----------------------------------------------" << std::endl;
 }
 
 #endif // MANGO_DEBUG

@@ -375,6 +375,48 @@ void command_buffer::bind_texture(uint32 binding, texture_ptr texture, g_uint un
     }
 }
 
+void command_buffer::bind_image_texture(uint32 binding, texture_ptr texture, g_int level, bool layered, g_int layer, base_access access, format element_format)
+{
+    class bind_image_texture_cmd : public command
+    {
+      public:
+        uint32 m_binding;
+        texture_ptr m_texture;
+        g_int m_level;
+        bool m_layered;
+        g_int m_layer;
+        g_enum m_access;
+        g_enum m_element_format;
+        bind_image_texture_cmd(uint32 binding, texture_ptr texture, g_int level, bool layered, g_int layer, base_access access, format element_format)
+            : m_binding(binding)
+            , m_texture(texture)
+            , m_level(level)
+            , m_layered(layered)
+            , m_layer(layer)
+            , m_access(base_access_to_gl(access))
+            , m_element_format(static_cast<g_enum>(element_format))
+        {
+        }
+
+        void execute(graphics_state& state) override
+        {
+            if (m_texture)
+            {
+                glBindImageTexture(m_binding, m_texture->get_name(), m_level, m_layered, m_layer, m_access, m_element_format);
+            }
+            else
+            {
+                glBindImageTexture(m_binding, 0, m_level, m_layered, m_layer, m_access, m_element_format);
+            }
+        }
+    };
+
+    if (m_building_state.bind_texture(binding, texture ? texture->get_name() : 0)) // TODO Paul: Check if this needs extra handling in the state.
+    {
+        submit<bind_image_texture_cmd>(binding, texture, level, layered, layer, access, element_format);
+    }
+}
+
 void command_buffer::bind_framebuffer(framebuffer_ptr framebuffer)
 {
     class bind_framebuffer_cmd : public command
@@ -402,6 +444,27 @@ void command_buffer::bind_framebuffer(framebuffer_ptr framebuffer)
     }
 }
 
+void command_buffer::add_memory_barrier(memory_barrier_bit barrier_bit)
+{
+    class add_memory_barrier_cmd : public command
+    {
+      public:
+        g_enum m_barrier_bit;
+        add_memory_barrier_cmd(memory_barrier_bit barrier_bit)
+            : m_barrier_bit(memory_barrier_bit_to_gl(barrier_bit))
+        {
+        }
+
+        void execute(graphics_state& state) override
+        {
+            glMemoryBarrier(m_barrier_bit);
+        }
+    };
+
+    // TODO Paul: Store that in the state?
+    submit<add_memory_barrier_cmd>(barrier_bit);
+}
+
 void command_buffer::lock_buffer(buffer_ptr buffer)
 {
     class lock_buffer_cmd : public command
@@ -423,7 +486,8 @@ void command_buffer::lock_buffer(buffer_ptr buffer)
     submit<lock_buffer_cmd>(buffer);
 }
 
-void command_buffer::wait_for_buffer(buffer_ptr buffer) {
+void command_buffer::wait_for_buffer(buffer_ptr buffer)
+{
     class wait_for_buffer_cmd : public command
     {
       public:
@@ -440,7 +504,31 @@ void command_buffer::wait_for_buffer(buffer_ptr buffer) {
     };
 
     // TODO Paul: Store that in the state?
-    submit<wait_for_buffer_cmd>(buffer);}
+    submit<wait_for_buffer_cmd>(buffer);
+}
+
+void command_buffer::calculate_mipmaps(texture_ptr texture)
+{
+    class calculate_mipmaps_cmd : public command
+    {
+      public:
+        texture_ptr m_texture;
+        calculate_mipmaps_cmd(texture_ptr texture)
+            : m_texture(texture)
+        {
+        }
+
+        void execute(graphics_state& state) override
+        {
+            if(m_texture->mipmaps())
+            {
+                glGenerateTextureMipmap(m_texture->get_name());
+            }
+        }
+    };
+
+    submit<calculate_mipmaps_cmd>(texture);
+}
 
 void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment_mask att_mask, g_float r, g_float g, g_float b, g_float a, framebuffer_ptr framebuffer)
 {
@@ -599,6 +687,30 @@ void command_buffer::draw_elements(primitive_topology topology, uint32 first, ui
     };
 
     submit<draw_elements_cmd>(topology, first, count, type, instance_count);
+}
+
+void command_buffer::dispatch_compute(uint32 num_x_groups, uint32 num_y_groups, uint32 num_z_groups)
+{
+    class dispatch_compute_cmd : public command
+    {
+      public:
+        uint32 m_x_groups;
+        uint32 m_y_groups;
+        uint32 m_z_groups;
+        dispatch_compute_cmd(uint32 num_x_groups, uint32 num_y_groups, uint32 num_z_groups)
+            : m_x_groups(num_x_groups)
+            , m_y_groups(num_y_groups)
+            , m_z_groups(num_z_groups)
+        {
+        }
+
+        void execute(graphics_state& state) override
+        {
+            glDispatchCompute(m_x_groups, m_y_groups, m_z_groups);
+        }
+    };
+
+    submit<dispatch_compute_cmd>(num_x_groups, num_y_groups, num_z_groups);
 }
 
 void command_buffer::set_face_culling(bool enabled)

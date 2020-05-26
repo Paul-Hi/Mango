@@ -87,10 +87,10 @@ void render_system_impl::set_view_projection_matrix(const glm::mat4& view_projec
     m_current_render_system->set_view_projection_matrix(view_projection);
 }
 
-void render_system_impl::set_environment_texture(const texture_ptr& hdr_texture)
+void render_system_impl::set_environment_texture(const texture_ptr& hdr_texture, float render_level)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->set_environment_texture(hdr_texture);
+    m_current_render_system->set_environment_texture(hdr_texture, render_level);
 }
 
 void render_system_impl::update(float dt)

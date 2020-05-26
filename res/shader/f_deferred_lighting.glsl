@@ -1,6 +1,7 @@
 #version 430 core
 
-#define PI 3.14159265358979323846
+const float PI = 3.1415926535897932384626433832795;
+const float INV_PI = 1.0 / PI;
 
 #define saturate(x) clamp(x, 0.0, 1.0)
 
@@ -17,12 +18,19 @@ layout(location = 4, binding = 2) uniform sampler2D gbuffer_c2;
 layout(location = 5, binding = 3) uniform sampler2D gbuffer_c3;
 layout(location = 6, binding = 4) uniform sampler2D gbuffer_depth;
 
+layout(location = 7, binding = 5) uniform samplerCube irradiance_map;
+layout(location = 8, binding = 6) uniform samplerCube prefiltered_specular;
+layout(location = 9, binding = 7) uniform sampler2D brdf_integration_lut;
+
 float D_GGX(in float n_dot_h, in float roughness);
 float V_SmithGGXCorrelated(in float n_dot_v, in float n_dot_l, in float roughness);
 vec3 F_Schlick(in float dot, in vec3 f0, in float f90);
+vec3 F_Schlick_roughness(in float dot, in vec3 f0, in float roughness);
 float Fd_BurleyRenormalized(in float n_dot_v, in float n_dot_l, in float l_dot_h, in float roughness);
 
+vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection);
 vec3 calculateTestLight(in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in vec3 real_albedo, in vec3 position, in float occlusion_factor);
+vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 kS, in vec3 kD, in float occlusion_factor);
 
 vec4 get_base_color()
 {
@@ -44,15 +52,6 @@ vec3 get_occlusion_roughness_metallic()
     vec3 o_r_m = texture(gbuffer_c3, texcoord).rgb;
     o_r_m.x = max(o_r_m.x, 0.089f);
     return o_r_m;
-}
-
-vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection)
-{
-    float z = depth * 2.0 - 1.0;
-
-    vec4 clip = vec4(uv * 2.0 - 1.0, z, 1.0);
-    vec4 direct = inverse_view_projection * clip;
-    return direct.xyz / direct.w;
 }
 
 void main()
@@ -85,50 +84,81 @@ void main()
 
     vec3 lighting = vec3(0.0);
 
-    vec3 ambient = 0.02 * real_albedo; // remove that soon
-    lighting += ambient * occlusion_factor;
+    // environment
+    vec3 kS = F_Schlick_roughness(n_dot_v, f0, perceptual_roughness * perceptual_roughness);
+    vec3 kD = 1.0 - kS;
+    lighting += calculate_image_based_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, kS, kD, occlusion_factor);
 
-    lighting += calculateTestLight(n_dot_v, view_dir, normal, perceptual_roughness, f0, real_albedo, position, occlusion_factor);
+    // lighting += calculateTestLight(n_dot_v, view_dir, normal, perceptual_roughness, f0, real_albedo, position, occlusion_factor);
 
-    // improvising gamma correction
+    // tonemapping // TODO Paul: There is room for improvement. For exapmle a white point parameter.
+    // modified reinhard
+    const float white_point = 1.0;
+    lighting = (lighting * (1.0 + lighting / (white_point * white_point))) / (1.0 + lighting);
+    // gamma correction
     lighting = pow(lighting, vec3(1.0 / 2.2));
 
     frag_color = vec4(saturate(lighting), albedo.a); // TODO Paul: Proper transparency.
 }
 
-
-vec3 calculateTestLight(in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in vec3 real_albedo, in vec3 position, in float occlusion_factor)
+vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 kS, in vec3 kD, in float occlusion_factor)
 {
-    vec3 light_pos        = vec3(45.0, 45.0, 0.0); // hardcoded
-    float light_intensity = 1.0; // hardcoded
-    vec3 light_col        = vec3(1.0) * light_intensity; // hardcoded
-    float roughness       = perceptual_roughness * perceptual_roughness;
+    // TODO Paul: Check that!
+    // eventually add dominant diffuse and dominant specular direction and multiscattering.
 
-    vec3 lighting = vec3(0.0);
+    float roughness = perceptual_roughness * perceptual_roughness;
 
-    vec3 light_dir = normalize(light_pos - position);
+    const float DFG_TEXTURE_SIZE = 256.0; // TODO Paul: Is this correct?
 
-    vec3 halfway  = normalize(light_dir + view_dir);
-    float n_dot_l = saturate(dot(normal, light_dir));
-    float n_dot_h = saturate(dot(normal, halfway));
-    float l_dot_h = saturate(dot(light_dir, halfway));
+    n_dot_v = clamp(n_dot_v , 0.5 / DFG_TEXTURE_SIZE, 1.0 - 0.5 / DFG_TEXTURE_SIZE);
+    vec3 dfg = texture(brdf_integration_lut, saturate(vec2(n_dot_v, roughness))).xyz;
+    // irradiance
+    vec3 irradiance  = texture(irradiance_map, normal).rgb;
+    vec3 diffuse     = irradiance * real_albedo;
+    vec3 diffuse_ibl = kD * diffuse * dfg.z;
 
-    float D = D_GGX(n_dot_h, roughness);
-    vec3 F  = F_Schlick(l_dot_h, f0, 1.0);
-    float V = V_SmithGGXCorrelated(n_dot_v, n_dot_l, roughness);
+    // specular
+    const float MAX_REFLECTION_LOD = 10.0; // TODO Paul: Is this correct?
 
-    // Fr energy compensation
-    vec3 Fr = D * V * F * (1.0 / PI);
+    vec3 refl              = reflect(-view_dir, normal);
+    vec3 prefiltered_color = textureLod(prefiltered_specular, refl, perceptual_roughness * MAX_REFLECTION_LOD).rgb;
+    vec3 specular_ibl       = prefiltered_color * (kS * dfg.x + dfg.y);
 
-    vec3 Fd = real_albedo * Fd_BurleyRenormalized(n_dot_v, n_dot_l, l_dot_h, perceptual_roughness) * (1.0 / PI);
-
-    vec3 diffuse = n_dot_l * Fd;
-    vec3 specular = n_dot_l * Fr;
-
-    lighting += (diffuse + specular) * light_col * occlusion_factor;
-
-    return lighting;
+    return (diffuse_ibl + specular_ibl) * occlusion_factor;
 }
+
+// vec3 calculateTestLight(in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in vec3 real_albedo, in vec3 position, in float occlusion_factor)
+// {
+//     vec3 light_pos        = vec3(45.0, 45.0, 0.0); // hardcoded
+//     float light_intensity = 1.0; // hardcoded
+//     vec3 light_col        = vec3(1.0) * light_intensity; // hardcoded
+//     float roughness       = perceptual_roughness * perceptual_roughness;
+//
+//     vec3 lighting = vec3(0.0);
+//
+//     vec3 light_dir = normalize(light_pos - position);
+//
+//     vec3 halfway  = normalize(light_dir + view_dir);
+//     float n_dot_l = saturate(dot(normal, light_dir));
+//     float n_dot_h = saturate(dot(normal, halfway));
+//     float l_dot_h = saturate(dot(light_dir, halfway));
+//
+//     float D = D_GGX(n_dot_h, roughness);
+//     vec3 F  = F_Schlick(l_dot_h, f0, 1.0);
+//     float V = V_SmithGGXCorrelated(n_dot_v, n_dot_l, roughness);
+//
+//     // Fr energy compensation
+//     vec3 Fr = D * V * F * INV_PI;
+//
+//     vec3 Fd = real_albedo * Fd_BurleyRenormalized(n_dot_v, n_dot_l, l_dot_h, perceptual_roughness) * INV_PI;
+//
+//     vec3 diffuse = n_dot_l * Fd;
+//     vec3 specular = n_dot_l * Fr;
+//
+//     lighting += (diffuse + specular) * light_col * occlusion_factor;
+//
+//     return lighting;
+// }
 
 //
 // see https://seblagarde.files.wordpress.com/2015/07/course_notes_moving_frostbite_to_pbr_v32.pdf.
@@ -155,6 +185,11 @@ vec3 F_Schlick(in float dot, in vec3 f0, in float f90) // can be optimized
     return f0 + (vec3(f90) - f0) * pow(1.0 - dot, 5.0);
 }
 
+vec3 F_Schlick_roughness(in float dot, in vec3 f0, in float roughness)
+{
+    return f0 + (max(vec3(1.0 - roughness), f0) - f0) * pow(1.0 - dot, 5.0);
+}
+
 float Fd_BurleyRenormalized(in float n_dot_v, in float n_dot_l, in float l_dot_h, in float roughness) // normalized Frostbyte version
 {
     float energy_bias = mix(0.0, 0.5, roughness);
@@ -165,4 +200,13 @@ float Fd_BurleyRenormalized(in float n_dot_v, in float n_dot_l, in float l_dot_h
     float view_scatter = F_Schlick(n_dot_v, f0, f90).x;
     // Gets divided by pi later on.
     return energy_factor * light_scatter * view_scatter;
+}
+
+vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection)
+{
+    float z = depth * 2.0 - 1.0;
+
+    vec4 clip = vec4(uv * 2.0 - 1.0, z, 1.0);
+    vec4 direct = inverse_view_projection * clip;
+    return direct.xyz / direct.w;
 }

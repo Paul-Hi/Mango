@@ -77,7 +77,8 @@ namespace mango
 
         //! \brief Sets the \a texture for a environment.
         //! \param[in] hdr_texture The pointer to the hdr \a texture to use as an environment.
-        virtual void set_environment_texture(const texture_ptr& hdr_texture);
+        //! \param[in] render_level The level from the hdr \a texture to render. -1 means no rendering.
+        virtual void set_environment_texture(const texture_ptr& hdr_texture, float render_level);
 
       protected:
         //! \brief Mangos internal context for shared usage in all \a render_systems.

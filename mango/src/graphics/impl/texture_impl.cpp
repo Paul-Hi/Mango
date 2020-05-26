@@ -16,12 +16,21 @@ texture_impl::texture_impl(const texture_configuration& configuration)
     , m_texture_wrap_t(configuration.m_texture_wrap_t)
     , m_is_standard_color_space(configuration.m_is_standard_color_space)
     , m_generate_mipmaps(configuration.m_generate_mipmaps)
+    , m_is_cubemap(configuration.m_is_cubemap)
 {
-    glCreateTextures(GL_TEXTURE_2D, 1, &m_name); // At the moment this is always a 2D texture.
+    g_enum type = GL_TEXTURE_2D;
+
+    if (m_is_cubemap)
+        type = GL_TEXTURE_CUBE_MAP;
+
+    glCreateTextures(type, 1, &m_name);
     glTextureParameteri(m_name, GL_TEXTURE_MIN_FILTER, filter_parameter_to_gl(m_texture_min_filter));
     glTextureParameteri(m_name, GL_TEXTURE_MAG_FILTER, filter_parameter_to_gl(m_texture_mag_filter));
     glTextureParameteri(m_name, GL_TEXTURE_WRAP_S, wrap_parameter_to_gl(m_texture_wrap_s));
     glTextureParameteri(m_name, GL_TEXTURE_WRAP_T, wrap_parameter_to_gl(m_texture_wrap_t));
+
+    if (m_is_cubemap)
+        glTextureParameteri(m_name, GL_TEXTURE_WRAP_R, wrap_parameter_to_gl(m_texture_wrap_t)); // TODO Paul: Extra parameter!
 }
 
 texture_impl::~texture_impl()
@@ -53,14 +62,30 @@ void texture_impl::set_data(format internal_format, uint32 width, uint32 height,
     g_enum gl_pixel_f    = static_cast<g_enum>(pixel_format);
     g_enum gl_type       = static_cast<g_enum>(type);
 
-    glTextureStorage2D(m_name, 1, gl_internal_f, width, height);
-    if (data)
+    if (!m_is_cubemap)
     {
-        glTextureSubImage2D(m_name, 0, 0, 0, width, height, gl_pixel_f, gl_type, data);
+        glTextureStorage2D(m_name, mipmaps(), gl_internal_f, width, height); // TODO Paul: Mipmap number clamp?
+        if (data)
+        {
+            glTextureSubImage2D(m_name, 0, 0, 0, width, height, gl_pixel_f, gl_type, data);
+        }
+        if (mipmaps())
+        {
+            glGenerateTextureMipmap(m_name);
+        }
     }
-    if (mipmaps_enabled())
+    else
     {
-        glGenerateTextureMipmap(m_name);
+        glTextureStorage2D(m_name, mipmaps(), gl_internal_f, width, height); // TODO Paul: Is this correct?
+        if (data)
+        {
+            for (uint32 i = 0; i < 6; ++i)
+                glTextureSubImage3D(m_name, 0, 0, 0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, width, height, 1, gl_pixel_f, gl_type, data); // TODO Paul: Is this correct?
+        }
+        if (mipmaps())
+        {
+            glGenerateTextureMipmap(m_name);
+        }
     }
 }
 
