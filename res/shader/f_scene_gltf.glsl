@@ -13,27 +13,28 @@ in shader_shared
     vec3 shared_bitangent;
 } fs_in;
 
-layout (location = 0, binding = 0) uniform sampler2D t_base_color;
-layout (location = 1, binding = 1) uniform sampler2D t_occlusion_roughness_metallic;
-layout (location = 2, binding = 2) uniform sampler2D t_normal;
-layout (location = 3, binding = 3) uniform sampler2D t_emissive_color;
+layout (location = 1, binding = 0) uniform sampler2D t_base_color;
+layout (location = 2, binding = 1) uniform sampler2D t_roughness_metallic;
+layout (location = 3, binding = 2) uniform sampler2D t_occlusion;
+layout (location = 4, binding = 3) uniform sampler2D t_normal;
+layout (location = 5, binding = 4) uniform sampler2D t_emissive_color;
 
 layout(binding = 1, std140) uniform scene_material_uniforms
 {
-    //    name                                 // offset // size
-    vec4  base_color;                          // 0 // 16
-    vec4  emissive_color;                      // 16 // 16 // this is a vec3, but there are annoying bugs with some drivers.
-    float metallic;                            // 32 // 4
-    float roughness;                           // 36 // 4
+    vec4  base_color;
+    vec4  emissive_color;                      // this is a vec3, but there are annoying bugs with some drivers.
+    float metallic;
+    float roughness;
 
-    bool base_color_texture;                   // 40 // 4
-    bool occlusion_roughness_metallic_texture; // 44 // 4
-    bool normal_texture;                       // 48 // 4
-    bool emissive_color_texture;               // 52 // 4
-    // padding 4
-    // padding 4
-    // size : 64
+    bool base_color_texture;
+    bool roughness_metallic_texture;
+    bool occlusion_texture;
+    bool packed_occlusion;
+    bool normal_texture;
+    bool emissive_color_texture;
 };
+
+#define UNDO_SRGB 0 // TODO Paul: srgb parameter!
 
 vec4 get_base_color()
 {
@@ -47,7 +48,14 @@ vec3 get_emissive()
 
 vec3 get_occlusion_roughness_metallic()
 {
-    return occlusion_roughness_metallic_texture ? texture(t_occlusion_roughness_metallic, fs_in.shared_texcoord).rgb : vec3(1.0, roughness, metallic);
+    vec3 o_r_m = roughness_metallic_texture ? texture(t_roughness_metallic, fs_in.shared_texcoord).rgb : vec3(1.0, roughness, metallic);
+    if(packed_occlusion)
+        return o_r_m;
+
+    float occlusion = occlusion_texture ? texture(t_occlusion, fs_in.shared_texcoord).r : 1.0;
+    o_r_m.r = occlusion;
+
+    return o_r_m;
 }
 
 vec3 get_normal()

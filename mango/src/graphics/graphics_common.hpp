@@ -45,11 +45,13 @@ namespace mango
         glm::vec3 emissive_color; //!< The emissive color of the material.
         float metallic;           //!< The metallic value of the material. Between 0 and 1.
         float roughness;          //!< The roughness value of the material. Between 0 and 1.
+        bool packed_occlusion;    //!< Specifies if the occlusion value is packed in the roughness_metallic_texture.
 
-        texture_ptr base_color_texture;                   //!< The component texture for the basic color value.
-        texture_ptr occlusion_roughness_metallic_texture; //!< The component texture for the metallic value and the roughness value.
-        texture_ptr normal_texture;                       //!< The texture for normals.
-        texture_ptr emissive_color_texture;               //!< The texture for the emissive color value.
+        texture_ptr base_color_texture;         //!< The component texture for the basic color value.
+        texture_ptr roughness_metallic_texture; //!< The component texture for the metallic value and the roughness value and eventually occlusion.
+        texture_ptr occlusion_texture;          //!< The component texture for the occlusion value.
+        texture_ptr normal_texture;             //!< The texture for normals.
+        texture_ptr emissive_color_texture;     //!< The texture for the emissive color value.
     };
 
     //! \cond NO_COND
@@ -119,6 +121,10 @@ namespace mango
         {
             v = b ? 1 : 0;
         }
+        std140_bool()
+            : v(0)
+        {
+        }
 
         bool value()
         {
@@ -141,6 +147,11 @@ namespace mango
             x = vec.x;
             y = vec.y;
         }
+        std140_vec2()
+            : x()
+            , y()
+        {
+        }
         //! \endcond
     };
 
@@ -157,6 +168,13 @@ namespace mango
             y  = vec.y;
             z  = vec.z;
             _w = 0.0f;
+        }
+        std140_vec3()
+            : x()
+            , y()
+            , z()
+            , _w()
+        {
         }
 
       private:
@@ -179,6 +197,13 @@ namespace mango
             z = vec.z;
             w = vec.w;
         }
+        std140_vec4()
+            : x(0.0f)
+            , y(0.0f)
+            , z(0.0f)
+            , w(0.0f)
+        {
+        }
         //! \endcond
     };
 
@@ -193,8 +218,19 @@ namespace mango
             : r0(mat[0])
             , r1(mat[1])
             , r2(mat[2])
+            , _r3()
         {
         }
+        std140_mat3()
+            : r0()
+            , r1()
+            , r2()
+            , _r3()
+        {
+        }
+
+      private:
+        std140_vec3 _r3;
         //! \endcond
     };
 
@@ -211,6 +247,13 @@ namespace mango
             , r1(mat[1])
             , r2(mat[2])
             , r3(mat[3])
+        {
+        }
+        std140_mat4()
+            : r0()
+            , r1()
+            , r2()
+            , r3()
         {
         }
         //! \endcond
@@ -1021,6 +1064,8 @@ namespace mango
             return shader_resource_type::IVEC3;
         case GL_INT_VEC4:
             return shader_resource_type::IVEC4;
+        case GL_BOOL:
+            return shader_resource_type::INT;
         case GL_FLOAT_MAT3:
             return shader_resource_type::MAT3;
         case GL_FLOAT_MAT4:

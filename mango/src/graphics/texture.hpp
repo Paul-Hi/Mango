@@ -113,8 +113,8 @@ namespace mango
         //! \brief Sets the data of the \a texture.
         //! \param[in] internal_format The internal \a texture \a format to use. Has to be \a R8, \a R16, \a R16F, \a R32F, \a R8I, \a R16I, \a R32I, \a R8UI, \a R16UI, \a R32UI, \a RG8, \a RG16,
         //! \a RG16F, \a RG32F, \a RG8I, \a RG16I, \a RG32I, \a RG8UI, \a RG16UI, \a RG32UI, \a RGB32F, \a RGB32I, \a RGB32UI, \a RGBA8, \a RGBA16, \a RGBA16F, \a RGBA32F, \a RGBA8I, \a RGBA16I,
-        //! \a RGBA32I, \a RGBA8UI, \a RGBA16UI, \a RGBA32UI, \a RGB4, \a RGB5, \a RGB8, \a RGB10, \a RGB12, \a RGB16, \a RGBA2, \a RGBA4, \a RGB5_A1, \a RGB10_A2, \a RGBA12, \a SRGB8 or \a
-        //! SRGB8_ALPHA8. \param[in] width The width of the \a texture. \param[in] height The height of the \a texture. \param[in] pixel_format The pixel \a format. Has to be \a RED, \a GREEN, \a
+        //! \a RGBA32I, \a RGBA8UI, \a RGBA16UI, \a RGBA32UI, \a RGB4, \a RGB5, \a RGB8, \a RGB10, \a RGB12, \a RGB16, \a RGBA2, \a RGBA4, \a RGB5_A1, \a RGB10_A2 or \a RGBA12
+        //! \param[in] width The width of the \a texture. \param[in] height The height of the \a texture. \param[in] pixel_format The pixel \a format. Has to be \a RED, \a GREEN, \a
         //! BLUE, \a RG, \a RGB, \a BGR, \a RGBA, \a BGRA, \a RED_INTEGER, \a GREEN_INTEGER, \a BLUE_INTEGER, \a RG_INTEGER, \a RGB_INTEGER, \a BGR_INTEGER, \a RGBA_INTEGER or \a BGRA_INTEGER
         //! \param[in] type The type of the data. Has to be \a \a UNSIGNED_BYTE, \a BYTE, \a UNSIGNED_SHORT, \a SHORT, \a UNSIGNED_INT, \a INT, \a FLOAT, \a UNSIGNED_BYTE_3_3_2,
         //! \a UNSIGNED_BYTE_2_3_3_REV, \a UNSIGNED_SHORT_5_6_5, \a UNSIGNED_SHORT_5_6_5_REV, \a UNSIGNED_SHORT_4_4_4_4, \a UNSIGNED_SHORT_4_4_4_4_REV, \a UNSIGNED_SHORT_5_5_5_1,

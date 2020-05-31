@@ -44,6 +44,11 @@ namespace mango
         //! \brief Creates an empty entity with no components.
         entity create_empty();
 
+        //! \brief Removes an \a entity.
+        //! \details Removes all components.
+        //! \param[in] e The \a entity to remove.
+        void remove_entity(entity e);
+
         //! \brief Creates a camera entity.
         //! \details An entity with \a camera_component and \a transform_component.
         //! All the components are prefilled. Camera has a perspective projection.
@@ -93,10 +98,14 @@ namespace mango
         }
 
         //! \brief Retrieves the \a camera_data for the currently active camera.
-        //! \return The \a camera_data or nullptr if non-existent.
-        inline shared_ptr<camera_data> get_active_camera_data()
+        //! \details Has to be checked if pointer are null. Also can only be used for a short time.
+        //! \return The \a camera_data.
+        inline camera_data get_active_camera_data()
         {
-            return m_active_camera_data;
+            camera_data result;
+            result.camera_info = m_cameras.get_component_for_entity(m_active_camera);
+            result.transform = m_transformations.get_component_for_entity(m_active_camera);
+            return result;
         }
 
       private:
@@ -106,8 +115,9 @@ namespace mango
         //! \param[in] entities The entity array where all entities are inserted.
         //! \param[in] m The model loaded by tinygltf.
         //! \param[in] n The node loaded by tinygltf.
+        //! \param[in] parent_world The parents world transformation matrix.
         //! \return The root node of the function call.
-        entity build_model_node(std::vector<entity>& entities, tinygltf::Model& m, tinygltf::Node& n);
+        entity build_model_node(std::vector<entity>& entities, tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world);
 
         //! \brief Attaches a \a mesh_component to an \a entity with data loaded by tinygltf.
         //! \details Internally called by create_entities_from_model(...).
@@ -137,8 +147,14 @@ namespace mango
         scene_component_manager<camera_component> m_cameras;
         //! \brief All \a environment_components. There is only one unique at the moment.
         scene_component_manager<environment_component> m_environments;
-        //! \brief The \a camera_data for the currently active camera.
-        shared_ptr<camera_data> m_active_camera_data;
+        //! \brief The currently active camera entity.
+        entity m_active_camera;
+
+        struct scene_bounds
+        {
+            glm::vec3 min;
+            glm::vec3 max;
+        } m_scene_boundaries; //!< The boundaries of the current scene.
     };
 
 } // namespace mango

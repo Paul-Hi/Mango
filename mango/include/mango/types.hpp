@@ -12,6 +12,7 @@
 #include <memory>
 #include <stdint.h>
 #include <string>
+#include <functional>
 
 namespace mango
 {
@@ -74,6 +75,9 @@ namespace mango
 
     //! \brief The pointer to the procedure address loading function type for opengl.
     typedef void* (*mango_gl_load_proc)(const char*);
+
+    //! \brief Type definition of a callback for drag'n'drop.
+    using drag_n_drop_callback = std::function<void(int count, const char** paths)>;
 
     //! \brief Describes the topology of primitives used for rendering and interpreting geometry data.
     //! \details Same as OpenGL.

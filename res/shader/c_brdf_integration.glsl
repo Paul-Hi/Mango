@@ -45,7 +45,7 @@ void main()
 
     up = abs(normal.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
     tangent_x = normalize(cross(up, normal));
-    tangent_y = cross(normal, tangent_x);
+    tangent_y = normalize(cross(normal, tangent_x));
 
     vec3 integration_lu = vec3(0.0);
 
@@ -82,7 +82,7 @@ void main()
             float l_dot_h = saturate(dot(to_light, normalize(view + to_light)));
             float n_dot_v = saturate(dot(normal, view));
             // TODO Paul: Check that!
-            integration_lu.z += Fd_BurleyRenormalized(n_dot_v, n_dot_l, l_dot_h, roughness);
+            integration_lu.z += Fd_BurleyRenormalized(n_dot_v, n_dot_l, l_dot_h, sqrt(roughness));
         }
     }
 
@@ -150,7 +150,7 @@ void importance_sample_cosinus_direction(in vec2 u, in vec3 normal, out vec3 to_
 
 vec3 F_Schlick(in float dot, in vec3 f0, in float f90) // can be optimized
 {
-    return f0 + (vec3(f90) - f0) * pow(1.0 - dot, 5.0);
+    return f0 + (vec3(f90) - f0) * pow(saturate(1.0 - dot), 5.0);
 }
 
 float Fd_BurleyRenormalized(in float n_dot_v, in float n_dot_l, in float l_dot_h, in float roughness) // normalized Frostbyte version
@@ -170,5 +170,10 @@ float V_SmithGGXCorrelated(in float n_dot_v, in float n_dot_l, in float roughnes
     float a_q = a_sqr * a_sqr;
     float GGXL = n_dot_v * sqrt((-n_dot_l * a_q + n_dot_l) * n_dot_l + a_q);
     float GGXV = n_dot_l * sqrt((-n_dot_v * a_q + n_dot_v) * n_dot_v + a_q);
-    return 0.5 / (GGXV + GGXL);
+    float GGX = GGXV + GGXL;
+    if (GGX > 0.0)
+    {
+        return 0.5 / GGX;
+    }
+    return 0.0;
 }

@@ -199,6 +199,11 @@ namespace mango
             }
         }
 
+        inline graphics_state& get_state()
+        {
+            return m_building_state;
+        }
+
       private:
         //! \brief Building state to build the \a command_buffer.
         //! \details This state is fictional and used for building up the \a commands.

@@ -100,37 +100,22 @@ bool deferred_pbr_render_system::create()
         return false;
     }
 
-    // scene uniform buffers
-    buffer_configuration v_buffer_config(sizeof(scene_vertex_uniforms), buffer_target::UNIFORM_BUFFER, buffer_access::MAPPED_ACCESS_WRITE);
-    m_scene_vertex_uniform_buffer = buffer::create(v_buffer_config);
-    if (!m_scene_vertex_uniform_buffer)
+    // frame uniform buffer
+    buffer_configuration uniform_buffer_config(uniform_buffer_size, buffer_target::UNIFORM_BUFFER, buffer_access::MAPPED_ACCESS_WRITE);
+    m_frame_uniform_buffer = buffer::create(uniform_buffer_config);
+    if (!m_frame_uniform_buffer)
     {
-        MANGO_LOG_ERROR("Creation of material uniform buffer failed! Render system not available!");
+        MANGO_LOG_ERROR("Creation of frame uniform buffer failed! Render system not available!");
         return false;
     }
 
-    m_active_scene_vertex_uniforms = static_cast<scene_vertex_uniforms*>(m_scene_vertex_uniform_buffer->map(0, m_scene_vertex_uniform_buffer->byte_length(), buffer_access::MAPPED_ACCESS_WRITE));
-    if (!m_active_scene_vertex_uniforms)
+    m_mapped_uniform_memory = m_frame_uniform_buffer->map(0, m_frame_uniform_buffer->byte_length(), buffer_access::MAPPED_ACCESS_WRITE);
+    if (!m_mapped_uniform_memory)
     {
-        MANGO_LOG_ERROR("Mapping of scene unforms failed! Render system not available!");
+        MANGO_LOG_ERROR("Mapping of uniforms failed! Render system not available!");
         return false;
     }
-
-    buffer_configuration m_buffer_config(sizeof(scene_material_uniforms), buffer_target::UNIFORM_BUFFER, buffer_access::MAPPED_ACCESS_WRITE);
-    m_scene_material_uniform_buffer = buffer::create(m_buffer_config);
-    if (!m_scene_material_uniform_buffer)
-    {
-        MANGO_LOG_ERROR("Creation of material uniform buffer failed! Render system not available!");
-        return false;
-    }
-
-    m_active_scene_material_uniforms =
-        static_cast<scene_material_uniforms*>(m_scene_material_uniform_buffer->map(0, m_scene_material_uniform_buffer->byte_length(), buffer_access::MAPPED_ACCESS_WRITE));
-    if (!m_active_scene_material_uniforms)
-    {
-        MANGO_LOG_ERROR("Mapping of material unforms failed! Render system not available!");
-        return false;
-    }
+    m_frame_uniform_offset = 0;
 
     // scene geometry pass
     shader_configuration shader_config;
@@ -206,6 +191,8 @@ bool deferred_pbr_render_system::create()
     g_ubyte zero = 0;
     default_texture->set_data(format::R8, 1, 1, format::RED, format::UNSIGNED_BYTE, &zero);
 
+    glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &m_uniform_buffer_alignment);
+
     return true;
 }
 
@@ -230,6 +217,7 @@ void deferred_pbr_render_system::begin_render()
 {
     m_command_buffer->set_depth_test(true);
     m_command_buffer->set_depth_func(compare_operation::LESS);
+    m_command_buffer->set_face_culling(true);
     m_command_buffer->set_cull_face(polygon_face::FACE_BACK);
     m_command_buffer->bind_framebuffer(m_gbuffer);
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 0.0f, m_gbuffer);
@@ -237,24 +225,20 @@ void deferred_pbr_render_system::begin_render()
 
     auto scene  = m_shared_context->get_current_scene();
     auto camera = scene->get_active_camera_data();
-    if (camera && camera->camera_info)
+    if (camera.camera_info)
     {
-        set_view_projection_matrix(camera->camera_info->view_projection);
+        set_view_projection_matrix(camera.camera_info->view_projection);
     }
 
-    m_command_buffer->bind_uniform_buffer(0, m_scene_vertex_uniform_buffer);
-    m_command_buffer->bind_uniform_buffer(1, m_scene_material_uniform_buffer);
-
-    m_command_buffer->lock_buffer(m_scene_vertex_uniform_buffer);
-    m_command_buffer->lock_buffer(m_scene_material_uniform_buffer);
-
+    m_command_buffer->wait_for_buffer(m_frame_uniform_buffer);
     // m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::LINE);
 }
 
 void deferred_pbr_render_system::finish_render()
 {
-    m_command_buffer->lock_buffer(m_scene_vertex_uniform_buffer);
-    m_command_buffer->lock_buffer(m_scene_material_uniform_buffer);
+    m_command_buffer->bind_vertex_array(nullptr);
+    m_command_buffer->bind_shader_program(nullptr);
+
     m_command_buffer->bind_framebuffer(nullptr); // bind default.
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH_STENCIL, attachment_mask::ALL, 0.0f, 0.0f, 0.2f, 1.0f);
     m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::FILL);
@@ -263,10 +247,10 @@ void deferred_pbr_render_system::finish_render()
     auto scene  = m_shared_context->get_current_scene();
     auto camera = scene->get_active_camera_data();
     lighting_pass_uniforms lp_uniforms;
-    if (camera && camera->camera_info && camera->transform)
+    if (camera.camera_info && camera.transform)
     {
-        lp_uniforms.inverse_view_projection = glm::inverse(camera->camera_info->view_projection);
-        lp_uniforms.camera_position         = camera->transform->world_transformation_matrix[3];
+        lp_uniforms.inverse_view_projection = glm::inverse(camera.camera_info->view_projection);
+        lp_uniforms.camera_position         = camera.transform->world_transformation_matrix[3];
     }
     m_command_buffer->bind_single_uniform(0, &lp_uniforms.inverse_view_projection, sizeof(lp_uniforms.inverse_view_projection));
     m_command_buffer->bind_single_uniform(1, &lp_uniforms.camera_position, sizeof(lp_uniforms.camera_position));
@@ -297,16 +281,19 @@ void deferred_pbr_render_system::finish_render()
     if (m_pipeline_steps[mango::render_step::ibl])
     {
         // We need the not translated view for skybox rendering.
-        if (camera && camera->camera_info)
-        {
-            set_view_projection_matrix(camera->camera_info->projection * glm::mat4(glm::mat3(camera->camera_info->view)));
-        }
+        if (camera.camera_info)
+            std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl])->set_view_projection_matrix(camera.camera_info->projection * glm::mat4(glm::mat3(camera.camera_info->view)));
+
         m_command_buffer->set_depth_func(compare_operation::LESS_EQUAL);
+        m_command_buffer->set_cull_face(polygon_face::FACE_FRONT);
         m_pipeline_steps[mango::render_step::ibl]->execute(m_command_buffer);
-        m_command_buffer->lock_buffer(m_scene_vertex_uniform_buffer);
     }
 
+    m_command_buffer->lock_buffer(m_frame_uniform_buffer);
+
     m_command_buffer->execute();
+
+    m_frame_uniform_offset = 0;
 }
 
 void deferred_pbr_render_system::set_viewport(uint32 x, uint32 y, uint32 width, uint32 height)
@@ -332,129 +319,122 @@ void deferred_pbr_render_system::set_model_matrix(const glm::mat4& model_matrix)
     class set_model_matrix_cmd : public command
     {
       public:
-        scene_vertex_uniforms* m_uniform_ptr;
-        glm::mat4 m_model_matrix;
-        set_model_matrix_cmd(scene_vertex_uniforms* uniform_ptr, const glm::mat4& model_matrix)
-            : m_uniform_ptr(uniform_ptr)
-            , m_model_matrix(model_matrix)
+        buffer_ptr m_uniform_buffer;
+        uint32 m_offset;
+        set_model_matrix_cmd(buffer_ptr uniform_buffer, uint32 offset)
+            : m_uniform_buffer(uniform_buffer)
+            , m_offset(offset)
         {
         }
 
         void execute(graphics_state&) override
         {
-            MANGO_ASSERT(m_uniform_ptr, "Uniforms do not exist anymore.");
-            m_uniform_ptr->model_matrix  = std140_mat4(m_model_matrix);
-            m_uniform_ptr->normal_matrix = std140_mat3(glm::transpose(glm::inverse(m_model_matrix)));
+            MANGO_ASSERT(m_uniform_buffer, "Uniforms do not exist anymore.");
+            m_uniform_buffer->bind(buffer_target::UNIFORM_BUFFER, 0, m_offset, sizeof(scene_vertex_uniforms));
         }
     };
 
-    m_command_buffer->lock_buffer(m_scene_vertex_uniform_buffer);
-    m_command_buffer->wait_for_buffer(m_scene_vertex_uniform_buffer);
-    m_command_buffer->submit<set_model_matrix_cmd>(m_active_scene_vertex_uniforms, model_matrix);
+    scene_vertex_uniforms u{ std140_mat4(model_matrix), std140_mat3(glm::transpose(glm::inverse(model_matrix))) };
+
+    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - sizeof(scene_vertex_uniforms), "Uniform buffer size is too small.");
+    memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_vertex_uniforms));
+
+    m_command_buffer->submit<set_model_matrix_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
+    m_frame_uniform_offset += m_uniform_buffer_alignment;
 }
 
-void deferred_pbr_render_system::push_material(const material_ptr& mat)
+void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count)
 {
     class push_material_cmd : public command
     {
       public:
-        scene_material_uniforms* m_uniform_ptr;
-        material_ptr m_mat;
-        push_material_cmd(scene_material_uniforms* uniform_ptr, const material_ptr& mat)
-            : m_uniform_ptr(uniform_ptr)
-            , m_mat(mat)
-        {
-        }
-
-        void execute(graphics_state& state) override
-        {
-            MANGO_ASSERT(m_uniform_ptr, "Uniforms do not exist anymore.");
-            m_uniform_ptr->base_color = std140_vec4(m_mat->base_color);
-            m_uniform_ptr->metallic   = (g_float)m_mat->metallic;
-            m_uniform_ptr->roughness  = (g_float)m_mat->roughness;
-            if (m_mat->base_color_texture)
-            {
-                m_uniform_ptr->base_color_texture = std140_bool(true);
-                m_mat->base_color_texture->bind_texture_unit(0);
-                state.bind_texture(0, m_mat->base_color_texture->get_name());
-                glUniform1i(0, 0);
-            }
-            else
-            {
-                m_uniform_ptr->base_color_texture = std140_bool(false);
-                default_texture->bind_texture_unit(0);
-                state.bind_texture(0, default_texture->get_name());
-            }
-            if (m_mat->occlusion_roughness_metallic_texture)
-            {
-                m_uniform_ptr->occlusion_roughness_metallic_texture = std140_bool(true);
-                m_mat->occlusion_roughness_metallic_texture->bind_texture_unit(1);
-                state.bind_texture(1, m_mat->occlusion_roughness_metallic_texture->get_name());
-                glUniform1i(1, 1);
-            }
-            else
-            {
-                m_uniform_ptr->occlusion_roughness_metallic_texture = std140_bool(false);
-                default_texture->bind_texture_unit(1);
-                state.bind_texture(1, default_texture->get_name());
-            }
-            if (m_mat->normal_texture)
-            {
-                m_uniform_ptr->normal_texture = std140_bool(true);
-                m_mat->normal_texture->bind_texture_unit(2);
-                state.bind_texture(2, m_mat->normal_texture->get_name());
-                glUniform1i(2, 2);
-            }
-            else
-            {
-                m_uniform_ptr->normal_texture = std140_bool(false);
-                default_texture->bind_texture_unit(2);
-                state.bind_texture(2, default_texture->get_name());
-            }
-            if (m_mat->emissive_color_texture)
-            {
-                m_uniform_ptr->emissive_color_texture = std140_bool(true);
-                m_mat->emissive_color_texture->bind_texture_unit(3);
-                state.bind_texture(3, m_mat->emissive_color_texture->get_name());
-                glUniform1i(3, 3);
-            }
-            else
-            {
-                m_uniform_ptr->emissive_color_texture = std140_bool(false);
-                default_texture->bind_texture_unit(3);
-                state.bind_texture(3, default_texture->get_name());
-            }
-        }
-    };
-
-    m_command_buffer->lock_buffer(m_scene_material_uniform_buffer);
-    m_command_buffer->wait_for_buffer(m_scene_material_uniform_buffer);
-    m_command_buffer->submit<push_material_cmd>(m_active_scene_material_uniforms, mat);
-}
-
-void deferred_pbr_render_system::set_view_projection_matrix(const glm::mat4& view_projection)
-{
-    class set_view_projection_matrix_cmd : public command
-    {
-      public:
-        scene_vertex_uniforms* m_uniform_ptr;
-        glm::mat4 m_view_projection_matrix;
-        set_view_projection_matrix_cmd(scene_vertex_uniforms* uniform_ptr, const glm::mat4& view_projection)
-            : m_uniform_ptr(uniform_ptr)
-            , m_view_projection_matrix(view_projection)
+        buffer_ptr m_uniform_buffer;
+        uint32 m_offset;
+        push_material_cmd(buffer_ptr uniform_buffer, uint32 offset)
+            : m_uniform_buffer(uniform_buffer)
+            , m_offset(offset)
         {
         }
 
         void execute(graphics_state&) override
         {
-            MANGO_ASSERT(m_uniform_ptr, "Uniforms do not exist anymore.");
-            m_uniform_ptr->view_projection = std140_mat4(m_view_projection_matrix);
+            MANGO_ASSERT(m_uniform_buffer, "Uniforms do not exist anymore.");
+            m_uniform_buffer->bind(buffer_target::UNIFORM_BUFFER, 1, m_offset, sizeof(scene_material_uniforms));
         }
     };
 
-    m_command_buffer->lock_buffer(m_scene_vertex_uniform_buffer);
-    m_command_buffer->wait_for_buffer(m_scene_vertex_uniform_buffer);
-    m_command_buffer->submit<set_view_projection_matrix_cmd>(m_active_scene_vertex_uniforms, view_projection);
+    scene_material_uniforms u;
+    auto& state = m_command_buffer->get_state();
+
+    u.base_color = std140_vec4(mat->base_color);
+    u.metallic   = (g_float)mat->metallic;
+    u.roughness  = (g_float)mat->roughness;
+    if (mat->base_color_texture)
+    {
+        u.base_color_texture = std140_bool(true);
+        m_command_buffer->bind_texture(0, mat->base_color_texture, 1);
+    }
+    else
+    {
+        u.base_color_texture = std140_bool(false);
+        m_command_buffer->bind_texture(0, default_texture, 1);
+    }
+    if (mat->roughness_metallic_texture)
+    {
+        u.roughness_metallic_texture = std140_bool(true);
+        m_command_buffer->bind_texture(1, mat->roughness_metallic_texture, 2);
+    }
+    else
+    {
+        u.roughness_metallic_texture = std140_bool(false);
+        m_command_buffer->bind_texture(1, default_texture, 2);
+    }
+    if (mat->occlusion_texture)
+    {
+        u.occlusion_texture = std140_bool(true);
+        m_command_buffer->bind_texture(2, mat->occlusion_texture, 3);
+        u.packed_occlusion = std140_bool(false);
+    }
+    else
+    {
+        u.occlusion_texture = std140_bool(false);
+        m_command_buffer->bind_texture(2, default_texture, 3);
+        // eventually it is packed
+        u.packed_occlusion = std140_bool(mat->packed_occlusion);
+    }
+    if (mat->normal_texture)
+    {
+        u.normal_texture = std140_bool(true);
+        m_command_buffer->bind_texture(3, mat->normal_texture, 4);
+    }
+    else
+    {
+        u.normal_texture = std140_bool(false);
+        m_command_buffer->bind_texture(3, default_texture, 4);
+    }
+    if (mat->emissive_color_texture)
+    {
+        u.emissive_color_texture = std140_bool(true);
+        m_command_buffer->bind_texture(4, mat->emissive_color_texture, 5);
+    }
+    else
+    {
+        u.emissive_color_texture = std140_bool(false);
+        m_command_buffer->bind_texture(4, default_texture, 5);
+    }
+
+    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - sizeof(scene_material_uniforms), "Uniform buffer size is too small.");
+    memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_material_uniforms));
+
+    m_command_buffer->submit<push_material_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
+    m_frame_uniform_offset += m_uniform_buffer_alignment;
+
+    m_command_buffer->draw_elements(topology, first, count, type, instance_count);
+}
+
+void deferred_pbr_render_system::set_view_projection_matrix(const glm::mat4& view_projection)
+{
+    m_command_buffer->bind_single_uniform(0, &const_cast<glm::mat4&>(view_projection), sizeof(glm::mat4));
 }
 
 void deferred_pbr_render_system::set_environment_texture(const texture_ptr& hdr_texture, float render_level)
@@ -535,6 +515,7 @@ static const char* getStringForSeverity(GLenum severity)
 
 static void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
+    return;
     (void)id;
     (void)length;
     (void)userParam;
@@ -543,7 +524,7 @@ static void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLen
     std::cout << "Type: " << getStringForType(type) << std::endl;
     std::cout << "Severity: " << getStringForSeverity(severity) << std::endl;
     std::cout << "Debug call: " << message << std::endl;
-     std::cout << "-----------------------------------------------" << std::endl;
+    std::cout << "-----------------------------------------------" << std::endl;
 }
 
 #endif // MANGO_DEBUG

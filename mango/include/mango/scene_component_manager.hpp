@@ -8,7 +8,6 @@
 #define MANGO_SCENE_COMPONENT_MANAGER_HPP
 
 #include <array>
-#include <functional>
 #include <mango/assert.hpp>
 #include <mango/scene_types.hpp>
 #include <unordered_map>
@@ -68,8 +67,9 @@ namespace mango
 
             if (index < end - 1)
             {
-                m_components.at(index)            = std::move(m_components.at(end - 1));
-                m_entities.at(index)              = m_entities.back();
+                m_components.at(index)            = m_components.at(end - 1);
+                m_components.at(end - 1)          = component(); // reinitialize default
+                m_entities.at(index)              = m_entities.at(end - 1);
                 m_lookup.at(m_entities.at(index)) = index;
             }
 
@@ -96,11 +96,12 @@ namespace mango
             {
                 for (uint32 i = index + 1; i < end; ++i)
                 {
-                    m_components.at(i - 1)            = std::move(m_components.at(i));
+                    m_components.at(i - 1)            = m_components.at(i);
                     m_entities.at(i - 1)              = m_entities.at(i);
                     m_lookup.at(m_entities.at(i - 1)) = i - 1;
                 }
             }
+            m_components.at(end - 1) = component(); // reinitialize default
 
             m_entities.at(end--) = invalid_entity;
             m_lookup.erase(indexed);

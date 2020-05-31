@@ -27,22 +27,26 @@ namespace mango
     //! \brief Component used to transform anything in the scene.
     struct transform_component
     {
-        glm::mat4 world_transformation_matrix = glm::mat4(1.0f); //!< The world transformation.
-        glm::mat4 local_transformation_matrix = glm::mat4(1.0f); //!< The local transformation. If there is no parent this is also the world transformation.
+        glm::vec3 position = glm::vec3(0.0f); //!< The local position.
+        // TODO Paul: We should really use quaternions.
+        glm::vec4 rotation = glm::vec4(0.0f, glm::vec3(0.1f)); //!< The local rotation angle (x) axis (yzw).
+        glm::vec3 scale    = glm::vec3(1.0f);                  //!< The local scale.
+
+        glm::mat4 local_transformation_matrix = glm::mat4(1.0f); //!< The local transformation.
+        glm::mat4 world_transformation_matrix = glm::mat4(1.0f); //!< The world transformation. If there is no parent this is also the local transformation.
     };
 
     //! \brief Component used to build a graph like structure. This is necessary for parenting.
     struct node_component
     {
-        entity parent_entity = invalid_entity;  //!< The parents entity id.
-        glm::mat4 parent_transformation_matrix; //!< The parents world transformation.
+        entity parent_entity = invalid_entity; //!< The parents entity id.
     };
 
     //! \brief Camera types used in \a camera_components.
     enum class camera_type : uint8
     {
-        perspective_camera, //!< Perspective projection. Usually usefull for 3D scenes.
-        orthographic_camera //!< Orthographic projection. Usually usefull for 2D scenes or UI.
+        perspective_camera, //!< Perspective projection. Usually useful for 3D scenes.
+        orthographic_camera //!< Orthographic projection. Usually useful for 2D scenes or UI.
     };
 
     //! \brief Component used to describe a primitive draw call. Used by \a mesh_component.
@@ -80,6 +84,8 @@ namespace mango
         float z_far;                  //!< Distance of the far plane.
         float vertical_field_of_view; //!< Vertical field of view in radians.
         float aspect;                 //!< Aspect ratio. Width divided by height.
+        glm::vec3 up;                 //!< The cameras up vector.
+        glm::vec3 target;             //!< The target to look at.
         //! \brief The view matrix of the \a camera_component.
         glm::mat4 view;
         //! \brief The projection matrix of the \a camera_component.
@@ -91,8 +97,8 @@ namespace mango
     //! \brief Structure used for collecting all the camera data of the current active camera.
     struct camera_data
     {
-        const camera_component* camera_info;  //!< Camera specific data is in here.
-        const transform_component* transform; //!< Transform of the camera.
+        camera_component* camera_info;  //!< The camera info.
+        transform_component* transform; //!< The cameras transform.
     };
 
     //! \brief Component used for the scene environment.

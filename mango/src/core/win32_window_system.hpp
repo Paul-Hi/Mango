@@ -39,6 +39,7 @@ namespace mango
         void destroy() override;
         void set_vsync(bool enabled) override;
         void make_window_context_current() override;
+        void set_drag_and_drop_callback(drag_n_drop_callback callback) override;
 
       private:
         //! \brief The \a window_configuration for the \a win32_window_system.

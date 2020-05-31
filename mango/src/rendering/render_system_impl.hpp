@@ -67,9 +67,14 @@ namespace mango
         //! \param[in] model_matrix The model matrix for the next draw calls.
         virtual void set_model_matrix(const glm::mat4& model_matrix);
 
-        //! \brief Sets the \a material for the next draw call.
+        //! \brief Schedules drawing of a \a mesh with \a material.
         //! \param[in] mat The \a material for the next draw call.
-        virtual void push_material(const material_ptr& mat);
+        //! \param[in] topology The topology used for drawing the bound vertex data.
+        //! \param[in] first The first index to start drawing from.
+        //! \param[in] count The number of indices to draw.
+        //! \param[in] type The \a index_type of the values in the index buffer.
+        //! \param[in] instance_count The number of instances to draw. For normal drawing pass 1.
+        virtual void draw_mesh(const material_ptr& mat, primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count = 1);
 
         //! \brief Sets the view projection matrix for the next draw calls.
         //! \param[in] view_projection The view projection for the next draw calls.

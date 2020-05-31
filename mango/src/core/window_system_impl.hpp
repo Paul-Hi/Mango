@@ -32,8 +32,9 @@ namespace mango
         //! The call is necessary to retrieve os events like close events.
         virtual void poll_events() = 0;
 
-        virtual void update(float dt) = 0;
-        virtual void destroy()        = 0;
+        virtual void update(float dt)                                          = 0;
+        virtual void destroy()                                                 = 0;
+        virtual void set_drag_and_drop_callback(drag_n_drop_callback callback) = 0;
 
         //! \brief Checks if the \a window_system should close.
         //! \details The \a window_system for example should close, if the window received a close event from the os.
@@ -48,8 +49,14 @@ namespace mango
         virtual void make_window_context_current() = 0;
 
       protected:
-        //! \brief Mangos internal context for shared usage in all \a window_systems.
-        shared_ptr<context_impl> m_shared_context;
+      //! \brief User data for glfw.
+        struct window_user_data
+        {
+            //! \brief Mangos internal context for shared usage in all \a window_systems.
+            shared_ptr<context_impl> shared_context;
+            //! \brief The callback function used for drag_n_drop.
+            drag_n_drop_callback drag_n_drop_callback;
+        } m_window_user_data;
     };
 
 } // namespace mango

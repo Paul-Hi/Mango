@@ -32,7 +32,7 @@ void main()
 
     up = abs(normal.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
     tangent_x = normalize(cross(up, normal));
-    tangent_y = cross(normal, tangent_x);
+    tangent_y = normalize(cross(normal, tangent_x));
 
 
     vec3 irradiance = vec3(0.0);
@@ -59,7 +59,7 @@ void main()
         }
     }
 
-    irradiance *= inverse_sample_count;
+    irradiance *= PI * inverse_sample_count;
 
     imageStore(irradiance_map_out, cube_coords, vec4(irradiance, 1.0));
 }

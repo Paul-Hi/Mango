@@ -32,6 +32,11 @@ namespace mango
 
         void bind_image_based_light_maps(command_buffer_ptr& command_buffer);
 
+        inline void set_view_projection_matrix(const glm::mat4& view_projection)
+        {
+            m_view_projection = view_projection;
+        }
+
       private:
         texture_ptr m_cubemap;
         texture_ptr m_irradiance_map;
@@ -44,16 +49,17 @@ namespace mango
         shader_program_ptr m_build_integration_lut;
         shader_program_ptr m_draw_environment;
         glm::mat3 m_current_rotation_scale;
+        glm::mat4 m_view_projection;
         float m_render_level;
 
-        const uint32 m_cube_width = 1024;
-        const uint32 m_cube_height = 1024;
-        const uint32 m_irradiance_width = 32;
-        const uint32 m_irradiance_height = 32;
-        const uint32 m_prefiltered_base_width = 1024;
+        const uint32 m_cube_width              = 1024;
+        const uint32 m_cube_height             = 1024;
+        const uint32 m_irradiance_width        = 32;
+        const uint32 m_irradiance_height       = 32;
+        const uint32 m_prefiltered_base_width  = 1024;
         const uint32 m_prefiltered_base_height = 1024;
-        const uint32 m_integration_lut_width = 256;
-        const uint32 m_integration_lut_height = 256;
+        const uint32 m_integration_lut_width   = 256;
+        const uint32 m_integration_lut_height  = 256;
     };
 } // namespace mango
 

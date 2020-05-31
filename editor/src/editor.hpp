@@ -25,6 +25,10 @@ class editor : public mango::application
   private:
     //! \brief Main camera. Testing.
     mango::entity m_main_camera;
+    //! \brief Current scene entities.
+    std::vector<mango::entity> m_model;
+    //! \brief Current environment.
+    mango::entity m_environment;
 };
 
 #endif // EDITOR_HPP

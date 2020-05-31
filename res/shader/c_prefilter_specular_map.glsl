@@ -40,7 +40,7 @@ void main()
 
     up = abs(normal.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
     tangent_x = normalize(cross(up, normal));
-    tangent_y = cross(normal, tangent_x);
+    tangent_y = normalize(cross(normal, tangent_x));
 
     if (roughness == 0.0) {
         vec4 color = textureLod(cubemap_in, ref, 0);
@@ -66,7 +66,7 @@ void main()
             // TODO Paul: Check that!
             float n_dot_h = saturate(dot(normal, halfway));
             float h_dot_v = saturate(dot(halfway, view));
-            float pdf = max(D_GGX_divided_by_pi(n_dot_h, roughness) * n_dot_h, 1e-5);
+            float pdf = max(D_GGX_divided_by_pi(n_dot_h, roughness) * n_dot_h / (4.0 * h_dot_v), 1e-5);
             float omega_s = 1.0 / (float(real_sample_count) * pdf);
             float omega_p = 4.0 * PI / (6.0 * width_sqr);
             float mip_level = roughness == 0.0 ? 0.0 : max(0.5 * log2(omega_s / omega_p) + 0.0, 0.0);

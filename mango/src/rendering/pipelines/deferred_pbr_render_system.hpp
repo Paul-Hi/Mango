@@ -32,7 +32,7 @@ namespace mango
         virtual render_pipeline get_base_render_pipeline() override;
 
         void set_model_matrix(const glm::mat4& model_matrix) override;
-        void push_material(const material_ptr& mat) override;
+        void draw_mesh(const material_ptr& mat, primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count) override;
         void set_view_projection_matrix(const glm::mat4& view_projection) override;
         void set_environment_texture(const texture_ptr& hdr_texture, float render_level) override;
 
@@ -48,17 +48,20 @@ namespace mango
         //! \details Utilizes the g-buffer filled before.
         shader_program_ptr m_lighting_pass;
 
+        const uint32 uniform_buffer_size = 1048576; // 1 MiB should be sufficient for now.
+        uint32 m_frame_uniform_offset;
+        g_int m_uniform_buffer_alignment;
+        void* m_mapped_uniform_memory;
+
+        //! \brief The uniform buffer mapping the gpu buffer to the scene uniforms.
+        buffer_ptr m_frame_uniform_buffer;
+
         //! \brief Uniform struct for the geometry passes vertex shader.
         struct scene_vertex_uniforms
         {
             std140_mat4 model_matrix;    //!< The model matrix.
             std140_mat3 normal_matrix;   //!< The normal matrix.
-            std140_mat4 view_projection; //!< The cameras view projection matrix.
         };
-        //! \brief Pointer to the currently active scene uniforms for the geometry pass vertex shader.
-        scene_vertex_uniforms* m_active_scene_vertex_uniforms;
-        //! \brief The uniform buffer mapping the gpu buffer to the active scene vertex uniforms.
-        buffer_ptr m_scene_vertex_uniform_buffer;
 
         //! \brief Uniform struct for the geometry passes fragment shader to implement \a materials.
         struct scene_material_uniforms
@@ -68,18 +71,15 @@ namespace mango
             g_float metallic;           //!< The metallic value of the material.
             g_float roughness;          //!< The roughness of the material.
 
-            std140_bool base_color_texture;                   //!< Specifies, if the the base color texture is enabled.
-            std140_bool occlusion_roughness_metallic_texture; //!< Specifies, if the component texture is enabled for the metallic value and the roughness value.
-            std140_bool normal_texture;                       //!< Specifies, if the normal texture is enabled.
-            std140_bool emissive_color_texture;               //!< Specifies, if the the emissive color texture is enabled.
+            std140_bool base_color_texture;         //!< Specifies, if the the base color texture is enabled.
+            std140_bool roughness_metallic_texture; //!< Specifies, if the component texture is enabled for the metallic value and the roughness value.
+            std140_bool occlusion_texture;          //!< Specifies, if the component texture is enabled for the occlusion value.
+            std140_bool packed_occlusion;           //!< Specifies, if the occlusion value is packed into the r channel of the roughness_metallic_texture.
+            std140_bool normal_texture;             //!< Specifies, if the normal texture is enabled.
+            std140_bool emissive_color_texture;     //!< Specifies, if the the emissive color texture is enabled.
 
-            g_float padding0; //!< Padding needed for st140 layout.
-            g_float padding1; //!< Padding needed for st140 layout.
+            // g_float padding0; //!< Padding needed for st140 layout.
         };
-        //! \brief Pointer to the currently active scene material uniforms for the geometry pass fragment shader.
-        scene_material_uniforms* m_active_scene_material_uniforms;
-        //! \brief The uniform buffer mapping the gpu buffer to the active scene material fragment uniforms.
-        buffer_ptr m_scene_material_uniform_buffer;
 
         //! \brief Optional additional steps of the deferred pipeline.
         shared_ptr<pipeline_step> m_pipeline_steps[mango::render_step::number_of_step_types];

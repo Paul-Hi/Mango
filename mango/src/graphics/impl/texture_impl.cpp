@@ -80,7 +80,7 @@ void texture_impl::set_data(format internal_format, uint32 width, uint32 height,
         if (data)
         {
             for (uint32 i = 0; i < 6; ++i)
-                glTextureSubImage3D(m_name, 0, 0, 0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, width, height, 1, gl_pixel_f, gl_type, data); // TODO Paul: Is this correct?
+                glTextureSubImage3D(m_name, 0, 0, 0, i, width, height, 1, gl_pixel_f, gl_type, data); // TODO Paul: Is this correct?
         }
         if (mipmaps())
         {

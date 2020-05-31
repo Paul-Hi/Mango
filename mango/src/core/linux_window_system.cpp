@@ -7,7 +7,10 @@
 #define GLFW_INCLUDE_NONE // for glad
 #include <GLFW/glfw3.h>
 #include <core/linux_window_system.hpp>
+#include <graphics/command_buffer.hpp>
 #include <mango/assert.hpp>
+#include <mango/scene.hpp>
+#include <rendering/render_system_impl.hpp>
 
 using namespace mango;
 
@@ -15,7 +18,7 @@ linux_window_system::linux_window_system(const shared_ptr<context_impl>& context
     : m_window_configuration()
     , m_window_handle(nullptr)
 {
-    m_shared_context = context;
+    m_window_user_data.shared_context = context;
 }
 
 linux_window_system::~linux_window_system() {}
@@ -103,7 +106,21 @@ void linux_window_system::configure(const window_configuration& configuration)
 #endif // MANGO_DEBUG
 
     make_window_context_current();
-    m_shared_context->set_gl_loading_procedure(reinterpret_cast<mango_gl_load_proc>(glfwGetProcAddress)); // TODO Paul: Should this be done here or before creating the gl context.
+    m_window_user_data.shared_context->set_gl_loading_procedure(reinterpret_cast<mango_gl_load_proc>(glfwGetProcAddress)); // TODO Paul: Should this be done here or before creating the gl context.
+    glfwSetWindowUserPointer(window, static_cast<void*>(&m_window_user_data));
+
+    {
+        // Test just for fun and because it is nice to debug with resizing --- This is BAD. TODO Paul: Make this correct and fancy.
+        glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int w, int h) {
+            window_user_data* data = static_cast<window_user_data*>(glfwGetWindowUserPointer(window));
+            context_impl* c        = data->shared_context.get();
+            if (w > 0 && h > 0)
+            {
+                c->get_current_scene()->get_camera_component(1)->aspect = (float)w / (float)h; // We know that camera is entity 1... because this is dumb.
+                c->get_render_system_internal().lock()->set_viewport(0, 0, w, h);
+            }
+        });
+    }
 }
 
 void linux_window_system::update(float dt)
@@ -134,9 +151,20 @@ void linux_window_system::make_window_context_current()
     glfwMakeContextCurrent(static_cast<GLFWwindow*>(m_window_handle));
 }
 
+void linux_window_system::set_drag_and_drop_callback(drag_n_drop_callback callback)
+{
+    MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
+    m_window_user_data.drag_n_drop_callback = callback;
+    glfwSetDropCallback(static_cast<GLFWwindow*>(m_window_handle), [](GLFWwindow* window, int count, const char** paths) {
+        window_user_data* data = static_cast<window_user_data*>(glfwGetWindowUserPointer(window));
+        data->drag_n_drop_callback(count, paths);
+    });
+}
+
 void linux_window_system::destroy()
 {
     MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
     glfwDestroyWindow(static_cast<GLFWwindow*>(m_window_handle));
+    m_window_handle = nullptr;
     glfwTerminate();
 }

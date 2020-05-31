@@ -75,10 +75,10 @@ void render_system_impl::set_model_matrix(const glm::mat4& model_matrix)
     m_current_render_system->set_model_matrix(model_matrix);
 }
 
-void render_system_impl::push_material(const material_ptr& mat)
+void render_system_impl::draw_mesh(const material_ptr& mat, primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->push_material(mat);
+    m_current_render_system->draw_mesh(mat, topology, first, count, type, instance_count);
 }
 
 void render_system_impl::set_view_projection_matrix(const glm::mat4& view_projection)

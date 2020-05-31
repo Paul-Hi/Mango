@@ -18,6 +18,9 @@ static const float cubemap_vertices[36] = { -1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f
 
 static const uint8 cubemap_indices[18] = { 8, 9, 0, 2, 1, 3, 3, 2, 5, 4, 7, 6, 6, 0, 7, 1, 10, 11 };
 
+//! \brief Default texture that is bound to every texture unit not in use to prevent warnings.
+texture_ptr default_ibl_texture;
+
 bool ibl_step::create()
 {
     // compute shader to convert from equirectangular projected hdr textures to a cube map.
@@ -139,6 +142,50 @@ bool ibl_step::create()
     m_current_rotation_scale = glm::mat3(1.0f);
     m_render_level           = 0;
 
+    texture_configuration texture_config;
+    texture_config.m_generate_mipmaps        = 1;
+    texture_config.m_is_standard_color_space = false;
+    texture_config.m_is_cubemap              = false;
+    texture_config.m_texture_min_filter      = texture_parameter::FILTER_LINEAR;
+    texture_config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
+    texture_config.m_texture_wrap_s          = texture_parameter::WRAP_CLAMP_TO_EDGE;
+    texture_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
+    m_brdf_integration_lut                   = texture::create(texture_config);
+    m_brdf_integration_lut->set_data(format::RGBA16F, m_integration_lut_width, m_integration_lut_height, format::RGBA, format::FLOAT, nullptr);
+
+    // creating a temporal command buffer for compute shader execution.
+    command_buffer_ptr compute_commands = command_buffer::create();
+
+    // build integration look up texture
+    compute_commands->bind_shader_program(m_build_integration_lut);
+
+    // bind output lut
+    compute_commands->bind_image_texture(0, m_brdf_integration_lut, 0, false, 0, base_access::WRITE_ONLY, format::RGBA16F);
+    // bind uniforms
+    glm::vec2 out = glm::vec2(m_brdf_integration_lut->get_width(), m_brdf_integration_lut->get_height());
+    compute_commands->bind_single_uniform(0, &(out), sizeof(out));
+    // execute compute
+    compute_commands->dispatch_compute(m_brdf_integration_lut->get_width() / 8, m_brdf_integration_lut->get_height() / 8, 1);
+
+    compute_commands->add_memory_barrier(memory_barrier_bit::SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+    compute_commands->bind_shader_program(nullptr);
+
+    compute_commands->execute();
+
+    // default texture needed
+    texture_config.m_texture_min_filter = texture_parameter::FILTER_NEAREST;
+    texture_config.m_texture_mag_filter = texture_parameter::FILTER_NEAREST;
+    texture_config.m_is_cubemap         = true;
+    default_ibl_texture                 = texture::create(texture_config);
+    if (!default_ibl_texture)
+    {
+        MANGO_LOG_ERROR("Creation of default texture failed! Render system not available!");
+        return false;
+    }
+    g_ubyte dark_blue = 0;
+    default_ibl_texture->set_data(format::R8, 1, 1, format::RED, format::UNSIGNED_BYTE, &dark_blue);
+
     return true;
 }
 
@@ -148,17 +195,18 @@ void ibl_step::attach() {}
 
 void ibl_step::execute(command_buffer_ptr& command_buffer)
 {
-    if (m_render_level < 0.0f)
+    if (m_render_level < 0.0f || !m_cubemap)
         return;
 
     command_buffer->bind_shader_program(m_draw_environment);
     command_buffer->bind_vertex_array(m_cube_geometry);
-    command_buffer->bind_single_uniform(0, &m_current_rotation_scale, sizeof(m_current_rotation_scale));
+    command_buffer->bind_single_uniform(0, &const_cast<glm::mat4&>(m_view_projection), sizeof(glm::mat4));
+    command_buffer->bind_single_uniform(1, &m_current_rotation_scale, sizeof(m_current_rotation_scale));
     if (m_render_level <= 0.25)
-        command_buffer->bind_texture(0, m_cubemap, 1);
+        command_buffer->bind_texture(0, m_cubemap, 2);
     else
-        command_buffer->bind_texture(0, m_prefiltered_specular, 1);
-    command_buffer->bind_single_uniform(2, &m_render_level, sizeof(m_render_level));
+        command_buffer->bind_texture(0, m_prefiltered_specular, 2);
+    command_buffer->bind_single_uniform(3, &m_render_level, sizeof(m_render_level));
 
     command_buffer->draw_elements(primitive_topology::TRIANGLE_STRIP, 0, 18, index_type::UBYTE);
 
@@ -192,11 +240,6 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
     m_irradiance_map                    = texture::create(texture_config);
     m_irradiance_map->set_data(format::RGBA16F, m_irradiance_width, m_irradiance_height, format::RGBA, format::FLOAT, nullptr);
 
-    texture_config.m_is_cubemap = false;
-    m_brdf_integration_lut      = texture::create(texture_config);
-    m_brdf_integration_lut->set_data(format::RGBA16F, m_integration_lut_width, m_integration_lut_height, format::RGBA, format::FLOAT, nullptr);
-
-    glm::vec2 in;
     glm::vec2 out;
 
     // creating a temporal command buffer for compute shader execution.
@@ -256,21 +299,6 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
         compute_commands->dispatch_compute(m_prefiltered_specular->get_width() / 32, m_prefiltered_specular->get_height() / 32, 6);
     }
 
-    compute_commands->add_memory_barrier(memory_barrier_bit::SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-    // build integration look up texture
-    compute_commands->bind_shader_program(m_build_integration_lut);
-
-    // bind output lut
-    compute_commands->bind_image_texture(0, m_brdf_integration_lut, 0, false, 0, base_access::WRITE_ONLY, format::RGBA16F);
-    // bind uniforms
-    out = glm::vec2(m_brdf_integration_lut->get_width(), m_brdf_integration_lut->get_height());
-    compute_commands->bind_single_uniform(0, &(out), sizeof(out));
-    // execute compute
-    compute_commands->dispatch_compute(m_brdf_integration_lut->get_width() / 8, m_brdf_integration_lut->get_height() / 8, 1);
-
-    compute_commands->add_memory_barrier(memory_barrier_bit::SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
     compute_commands->bind_shader_program(nullptr);
 
     compute_commands->execute();
@@ -278,7 +306,16 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
 
 void ibl_step::bind_image_based_light_maps(command_buffer_ptr& command_buffer)
 {
-    command_buffer->bind_texture(5, m_irradiance_map, 7);       // TODO Paul: Binding and location...
-    command_buffer->bind_texture(6, m_prefiltered_specular, 8); // TODO Paul: Binding and location...
-    command_buffer->bind_texture(7, m_brdf_integration_lut, 9); // TODO Paul: Binding and location...
+    if (m_cubemap)
+    {
+        command_buffer->bind_texture(5, m_irradiance_map, 7);       // TODO Paul: Binding and location...
+        command_buffer->bind_texture(6, m_prefiltered_specular, 8); // TODO Paul: Binding and location...
+        command_buffer->bind_texture(7, m_brdf_integration_lut, 9); // TODO Paul: Binding and location...
+    }
+    else
+    {
+        command_buffer->bind_texture(5, default_ibl_texture, 7);    // TODO Paul: Binding and location...
+        command_buffer->bind_texture(6, default_ibl_texture, 8);    // TODO Paul: Binding and location...
+        command_buffer->bind_texture(7, m_brdf_integration_lut, 9); // TODO Paul: Binding and location...
+    }
 }
