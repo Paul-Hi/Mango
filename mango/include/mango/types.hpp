@@ -8,11 +8,11 @@
 #ifndef MANGO_TYPES_HPP
 #define MANGO_TYPES_HPP
 
+#include <functional>
 #include <limits>
 #include <memory>
 #include <stdint.h>
 #include <string>
-#include <functional>
 
 namespace mango
 {
@@ -96,6 +96,7 @@ namespace mango
     //! \brief The data type in index buffers.
     enum class index_type : uint32
     {
+        NONE   = 0x0000,
         UBYTE  = 0x1401,
         USHORT = 0x1403,
         UINT   = 0x1405

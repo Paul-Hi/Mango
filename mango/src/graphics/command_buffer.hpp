@@ -173,7 +173,6 @@ namespace mango
         //! \param[in] destination The \a blend_factor influencing the destination value.
         void set_blend_factors(blend_factor source, blend_factor destination);
 
-        // void bind_uniform_buffer(uint32 target, uint32 index, buffer_view_ptr buffer, ptr_size offset, ptr_size size);
         // void bind_texture_buffer(uint32 target, uint32 index, buffer_view_ptr buffer, ptr_size offset, ptr_size size);
 
         //! \brief Submits a command to the \a command_buffer.

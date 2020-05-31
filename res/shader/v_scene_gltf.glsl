@@ -23,8 +23,15 @@ out shader_shared
 
 void main()
 {
-    vs_out.shared_normal = u_normal_matrix * normalize(v_normal);
+    if(length(v_normal.xyz) > 0.0)
+        vs_out.shared_normal = u_normal_matrix * normalize(v_normal);
+    else
+    {
+        // TODO Paul: This is just for now and should be changed later. We want to calculate normals on import.
+        vs_out.shared_normal = u_normal_matrix * vec3(0.0, 1.0, 0.0);
+    }
     vs_out.shared_texcoord = v_texcoord;
+
     if(length(v_tangent.xyz) > 0.0)
     {
         vs_out.shared_tangent = u_normal_matrix * normalize(v_tangent.xyz);

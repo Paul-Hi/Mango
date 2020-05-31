@@ -9,6 +9,7 @@
 
 #include <mango/scene_component_manager.hpp>
 #include <mango/scene_types.hpp>
+#include <map>
 
 namespace tinygltf
 {
@@ -22,6 +23,7 @@ namespace mango
 {
     class context_impl;
     class shader_program;
+    class buffer;
     //! \brief The \a scene of mango.
     //! \details A collection of entities, components and systems. Responsible for handling content in mango.
     class scene
@@ -104,7 +106,7 @@ namespace mango
         {
             camera_data result;
             result.camera_info = m_cameras.get_component_for_entity(m_active_camera);
-            result.transform = m_transformations.get_component_for_entity(m_active_camera);
+            result.transform   = m_transformations.get_component_for_entity(m_active_camera);
             return result;
         }
 
@@ -116,21 +118,23 @@ namespace mango
         //! \param[in] m The model loaded by tinygltf.
         //! \param[in] n The node loaded by tinygltf.
         //! \param[in] parent_world The parents world transformation matrix.
+        //! \param[in] buffer_map The mapped buffers of the model.
         //! \return The root node of the function call.
-        entity build_model_node(std::vector<entity>& entities, tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world);
+        entity build_model_node(std::vector<entity>& entities, tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world, const std::map<int, shared_ptr<buffer>>& buffer_map);
 
         //! \brief Attaches a \a mesh_component to an \a entity with data loaded by tinygltf.
         //! \details Internally called by create_entities_from_model(...).
-        //!\param[in] node The entity that the \a mesh_component should be attached to.
-        //!\param[in] m The model loaded by tinygltf.
-        //!\param[in] mesh The mesh loaded by tinygltf.
-        void build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& mesh);
+        //! \param[in] node The entity that the \a mesh_component should be attached to.
+        //! \param[in] m The model loaded by tinygltf.
+        //! \param[in] mesh The mesh loaded by tinygltf.
+        //! \param[in] buffer_map The mapped buffers of the model.
+        void build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& mesh, const std::map<int, shared_ptr<buffer>>& buffer_map);
 
         //! \brief Loads a \a material and stores it in the component.
         //! \details Loads all supported component values and textures if they exist.
         //! \param[out] material The component to store the material in.
         //! \param[in] primitive The tinygltf primitive the material is linked to.
-        //!\param[in] m The model loaded by tinygltf.
+        //! \param[in] m The model loaded by tinygltf.
         void load_material(material_component& material, const tinygltf::Primitive& primitive, tinygltf::Model& m);
 
         friend class context_impl; // TODO Paul: Better way?

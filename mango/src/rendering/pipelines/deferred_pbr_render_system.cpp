@@ -429,7 +429,15 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
     m_command_buffer->submit<push_material_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
     m_frame_uniform_offset += m_uniform_buffer_alignment;
 
-    m_command_buffer->draw_elements(topology, first, count, type, instance_count);
+    if (mat->double_sided)
+        m_command_buffer->set_face_culling(false);
+
+    if (type == index_type::NONE)
+        m_command_buffer->draw_arrays(topology, first, count, instance_count);
+    else
+        m_command_buffer->draw_elements(topology, first, count, type, instance_count);
+
+    m_command_buffer->set_face_culling(true);
 }
 
 void deferred_pbr_render_system::set_view_projection_matrix(const glm::mat4& view_projection)

@@ -34,7 +34,9 @@ scene::scene(const string& name)
     , m_cameras()
 {
     MANGO_UNUSED(name);
-    m_active_camera = invalid_entity;
+    m_active_camera        = invalid_entity;
+    m_scene_boundaries.max = glm::vec3(-3.402823e+38f);
+    m_scene_boundaries.min = glm::vec3(3.402823e+38f);
 }
 
 scene::~scene() {}
@@ -94,21 +96,48 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
     scene_entities.push_back(scene_root);
     shared_ptr<resource_system> rs = m_shared_context->get_resource_system_internal().lock();
     MANGO_ASSERT(rs, "Resource System is invalid!");
-    auto start = path.find_last_of("\\/") + 1;
-    auto name = path.substr(start, path.find_last_of(".") - start);
+    auto start                     = path.find_last_of("\\/") + 1;
+    auto name                      = path.substr(start, path.find_last_of(".") - start);
     model_configuration config     = { name };
     const shared_ptr<model> loaded = rs->load_gltf(path, config);
     tinygltf::Model& m             = loaded->gltf_model;
 
     // load the default scene or the first one.
-    m_scene_boundaries.max          = glm::vec3(-3.402823e+38f);
-    m_scene_boundaries.min          = glm::vec3(3.402823e+38f);
+    glm::vec3 max_backup   = m_scene_boundaries.max;
+    glm::vec3 min_backup   = m_scene_boundaries.min;
+    m_scene_boundaries.max = glm::vec3(-3.402823e+38f);
+    m_scene_boundaries.min = glm::vec3(3.402823e+38f);
     MANGO_ASSERT(m.scenes.size() > 0, "No scenes in the gltf model found!");
+
+    // load all model buffer views into buffers.
+    std::map<int, buffer_ptr> index_to_buffer_data;
+
+    for (size_t i = 0; i < m.bufferViews.size(); ++i)
+    {
+        const tinygltf::BufferView& buffer_view = m.bufferViews[i];
+        if (buffer_view.target == 0)
+            MANGO_LOG_WARN("Buffer view target is zero!"); // We can continue here.
+
+        const tinygltf::Buffer& t_buffer = m.buffers[buffer_view.buffer];
+
+        buffer_configuration config;
+        config.m_access = buffer_access::NONE;
+        config.m_size   = buffer_view.byteLength;
+        config.m_target = (buffer_view.target == 0 || buffer_view.target == GL_ARRAY_BUFFER) ? buffer_target::VERTEX_BUFFER : buffer_target::INDEX_BUFFER;
+
+        const unsigned char* buffer_start = t_buffer.data.data() + buffer_view.byteOffset;
+        const void* buffer_data           = static_cast<const void*>(buffer_start);
+        config.m_data                     = buffer_data;
+        buffer_ptr buf                    = buffer::create(config);
+
+        index_to_buffer_data.insert({ i, buf });
+    }
+
     int scene_id                 = m.defaultScene > -1 ? m.defaultScene : 0;
     const tinygltf::Scene& scene = m.scenes[scene_id];
     for (uint32 i = 0; i < scene.nodes.size(); ++i)
     {
-        entity node = build_model_node(scene_entities, m, m.nodes.at(scene.nodes.at(i)), glm::mat4(1.0));
+        entity node = build_model_node(scene_entities, m, m.nodes.at(scene.nodes.at(i)), glm::mat4(1.0), index_to_buffer_data);
 
         attach(node, scene_root);
     }
@@ -123,8 +152,13 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
         create_default_camera();
     }
 
-    m_cameras.get_component_for_entity(m_active_camera)->target = (m_scene_boundaries.max + m_scene_boundaries.min) * 0.5f * scale;
-    m_transformations.get_component_for_entity(m_active_camera)->position.y = (m_scene_boundaries.max.y + m_scene_boundaries.min.y) * 0.75f * scale.y;
+    m_cameras.get_component_for_entity(m_active_camera)->target             = (m_scene_boundaries.max + m_scene_boundaries.min) * 0.5f * scale;
+    m_transformations.get_component_for_entity(m_active_camera)->position.y = (m_scene_boundaries.max.y + m_scene_boundaries.min.y) * scale.y + 0.5f;
+
+    m_scene_boundaries.max =
+        glm::max(m_scene_boundaries.max, max_backup); // TODO Paul: This is just in case all other assets are still here, we need to do the calculation with all still existing entities.
+    m_scene_boundaries.min =
+        glm::min(m_scene_boundaries.min, min_backup); // TODO Paul: This is just in case all other assets are still here, we need to do the calculation with all still existing entities.
 
     return scene_entities;
 }
@@ -258,7 +292,7 @@ void scene::detach(entity child)
     m_nodes.sort_remove_component_from(child);
 }
 
-entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world)
+entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world, const std::map<int, buffer_ptr>& buffer_map)
 {
     entity node     = create_empty();
     auto& transform = m_transformations.create_component_for(node);
@@ -279,7 +313,7 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
         }
         if (n.rotation.size() == 4)
         {
-            glm::quat orient = glm::quat(n.rotation[3], n.rotation[0], n.rotation[1], n.rotation[2]); // TODO Paul: Use quaternions.
+            glm::quat orient   = glm::quat(n.rotation[3], n.rotation[0], n.rotation[1], n.rotation[2]); // TODO Paul: Use quaternions.
             transform.rotation = glm::vec4(glm::angle(orient), glm::axis(orient));
         }
         if (n.scale.size() == 3)
@@ -297,7 +331,7 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
     if (n.mesh > -1)
     {
         MANGO_ASSERT((uint32)n.mesh < m.meshes.size(), "Invalid gltf mesh!");
-        build_model_mesh(node, m, m.meshes.at(n.mesh));
+        build_model_mesh(node, m, m.meshes.at(n.mesh), buffer_map);
         update_scene_boundaries(trafo, m, m.meshes.at(n.mesh), m_scene_boundaries.min, m_scene_boundaries.max);
     }
 
@@ -308,75 +342,50 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
     {
         MANGO_ASSERT((uint32)n.children[i] < m.nodes.size(), "Invalid gltf node!");
 
-        entity child = build_model_node(entities, m, m.nodes.at(n.children.at(i)), trafo);
+        entity child = build_model_node(entities, m, m.nodes.at(n.children.at(i)), trafo, buffer_map);
         attach(child, node);
     }
 
     return node;
 }
 
-void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& mesh)
+void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& mesh, const std::map<int, buffer_ptr>& buffer_map)
 {
     auto& component_mesh = m_meshes.create_component_for(node);
-
-    component_mesh.vertex_array_object = vertex_array::create();
-
-    // Bind vertex buffers later, so we do not bind not used ones and can determine tightly packed attribute offsets later.
-    struct vao_buffer_data
-    {
-        buffer_ptr buf;
-    };
-    std::map<int, vao_buffer_data> index_to_buffer_data;
-
-    for (size_t i = 0; i < m.bufferViews.size(); ++i)
-    {
-        const tinygltf::BufferView& buffer_view = m.bufferViews[i];
-        if (buffer_view.target == 0)
-        {
-            MANGO_LOG_WARN("Buffer view target is zero!");
-            continue;
-        }
-
-        const tinygltf::Buffer& t_buffer = m.buffers[buffer_view.buffer];
-
-        buffer_configuration config;
-        config.m_access = buffer_access::NONE;
-        config.m_size   = buffer_view.byteLength;
-        config.m_target = buffer_view.target == GL_ARRAY_BUFFER ? buffer_target::VERTEX_BUFFER : buffer_target::INDEX_BUFFER;
-
-        const void* buffer_data = static_cast<const void*>(t_buffer.data.data() + buffer_view.byteOffset);
-        config.m_data           = buffer_data;
-        buffer_ptr buf          = buffer::create(config);
-
-        vao_buffer_data data = { buf };
-        index_to_buffer_data.insert({ i, data });
-    }
 
     for (size_t i = 0; i < mesh.primitives.size(); ++i)
     {
         const tinygltf::Primitive& primitive = mesh.primitives[i];
 
-        if (primitive.indices < 0)
-        {
-            MANGO_LOG_DEBUG("No primitives in this gltf mesh!");
-            return;
-        }
-
-        const tinygltf::Accessor& index_accessor = m.accessors[primitive.indices];
-
         primitive_component p;
-        p.count          = index_accessor.count;
-        p.topology       = static_cast<primitive_topology>(primitive.mode); // cast is okay.
-        p.first          = index_accessor.byteOffset;
-        p.type_index     = static_cast<index_type>(index_accessor.componentType);
-        p.instance_count = 1;
+        p.vertex_array_object = vertex_array::create();
+        p.topology            = static_cast<primitive_topology>(primitive.mode); // cast is okay.
+        p.instance_count      = 1;
+        bool has_indices      = true;
 
-        component_mesh.primitives.push_back(p);
+        if (primitive.indices >= 0)
+        {
+            const tinygltf::Accessor& index_accessor = m.accessors[primitive.indices];
 
-        auto it = index_to_buffer_data.find(index_accessor.bufferView);
-        if (it == index_to_buffer_data.end())
-            continue; // BAD!
-        component_mesh.vertex_array_object->bind_index_buffer(it->second.buf);
+            p.first      = index_accessor.byteOffset;
+            p.count      = index_accessor.count;
+            p.type_index = static_cast<index_type>(index_accessor.componentType);
+
+            auto it = buffer_map.find(index_accessor.bufferView);
+            if (it == buffer_map.end())
+            {
+                MANGO_LOG_ERROR("No buffer data for index bufferView {0}!", index_accessor.bufferView);
+                continue;
+            }
+            p.vertex_array_object->bind_index_buffer(it->second);
+        }
+        else
+        {
+            p.first      = 0;
+            p.type_index = index_type::NONE;
+            // p.count has to be set later.
+            has_indices = false;
+        }
 
         material_component mat;
         mat.material             = std::make_shared<material>();
@@ -412,18 +421,29 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                 attrib_array = 3;
             if (attrib_array > -1)
             {
-                auto it = index_to_buffer_data.find(accessor.bufferView);
-                if (it == index_to_buffer_data.end())
-                    continue; // BAD!
+                auto it = buffer_map.find(accessor.bufferView);
+                if (it == buffer_map.end())
+                {
+                    MANGO_LOG_ERROR("No buffer data for bufferView {0}!", accessor.bufferView);
+                    continue;
+                }
                 ptr_size stride = accessor.ByteStride(m.bufferViews[accessor.bufferView]);
                 MANGO_ASSERT(stride > 0, "Broken gltf model! Attribute stride is {0}!", stride);
-                component_mesh.vertex_array_object->bind_vertex_buffer(vb_idx, it->second.buf, accessor.byteOffset, stride);
-                component_mesh.vertex_array_object->set_vertex_attribute(attrib_array, vb_idx, attribute_format, 0);
+                p.vertex_array_object->bind_vertex_buffer(vb_idx, it->second, accessor.byteOffset, stride);
+                p.vertex_array_object->set_vertex_attribute(attrib_array, vb_idx, attribute_format, 0);
+
+                if (attrib_array == 0 && !has_indices)
+                {
+                    p.count = accessor.count;
+                }
+
                 vb_idx++;
             }
             else
                 MANGO_LOG_DEBUG("Vertex attribute array is ignored: {0}!", attrib.first);
         }
+
+        component_mesh.primitives.push_back(p);
     }
 }
 
@@ -435,6 +455,8 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     const tinygltf::Material& p_m = m.materials[primitive.material];
     if (!p_m.name.empty())
         MANGO_LOG_DEBUG("Loading material: {0}", p_m.name.c_str());
+
+    material.material->double_sided = p_m.doubleSided;
 
     auto& pbr = p_m.pbrMetallicRoughness;
 
@@ -810,13 +832,13 @@ static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_man
             if (transform)
             {
                 auto cmdb = rs->get_command_buffer();
-                cmdb->bind_vertex_array(c.vertex_array_object);
                 rs->set_model_matrix(transform->world_transformation_matrix);
 
                 for (uint32 i = 0; i < c.primitives.size(); ++i)
                 {
                     auto m = c.materials[i];
                     auto p = c.primitives[i];
+                    cmdb->bind_vertex_array(p.vertex_array_object);
                     rs->draw_mesh(m.material, p.topology, p.first, p.count, p.type_index, p.instance_count);
                 }
             }

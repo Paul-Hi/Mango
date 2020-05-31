@@ -52,6 +52,8 @@ namespace mango
         texture_ptr occlusion_texture;          //!< The component texture for the occlusion value.
         texture_ptr normal_texture;             //!< The texture for normals.
         texture_ptr emissive_color_texture;     //!< The texture for the emissive color value.
+
+        bool double_sided; //!< Specifies if the material is double sided.
     };
 
     //! \cond NO_COND

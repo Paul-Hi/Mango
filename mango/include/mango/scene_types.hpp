@@ -52,11 +52,12 @@ namespace mango
     //! \brief Component used to describe a primitive draw call. Used by \a mesh_component.
     struct primitive_component
     {
-        primitive_topology topology; //!< Topology of the primitive data.
-        uint32 first;                //!< First index.
-        uint32 count;                //!< Number of elements/vertices.
-        index_type type_index;       //!< The type of the values in the index buffer.
-        uint32 instance_count;       //!< Number of instances. Usually 1.
+        shared_ptr<vertex_array> vertex_array_object; //!< The vertex array object of the primitive.
+        primitive_topology topology;                  //!< Topology of the primitive data.
+        uint32 first;                                 //!< First index.
+        uint32 count;                                 //!< Number of elements/vertices.
+        index_type type_index;                        //!< The type of the values in the index buffer.
+        uint32 instance_count;                        //!< Number of instances. Usually 1.
     };
 
     //! \brief Component used for materials.
@@ -68,7 +69,6 @@ namespace mango
     //! \brief Component used for renderable mesh geometry. Used for drawing.
     struct mesh_component
     {
-        shared_ptr<vertex_array> vertex_array_object; //!< The vertex array object of the mesh.
         //! \brief A list of \a primitive_components.
         std::vector<primitive_component> primitives;
         //! \brief A list of \a material_components.
