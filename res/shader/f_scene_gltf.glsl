@@ -22,7 +22,7 @@ layout (location = 5, binding = 4) uniform sampler2D t_emissive_color;
 layout(binding = 1, std140) uniform scene_material_uniforms
 {
     vec4  base_color;
-    vec4  emissive_color;                      // this is a vec3, but there are annoying bugs with some drivers.
+    vec4  emissive_color; // this is a vec3, but there are annoying bugs with some drivers.
     float metallic;
     float roughness;
 

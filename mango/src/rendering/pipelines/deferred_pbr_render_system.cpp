@@ -268,11 +268,6 @@ void deferred_pbr_render_system::finish_render()
     m_command_buffer->draw_arrays(primitive_topology::POINTS, 0, 1);
 
     // We try to reset the default state as possible, without crashing all optimizations.
-    m_command_buffer->bind_texture(0, nullptr, 2);
-    m_command_buffer->bind_texture(1, nullptr, 3);
-    m_command_buffer->bind_texture(2, nullptr, 4);
-    m_command_buffer->bind_texture(3, nullptr, 5);
-    m_command_buffer->bind_texture(4, nullptr, 6);
 
     m_command_buffer->bind_vertex_array(nullptr);
     // We need to unbind the program so we can make changes to the textures.

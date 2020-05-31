@@ -210,7 +210,6 @@ void ibl_step::execute(command_buffer_ptr& command_buffer)
 
     command_buffer->draw_elements(primitive_topology::TRIANGLE_STRIP, 0, 18, index_type::UBYTE);
 
-    command_buffer->bind_texture(0, nullptr, 1);
     command_buffer->bind_vertex_array(nullptr);
     command_buffer->bind_shader_program(nullptr);
 }

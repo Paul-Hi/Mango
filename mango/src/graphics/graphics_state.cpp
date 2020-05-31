@@ -5,8 +5,8 @@
 //! \copyright Apache License 2.0
 
 #include <graphics/graphics_state.hpp>
-#include <graphics/vertex_array.hpp>
 #include <graphics/shader_program.hpp>
+#include <graphics/vertex_array.hpp>
 #include <mango/assert.hpp>
 #include <map>
 
@@ -91,6 +91,7 @@ bool graphics_state::bind_shader_program(shader_program_ptr shader_program)
     if (m_internal_state.shader_program != shader_program)
     {
         m_internal_state.shader_program = shader_program;
+        m_internal_state.m_active_texture_bindings.fill(0);
         return true;
     }
     return false;
@@ -108,10 +109,17 @@ bool graphics_state::bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer
     return true;
 }
 
-bool graphics_state::bind_texture(uint32 location, uint32 texture_handle)
+bool graphics_state::bind_texture(uint32 binding, uint32 name)
 {
-    // TODO Paul
-    return true;
+    if (binding > max_texture_bindings)
+        return true;
+    auto& t_name = m_internal_state.m_active_texture_bindings.at(binding);
+    if (t_name != name)
+    {
+        t_name = name;
+        return true;
+    }
+    return false;
 }
 
 bool graphics_state::bind_framebuffer(framebuffer_ptr framebuffer)

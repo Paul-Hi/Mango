@@ -411,10 +411,10 @@ void command_buffer::bind_image_texture(uint32 binding, texture_ptr texture, g_i
         }
     };
 
-    if (m_building_state.bind_texture(binding, texture ? texture->get_name() : 0)) // TODO Paul: Check if this needs extra handling in the state.
-    {
+    //if (m_building_state.bind_texture(binding, texture ? texture->get_name() : 0)) // TODO Paul: We need extra handling in the state. Because of layer access.
+    //{
         submit<bind_image_texture_cmd>(binding, texture, level, layered, layer, access, element_format);
-    }
+    //}
 }
 
 void command_buffer::bind_framebuffer(framebuffer_ptr framebuffer)

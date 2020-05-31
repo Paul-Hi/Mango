@@ -68,10 +68,10 @@ namespace mango
         bool bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer);
 
         //! \brief Binds a \a texture for drawing.
-        //! \param[in] location The binding location to bind the \a texture too.
-        //! \param[in] texture_handle The handle of the \a texture.
+        //! \param[in] binding The binding location to bind the \a texture too.
+        //! \param[in] name The name of the \a texture.
         //! \return True if state changed, else false.
-        bool bind_texture(uint32 location, uint32 texture_handle);
+        bool bind_texture(uint32 binding, uint32 name);
 
         //! \brief Binds a \a framebuffer for drawing.
         //! \param[in] framebuffer The pointer to the \a framebuffer to bind.
@@ -99,12 +99,15 @@ namespace mango
         //! \return True if state changed, else false.
         bool set_blend_factors(blend_factor source, blend_factor destination);
 
+        const static uint32 max_texture_bindings = 16; // TODO Paul: We should really define these things somewhere else.
         //! \brief Structure to cache the state of the graphics pipeline.
         struct internal_state
         {
             shader_program_ptr shader_program; //!< Cached shader program.
             framebuffer_ptr framebuffer;       //!< Cached framebuffer.
             vertex_array_ptr vertex_array;     //!< Cached vertex array.
+
+            std::array<uint32, max_texture_bindings> m_active_texture_bindings; // binds index = binding to texture name.
 
             struct
             {
@@ -138,7 +141,7 @@ namespace mango
                 blend_factor src;  //!< Source blend factor.
                 blend_factor dest; //!< Destination blend factor.
             } blending;            //!< Cached blend state.
-        } m_internal_state; //!< The internal state.
+        } m_internal_state;        //!< The internal state.
     };
 } // namespace mango
 
