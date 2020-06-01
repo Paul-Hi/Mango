@@ -12,6 +12,7 @@
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
+#include <core/timer.hpp>
 
 // test
 #include <graphics/texture.hpp>
@@ -22,6 +23,9 @@ application::application()
 {
     m_context = std::make_shared<context_impl>();
     m_context->create();
+
+    m_frame_timer = std::make_shared<timer>();
+    m_frame_timer->start();
 }
 
 application::~application()
@@ -49,11 +53,14 @@ uint32 application::run(uint32 t_argc, char** t_argv)
         ws->poll_events();
         should_close = ws->should_close();
 
+        float frame_time = static_cast<float>(m_frame_timer->elapsedMicroseconds().count()) * 0.000001f; // We need the resolution.
+        m_frame_timer->restart();
+
         // update
-        update(0.0f);
-        ws->update(0.0f);
-        rs->update(0.0f);
-        scene->update(0.0f);
+        update(frame_time);
+        ws->update(frame_time);
+        rs->update(frame_time);
+        scene->update(frame_time);
 
         // render
         rs->begin_render();

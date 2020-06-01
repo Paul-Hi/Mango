@@ -46,7 +46,7 @@ bool editor::create()
             if (ext == "hdr")
             {
                 application_scene->remove_entity(m_environment);
-                m_environment = application_scene->create_environment_from_hdr(path, 0.0);
+                m_environment = application_scene->create_environment_from_hdr(path, 1.2);
             }
             else if (ext == "glb" || ext == "gltf")
             {
@@ -96,16 +96,15 @@ bool editor::create()
 
 void editor::update(float dt)
 {
-    MANGO_UNUSED(dt);
     static float v = 0.0f;
-    v += 0.005f;
+    v += dt * 0.5f;
     shared_ptr<context> mango_context = get_context().lock();
     MANGO_ASSERT(mango_context, "Context is expired!");
     auto application_scene = mango_context->get_current_scene();
     auto cam_transform = application_scene->get_transform_component(m_main_camera);
     auto cam_data = application_scene->get_camera_component(m_main_camera);
-    cam_transform->position.x = cam_data->target.x + sin(v) * 1.5f;
-    cam_transform->position.z = cam_data->target.z + cos(v) * 1.5f;
+    cam_transform->position.x = cam_data->target.x + sin(v);
+    cam_transform->position.z = cam_data->target.z + cos(v);
 }
 
 void editor::destroy() {}

@@ -61,6 +61,7 @@
 namespace mango
 {
     class context_impl;
+    class timer;
     //! \brief Application interface.
     //! \details The application is the base for all applications using the mango graphics engine.
     //! Every application needs to inherit from this.
@@ -113,6 +114,8 @@ namespace mango
       private:
         //! \brief The context of the application.
         shared_ptr<context_impl> m_context;
+        //! \brief The timer per frame of the application.
+        shared_ptr<timer> m_frame_timer;
     };
 
 } // namespace mango

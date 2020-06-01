@@ -26,6 +26,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/image_structures.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/model_structures.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/timer.hpp
 
     # graphics
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_common.hpp
