@@ -13,16 +13,20 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/render_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene_component_manager.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input_system.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input_codes.hpp
 )
 
 set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/window_system_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/input_system_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/pipeline_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/ibl_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/hashing.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/signal.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/image_structures.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/model_structures.hpp
@@ -49,6 +53,9 @@ set(PRIVATE_HEADERS
 
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.hpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.hpp>
+
+    $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_input_system.hpp>
+    $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_input_system.hpp>
 )
 
 set(SOURCES
@@ -79,6 +86,9 @@ set(SOURCES
 
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.cpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.cpp>
+
+    $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_input_system.cpp>
+    $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_input_system.cpp>
 )
 
 add_library(mango

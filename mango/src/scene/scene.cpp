@@ -68,8 +68,8 @@ entity scene::create_default_camera()
     // default parameters
     camera_component.type                   = camera_type::perspective_camera;
     camera_component.aspect                 = 16.0f / 9.0f;
-    camera_component.z_near                 = 0.1f;
-    camera_component.z_far                  = 10.0f;
+    camera_component.z_near                 = 0.015f;
+    camera_component.z_far                  = 15.0f;
     camera_component.vertical_field_of_view = glm::radians(45.0f);
     camera_component.up                     = glm::vec3(0.0f, 1.0f, 0.0f);
     camera_component.target                 = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -152,8 +152,7 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
         create_default_camera();
     }
 
-    m_cameras.get_component_for_entity(m_active_camera)->target             = (m_scene_boundaries.max + m_scene_boundaries.min) * 0.5f * scale;
-    m_transformations.get_component_for_entity(m_active_camera)->position.y = (m_scene_boundaries.max.y + m_scene_boundaries.min.y) * scale.y + 0.5f;
+    m_cameras.get_component_for_entity(m_active_camera)->target = (m_scene_boundaries.max + m_scene_boundaries.min) * 0.5f * scale;
 
     m_scene_boundaries.max =
         glm::max(m_scene_boundaries.max, max_backup); // TODO Paul: This is just in case all other assets are still here, we need to do the calculation with all still existing entities.

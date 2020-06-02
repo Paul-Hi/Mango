@@ -39,15 +39,20 @@ namespace mango
         void destroy() override;
         void set_vsync(bool enabled) override;
         void make_window_context_current() override;
-        void set_drag_and_drop_callback(drag_n_drop_callback callback) override;
+
+        inline shared_ptr<platform_data> get_platform_data() override
+        {
+            return m_platform_data;
+        }
 
       private:
         //! \brief The \a window_configuration for the \a win32_window_system.
         //! \details This holds the information that is needed to create a window.
         window_configuration m_window_configuration;
-        //! \brief The window handle that is needed to identify the window after creation.
+
+        //! \brief The platform data holds the window handle that is needed to identify the window after creation.
         //! \details This is important, because without it destruction, update and input polling would fail.
-        void* m_window_handle;
+        shared_ptr<platform_data> m_platform_data;
     };
 
 } // namespace mango

@@ -6,8 +6,10 @@
 
 #include <core/context_impl.hpp>
 #if defined(WIN32)
+#include <core/win32_input_system.hpp>
 #include <core/win32_window_system.hpp>
 #elif defined(LINUX)
+#include <core/linux_input_system.hpp>
 #include <core/linux_window_system.hpp>
 #endif
 #include <mango/application.hpp>
@@ -40,6 +42,11 @@ weak_ptr<window_system> context_impl::get_window_system()
     return m_window_system;
 }
 
+weak_ptr<input_system> context_impl::get_input_system()
+{
+    return m_input_system;
+}
+
 weak_ptr<render_system> context_impl::get_render_system()
 {
     return m_render_system;
@@ -63,6 +70,11 @@ shared_ptr<scene>& context_impl::get_current_scene()
 weak_ptr<window_system_impl> context_impl::get_window_system_internal()
 {
     return m_window_system;
+}
+
+weak_ptr<input_system_impl> context_impl::get_input_system_internal()
+{
+    return m_input_system;
 }
 
 weak_ptr<render_system_impl> context_impl::get_render_system_internal()
@@ -95,10 +107,13 @@ bool context_impl::create()
     bool success = true;
 #if defined(WIN32)
     m_window_system = std::make_shared<win32_window_system>(shared_from_this());
+    m_input_system  = std::make_shared<win32_input_system>(shared_from_this());
 #elif defined(LINUX)
     m_window_system = std::make_shared<linux_window_system>(shared_from_this());
+    m_input_system  = std::make_shared<linux_input_system>(shared_from_this());
 #endif
     success = success && m_window_system->create();
+    success = success && m_input_system->create();
 
     m_render_system = std::make_shared<render_system_impl>(shared_from_this());
     success         = success && m_render_system->create();
@@ -120,6 +135,8 @@ void context_impl::destroy()
     m_resource_system->destroy();
     MANGO_ASSERT(m_render_system, "Render System is invalid!");
     m_render_system->destroy();
+    MANGO_ASSERT(m_input_system, "Input System is invalid!");
+    m_input_system->destroy();
     MANGO_ASSERT(m_window_system, "Window System is invalid!");
     m_window_system->destroy();
 }

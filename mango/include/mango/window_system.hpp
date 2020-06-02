@@ -7,7 +7,6 @@
 #ifndef MANGO_WINDOW_SYSTEM_HPP
 #define MANGO_WINDOW_SYSTEM_HPP
 
-#include <mango/context.hpp>
 #include <mango/system.hpp>
 #include <mango/types.hpp>
 
@@ -115,9 +114,6 @@ namespace mango
         //! \param[in] width of the \a window in pixels.
         //! \param[in] height of the \a window in pixels.
         virtual void set_size(uint32 width, uint32 height) = 0;
-        //! \brief Sets the callback function for drag and drop of the \a window.
-        //! \param[in] callback The callback the \a window should use for things dragged onto it.
-        virtual void set_drag_and_drop_callback(drag_n_drop_callback callback) = 0;
 
       protected:
         virtual bool create()         = 0;

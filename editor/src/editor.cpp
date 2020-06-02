@@ -34,8 +34,13 @@ bool editor::create()
     // camera
     m_main_camera = application_scene->create_default_camera();
 
+    mango_context->make_scene_current(application_scene);
+
+    shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
+    MANGO_ASSERT(mango_is, "Input System is expired!");
+    // At the moment it is required to configure the window before setting any input related stuff.
     // scene and environment drag'n'drop
-    mango_ws->set_drag_and_drop_callback([this](int count, const char** paths) {
+    mango_is->set_drag_and_drop_callback([this](int count, const char** paths) {
         shared_ptr<context> mango_context = get_context().lock();
         MANGO_ASSERT(mango_context, "Context is expired!");
         auto application_scene = mango_context->get_current_scene();
@@ -46,7 +51,7 @@ bool editor::create()
             if (ext == "hdr")
             {
                 application_scene->remove_entity(m_environment);
-                m_environment = application_scene->create_environment_from_hdr(path, 1.2);
+                m_environment = application_scene->create_environment_from_hdr(path, 0.125f);
             }
             else if (ext == "glb" || ext == "gltf")
             {
@@ -58,53 +63,64 @@ bool editor::create()
         }
     });
 
-    // gltf
-    /*
-    {
-        auto entities = application_scene->create_entities_from_model("res/models/DamagedHelmet/DamagedHelmet.glb");
+    // temporary editor camera controls
+    m_camera_rotation     = glm::vec2(0.0f, glm::radians(90.0f));
+    m_last_mouse_position = glm::vec2(0.0f);
+    mango_is->set_mouse_position_callback([this](float x_position, float y_position) {
+        shared_ptr<context> mango_context = get_context().lock();
+        MANGO_ASSERT(mango_context, "Context is expired!");
 
-        entity top = entities.at(0);
+        shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
+        MANGO_ASSERT(mango_is, "Input System is expired!");
 
-        auto& trafo = application_scene->get_transform_component(top)->local_transformation_matrix;
-        trafo       = glm::scale(glm::rotate(glm::translate(trafo, glm::vec3(6.0f, -1.0f, 0.0f)), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)), glm::vec3(4.0f));
-    }
-    {
-        auto entities = application_scene->create_entities_from_model("res/models/BoomBox/BoomBox.glb");
+        if (mango_is->get_mouse_button(mouse_button::MOUSE_BUTTON_LEFT) == input_action::RELEASE || glm::length(m_last_mouse_position) == 0.0f)
+        {
+            m_last_mouse_position = glm::vec2(x_position, y_position);
+            return;
+        }
 
-        entity top = entities.at(0);
+        glm::vec2 diff = glm::vec2(x_position, y_position) - m_last_mouse_position;
+        diff.y *= -1.0f;
 
-        auto& trafo = application_scene->get_transform_component(top)->local_transformation_matrix;
-        trafo       = glm::scale(glm::rotate(glm::translate(trafo, glm::vec3(-6.0f, -1.5f, 0.0f)), glm::radians(-180.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(400.0f));
-    }
-    {
-        auto entities = application_scene->create_entities_from_model("res/models/WaterBottle/WaterBottle.glb");
+        m_camera_rotation += diff * 0.005f;
+        m_camera_rotation.y = glm::clamp(m_camera_rotation.y, glm::radians(15.0f), glm::radians(165.0f));
+        m_camera_rotation.x = m_camera_rotation.x < 0.0f ? m_camera_rotation.x + glm::radians(360.0f) : m_camera_rotation.x;
+        m_camera_rotation.x = glm::mod(m_camera_rotation.x, glm::radians(360.0f));
 
-        entity top = entities.at(0);
-
-        auto& trafo = application_scene->get_transform_component(top)->local_transformation_matrix;
-        trafo       = glm::scale(glm::rotate(glm::translate(trafo, glm::vec3(0.0f, -1.0f, 0.0f)), glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(24.0f));
-    }
-
-    // environment
-    auto environment = application_scene->create_environment_from_hdr("res/textures/venice_sunset_4k.hdr", 0.0);
-    */
-
-    mango_context->make_scene_current(application_scene);
+        m_last_mouse_position = glm::vec2(x_position, y_position);
+    });
+    m_camera_radius = 1.0f;
+    mango_is->set_mouse_scroll_callback([this](float x_offset, float y_offset) {
+        if (y_offset < 0)
+        {
+            m_camera_radius *= 1.04f;
+        }
+        else
+        {
+            m_camera_radius /= 1.04f;
+        }
+        m_camera_radius = glm::clamp(m_camera_radius, 0.125f, 12.5f);
+    });
 
     return true;
 }
 
 void editor::update(float dt)
 {
-    static float v = 0.0f;
-    v += dt * 0.5f;
+    MANGO_UNUSED(dt);
     shared_ptr<context> mango_context = get_context().lock();
+
+    shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
+    MANGO_ASSERT(mango_is, "Input System is expired!");
+
     MANGO_ASSERT(mango_context, "Context is expired!");
     auto application_scene = mango_context->get_current_scene();
-    auto cam_transform = application_scene->get_transform_component(m_main_camera);
-    auto cam_data = application_scene->get_camera_component(m_main_camera);
-    cam_transform->position.x = cam_data->target.x + sin(v);
-    cam_transform->position.z = cam_data->target.z + cos(v);
+    auto cam_transform     = application_scene->get_transform_component(m_main_camera);
+    auto cam_data          = application_scene->get_camera_component(m_main_camera);
+
+    cam_transform->position.x = cam_data->target.x + m_camera_radius * (sin(m_camera_rotation.y) * cos(m_camera_rotation.x));
+    cam_transform->position.y = cam_data->target.y + m_camera_radius * (cos(m_camera_rotation.y));
+    cam_transform->position.z = cam_data->target.z + m_camera_radius * (sin(m_camera_rotation.y) * sin(m_camera_rotation.x));
 }
 
 void editor::destroy() {}

@@ -202,10 +202,7 @@ void ibl_step::execute(command_buffer_ptr& command_buffer)
     command_buffer->bind_vertex_array(m_cube_geometry);
     command_buffer->bind_single_uniform(0, &const_cast<glm::mat4&>(m_view_projection), sizeof(glm::mat4));
     command_buffer->bind_single_uniform(1, &m_current_rotation_scale, sizeof(m_current_rotation_scale));
-    if (m_render_level <= 0.25)
-        command_buffer->bind_texture(0, m_cubemap, 2);
-    else
-        command_buffer->bind_texture(0, m_prefiltered_specular, 2);
+    command_buffer->bind_texture(0, m_prefiltered_specular, 2);
     command_buffer->bind_single_uniform(3, &m_render_level, sizeof(m_render_level));
 
     command_buffer->draw_elements(primitive_topology::TRIANGLE_STRIP, 0, 18, index_type::UBYTE);

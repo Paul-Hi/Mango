@@ -5,6 +5,8 @@
 //! \copyright Apache License 2.0
 
 #include <core/context_impl.hpp>
+#include <core/input_system_impl.hpp>
+#include <core/timer.hpp>
 #include <core/window_system_impl.hpp>
 #include <graphics/command_buffer.hpp>
 #include <mango/application.hpp>
@@ -12,7 +14,6 @@
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
-#include <core/timer.hpp>
 
 // test
 #include <graphics/texture.hpp>
@@ -45,6 +46,8 @@ uint32 application::run(uint32 t_argc, char** t_argv)
     {
         shared_ptr<window_system_impl> ws = m_context->get_window_system_internal().lock();
         MANGO_ASSERT(ws, "Window System is expired!");
+        shared_ptr<input_system_impl> is = m_context->get_input_system_internal().lock();
+        MANGO_ASSERT(is, "Input System is expired!");
         shared_ptr<render_system_impl> rs = m_context->get_render_system_internal().lock();
         MANGO_ASSERT(rs, "Render System is expired!");
         shared_ptr<scene> scene = m_context->get_current_scene();
@@ -59,6 +62,7 @@ uint32 application::run(uint32 t_argc, char** t_argv)
         // update
         update(frame_time);
         ws->update(frame_time);
+        is->update(frame_time);
         rs->update(frame_time);
         scene->update(frame_time);
 

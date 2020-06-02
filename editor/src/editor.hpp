@@ -29,6 +29,13 @@ class editor : public mango::application
     std::vector<mango::entity> m_model;
     //! \brief Current environment.
     mango::entity m_environment;
+
+    //! \brief Last mouse position.
+    glm::vec2 m_last_mouse_position;
+    //! \brief Offsets for camera rotation.
+    glm::vec2 m_camera_rotation;
+    //! \brief Radius for camera.
+    float m_camera_radius;
 };
 
 #endif // EDITOR_HPP

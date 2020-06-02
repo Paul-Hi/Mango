@@ -13,6 +13,7 @@ namespace mango
 {
     class application;
     class window_system;
+    class input_system;
     class render_system;
     class scene;
 
@@ -32,6 +33,11 @@ namespace mango
         //! \details Can be used to configure the window shown by mango.
         //! \return A weak pointer to the mango \a window_system.
         virtual weak_ptr<window_system> get_window_system() = 0;
+
+        //! \brief Queries and returns a weak pointer to mangos \a input_system.
+        //! \details Mangos input.
+        //! \return A weak pointer to the mango \a input_system.
+        virtual weak_ptr<input_system> get_input_system() = 0;
 
         //! \brief Queries and returns a weak pointer to mangos \a render_system.
         //! \details Can be used to configure the \a rendering_pipeline used by mango.

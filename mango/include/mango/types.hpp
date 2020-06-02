@@ -76,9 +76,6 @@ namespace mango
     //! \brief The pointer to the procedure address loading function type for opengl.
     typedef void* (*mango_gl_load_proc)(const char*);
 
-    //! \brief Type definition of a callback for drag'n'drop.
-    using drag_n_drop_callback = std::function<void(int count, const char** paths)>;
-
     //! \brief Describes the topology of primitives used for rendering and interpreting geometry data.
     //! \details Same as OpenGL.
     enum class primitive_topology : uint8
@@ -100,6 +97,12 @@ namespace mango
         UBYTE  = 0x1401,
         USHORT = 0x1403,
         UINT   = 0x1405
+    };
+
+    //! \brief Platform data holding the window handle.
+    struct platform_data
+    {
+        void* native_window_handle;
     };
 
     //! \cond NO_COND

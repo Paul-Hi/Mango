@@ -6,19 +6,18 @@
 
 #define GLFW_INCLUDE_NONE // for glad
 #include <GLFW/glfw3.h>
+#include <core/input_system_impl.hpp>
 #include <core/win32_window_system.hpp>
-#include <graphics/command_buffer.hpp>
 #include <mango/assert.hpp>
-#include <mango/scene.hpp>
-#include <rendering/render_system_impl.hpp>
 
 using namespace mango;
 
 win32_window_system::win32_window_system(const shared_ptr<context_impl>& context)
     : m_window_configuration()
-    , m_window_handle(nullptr)
 {
-    m_window_user_data.shared_context = context;
+    shared_context                        = context;
+    m_platform_data                       = std::make_shared<platform_data>();
+    m_platform_data->native_window_handle = nullptr;
 }
 
 win32_window_system::~win32_window_system() {}
@@ -45,7 +44,7 @@ bool win32_window_system::create()
         MANGO_LOG_ERROR("glfwCreateWindow failed! No window is created!");
         return false;
     }
-    m_window_handle = static_cast<void*>(window);
+    m_platform_data->native_window_handle = static_cast<void*>(window);
 
     const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
     uint32 pos_x            = mode->width / 2 - width / 2;
@@ -60,22 +59,22 @@ bool win32_window_system::create()
 
 void win32_window_system::swap_buffers()
 {
-    MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
-    glfwSwapBuffers(static_cast<GLFWwindow*>(m_window_handle));
+    MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
+    glfwSwapBuffers(static_cast<GLFWwindow*>(m_platform_data->native_window_handle));
 }
 
 void win32_window_system::set_size(uint32 width, uint32 height)
 {
-    MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
+    MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
     m_window_configuration.set_width(width);
     m_window_configuration.set_height(height);
-    glfwSetWindowSize(static_cast<GLFWwindow*>(m_window_handle), width, height);
+    glfwSetWindowSize(static_cast<GLFWwindow*>(m_platform_data->native_window_handle), width, height);
 }
 
 void win32_window_system::configure(const window_configuration& configuration)
 {
-    MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
-    glfwDestroyWindow(static_cast<GLFWwindow*>(m_window_handle));
+    MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
+    glfwDestroyWindow(static_cast<GLFWwindow*>(m_platform_data->native_window_handle));
 
     m_window_configuration = configuration;
 
@@ -91,7 +90,7 @@ void win32_window_system::configure(const window_configuration& configuration)
         MANGO_LOG_ERROR("glfwCreateWindow failed! No window is created!");
         return;
     }
-    m_window_handle = static_cast<void*>(window);
+    m_platform_data->native_window_handle = static_cast<void*>(window);
 
     const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
     uint32 pos_x            = mode->width / 2 - width / 2;
@@ -105,22 +104,13 @@ void win32_window_system::configure(const window_configuration& configuration)
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 #endif // MANGO_DEBUG
 
-    make_window_context_current();
-    m_window_user_data.shared_context->set_gl_loading_procedure(reinterpret_cast<mango_gl_load_proc>(glfwGetProcAddress)); // TODO Paul: Should this be done here or before creating the gl context.
-    glfwSetWindowUserPointer(window, static_cast<void*>(&m_window_user_data));
+    // TODO Paul: There has to be a cleaner solution for this. Right now the window configuration has to be done before any input related stuff.
+    auto input = shared_context->get_input_system_internal().lock();
+    MANGO_ASSERT(input, "Input system not valid!");
+    input->set_platform_data(m_platform_data);
 
-    {
-        // Test just for fun and because it is nice to debug with resizing --- This is BAD. TODO Paul: Make this correct and fancy.
-        glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int w, int h) {
-            window_user_data* data = static_cast<window_user_data*>(glfwGetWindowUserPointer(window));
-            context_impl* c        = data->shared_context.get();
-            if (w > 0 && h > 0)
-            {
-                c->get_current_scene()->get_camera_component(1)->aspect = (float)w / (float)h; // We know that camera is entity 1... because this is dumb.
-                c->get_render_system_internal().lock()->set_viewport(0, 0, w, h);
-            }
-        });
-    }
+    make_window_context_current();
+    shared_context->set_gl_loading_procedure(reinterpret_cast<mango_gl_load_proc>(glfwGetProcAddress)); // TODO Paul: Should this be done here or before creating the gl context.
 }
 
 void win32_window_system::update(float dt)
@@ -135,8 +125,8 @@ void win32_window_system::poll_events()
 
 bool win32_window_system::should_close()
 {
-    MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
-    return glfwWindowShouldClose(static_cast<GLFWwindow*>(m_window_handle));
+    MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
+    return glfwWindowShouldClose(static_cast<GLFWwindow*>(m_platform_data->native_window_handle));
 }
 
 void win32_window_system::set_vsync(bool enabled)
@@ -147,24 +137,14 @@ void win32_window_system::set_vsync(bool enabled)
 
 void win32_window_system::make_window_context_current()
 {
-    MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
-    glfwMakeContextCurrent(static_cast<GLFWwindow*>(m_window_handle));
-}
-
-void win32_window_system::set_drag_and_drop_callback(drag_n_drop_callback callback)
-{
-    MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
-    m_window_user_data.drag_n_drop_callback = callback;
-    glfwSetDropCallback(static_cast<GLFWwindow*>(m_window_handle), [](GLFWwindow* window, int count, const char** paths) {
-        window_user_data* data = static_cast<window_user_data*>(glfwGetWindowUserPointer(window));
-        data->drag_n_drop_callback(count, paths);
-    });
+    MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
+    glfwMakeContextCurrent(static_cast<GLFWwindow*>(m_platform_data->native_window_handle));
 }
 
 void win32_window_system::destroy()
 {
-    MANGO_ASSERT(m_window_handle, "Window Handle is not valid!");
-    glfwDestroyWindow(static_cast<GLFWwindow*>(m_window_handle));
-    m_window_handle = nullptr;
+    MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
+    glfwDestroyWindow(static_cast<GLFWwindow*>(m_platform_data->native_window_handle));
+    m_platform_data->native_window_handle = nullptr;
     glfwTerminate();
 }
