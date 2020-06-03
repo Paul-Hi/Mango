@@ -74,7 +74,7 @@ void framebuffer_impl::resize(uint32 width, uint32 height)
     MANGO_ASSERT(is_created(), "Framebuffer not created!");
     m_width  = width;
     m_height = height;
-    // TODO Paul: Is there a better way?
+    // TODO Paul: Is there a cleaner way to do that?
     texture_configuration config;
     if (nullptr != m_color_attachment0)
     {

@@ -137,7 +137,7 @@ namespace mango
         //! \param[in] m The model loaded by tinygltf.
         void load_material(material_component& material, const tinygltf::Primitive& primitive, tinygltf::Model& m);
 
-        friend class context_impl; // TODO Paul: Better way?
+        friend class context_impl; // TODO Paul: Could this be avoided?
         //! \brief Mangos internal context for shared usage in all \a render_systems.
         shared_ptr<context_impl> m_shared_context;
 
@@ -154,10 +154,11 @@ namespace mango
         //! \brief The currently active camera entity.
         entity m_active_camera;
 
+        //! \brief Scene boundaries.
         struct scene_bounds
         {
-            glm::vec3 min;
-            glm::vec3 max;
+            glm::vec3 min; //!< Minimum geometry values.
+            glm::vec3 max; //!< Maximum geometry values.
         } m_scene_boundaries; //!< The boundaries of the current scene.
     };
 

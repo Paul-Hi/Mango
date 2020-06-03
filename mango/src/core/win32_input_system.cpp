@@ -55,29 +55,29 @@ void win32_input_system::set_platform_data(const shared_ptr<platform_data>& data
     // set all callbacks
     glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int, int action, int mods) {
         input_user_data* data = static_cast<input_user_data*>(glfwGetWindowUserPointer(window));
-        data->user_key_change(static_cast<key_code>(key), static_cast<input_action>(action), static_cast<modifier>(mods));
+        data->key_change(static_cast<key_code>(key), static_cast<input_action>(action), static_cast<modifier>(mods));
     });
     glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods) {
         input_user_data* data = static_cast<input_user_data*>(glfwGetWindowUserPointer(window));
-        data->user_mouse_button_change(static_cast<mouse_button>(button), static_cast<input_action>(action), static_cast<modifier>(mods));
+        data->mouse_button_change(static_cast<mouse_button>(button), static_cast<input_action>(action), static_cast<modifier>(mods));
     });
     glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
         input_user_data* data = static_cast<input_user_data*>(glfwGetWindowUserPointer(window));
-        data->user_mouse_position_change(static_cast<float>(xpos), static_cast<float>(ypos));
+        data->mouse_position_change(static_cast<float>(xpos), static_cast<float>(ypos));
     });
     glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset) {
         input_user_data* data = static_cast<input_user_data*>(glfwGetWindowUserPointer(window));
-        data->user_mouse_scroll_change(static_cast<float>(xoffset), static_cast<float>(yoffset));
+        data->mouse_scroll_change(static_cast<float>(xoffset), static_cast<float>(yoffset));
     });
     glfwSetDropCallback(window, [](GLFWwindow* window, int count, const char** paths) {
         input_user_data* data = static_cast<input_user_data*>(glfwGetWindowUserPointer(window));
-        data->user_drag_n_drop_change(count, paths);
+        data->drag_n_drop_change(count, paths);
     });
 
     // base key callback to get modifiers
-    m_input_user_data.user_key_change.connect([this](key_code, input_action, modifier mods) { m_last_mods = mods; });
-    m_input_user_data.user_mouse_button_change.connect([this](mouse_button, input_action, modifier mods) { m_last_mods = mods; });
-    m_input_user_data.user_mouse_scroll_change.connect([this](float x_offset, float y_offset) { m_last_scroll_offset = glm::vec2(x_offset, y_offset); });
+    m_input_user_data.key_change.connect([this](key_code, input_action, modifier mods) { m_last_mods = mods; });
+    m_input_user_data.mouse_button_change.connect([this](mouse_button, input_action, modifier mods) { m_last_mods = mods; });
+    m_input_user_data.mouse_scroll_change.connect([this](float x_offset, float y_offset) { m_last_scroll_offset = glm::vec2(x_offset, y_offset); });
 }
 
 void win32_input_system::update(float dt)
@@ -122,29 +122,29 @@ glm::vec2 win32_input_system::get_mouse_scroll()
 void win32_input_system::set_key_callback(key_callback callback)
 {
     MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
-    m_input_user_data.user_key_change.connect(callback);
+    m_input_user_data.key_change.connect(callback);
 }
 
 void win32_input_system::set_mouse_button_callback(mouse_button_callback callback)
 {
     MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
-    m_input_user_data.user_mouse_button_change.connect(callback);
+    m_input_user_data.mouse_button_change.connect(callback);
 }
 
 void win32_input_system::set_mouse_position_callback(mouse_position_callback callback)
 {
     MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
-    m_input_user_data.user_mouse_position_change.connect(callback);
+    m_input_user_data.mouse_position_change.connect(callback);
 }
 
 void win32_input_system::set_mouse_scroll_callback(mouse_scroll_callback callback)
 {
     MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
-    m_input_user_data.user_mouse_scroll_change.connect(callback);
+    m_input_user_data.mouse_scroll_change.connect(callback);
 }
 
 void win32_input_system::set_drag_and_drop_callback(drag_n_drop_callback callback)
 {
     MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
-    m_input_user_data.user_drag_n_drop_change.connect(callback);
+    m_input_user_data.drag_n_drop_change.connect(callback);
 }

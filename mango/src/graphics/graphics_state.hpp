@@ -99,7 +99,8 @@ namespace mango
         //! \return True if state changed, else false.
         bool set_blend_factors(blend_factor source, blend_factor destination);
 
-        const static uint32 max_texture_bindings = 16; // TODO Paul: We should really define these things somewhere else.
+        //! \brief The maximum number of texture bindings (not really, just supported by the state).
+        const static uint32 max_texture_bindings = 16; // TODO Paul: We should really define these things somewhere else. And query from OpenGL.
         //! \brief Structure to cache the state of the graphics pipeline.
         struct internal_state
         {
@@ -107,7 +108,7 @@ namespace mango
             framebuffer_ptr framebuffer;       //!< Cached framebuffer.
             vertex_array_ptr vertex_array;     //!< Cached vertex array.
 
-            std::array<uint32, max_texture_bindings> m_active_texture_bindings; // binds index = binding to texture name.
+            std::array<uint32, max_texture_bindings> m_active_texture_bindings; //!< Bindings from binding points to texture names.
 
             struct
             {

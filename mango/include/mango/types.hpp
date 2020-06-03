@@ -102,7 +102,7 @@ namespace mango
     //! \brief Platform data holding the window handle.
     struct platform_data
     {
-        void* native_window_handle;
+        void* native_window_handle; //!< The window handle. Platform dependent.
     };
 
     //! \cond NO_COND

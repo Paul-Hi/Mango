@@ -6,8 +6,8 @@ const float PI = 3.1415926535897932384626433832795;
 const float TWO_PI = PI * 2.0;
 const float INV_PI = 1.0 / PI;
 
-const float width_sqr = 1024.0 * 1024.0;
-const uint sample_count = 2048;
+const float width_sqr = 1024.0 * 1024.0; // TODO Paul: Hardcoded -.-
+const uint sample_count = 512;
 
 layout(local_size_x = 32, local_size_y = 32) in;
 
@@ -50,7 +50,7 @@ void main()
 
     vec3 prefiltered = vec3(0.0);
     float weight = 0.0;
-    uint real_sample_count = uint(float(sample_count) * sqrt(roughness));
+    uint real_sample_count = uint(float(sample_count) * roughness);
 
     for(uint s = 0; s < real_sample_count; ++s)
     {
@@ -63,14 +63,13 @@ void main()
 
         if(n_dot_l > 0.0)
         {
-            // TODO Paul: Check that!
             float n_dot_h = saturate(dot(normal, halfway));
             float h_dot_v = saturate(dot(halfway, view));
             float pdf = max(D_GGX_divided_by_pi(n_dot_h, roughness) * n_dot_h / (4.0 * h_dot_v), 1e-5);
             float omega_s = 1.0 / (float(real_sample_count) * pdf);
             float omega_p = 4.0 * PI / (6.0 * width_sqr);
-            float mip_level = roughness == 0.0 ? 0.0 : max(0.5 * log2(omega_s / omega_p) + 0.0, 0.0);
-            float bias = 1.0; // bias reduces artefacts
+            float mip_level = roughness == 0.0 ? 0.0 : max(0.5 * log2(omega_s / omega_p), 0.0);
+            float bias = min(mip_level / 4.0, 1.5); // bias reduces artefacts
             vec3 incoming = textureLod(cubemap_in, to_light, mip_level + bias).rgb * n_dot_l;
             prefiltered += incoming;
             weight += n_dot_l;

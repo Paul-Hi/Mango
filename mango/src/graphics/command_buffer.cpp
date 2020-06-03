@@ -363,7 +363,7 @@ void command_buffer::bind_texture(uint32 binding, texture_ptr texture, g_uint un
             }
             else
             {
-                glBindTextureUnit(m_binding, 0); // TODO Paul: Is this correct?
+                glBindTextureUnit(m_binding, 0);
                 state.bind_texture(m_binding, 0);
             }
         }
@@ -567,7 +567,7 @@ void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment
                     for (uint32 i = 0; i < 4; ++i)
                     {
                         if (m_framebuffer->get_attachment(static_cast<framebuffer_attachment>(i)) &&
-                            (m_attachment_mask & static_cast<attachment_mask>(1 << i)) != attachment_mask::NONE) // TODO Paul: That casting is not too fancy.
+                            (m_attachment_mask & static_cast<attachment_mask>(1 << i)) != attachment_mask::NONE)
                         {
                             glClearNamedFramebufferfv(m_framebuffer->get_name(), GL_COLOR, i, rgb);
                         }

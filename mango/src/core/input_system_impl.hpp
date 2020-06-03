@@ -20,6 +20,9 @@ namespace mango
       public:
         virtual bool create() = 0;
 
+        //! \brief Sets the \a platform_data given by the \a window_system.
+        //! \details This is required so that anything input related can work.
+        //! \param[in] data A shared pointer to the \a platform_data given by the \a window_system.
         virtual void set_platform_data(const shared_ptr<platform_data>& data) = 0;
 
         virtual void update(float dt) = 0;
@@ -44,12 +47,17 @@ namespace mango
             //! \brief Mangos internal context for shared usage in all systems.
             shared_ptr<context_impl> shared_context;
 
-            signal<key_code, input_action, modifier> user_key_change;
-            signal<mouse_button, input_action, modifier> user_mouse_button_change;
-            signal<float, float> user_mouse_position_change;
-            signal<float, float> user_mouse_scroll_change;
-            signal<int, const char**> user_drag_n_drop_change;
-        } m_input_user_data;
+            //! \brief Used \a signal for key changes.
+            signal<key_code, input_action, modifier> key_change;
+            //! \brief Used \a signal for mouse button changes.
+            signal<mouse_button, input_action, modifier> mouse_button_change;
+            //! \brief Used \a signal for mouse position changes.
+            signal<float, float> mouse_position_change;
+            //! \brief Used \a signal for mouse scroll changes.
+            signal<float, float> mouse_scroll_change;
+            //! \brief Used \a signal for drag'n'drop changes.
+            signal<int, const char**> drag_n_drop_change;
+        } m_input_user_data; //!< The user data instance used for callback and context access.
     };
 
 } // namespace mango

@@ -58,7 +58,7 @@ namespace mango
             auto it = m_lookup.find(e);
             if (it == m_lookup.end())
             {
-                MANGO_LOG_DEBUG("Entity does not have a component of type!"); // TODO Paul: Evtl. get the type and print it out.
+                MANGO_LOG_DEBUG("Entity does not have a component of type {0}!", type_name<component>::get());
                 return;
             }
             const size_t index   = it->second;
@@ -85,7 +85,7 @@ namespace mango
             auto it = m_lookup.find(e);
             if (it == m_lookup.end())
             {
-                MANGO_LOG_DEBUG("Entity does not have a component of type!"); // TODO Paul: Evtl. get the type and print it out.
+                MANGO_LOG_DEBUG("Entity does not have a component of type {0}!", type_name<component>::get());
                 return;
             }
             const size_t index   = it->second;
@@ -115,7 +115,7 @@ namespace mango
             auto it = m_lookup.find(e);
             if (it == m_lookup.end())
             {
-                MANGO_LOG_DEBUG("Entity does not have a component of type!"); // TODO Paul: Evtl. get the type and print it out.
+                MANGO_LOG_DEBUG("Entity does not have a component of type {0}!", type_name<component>::get());
                 return nullptr;
             }
 

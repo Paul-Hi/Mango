@@ -4,7 +4,7 @@ const float PI = 3.1415926535897932384626433832795;
 const float TWO_PI = PI * 2.0;
 const float INV_PI = 1.0 / PI;
 
-const uint sample_count = 4096; // sufficient because of the mipmap optimization -> we would need at least 8 times that without!
+const uint sample_count = 512; // sufficient because of the mipmap optimization -> we would need more without!
 const float inverse_sample_count = 1.0 / float(sample_count);
 const float width_sqr = 1024.0 * 1024.0;
 
@@ -52,10 +52,10 @@ void main()
             // Omega_p = (4*PI) / (fCubeMapDim * fCubeMapDim * 6)
             // Omega_s = PI / (fSampleCount * cos(theta))
             float o = (6.0 * width_sqr) / (4.0 * float(sample_count) * n_dot_l);
-            float mip_level = max(0.5 * log2(o) + 0.0, 0.0);
+            float mip_level = max(0.5 * log2(o), 0.0);
             float bias = 1.0; // bias reduces artefacts
 
-            irradiance += textureLod(cubemap_in, to_light, mip_level + bias).rgb * n_dot_l; // TODO Paul: Check that!
+            irradiance += textureLod(cubemap_in, to_light, mip_level + bias).rgb * n_dot_l;
         }
     }
 

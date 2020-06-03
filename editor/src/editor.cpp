@@ -51,7 +51,7 @@ bool editor::create()
             if (ext == "hdr")
             {
                 application_scene->remove_entity(m_environment);
-                m_environment = application_scene->create_environment_from_hdr(path, 0.125f);
+                m_environment = application_scene->create_environment_from_hdr(path, 0.0f);
             }
             else if (ext == "glb" || ext == "gltf")
             {

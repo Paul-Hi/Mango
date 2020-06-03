@@ -198,6 +198,8 @@ namespace mango
             }
         }
 
+        //! \brief Returns the current \a graphics_state for building the \a command queue.
+        //! \return The current building \a graphics_state.
         inline graphics_state& get_state()
         {
             return m_building_state;

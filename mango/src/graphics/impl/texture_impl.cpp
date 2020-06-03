@@ -76,7 +76,7 @@ void texture_impl::set_data(format internal_format, uint32 width, uint32 height,
     }
     else
     {
-        glTextureStorage2D(m_name, mipmaps(), gl_internal_f, width, height); // TODO Paul: Is this correct?
+        glTextureStorage2D(m_name, mipmaps(), gl_internal_f, width, height);
         if (data)
         {
             for (uint32 i = 0; i < 6; ++i)
@@ -98,5 +98,5 @@ void texture_impl::bind_texture_unit(g_uint unit)
 void texture_impl::unbind()
 {
     MANGO_ASSERT(is_created(), "Texture not created!");
-    glBindTextureUnit(0, 0); // TODO Paul: Is this correct?
+    glBindTextureUnit(0, 0);
 }

@@ -60,7 +60,7 @@ namespace mango
     using material_ptr = shared_ptr<material>;
     //! \endcond
 
-    // TODO Paul: Check the following!
+    // TODO Paul: We should query these from OpenGL!
     //! \brief Constant for maximum number of bound vertex buffers.
     const uint32 max_vertex_buffers = 128; // This is estimated.
     //! \brief Constant for maximum number of bound uniforms.

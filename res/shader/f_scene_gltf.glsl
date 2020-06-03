@@ -34,8 +34,6 @@ layout(binding = 1, std140) uniform scene_material_uniforms
     bool emissive_color_texture;
 };
 
-#define UNDO_SRGB 0 // TODO Paul: srgb parameter!
-
 vec4 get_base_color()
 {
     return base_color_texture ? texture(t_base_color, fs_in.shared_texcoord) : base_color;

@@ -22,7 +22,7 @@ namespace mango
     //! \brief Invalid \a entity.
     const entity invalid_entity = 0;
     //! \brief Maximum number of \a entities in mango.
-    const entity max_entities = 1000; // TODO Paul: Extend if necessary.
+    const entity max_entities = 1000; // Extend if necessary.
 
     //! \brief Component used to transform anything in the scene.
     struct transform_component
@@ -108,6 +108,75 @@ namespace mango
         glm::mat3 rotation_scale_matrix = glm::mat3(1.0f); //!< The rotation and scale of the environment.
         shared_ptr<texture> hdr_texture;                   //!< The hdr texture used to build the environment.
     };
+
+    // TODO Paul: This will be reworked when we need the reflection for the components.
+    //! \cond NO_COND
+    template <typename T>
+    struct type_name
+    {
+        static const char* get()
+        {
+            return typeid(T).name();
+        }
+    };
+
+    template <>
+    struct type_name<transform_component>
+    {
+        static const char* get()
+        {
+            return "transform_component";
+        }
+    };
+    template <>
+    struct type_name<node_component>
+    {
+        static const char* get()
+        {
+            return "node_component";
+        }
+    };
+    template <>
+    struct type_name<primitive_component>
+    {
+        static const char* get()
+        {
+            return "primitive_component";
+        }
+    };
+    template <>
+    struct type_name<material_component>
+    {
+        static const char* get()
+        {
+            return "material_component";
+        }
+    };
+    template <>
+    struct type_name<mesh_component>
+    {
+        static const char* get()
+        {
+            return "mesh_component";
+        }
+    };
+    template <>
+    struct type_name<camera_component>
+    {
+        static const char* get()
+        {
+            return "camera_component";
+        }
+    };
+    template <>
+    struct type_name<environment_component>
+    {
+        static const char* get()
+        {
+            return "environment_component";
+        }
+    };
+    //! \endcond
 } // namespace mango
 
 #endif // MANGO_SCENE_TYPES_HPP

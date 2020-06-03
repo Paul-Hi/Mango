@@ -48,9 +48,12 @@ namespace mango
         //! \details Utilizes the g-buffer filled before.
         shader_program_ptr m_lighting_pass;
 
-        const uint32 uniform_buffer_size = 1048576; // 1 MiB should be sufficient for now.
-        uint32 m_frame_uniform_offset;
-        g_int m_uniform_buffer_alignment;
+        //! \brief The prealocated size for all uniforms.
+        //! \details The buffer is filled every frame. 1 MiB should be enough for now.
+        const uint32 uniform_buffer_size = 1048576;
+        uint32 m_frame_uniform_offset; //!< The current offset in the uniform memory to write to.
+        g_int m_uniform_buffer_alignment; //!< The alignment of the structures in the uniform buffer. Gets queried from OpenGL.
+        //! \brief The mapped memory to be filled with all uniforms blocks per frame.
         void* m_mapped_uniform_memory;
 
         //! \brief The uniform buffer mapping the gpu buffer to the scene uniforms.

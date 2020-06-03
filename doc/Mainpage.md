@@ -13,9 +13,13 @@ Keep in mind that I do this in my spare time, besides studying and working.
 
 ## Features
 
-* The build runs :D
-* Some functioning logging and assertion capabilities.
-* Window creation with glfw is possible.
+* Basic GLTF loading and rendering (No animations yet, some features missing, no draco encoding).
+* HDR loading and rendering including image based lighting.
+* Many physically based rendering features.
+* Deferred rendering with command buffer and OpenGL backend.
+* Entity Component System.
+* Basic framework architecture.
+* Editor supporting gltf and hdr loading via drag'n'drop and a simple camera controller.
 
 ## Requirements
 
@@ -53,13 +57,15 @@ Just head into ```\build\debug\bin``` or ```\build\release\bin``` and run the ed
 
 ## Roadmap (unordered and incomplete)
 
-* Base Structure
-* Deferred RenderPipeline with OpenGL Backend
-* Physically Based Rendering
-* Scene Description
-* Entity Component System and/or some graph structure
-* GUI integrating DearImGui
-* Editor and ExampleApplications
+* Scene composing and store.
+* GLTF animations.
+* Transparency.
+* Improved rendering.
+* Improved scene management.
+* GUI integrating DearImGui.
+* Performance tools.
+* Better editor and some example applications.
+* Many features like shadows, global light effects (GI, AO, reflections), live editing, hot swapable resources, and more.
 
 ## Dependencies
 
@@ -67,7 +73,18 @@ Just head into ```\build\debug\bin``` or ```\build\release\bin``` and run the ed
 * GLFW3
 * glm
 * spdlog
+* tiny_gltf
 * stb_image
 
 * googletest (Testing)
 * Doxygen (Documentation)
+
+## Images
+### Damaged Helmet
+![alt text](https://github.com/Paul-Hi/Mango/blob/master/show/damaged_helmet.png "Damaged Helmet")
+### Boom Box
+![alt text](https://github.com/Paul-Hi/Mango/blob/master/show/boom_box.png "Boom Box")
+### Water Bottle
+![alt text](https://github.com/Paul-Hi/Mango/blob/master/show/water_bottle.png "Water Bottle")
+### Metal Rough Spheres
+![alt text](https://github.com/Paul-Hi/Mango/blob/master/show/metal_rough_spheres.png "Metal Rough Spheres")

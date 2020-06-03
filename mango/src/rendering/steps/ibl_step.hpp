@@ -11,7 +11,7 @@
 
 namespace mango
 {
-    //! \brief Base class for all optional pipeline steps in render pipelines.
+    //! \brief A pipeline step adding image based lighting.
     class ibl_step : public pipeline_step
     {
       public:
@@ -23,43 +23,76 @@ namespace mango
 
         void destroy() override;
 
+        //! \brief Loads and creates an image based light step from a hdr texture.
+        //! \details Creates irradiance map and prefiltered specular map.
+        //! \param[in] hdr_texture The texture with the hdr image data.
         void load_from_hdr(const texture_ptr& hdr_texture);
 
+        //! \brief Sets the mip level to render that environment with.
+        //! \details For higher values the prefiltered specular filtered map is used.
+        //! \param[in] render_level The level to render with. Negative values disable the rendering.
         inline void set_render_level(float render_level)
         {
             m_render_level = render_level;
         }
 
+        //! \brief Submits the texture binding \a commands and additional uniform calls to the given \a command_buffer.
+        //! \param[in] command_buffer The \a command_buffer to submit the \a commands to.
         void bind_image_based_light_maps(command_buffer_ptr& command_buffer);
 
+        //! \brief Sets the view projection matrix used for rendering the environment as a skybox.
+        //! \details This matrix should be given without the view translation.
+        //! \param[in] view_projection The matrix to use.
         inline void set_view_projection_matrix(const glm::mat4& view_projection)
         {
             m_view_projection = view_projection;
         }
 
       private:
+        //! \brief Cubemap texture.
         texture_ptr m_cubemap;
+        //! \brief Irradiance map.
         texture_ptr m_irradiance_map;
+        //! \brief Prefiltered specular map.
         texture_ptr m_prefiltered_specular;
+        //! \brief The integration look up for specular and diffuse brdf.
         texture_ptr m_brdf_integration_lut;
+        //! \brief The cube geometry used for rendering the skybox.
         vertex_array_ptr m_cube_geometry;
+
+        //! \brief Compute shader program converting a equirectangular hdr to a cubemap.
         shader_program_ptr m_equi_to_cubemap;
+        //! \brief Compute shader program building a irradiance map from a cubemap.
         shader_program_ptr m_build_irradiance_map;
+        //! \brief Compute shader program building the prefiltered specular map from a cubemap.
         shader_program_ptr m_build_specular_prefiltered_map;
+        //! \brief Compute shader program building the look up brdf integration texture.
         shader_program_ptr m_build_integration_lut;
+        //! \brief Shader program to render a cubemap.
         shader_program_ptr m_draw_environment;
+        //! \brief Rotation and scale for the cubemap (currently unused).
         glm::mat3 m_current_rotation_scale;
+        //! \brief The view projection matrix to render with.
         glm::mat4 m_view_projection;
+        //! \brief The miplevel to render th cubemap with.
         float m_render_level;
 
-        const uint32 m_cube_width              = 1024;
-        const uint32 m_cube_height             = 1024;
-        const uint32 m_irradiance_width        = 32;
-        const uint32 m_irradiance_height       = 32;
-        const uint32 m_prefiltered_base_width  = 1024;
+        //! \brief The width of one cubemap face.
+        const uint32 m_cube_width = 1024;
+        //! \brief The height of one cubemap face.
+        const uint32 m_cube_height = 1024;
+        //! \brief The width of one irradiance map face.
+        const uint32 m_irradiance_width = 32;
+        //! \brief The height of one irradiance map face.
+        const uint32 m_irradiance_height = 32;
+        //! \brief The width of one prefiltered specular map face.
+        const uint32 m_prefiltered_base_width = 1024;
+        //! \brief The height of one prefiltered specular map face.
         const uint32 m_prefiltered_base_height = 1024;
-        const uint32 m_integration_lut_width   = 256;
-        const uint32 m_integration_lut_height  = 256;
+        //! \brief The width of the brdf integration look up texture.
+        const uint32 m_integration_lut_width = 256;
+        //! \brief The height of the brdf integration look up texture.
+        const uint32 m_integration_lut_height = 256;
     };
 } // namespace mango
 

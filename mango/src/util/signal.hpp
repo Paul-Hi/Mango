@@ -17,23 +17,29 @@ namespace mango
     template <typename... Args>
     class signal
     {
+        //! \brief Convenience typedef of the template function.
         using fun = std::function<void(Args...)>;
 
       public:
+        //! \brief Connects a function to the signal that will be called on signal execution.
+        //! \param[in] fn The function to callback.
         inline void connect(fun fn)
         {
             observers.push_back(fn);
         }
 
-        void operator()(Args... a)
+        //! \brief Executes the connected functions with given arguments.
+        //! \param[in] args 0 to n arguments to call the functions with.
+        void operator()(Args... args)
         {
             for (const auto& fn : observers)
             {
-                fn(a...);
+                fn(args...);
             }
         }
 
       private:
+        //! \brief The connected functions.
         std::vector<fun> observers;
     };
 } // namespace mango

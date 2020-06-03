@@ -5,8 +5,6 @@ const float INV_PI = 1.0 / PI;
 
 #define saturate(x) clamp(x, 0.0, 1.0)
 
-#define UNDO_SRGB 0 // TODO Paul: srgb parameter!
-
 out vec4 frag_color;
 
 in vec2 texcoord;
@@ -36,6 +34,9 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
 vec4 tonemap_with_gamma_correction(in vec4 color);
 vec4 srgb_to_linear(in vec4 srgb);
 vec4 linear_to_srgb(in vec4 linear);
+
+vec3 get_specular_dominant_direction(in vec3 normal, in vec3 reflection, in float roughness);
+
 
 vec4 get_base_color()
 {
@@ -96,12 +97,9 @@ void main()
 
 vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float f90, in float occlusion_factor)
 {
-    // TODO Paul: Check that!
-    // eventually add dominant diffuse and dominant specular direction and multiscattering.
-
     float roughness = sqrt(perceptual_roughness);
 
-    const float DFG_TEXTURE_SIZE = 256.0; // TODO Paul: Is this correct?
+    const float DFG_TEXTURE_SIZE = 256.0; // TODO Paul: Hardcoded -.-
 
     n_dot_v = clamp(n_dot_v , 0.5 / DFG_TEXTURE_SIZE, 1.0 - 0.5 / DFG_TEXTURE_SIZE);
     vec3 dfg = textureLod(brdf_integration_lut, saturate(vec2(n_dot_v, roughness)), 0.0).xyz;
@@ -111,47 +109,15 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     vec3 diffuse_ibl = diffuse * dfg.z;
 
     // specular
-    const float MAX_REFLECTION_LOD = 10.0; // TODO Paul: Is this correct?
+    const float MAX_REFLECTION_LOD = 10.0; // TODO Paul: Hardcoded -.-
 
     vec3 refl              = -normalize(reflect(view_dir, normal));
-    vec3 prefiltered_color = textureLod(prefiltered_specular, refl, perceptual_roughness * MAX_REFLECTION_LOD).rgb;
+    vec3 dominant_refl     = get_specular_dominant_direction(normal, refl, perceptual_roughness);
+    vec3 prefiltered_color = textureLod(prefiltered_specular, dominant_refl, perceptual_roughness * MAX_REFLECTION_LOD).rgb;
     vec3 specular_ibl      = prefiltered_color * (f0 * dfg.x + vec3(f90) * dfg.y);
 
     return (diffuse_ibl + specular_ibl) * occlusion_factor;
 }
-
-// vec3 calculateTestLight(in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in vec3 real_albedo, in vec3 position, in float occlusion_factor)
-// {
-//     vec3 light_pos        = vec3(45.0, 45.0, 0.0); // hardcoded
-//     float light_intensity = 1.0; // hardcoded
-//     vec3 light_col        = vec3(1.0) * light_intensity; // hardcoded
-//     float roughness       = perceptual_roughness * perceptual_roughness;
-//
-//     vec3 lighting = vec3(0.0);
-//
-//     vec3 light_dir = normalize(light_pos - position);
-//
-//     vec3 halfway  = normalize(light_dir + view_dir);
-//     float n_dot_l = saturate(dot(normal, light_dir));
-//     float n_dot_h = saturate(dot(normal, halfway));
-//     float l_dot_h = saturate(dot(light_dir, halfway));
-//
-//     float D = D_GGX(n_dot_h, roughness);
-//     vec3 F  = F_Schlick(l_dot_h, f0, 1.0);
-//     float V = V_SmithGGXCorrelated(n_dot_v, n_dot_l, roughness);
-//
-//     // Fr energy compensation
-//     vec3 Fr = D * V * F * INV_PI;
-//
-//     vec3 Fd = real_albedo * Fd_BurleyRenormalized(n_dot_v, n_dot_l, l_dot_h, perceptual_roughness) * INV_PI;
-//
-//     vec3 diffuse = n_dot_l * Fd;
-//     vec3 specular = n_dot_l * Fr;
-//
-//     lighting += (diffuse + specular) * light_col * occlusion_factor;
-//
-//     return lighting;
-// }
 
 vec3 uncharted2_tonemap(in vec3 color)
 {
@@ -237,4 +203,11 @@ vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_pro
     vec4 clip = vec4(uv * 2.0 - 1.0, z, 1.0);
     vec4 direct = inverse_view_projection * clip;
     return direct.xyz / direct.w;
+}
+
+vec3 get_specular_dominant_direction(in vec3 normal, in vec3 reflection, in float roughness)
+{
+    float smoothness = saturate(1.0 - roughness);
+    float lerp_f = smoothness * (sqrt(smoothness) + roughness);
+    return mix(normal, reflection, lerp_f);
 }

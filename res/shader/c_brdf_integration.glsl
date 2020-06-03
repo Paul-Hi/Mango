@@ -64,7 +64,6 @@ void main()
         {
             float v_dot_h = saturate(dot(view, halfway));
             float n_dot_h = saturate(halfway.z);
-            // TODO Paul: Check that!
             float G_vis = G * n_dot_l * (4.0 * v_dot_h / n_dot_h );
             float Fc = pow(1.0 - v_dot_h, 5.0);
             integration_lu.x += (1.0 - Fc) * G_vis;
@@ -81,7 +80,6 @@ void main()
         {
             float l_dot_h = saturate(dot(to_light, normalize(view + to_light)));
             float n_dot_v = saturate(dot(normal, view));
-            // TODO Paul: Check that!
             integration_lu.z += Fd_BurleyRenormalized(n_dot_v, n_dot_l, l_dot_h, sqrt(roughness));
         }
     }

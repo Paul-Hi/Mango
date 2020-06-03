@@ -43,7 +43,9 @@ namespace mango
         //! \details This is important, because without it destruction, update and input polling would fail.
         shared_ptr<platform_data>  m_platform_data;
 
+        //! \brief Last scroll offset. Stored for access without callback.
         glm::vec2 m_last_scroll_offset;
+        //! \brief Last modifier bits. Stored for access without callback.
         modifier m_last_mods;
     };
 

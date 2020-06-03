@@ -244,7 +244,7 @@ void scene::attach(entity child, entity parent)
                     if (possible_child.parent_entity == possible_parent)
                     {
                         m_nodes.move(index, j);
-                        ++index; // TODO Paul: Test if this is correct.
+                        ++index;
                         break;
                     }
                 }
@@ -459,7 +459,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
 
     auto& pbr = p_m.pbrMetallicRoughness;
 
-    // TODO Paul: Cleanup.
+    // TODO Paul: Better structure?!
 
     texture_configuration config;
     config.m_generate_mipmaps        = 1;
