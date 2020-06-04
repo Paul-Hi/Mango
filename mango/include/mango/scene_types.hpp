@@ -63,7 +63,7 @@ namespace mango
     //! \brief Component used for materials.
     struct material_component
     {
-        shared_ptr<material> material; //!< The material holding all properties, textures etc.
+        shared_ptr<material> component_material; //!< The material holding all properties, textures etc.
     };
 
     //! \brief Component used for renderable mesh geometry. Used for drawing.

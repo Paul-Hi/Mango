@@ -387,10 +387,10 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
         }
 
         material_component mat;
-        mat.material             = std::make_shared<material>();
-        mat.material->base_color = glm::vec4(glm::vec3(0.9f), 1.0f);
-        mat.material->metallic   = 0.0f;
-        mat.material->roughness  = 1.0f;
+        mat.component_material             = std::make_shared<material>();
+        mat.component_material->base_color = glm::vec4(glm::vec3(0.9f), 1.0f);
+        mat.component_material->metallic   = 0.0f;
+        mat.component_material->roughness  = 1.0f;
 
         load_material(mat, primitive, m);
 
@@ -455,7 +455,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     if (!p_m.name.empty())
         MANGO_LOG_DEBUG("Loading material: {0}", p_m.name.c_str());
 
-    material.material->double_sided = p_m.doubleSided;
+    material.component_material->double_sided = p_m.doubleSided;
 
     auto& pbr = p_m.pbrMetallicRoughness;
 
@@ -472,7 +472,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     if (pbr.baseColorTexture.index < 0)
     {
         auto col                      = pbr.baseColorFactor;
-        material.material->base_color = glm::vec4((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
+        material.component_material->base_color = glm::vec4((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
     }
     else
     {
@@ -525,14 +525,14 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         }
 
         base_color->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
-        material.material->base_color_texture = base_color;
+        material.component_material->base_color_texture = base_color;
     }
 
     // metallic / roughness
     if (pbr.metallicRoughnessTexture.index < 0)
     {
-        material.material->metallic  = pbr.metallicFactor;
-        material.material->roughness = pbr.roughnessFactor;
+        material.component_material->metallic  = pbr.metallicFactor;
+        material.component_material->roughness = pbr.roughnessFactor;
     }
     else
     {
@@ -584,7 +584,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         }
 
         o_r_m->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
-        material.material->roughness_metallic_texture = o_r_m;
+        material.component_material->roughness_metallic_texture = o_r_m;
     }
 
     // occlusion
@@ -593,11 +593,11 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (pbr.metallicRoughnessTexture.index == p_m.occlusionTexture.index)
         {
             // occlusion packed into r channel of the roughness and metallic texture.
-            material.material->packed_occlusion = true;
+            material.component_material->packed_occlusion = true;
         }
         else
         {
-            material.material->packed_occlusion = false;
+            material.component_material->packed_occlusion = false;
             const tinygltf::Texture& occ        = m.textures.at(p_m.occlusionTexture.index);
             if (occ.source < 0)
                 return;
@@ -645,7 +645,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             }
 
             occlusion->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
-            material.material->occlusion_texture = occlusion;
+            material.component_material->occlusion_texture = occlusion;
         }
     }
 
@@ -700,14 +700,14 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         }
 
         normal_t->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
-        material.material->normal_texture = normal_t;
+        material.component_material->normal_texture = normal_t;
     }
 
     // emissive
     if (p_m.emissiveTexture.index < 0)
     {
         auto col                          = p_m.emissiveFactor;
-        material.material->emissive_color = glm::vec4((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
+        material.component_material->emissive_color = glm::vec4((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
         return;
     }
     else
@@ -760,7 +760,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         }
 
         emissive_color->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
-        material.material->emissive_color_texture = emissive_color;
+        material.component_material->emissive_color_texture = emissive_color;
     }
 }
 
@@ -838,7 +838,7 @@ static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_man
                     auto m = c.materials[i];
                     auto p = c.primitives[i];
                     cmdb->bind_vertex_array(p.vertex_array_object);
-                    rs->draw_mesh(m.material, p.topology, p.first, p.count, p.type_index, p.instance_count);
+                    rs->draw_mesh(m.component_material, p.topology, p.first, p.count, p.type_index, p.instance_count);
                 }
             }
         },
