@@ -10,6 +10,7 @@ CMakeFiles/*
 CMakeCache.txt
 # Build
 build/*
+install/*
 # Dependencies
 dependencies/*
 # Textures -> A few example textures should be added for now.

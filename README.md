@@ -53,7 +53,9 @@ If you still have a problem just reach out to me on GitHub and I'll try to fix i
 
 ## Usage
 
-Just head into ```\build\debug\bin``` or ```\build\release\bin``` and run the editor executable.
+Just head into ```\build``` and run ```make install``` to install mango.
+There is a default install path ```install\mango\bin``` where the editor executable can be found. But you can also specify another one.
+As an alternative you could just go to ```\build\debug\bin``` or ```\build\release\bin``` and run the editor executable, but keep in mind that you'll have to copy the ```\res``` folder there to get it to work properly.
 
 ## Roadmap (unordered and incomplete)
 
