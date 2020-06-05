@@ -418,6 +418,9 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
         m_command_buffer->bind_texture(4, default_texture, 5);
     }
 
+    u.alpha_mode   = static_cast<g_int>(mat->alpha_rendering);
+    u.alpha_cutoff = mat->alpha_cutoff;
+
     MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - sizeof(scene_material_uniforms), "Uniform buffer size is too small.");
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_material_uniforms));
 

@@ -38,6 +38,14 @@ namespace mango
 #undef MANGO_GRAPHICS_OBJECT_IMPL
     //! \endcond
 
+    //! \brief The alpha mode of a material.
+    enum class alpha_mode : uint8
+    {
+        MODE_OPAQUE,
+        MODE_MASK,
+        MODE_BLEND
+    };
+
     //! \brief Structure to store material properties, textures etc.
     struct material
     {
@@ -53,7 +61,9 @@ namespace mango
         texture_ptr normal_texture;             //!< The texture for normals.
         texture_ptr emissive_color_texture;     //!< The texture for the emissive color value.
 
-        bool double_sided; //!< Specifies if the material is double sided.
+        bool double_sided;          //!< Specifies if the material is double sided.
+        alpha_mode alpha_rendering; //!< Specifies the materials alpha mode.
+        float alpha_cutoff;         //!< Specifies a cutoff value if alpha_rendering is MASK.
     };
 
     //! \cond NO_COND

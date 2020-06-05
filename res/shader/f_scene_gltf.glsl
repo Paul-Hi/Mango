@@ -32,11 +32,17 @@ layout(binding = 1, std140) uniform scene_material_uniforms
     bool packed_occlusion;
     bool normal_texture;
     bool emissive_color_texture;
+
+    int alpha_mode;
+    float alpha_cutoff;
 };
 
 vec4 get_base_color()
 {
-    return base_color_texture ? texture(t_base_color, fs_in.shared_texcoord) : base_color;
+    vec4 color = base_color_texture ? texture(t_base_color, fs_in.shared_texcoord) : base_color;
+    if(alpha_mode == 1 && color.a <= alpha_cutoff)
+        discard;
+    return color;
 }
 
 vec3 get_emissive()

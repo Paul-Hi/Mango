@@ -51,7 +51,7 @@ namespace mango
         //! \brief The prealocated size for all uniforms.
         //! \details The buffer is filled every frame. 1 MiB should be enough for now.
         const uint32 uniform_buffer_size = 1048576;
-        uint32 m_frame_uniform_offset; //!< The current offset in the uniform memory to write to.
+        uint32 m_frame_uniform_offset;    //!< The current offset in the uniform memory to write to.
         g_int m_uniform_buffer_alignment; //!< The alignment of the structures in the uniform buffer. Gets queried from OpenGL.
         //! \brief The mapped memory to be filled with all uniforms blocks per frame.
         void* m_mapped_uniform_memory;
@@ -62,8 +62,8 @@ namespace mango
         //! \brief Uniform struct for the geometry passes vertex shader.
         struct scene_vertex_uniforms
         {
-            std140_mat4 model_matrix;    //!< The model matrix.
-            std140_mat3 normal_matrix;   //!< The normal matrix.
+            std140_mat4 model_matrix;  //!< The model matrix.
+            std140_mat3 normal_matrix; //!< The normal matrix.
         };
 
         //! \brief Uniform struct for the geometry passes fragment shader to implement \a materials.
@@ -81,7 +81,11 @@ namespace mango
             std140_bool normal_texture;             //!< Specifies, if the normal texture is enabled.
             std140_bool emissive_color_texture;     //!< Specifies, if the the emissive color texture is enabled.
 
-            // g_float padding0; //!< Padding needed for st140 layout.
+            g_int alpha_mode;     //!< Specifies the alpha mode to render the material with.
+            g_float alpha_cutoff; //!< Specifies the alpha cutoff value to render the material with.
+
+            g_float padding0; //!< Padding needed for st140 layout.
+            g_float padding1; //!< Padding needed for st140 layout.
         };
 
         //! \brief Optional additional steps of the deferred pipeline.

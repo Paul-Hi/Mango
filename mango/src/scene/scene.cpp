@@ -471,7 +471,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
 
     if (pbr.baseColorTexture.index < 0)
     {
-        auto col                      = pbr.baseColorFactor;
+        auto col                                = pbr.baseColorFactor;
         material.component_material->base_color = glm::vec4((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
     }
     else
@@ -598,7 +598,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         else
         {
             material.component_material->packed_occlusion = false;
-            const tinygltf::Texture& occ        = m.textures.at(p_m.occlusionTexture.index);
+            const tinygltf::Texture& occ                  = m.textures.at(p_m.occlusionTexture.index);
             if (occ.source < 0)
                 return;
 
@@ -706,9 +706,8 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     // emissive
     if (p_m.emissiveTexture.index < 0)
     {
-        auto col                          = p_m.emissiveFactor;
+        auto col                                    = p_m.emissiveFactor;
         material.component_material->emissive_color = glm::vec4((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
-        return;
     }
     else
     {
@@ -761,6 +760,24 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
 
         emissive_color->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
         material.component_material->emissive_color_texture = emissive_color;
+    }
+
+    // transparency
+    if (p_m.alphaMode.compare("OPAQUE") == 0)
+    {
+        material.component_material->alpha_rendering = alpha_mode::MODE_OPAQUE;
+        material.component_material->alpha_cutoff    = 1.0f;
+    }
+    if (p_m.alphaMode.compare("MASK") == 0)
+    {
+        material.component_material->alpha_rendering = alpha_mode::MODE_MASK;
+        material.component_material->alpha_cutoff    = p_m.alphaCutoff;
+    }
+    if (p_m.alphaMode.compare("BLEND") == 0)
+    {
+        material.component_material->alpha_rendering = alpha_mode::MODE_BLEND;
+        material.component_material->alpha_cutoff    = 1.0f;
+        MANGO_LOG_WARN("Alpha blending currently not supported!");
     }
 }
 
