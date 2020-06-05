@@ -24,24 +24,26 @@ namespace mango
         virtual void set_platform_data(const shared_ptr<platform_data>& data) override;
 
         virtual void update(float dt) override;
-        virtual void destroy()        override;
+        virtual void destroy() override;
 
-        virtual input_action get_key(key_code key)                 override;
+        virtual input_action get_key(key_code key) override;
         virtual input_action get_mouse_button(mouse_button button) override;
-        virtual modifier get_modifiers()                           override;
-        virtual glm::vec2 get_mouse_position()                     override;
-        virtual glm::vec2 get_mouse_scroll()                       override;
+        virtual modifier get_modifiers() override;
+        virtual glm::vec2 get_mouse_position() override;
+        virtual glm::vec2 get_mouse_scroll() override;
 
-        virtual void set_key_callback(key_callback callback)                       override;
-        virtual void set_mouse_button_callback(mouse_button_callback callback)     override;
+        virtual void set_key_callback(key_callback callback) override;
+        virtual void set_mouse_button_callback(mouse_button_callback callback) override;
         virtual void set_mouse_position_callback(mouse_position_callback callback) override;
-        virtual void set_mouse_scroll_callback(mouse_scroll_callback callback)     override;
-        virtual void set_drag_and_drop_callback(drag_n_drop_callback callback)     override;
+        virtual void set_mouse_scroll_callback(mouse_scroll_callback callback) override;
+        virtual void set_drag_and_drop_callback(drag_n_drop_callback callback) override;
+
+        virtual void hide_cursor(bool hide) override;
 
       private:
         //! \brief The platform data holds the window handle that is needed to identify the window after creation.
         //! \details This is important, because without it destruction, update and input polling would fail.
-        shared_ptr<platform_data>  m_platform_data;
+        shared_ptr<platform_data> m_platform_data;
 
         //! \brief Last scroll offset. Stored for access without callback.
         glm::vec2 m_last_scroll_offset;

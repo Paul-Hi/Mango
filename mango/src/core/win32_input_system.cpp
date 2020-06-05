@@ -148,3 +148,9 @@ void win32_input_system::set_drag_and_drop_callback(drag_n_drop_callback callbac
     MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
     m_input_user_data.drag_n_drop_change.connect(callback);
 }
+
+void win32_input_system::hide_cursor(bool hide)
+{
+    MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
+    glfwSetInputMode(static_cast<GLFWwindow*>(m_platform_data->native_window_handle), GLFW_CURSOR, hide ? GLFW_CURSOR_HIDDEN : GLFW_CURSOR_NORMAL);
+}

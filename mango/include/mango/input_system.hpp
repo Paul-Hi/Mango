@@ -54,6 +54,10 @@ namespace mango
         //! \param[in] callback The callback to use for things dragged onto the mango window.
         virtual void set_drag_and_drop_callback(drag_n_drop_callback callback) = 0;
 
+        //! \brief Hides or unhides the mouse cursor in the \a window.
+        //! \param[in] hide True if cursor should be hidden, else false.
+        virtual void hide_cursor(bool hide) = 0;
+
       protected:
         virtual bool create()         = 0;
         virtual void update(float dt) = 0;

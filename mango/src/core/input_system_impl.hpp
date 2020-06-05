@@ -40,6 +40,8 @@ namespace mango
         virtual void set_mouse_scroll_callback(mouse_scroll_callback callback)     = 0;
         virtual void set_drag_and_drop_callback(drag_n_drop_callback callback)     = 0;
 
+        virtual void hide_cursor(bool hide) = 0;
+
       protected:
         //! \brief User data for glfw.
         struct input_user_data

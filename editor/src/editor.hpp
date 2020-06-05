@@ -34,6 +34,8 @@ class editor : public mango::application
     glm::vec2 m_last_mouse_position;
     //! \brief Offsets for camera rotation.
     glm::vec2 m_camera_rotation;
+    //! \brief Offsets for camera rotation.
+    glm::vec2 m_target_offset;
     //! \brief Radius for camera.
     float m_camera_radius;
 };
