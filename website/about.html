@@ -92,17 +92,31 @@
                         <div class="card-body">
                             <h5 class="card-title">Features:</h5>
                             <p class="card-text">
-                                <ul>
-                                    <li>
-                                        The build runs :D
-                                    </li>
-                                    <li>
-                                        Some functioning logging and assertion capabilities.
-                                    </li>
-                                    <li>
-                                        Window creation with glfw is possible.
-                                    </li>
-                                </ul>
+                            <ul>
+                                <li>
+                                    Basic GLTF loading and rendering (No animations yet, some features missing, no
+                                    draco encoding).
+                                </li>
+                                <li>
+                                    HDR loading and rendering including image based lighting.
+                                </li>
+                                <li>
+                                    Many physically based rendering features.
+                                </li>
+                                <li>
+                                    Deferred rendering with command buffer and OpenGL backend.
+                                </li>
+                                <li>
+                                    Entity Component System.
+                                </li>
+                                <li>
+                                    Basic framework architecture.
+                                </li>
+                                <li>
+                                    Editor supporting gltf and hdr loading via drag'n'drop and a simple camera
+                                    controller.
+                                </li>
+                            </ul>
                             </p>
                         </div>
                     </div>
@@ -111,29 +125,36 @@
                         <div class="card-body">
                             <h5 class="card-title">Roadmap (unordered and incomplete):</h5>
                             <p class="card-text">
-                                <ul>
-                                    <li>
-                                        Base Structure
-                                    </li>
-                                    <li>
-                                        Deferred RenderPipeline with OpenGL Backend
-                                    </li>
-                                    <li>
-                                        Physically Based Rendering
-                                    </li>
-                                    <li>
-                                        Scene Description
-                                    </li>
-                                    <li>
-                                        Entity Component System and/or some graph structure
-                                    </li>
-                                    <li>
-                                        GUI integrating DearImGui
-                                    </li>
-                                    <li>
-                                        Editor and ExampleApplications
-                                    </li>
-                                </ul>
+                            <ul>
+                                <li>
+                                    Scene composing and store.
+                                </li>
+                                <li>
+                                    GLTF animations.
+                                </li>
+                                <li>
+                                    Transparency.
+                                </li>
+                                <li>
+                                    Improved rendering.
+                                </li>
+                                <li>
+                                    Improved scene management.
+                                </li>
+                                <li>
+                                    GUI integrating DearImGui.
+                                </li>
+                                <li>
+                                    Performance tools.
+                                </li>
+                                <li>
+                                    Better editor and some example applications.
+                                </li>
+                                <li>
+                                    Many features like shadows, global light effects (GI, AO, reflections), live
+                                    editing, hot swapable resources, and more.
+                                </li>
+                            </ul>
                             </p>
                         </div>
                     </div>
@@ -141,7 +162,10 @@
                     <div class="card mt-2">
                         <div class="card-body">
                             <h5 class="card-title">ClickUp Board:</h5>
-                            <iframe class="clickup-embed" src="https://share.clickup.com/b/h/6-17154399-2/ae014866f2d5daa" frameborder="0" onmousewheel="" width="100%" height="700px" style="background: transparent; border: 1px solid #ccc;"></iframe>
+                            <iframe class="clickup-embed"
+                                src="https://share.clickup.com/b/h/6-17154399-2/ae014866f2d5daa" frameborder="0"
+                                onmousewheel="" width="100%" height="700px"
+                                style="background: transparent; border: 1px solid #ccc;"></iframe>
                         </div>
                     </div>
                 </div>
@@ -150,10 +174,12 @@
                     <div class="card">
                         <div class="card-body">
                             <h5 class="card-title">In Progress</h5>
-                            At the moment the focus is on getting the render system from all the concepts to the implementation.<br>
-                            This does also include setting up shaders and a few resources like textures etc.<br>
-                            After building the base shader system and some functionality for creating geometry on the gpu as well as adding textures,
-                            we will continue with transforms, cameras and the scene description. And after that we can finally start with GLTF! :)
+                            After implementing some core functionalities, I'm now spending most of the time with cleaning up.<br>
+                            Tests have to be written.<br>
+                            Improvements have to be made.<br>
+                            On the feature side:<br>
+                            I want more lights, not just the image based environment.<br>
+                            The performance tools and editor UI are also planned in the next time.
                         </div>
                     </div>
                 </div>
