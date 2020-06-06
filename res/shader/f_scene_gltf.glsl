@@ -7,10 +7,13 @@ layout (location = 3) out vec4 gbuffer_c3; // occlusion (r8), roughness (g8), me
 
 in shader_shared
 {
-    vec3 shared_normal;
+    vec3 shared_vertex_position;
     vec2 shared_texcoord;
+    vec3 shared_normal;
     vec3 shared_tangent;
     vec3 shared_bitangent;
+    flat bool calculate_normals;
+    flat bool calculate_tangents;
 } fs_in;
 
 layout (location = 1, binding = 0) uniform sampler2D t_base_color;
@@ -18,6 +21,14 @@ layout (location = 2, binding = 1) uniform sampler2D t_roughness_metallic;
 layout (location = 3, binding = 2) uniform sampler2D t_occlusion;
 layout (location = 4, binding = 3) uniform sampler2D t_normal;
 layout (location = 5, binding = 4) uniform sampler2D t_emissive_color;
+
+layout(binding = 0, std140) uniform scene_vertex_uniforms
+{
+    mat4 u_model_matrix;
+    mat3 u_normal_matrix;
+    bool u_has_normals;
+    bool u_has_tangents;
+};
 
 layout(binding = 1, std140) uniform scene_material_uniforms
 {
@@ -65,9 +76,24 @@ vec3 get_occlusion_roughness_metallic()
 vec3 get_normal()
 {
     vec3 normal = normalize(fs_in.shared_normal);
+    vec3 dfdx = dFdx(fs_in.shared_vertex_position);
+    vec3 dfdy = dFdy(fs_in.shared_vertex_position);
+    if(!u_has_normals)
+        normal = normalize(cross(dfdx, dfdy)); // approximation
     if(normal_texture)
     {
-        mat3 tbn = mat3(normalize(fs_in.shared_tangent), normalize(fs_in.shared_bitangent), normal);
+        vec3 tangent   = fs_in.shared_tangent;
+        vec3 bitangent = fs_in.shared_bitangent;
+        if(!u_has_tangents)
+        {
+            vec3 uv_dx = dFdx(vec3(fs_in.shared_texcoord, 0.0));
+            vec3 uv_dy = dFdy(vec3(fs_in.shared_texcoord, 0.0));
+            vec3 t_    = (uv_dy.y * dfdx - uv_dx.y * dfdy) / (uv_dx.x * uv_dy.y - uv_dy.x * uv_dx.y);
+            tangent    = normalize(t_ - normal * dot(normal, t_));
+            bitangent  = cross(normal, tangent);
+        }
+
+        mat3 tbn = mat3(normalize(tangent), normalize(bitangent), normal);
         vec3 mapped_normal = normalize(texture(t_normal, fs_in.shared_texcoord).rgb * 2.0 - 1.0);
         normal = normalize(tbn * mapped_normal.rgb);
     }

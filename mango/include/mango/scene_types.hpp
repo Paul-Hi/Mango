@@ -73,6 +73,11 @@ namespace mango
         std::vector<primitive_component> primitives;
         //! \brief A list of \a material_components.
         std::vector<material_component> materials;
+
+        //! \brief Specifies if the mesh has normals.
+        bool has_normals;
+        //! \brief Specifies if the mesh has tangents.
+        bool has_tangents;
     };
 
     //! \brief Component used for camera entities.

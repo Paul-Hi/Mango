@@ -5,12 +5,6 @@ layout (location = 0) in vec3 v_position;
 layout (location = 0) uniform mat4 u_view_projection_matrix;
 layout (location = 1) uniform mat3 u_rotation_scale;
 
-layout(binding = 0, std140) uniform scene_vertex_uniforms
-{
-    mat4 u_model_matrix;
-    mat3 u_normal_matrix;
-};
-
 out vec3 shared_texcoord;
 
 void main()

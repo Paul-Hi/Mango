@@ -396,7 +396,9 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
 
         component_mesh.materials.push_back(mat);
 
-        uint32 vb_idx = 0;
+        uint32 vb_idx               = 0;
+        component_mesh.has_normals  = false;
+        component_mesh.has_tangents = false;
 
         for (auto& attrib : primitive.attributes)
         {
@@ -413,11 +415,17 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
             if (attrib.first.compare("POSITION") == 0)
                 attrib_array = 0;
             if (attrib.first.compare("NORMAL") == 0)
-                attrib_array = 1;
+            {
+                component_mesh.has_normals = true;
+                attrib_array               = 1;
+            }
             if (attrib.first.compare("TEXCOORD_0") == 0)
                 attrib_array = 2;
             if (attrib.first.compare("TANGENT") == 0)
-                attrib_array = 3;
+            {
+                component_mesh.has_tangents = true;
+                attrib_array                = 3;
+            }
             if (attrib_array > -1)
             {
                 auto it = buffer_map.find(accessor.bufferView);
@@ -848,7 +856,7 @@ static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_man
             if (transform)
             {
                 auto cmdb = rs->get_command_buffer();
-                rs->set_model_matrix(transform->world_transformation_matrix);
+                rs->set_model_info(transform->world_transformation_matrix, c.has_normals, c.has_tangents);
 
                 for (uint32 i = 0; i < c.primitives.size(); ++i)
                 {

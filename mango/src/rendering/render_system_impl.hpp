@@ -63,9 +63,11 @@ namespace mango
         //! \return The current set base \a render_pipeline of the \a render_system.
         virtual render_pipeline get_base_render_pipeline();
 
-        //! \brief Sets the model matrix for the next draw calls.
+        //! \brief Sets some model info for the next draw calls.
         //! \param[in] model_matrix The model matrix for the next draw calls.
-        virtual void set_model_matrix(const glm::mat4& model_matrix);
+        //! \param[in] has_normals Specifies if the next mesh has normals as a vertex attribute
+        //! \param[in] has_tangents Specifies if the next mesh has tangents as a vertex attribute
+        virtual void set_model_info(const glm::mat4& model_matrix, bool has_normals, bool has_tangents);
 
         //! \brief Schedules drawing of a \a mesh with \a material.
         //! \param[in] mat The \a material for the next draw call.

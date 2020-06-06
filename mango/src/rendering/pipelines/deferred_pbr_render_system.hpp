@@ -31,7 +31,7 @@ namespace mango
         virtual void destroy() override;
         virtual render_pipeline get_base_render_pipeline() override;
 
-        void set_model_matrix(const glm::mat4& model_matrix) override;
+        void set_model_info(const glm::mat4& model_matrix, bool has_normals, bool has_tangents) override;
         void draw_mesh(const material_ptr& mat, primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count) override;
         void set_view_projection_matrix(const glm::mat4& view_projection) override;
         void set_environment_texture(const texture_ptr& hdr_texture, float render_level) override;
@@ -64,6 +64,12 @@ namespace mango
         {
             std140_mat4 model_matrix;  //!< The model matrix.
             std140_mat3 normal_matrix; //!< The normal matrix.
+
+            std140_bool has_normals;   //!< Specifies if the next mesh has normals as a vertex attribute.
+            std140_bool has_tangents;  //!< Specifies if the next mesh has tangents as a vertex attribute.
+
+            g_float padding0; //!< Padding needed for st140 layout.
+            g_float padding1; //!< Padding needed for st140 layout.
         };
 
         //! \brief Uniform struct for the geometry passes fragment shader to implement \a materials.

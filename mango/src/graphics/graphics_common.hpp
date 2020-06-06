@@ -230,19 +230,14 @@ namespace mango
             : r0(mat[0])
             , r1(mat[1])
             , r2(mat[2])
-            , _r3()
         {
         }
         std140_mat3()
             : r0()
             , r1()
             , r2()
-            , _r3()
         {
         }
-
-      private:
-        std140_vec3 _r3;
         //! \endcond
     };
 

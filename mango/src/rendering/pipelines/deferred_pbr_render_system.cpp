@@ -309,7 +309,7 @@ render_pipeline deferred_pbr_render_system::get_base_render_pipeline()
     return render_pipeline::deferred_pbr;
 }
 
-void deferred_pbr_render_system::set_model_matrix(const glm::mat4& model_matrix)
+void deferred_pbr_render_system::set_model_info(const glm::mat4& model_matrix, bool has_normals, bool has_tangents)
 {
     class set_model_matrix_cmd : public command
     {
@@ -329,7 +329,7 @@ void deferred_pbr_render_system::set_model_matrix(const glm::mat4& model_matrix)
         }
     };
 
-    scene_vertex_uniforms u{ std140_mat4(model_matrix), std140_mat3(glm::transpose(glm::inverse(model_matrix))) };
+    scene_vertex_uniforms u{ std140_mat4(model_matrix), std140_mat3(glm::transpose(glm::inverse(model_matrix))), std140_bool(has_normals), std140_bool(has_tangents) };
 
     MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - sizeof(scene_vertex_uniforms), "Uniform buffer size is too small.");
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_vertex_uniforms));

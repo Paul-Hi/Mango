@@ -19,7 +19,6 @@ void main()
 {
     vec4 pixel = vec4(0.0, 0.0, 0.0, 1.0);
 
-
     ivec3 coords = ivec3(gl_GlobalInvocationID);
     vec3 pos = cube_to_world(coords, out_size);
 

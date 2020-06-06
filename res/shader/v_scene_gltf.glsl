@@ -11,42 +11,45 @@ layout(binding = 0, std140) uniform scene_vertex_uniforms
 {
     mat4 u_model_matrix;
     mat3 u_normal_matrix;
+    bool u_has_normals;
+    bool u_has_tangents;
 };
 
 out shader_shared
 {
-    vec3 shared_normal;
+    vec3 shared_vertex_position;
     vec2 shared_texcoord;
+    vec3 shared_normal;
     vec3 shared_tangent;
     vec3 shared_bitangent;
+    flat bool calculate_normals;
+    flat bool calculate_tangents;
 } vs_out;
 
 void main()
 {
-    if(length(v_normal.xyz) > 0.0)
-        vs_out.shared_normal = u_normal_matrix * normalize(v_normal);
-    else
-    {
-        // TODO Paul: This is just for now and should be changed later. We want to calculate normals on import.
-        vs_out.shared_normal = u_normal_matrix * vec3(0.0, 1.0, 0.0);
-    }
+    vec4 v_pos = u_model_matrix * vec4(v_position, 1.0);
+    vs_out.shared_vertex_position = v_pos.xyz / v_pos.w;
+
     vs_out.shared_texcoord = v_texcoord;
 
-    if(length(v_tangent.xyz) > 0.0)
+
+    vs_out.calculate_normals  = false;
+    vs_out.calculate_tangents = false;
+
+    if(u_has_normals)
+        vs_out.shared_normal = u_normal_matrix * normalize(v_normal);
+
+    if(u_has_tangents)
     {
         vs_out.shared_tangent = u_normal_matrix * normalize(v_tangent.xyz);
-        vs_out.shared_bitangent = cross(vs_out.shared_normal, vs_out.shared_tangent);
-        if(v_tangent.w == -1.0) // TODO Paul: Check this convention.
-            vs_out.shared_bitangent *= -1.0;
+        if(u_has_normals)
+        {
+            vs_out.shared_bitangent = cross(vs_out.shared_normal, vs_out.shared_tangent);
+            if(v_tangent.w == -1.0) // TODO Paul: Check this convention.
+                vs_out.shared_bitangent *= -1.0;
+        }
     }
-    else
-    {
-        // TODO Paul: This calculation is just for now and should be changed later. We want to calculate tangents on import.
-        vec3 absnormal = abs(vs_out.shared_normal);
-        float max = max(absnormal.x, max(absnormal.y, absnormal.z));
-        vec3 v = vs_out.shared_normal * step(max, absnormal);
-        vs_out.shared_tangent = normalize(cross(vs_out.shared_normal, v));
-        vs_out.shared_bitangent = cross(vs_out.shared_normal, vs_out.shared_tangent);
-    }
-    gl_Position = u_view_projection_matrix * u_model_matrix * vec4(v_position, 1.0);
+
+    gl_Position = u_view_projection_matrix * v_pos;
 }
