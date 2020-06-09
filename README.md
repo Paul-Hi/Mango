@@ -1,9 +1,9 @@
-# Mango - Graphics Engine
+# Mango
 
-Mango is an Open Source Graphics Engine. Or at least it should be in the future.
-A kind of playground for people like me.
+Mango is an Open Source Framework. Or at least it should be in the future.
+A playground for people like me.
 
-Just to be clear: This is not the first try!
+Just to be clear: This is not the first attempt!
 I plan to implement various features, with main focus on computer graphics.
 A few of them are described below, but there will be added a lot more in the future.
 There should also always be a documentation and tests to ensure cleaner and more functional code.
@@ -13,13 +13,13 @@ Keep in mind that I do this in my spare time, besides studying and working.
 
 ## Features
 
-* Basic GLTF loading and rendering (No animations yet, some features missing, no draco encoding).
-* HDR loading and rendering including image based lighting.
-* Many physically based rendering features.
-* Deferred rendering with command buffer and OpenGL backend.
-* Entity Component System.
-* Basic framework architecture.
-* Editor supporting gltf and hdr loading via drag'n'drop and a simple camera controller.
+* Basic support of GLTF models (No animations yet, some features missing, no draco encoding)
+* HDR support and image based lighting
+* Many physically based rendering features
+* Deferred rendering with OpenGL backend
+* Entity Component System
+* Basic framework architecture
+* Editor featuring .gltf and .hdr file loading via drag'n'drop and a simple camera controller
 
 ## Requirements
 
@@ -59,15 +59,15 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 
 ## Roadmap (unordered and incomplete)
 
-* Scene composing and store.
-* GLTF animations.
-* Transparency.
-* Improved rendering.
-* Improved scene management.
-* GUI integrating DearImGui.
-* Performance tools.
-* Better editor and some example applications.
-* Many features like shadows, global light effects (GI, AO, reflections), live editing, hot swapable resources, and more.
+* Implementing the compilation and saving of scenes (own format and gltf export)
+* Support for GLTF animations
+* Support for translucent materials
+* Rendering improvements (performance and appearance)
+* Scene management improvements
+* GUI with DearImGui
+* Performance measurement tools
+* Editor improvements and some better examples for the use of Mango
+* Many features like shadows, global light effects (GI, AO, reflections), live editing, hot swapable resources, and more
 
 ## Dependencies
 

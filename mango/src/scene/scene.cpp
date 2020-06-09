@@ -37,26 +37,33 @@ scene::scene(const string& name)
     m_active_camera        = invalid_entity;
     m_scene_boundaries.max = glm::vec3(-3.402823e+38f);
     m_scene_boundaries.min = glm::vec3(3.402823e+38f);
+
+    for (uint32 i = 1; i <= max_entities; ++i)
+        m_free_entities.push(i);
 }
 
 scene::~scene() {}
 
 entity scene::create_empty()
 {
-    static uint32 id = 1;                                                   // TODO Paul: This should be done in a better way!
-    MANGO_ASSERT(id < max_entities, "Reached maximum number of entities!"); // TODO Paul: This assertion is false, because of deleted ones there could be places left.
-    entity new_entity = id;
-    id++;
+    MANGO_ASSERT(!m_free_entities.empty(), "Reached maximum number of entities!");
+    entity new_entity = m_free_entities.front();
+    m_free_entities.pop();
+    MANGO_LOG_DEBUG("Created entity {0}, {1} left", new_entity, m_free_entities.size());
     return new_entity;
 }
 
 void scene::remove_entity(entity e)
 {
+    if (e == invalid_entity)
+        return;
     detach(e);
     m_transformations.remove_component_from(e);
     m_meshes.remove_component_from(e);
     m_cameras.remove_component_from(e);
     m_environments.remove_component_from(e);
+    m_free_entities.push(e);
+    MANGO_LOG_DEBUG("Removed entity {0}, {1} left", e, m_free_entities.size());
 }
 
 entity scene::create_default_camera()

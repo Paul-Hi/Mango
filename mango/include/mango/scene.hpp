@@ -10,6 +10,7 @@
 #include <mango/scene_component_manager.hpp>
 #include <mango/scene_types.hpp>
 #include <map>
+#include <queue>
 
 namespace tinygltf
 {
@@ -141,6 +142,8 @@ namespace mango
         //! \brief Mangos internal context for shared usage in all \a render_systems.
         shared_ptr<context_impl> m_shared_context;
 
+        //! \brief All free entities.
+        std::queue<entity> m_free_entities;
         //! \brief All \a node_components.
         scene_component_manager<node_component> m_nodes;
         //! \brief All \a transform_components.
