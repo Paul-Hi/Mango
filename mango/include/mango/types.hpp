@@ -113,6 +113,14 @@ namespace mango
         static const bool enable = false;
     };
 
+//! \brief Macro used to enable safe bitmask operations on enum classes.
+#define MANGO_ENABLE_BITMASK_OPERATIONS(e)   \
+    template <>                              \
+    struct bit_mask_operations<e>            \
+    {                                        \
+        static constexpr bool enable = true; \
+    };
+
     template <typename e>
     typename std::enable_if<bit_mask_operations<e>::enable, e>::type operator|(e lhs, e rhs)
     {
@@ -166,14 +174,6 @@ namespace mango
     }
 
     //! \endcond
-
-//! \brief Macro used to enable safe bitmask operations on enum classes.
-#define MANGO_ENABLE_BITMASK_OPERATIONS(e)   \
-    template <>                              \
-    struct bit_mask_operations<e>            \
-    {                                        \
-        static constexpr bool enable = true; \
-    };
 
 } // namespace mango
 

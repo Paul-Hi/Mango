@@ -30,6 +30,7 @@ TEST_F(init_test, init_does_not_fail_on_context_creation)
     ASSERT_NE(nullptr, mango_context);
     ASSERT_NE(nullptr, mango_context->get_window_system().lock());
     ASSERT_NE(nullptr, mango_context->get_render_system().lock());
+    ASSERT_NE(nullptr, mango_context->get_input_system().lock());
 }
 
 TEST_F(init_test, no_crash_on_public_configuration_calls)

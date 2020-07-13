@@ -53,7 +53,7 @@ namespace mango
 
       protected:
         //! \brief Mangos internal context for shared usage in all \a window_systems.
-        shared_ptr<context_impl> shared_context;
+        shared_ptr<context_impl> m_shared_context;
     };
 
 } // namespace mango

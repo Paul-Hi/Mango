@@ -30,15 +30,13 @@ TEST_F(render_system_test, render_system_no_failure_on_function_calls)
     ASSERT_NO_FATAL_FAILURE(m_render_system = std::make_shared<mango::render_system_impl>(c));
     ASSERT_NE(nullptr, m_render_system);
     ASSERT_TRUE(m_render_system->create());
-    // The following can not be tested at the moment, because th glfw proc adress is missing.
-    //mango::render_configuration render_config(mango::render_pipeline::deferred_pbr, true);
-    //ASSERT_NO_FATAL_FAILURE(m_render_system->configure(render_config));
-    //ASSERT_NO_FATAL_FAILURE(m_render_system->update(0.0f));
-    //ASSERT_EQ(m_render_system->get_base_render_pipeline(), mango::render_pipeline::deferred_pbr);
-    //ASSERT_NO_FATAL_FAILURE(m_render_system->start_frame());
-    //ASSERT_NO_FATAL_FAILURE(m_render_system->submit(mango::render_command()));
-    //ASSERT_NO_FATAL_FAILURE(m_render_system->finish_frame());
-    //ASSERT_NO_FATAL_FAILURE(m_render_system->render());
+    // The following can not be tested at the moment, because the glfw proc adress is missing.
+    mango::render_configuration render_config(mango::render_pipeline::deferred_pbr, true);
+    ASSERT_NO_FATAL_FAILURE(m_render_system->configure(render_config));
+    ASSERT_NO_FATAL_FAILURE(m_render_system->update(0.0f));
+    ASSERT_EQ(m_render_system->get_base_render_pipeline(), mango::render_pipeline::deferred_pbr);
+    ASSERT_NO_FATAL_FAILURE(m_render_system->begin_render());
+    ASSERT_NO_FATAL_FAILURE(m_render_system->finish_render());
     ASSERT_NO_FATAL_FAILURE(m_render_system->destroy());
 }
 

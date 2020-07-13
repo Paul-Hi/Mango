@@ -15,7 +15,7 @@ using namespace mango;
 win32_window_system::win32_window_system(const shared_ptr<context_impl>& context)
     : m_window_configuration()
 {
-    shared_context                        = context;
+    m_shared_context                      = context;
     m_platform_data                       = std::make_shared<platform_data>();
     m_platform_data->native_window_handle = nullptr;
 }
@@ -105,12 +105,12 @@ void win32_window_system::configure(const window_configuration& configuration)
 #endif // MANGO_DEBUG
 
     // TODO Paul: There has to be a cleaner solution for this. Right now the window configuration has to be done before any input related stuff.
-    auto input = shared_context->get_input_system_internal().lock();
+    auto input = m_shared_context->get_input_system_internal().lock();
     MANGO_ASSERT(input, "Input system not valid!");
     input->set_platform_data(m_platform_data);
 
     make_window_context_current();
-    shared_context->set_gl_loading_procedure(reinterpret_cast<mango_gl_load_proc>(glfwGetProcAddress)); // TODO Paul: Should this be done here or before creating the gl context.
+    m_shared_context->set_gl_loading_procedure(reinterpret_cast<mango_gl_load_proc>(glfwGetProcAddress)); // TODO Paul: Should this be done here or before creating the gl context.
 }
 
 void win32_window_system::update(float dt)

@@ -103,6 +103,7 @@ target_include_directories(mango
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/dependencies/glm
+        ${CMAKE_SOURCE_DIR}/dependencies/glad/include
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -117,6 +118,7 @@ set_target_properties(mango
 target_link_libraries(mango
     PUBLIC
         spdlog::spdlog
+        $<$<BOOL:${MANGO_BUILD_TESTS}>:glad>
     PRIVATE
         ${OPENGL_LIBRARIES}
         glad

@@ -20,7 +20,11 @@
 class window_system_test : public ::testing::Test
 {
   protected:
-    window_system_test() {}
+    window_system_test()
+    {
+        m_fake_context = std::make_shared<fake_context>();
+        m_fake_input   = std::make_shared<fake_input>();
+    }
 
     ~window_system_test() override {}
 
@@ -28,14 +32,17 @@ class window_system_test : public ::testing::Test
 
     void TearDown() override {}
     mango::shared_ptr<platform_window_system_impl> m_window_system;
+    mango::shared_ptr<fake_context> m_fake_context;
+    mango::shared_ptr<fake_input> m_fake_input;
 };
 
 TEST_F(window_system_test, platform_window_system_no_failure_on_function_calls)
 {
-    ASSERT_NO_FATAL_FAILURE(m_window_system = std::make_shared<platform_window_system_impl>(std::make_shared<fake_context>()));
+    ASSERT_NO_FATAL_FAILURE(m_window_system = std::make_shared<platform_window_system_impl>(m_fake_context));
     ASSERT_NE(nullptr, m_window_system);
     ASSERT_TRUE(m_window_system->create());
     mango::window_configuration window_config(100, 100, "Test");
+    EXPECT_CALL(*m_fake_context, get_input_system_internal()).Times(1).WillOnce(Return(m_fake_input));
     ASSERT_NO_FATAL_FAILURE(m_window_system->configure(window_config));
     ASSERT_NO_FATAL_FAILURE(m_window_system->update(0.0f));
     ASSERT_NO_FATAL_FAILURE(m_window_system->swap_buffers());

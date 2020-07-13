@@ -39,27 +39,27 @@ namespace mango
         //! \brief Queries and returns a weak pointer to mangos \a window_system.
         //! \details This enables you using internal functionalities.
         //! \return A weak pointer to the internal \a window_system.
-        weak_ptr<window_system_impl> get_window_system_internal();
+        virtual weak_ptr<window_system_impl> get_window_system_internal();
 
         //! \brief Queries and returns a weak pointer to mangos \a input_system.
         //! \details This enables you using internal functionalities.
         //! \return A weak pointer to the internal \a input_system.
-        weak_ptr<input_system_impl> get_input_system_internal();
+        virtual weak_ptr<input_system_impl> get_input_system_internal();
 
         //! \brief Queries and returns a weak pointer to mangos \a render_system.
         //! \details This enables you using internal functionalities.
         //! \return A weak pointer to the internal \a render_system.
-        weak_ptr<render_system_impl> get_render_system_internal();
+        virtual weak_ptr<render_system_impl> get_render_system_internal();
 
         //! \brief Queries and returns a weak pointer to mangos \a shader_system.
         //! \details The \a shader_system is only available internally, but the function name was choosen to be consistent.
         //! \return A weak pointer to the internal \a shader_system.
-        weak_ptr<shader_system> get_shader_system_internal();
+        virtual weak_ptr<shader_system> get_shader_system_internal();
 
         //! \brief Queries and returns a weak pointer to mangos \a resource_system.
         //! \details The \a resource_system is only available internally, but the function name was choosen to be consistent.
         //! \return A weak pointer to the internal \a resource_system.
-        weak_ptr<resource_system> get_resource_system_internal();
+        virtual weak_ptr<resource_system> get_resource_system_internal();
 
         //! \brief Queries and returns a mangos loading procedure for opengl.
         //! \return Mangos loading procedure for opengl.
