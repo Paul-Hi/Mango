@@ -189,7 +189,10 @@ bool ibl_step::create()
     return true;
 }
 
-void ibl_step::update(float dt) {}
+void ibl_step::update(float dt)
+{
+    MANGO_UNUSED(dt);
+}
 
 void ibl_step::attach() {}
 
@@ -286,7 +289,7 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
         float roughness            = (float)mip / (float)(mip_count - 1);
 
         // bind correct mipmap
-        compute_commands->bind_image_texture(1, m_prefiltered_specular, mip, true, 0, base_access::WRITE_ONLY, format::RGBA16F);
+        compute_commands->bind_image_texture(1, m_prefiltered_specular, static_cast<g_int>(mip), true, 0, base_access::WRITE_ONLY, format::RGBA16F);
 
         out = glm::vec2(mipmap_width, mipmap_height);
         compute_commands->bind_single_uniform(1, &(out), sizeof(out));

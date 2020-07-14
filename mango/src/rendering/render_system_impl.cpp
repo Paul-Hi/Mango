@@ -27,6 +27,7 @@ bool render_system_impl::create()
 
 void render_system_impl::configure(const render_configuration& configuration)
 {
+    bool success                        = false;
     render_pipeline configured_pipeline = configuration.get_base_render_pipeline();
     if (!m_current_render_system || configured_pipeline != m_current_render_system->get_base_render_pipeline())
     {
@@ -38,17 +39,23 @@ void render_system_impl::configure(const render_configuration& configuration)
         {
         case deferred_pbr:
             m_current_render_system = std::make_shared<deferred_pbr_render_system>(m_shared_context);
-            MANGO_ASSERT(m_current_render_system->create(), "Creation of the deferred pbr render system did fail!");
+            success                 = m_current_render_system->create();
+            MANGO_ASSERT(success, "Creation of the deferred pbr render system did fail!");
             m_current_render_system->m_command_buffer = m_command_buffer;
             break;
-
         default:
-            MANGO_LOG_ERROR("Render pipeline is unknown and and the render system cannot be created!");
+            MANGO_LOG_ERROR("Render pipeline is unknown and the render system cannot be created!");
             break;
         }
     }
 
-    m_current_render_system->configure(configuration);
+    if (m_current_render_system)
+        m_current_render_system->configure(configuration);
+
+    if (!success)
+    {
+        MANGO_LOG_ERROR("Render pipeline  failed to create and render system cannot be created!");
+    }
 }
 
 void render_system_impl::begin_render()

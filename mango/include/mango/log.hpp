@@ -70,6 +70,10 @@ namespace mango
 
 //! \brief Log macro with info level.
 #define MANGO_LOG_INFO(...) log::message(log::level::info, __VA_ARGS__)
+//! \brief Log macro with error level.
+#define MANGO_LOG_ERROR(...) log::message(log::level::error, __VA_ARGS__)
+//! \brief Log macro with critical level.
+#define MANGO_LOG_CRITICAL(...) log::message(log::level::critical, __VA_ARGS__)
 
 #if defined(MANGO_DEBUG) || defined(MANGO_DOCUMENTATION)
 //! \brief Log macro with tracing level.
@@ -78,8 +82,6 @@ namespace mango
 #define MANGO_LOG_DEBUG(...) log::message(log::level::debug, __VA_ARGS__)
 //! \brief Log macro with warn level.
 #define MANGO_LOG_WARN(...) log::message(log::level::warn, __VA_ARGS__)
-//! \brief Log macro with error level.
-#define MANGO_LOG_ERROR(...) log::message(log::level::error, __VA_ARGS__)
 #else
 //! \brief Log macro with tracing level.
 #define MANGO_LOG_TRACE(...)
@@ -87,11 +89,7 @@ namespace mango
 #define MANGO_LOG_DEBUG(...)
 //! \brief Log macro with warn level.
 #define MANGO_LOG_WARN(...)
-//! \brief Log macro with error level.
-#define MANGO_LOG_ERROR(...)
 #endif // MANGO_DEBUG || MANGO_DOCUMENTATION
 
-//! \brief Log macro with critical level.
-#define MANGO_LOG_CRITICAL(...) log::message(log::level::critical, __VA_ARGS__)
 
 #endif // MANGO_LOG_HPP

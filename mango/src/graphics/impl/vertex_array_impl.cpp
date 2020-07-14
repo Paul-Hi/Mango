@@ -28,7 +28,7 @@ void vertex_array_impl::bind_vertex_buffer(g_uint index, buffer_ptr buffer, g_in
 {
     MANGO_ASSERT(is_created(), "Vertex array not created!");
     MANGO_ASSERT(buffer->is_created(), "Buffer not created!");
-    MANGO_ASSERT(buffer->byte_length() > offset, "Buffer is smaller than offset!");
+    MANGO_ASSERT(static_cast<mango::g_intptr>(buffer->byte_length()) > offset, "Buffer is smaller than offset!");
     auto& potential_buffer = m_vertex_buffers.at(index);
     g_uint name            = buffer->get_name();
     if (!potential_buffer.buf || potential_buffer.buf->get_name() != name)
@@ -67,9 +67,9 @@ void vertex_array_impl::set_vertex_attribute(g_uint index, g_uint buffer_index, 
     auto it = hopefully_bound_buffer.enabled_attributes.find(index);
     if (it == hopefully_bound_buffer.enabled_attributes.end())
     {
-        g_enum type;
-        g_int size;
-        g_bool normalized;
+        g_enum type = 0;
+        g_int size = 0;
+        g_bool normalized = 0;
         type = get_gl_vertex_attribute_data(attribute_format, size, normalized);
 
         hopefully_bound_buffer.enabled_attributes.insert({ index, a });
@@ -79,9 +79,9 @@ void vertex_array_impl::set_vertex_attribute(g_uint index, g_uint buffer_index, 
     }
     else if (a.attribute_format != it->second.attribute_format || a.relative_offset != it->second.relative_offset)
     {
-        g_enum type;
-        g_int size;
-        g_bool normalized;
+        g_enum type = 0;
+        g_int size = 0;
+        g_bool normalized = 0;
         type = get_gl_vertex_attribute_data(attribute_format, size, normalized);
 
         hopefully_bound_buffer.enabled_attributes.at(index) = a;

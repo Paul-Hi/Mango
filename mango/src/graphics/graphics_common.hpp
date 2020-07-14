@@ -266,7 +266,7 @@ namespace mango
         //! \endcond
     };
 
-    static uint32 calculate_mip_count(uint32 width, uint32 height)
+    inline uint32 calculate_mip_count(uint32 width, uint32 height)
     {
         uint32 levels = 1;
         while ((width | height) >> levels)
@@ -280,6 +280,7 @@ namespace mango
     //! \details The values are the same as in OpenGl, but sometimes the usage is extended.
     enum class format : uint32 // OpenGL values
     {
+        INVALID                     = 0x0,
         // vertex attribute formats and buffer format types
         BYTE                        = 0x1400,
         UNSIGNED_BYTE               = 0x1401,
@@ -555,6 +556,7 @@ namespace mango
             return GL_UNSIGNED_INT;
         default:
             MANGO_ASSERT(false, "Invalid format! Could also be, that I did not think of adding this here!");
+            return GL_NONE;
         }
     }
 
@@ -648,8 +650,10 @@ namespace mango
             break;
         default:
             MANGO_ASSERT(false, "Invalid format! Could also be, that I did not think of adding this here!");
+            return format::INVALID;
         }
         MANGO_ASSERT(false, "Invalid count! Could also be, that I did not think of adding this here!");
+        return format::INVALID;
     }
 
     //! \brief Retrieves the number of machine units, or size in bytes for a format.
@@ -727,6 +731,7 @@ namespace mango
             return 4 * sizeof(g_uint);
         default:
             MANGO_ASSERT(false, "Invalid internal format! Could also be, that I did not think of adding this here!");
+            return 0;
         }
     }
 
@@ -768,6 +773,7 @@ namespace mango
             return GL_ALWAYS;
         default:
             MANGO_ASSERT(false, "Unknown compare operation!");
+            return GL_NONE;
         }
     }
 
@@ -795,6 +801,7 @@ namespace mango
             return GL_FRONT_AND_BACK;
         default:
             MANGO_ASSERT(false, "Unknown polygon face!");
+            return GL_NONE;
         }
     }
 
@@ -821,6 +828,7 @@ namespace mango
             return GL_FILL;
         default:
             MANGO_ASSERT(false, "Unknown polygon mode!");
+            return GL_NONE;
         }
     }
 
@@ -895,6 +903,7 @@ namespace mango
             return GL_ONE_MINUS_SRC1_ALPHA;
         default:
             MANGO_ASSERT(false, "Unknown blend factor!");
+            return GL_NONE;
         }
     }
 
@@ -1016,11 +1025,12 @@ namespace mango
             return GL_COMPUTE_SHADER;
         default:
             MANGO_ASSERT(false, "Unknown shader type!");
+            return GL_NONE;
         }
     }
 
     //! \brief The type of the resource used in a shader program by the gpu.
-    //! \details EXtend this when needed -> all types are here https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glGetActiveUniform.xhtml
+    //! \details Extend this when needed -> all types are here https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glGetActiveUniform.xhtml
     enum class shader_resource_type : uint8
     {
         NONE,

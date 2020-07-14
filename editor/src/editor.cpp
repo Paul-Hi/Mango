@@ -31,6 +31,7 @@ bool editor::create()
     shared_ptr<scene> application_scene = std::make_shared<scene>("test_scene");
     mango_context->register_scene(application_scene);
 
+
     // camera
     m_main_camera = application_scene->create_default_camera();
 
@@ -44,7 +45,7 @@ bool editor::create()
         shared_ptr<context> mango_context = get_context().lock();
         MANGO_ASSERT(mango_context, "Context is expired!");
         auto application_scene = mango_context->get_current_scene();
-        for (uint32 i = 0; i < count; i++)
+        for (int32 i = 0; i < count; i++)
         {
             string path = string(paths[i]);
             auto ext    = path.substr(path.find_last_of(".") + 1);
@@ -106,7 +107,7 @@ bool editor::create()
     });
 
     m_camera_radius = 1.0f;
-    mango_is->set_mouse_scroll_callback([this](float x_offset, float y_offset) {
+    mango_is->set_mouse_scroll_callback([this](float, float y_offset) {
         if (y_offset < 0)
         {
             m_camera_radius *= 1.04f;
@@ -144,9 +145,9 @@ void editor::update(float dt)
         m_target_offset = glm::vec3(0.0f);
     }
 
-    cam_transform->position.x = cam_data->target.x + m_camera_radius * (sin(m_camera_rotation.y) * cos(m_camera_rotation.x));
-    cam_transform->position.y = cam_data->target.y + m_camera_radius * (cos(m_camera_rotation.y));
-    cam_transform->position.z = cam_data->target.z + m_camera_radius * (sin(m_camera_rotation.y) * sin(m_camera_rotation.x));
+    cam_transform->position.x = cam_data->target.x + m_camera_radius * (sinf(m_camera_rotation.y) * cosf(m_camera_rotation.x));
+    cam_transform->position.y = cam_data->target.y + m_camera_radius * (cosf(m_camera_rotation.y));
+    cam_transform->position.z = cam_data->target.z + m_camera_radius * (sinf(m_camera_rotation.y) * sinf(m_camera_rotation.x));
 }
 
 void editor::destroy() {}

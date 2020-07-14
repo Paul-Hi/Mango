@@ -60,7 +60,10 @@ framebuffer_impl::framebuffer_impl(const framebuffer_configuration& configuratio
     glNamedFramebufferDrawBuffers(m_name, m_draw_buffers.size(), m_draw_buffers.data());
 
     if (g_enum status = glCheckNamedFramebufferStatus(m_name, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
         MANGO_LOG_ERROR("Framebuffer {0} is incomplete! Status: {1}.", m_name, status);
+        MANGO_UNUSED(status);
+    }
 }
 
 framebuffer_impl::~framebuffer_impl()
@@ -190,7 +193,10 @@ void framebuffer_impl::resize(uint32 width, uint32 height)
     }
 
     if (g_enum status = glCheckNamedFramebufferStatus(m_name, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
         MANGO_LOG_ERROR("Framebuffer {0} is incomplete! Status: {1}.", m_name, status);
+        MANGO_UNUSED(status);
+    }
 }
 
 texture_ptr framebuffer_impl::get_attachment(framebuffer_attachment attachment)

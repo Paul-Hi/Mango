@@ -105,6 +105,8 @@ bool graphics_state::bind_single_uniform()
 
 bool graphics_state::bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer)
 {
+    MANGO_UNUSED(index);
+    MANGO_UNUSED(uniform_buffer);
     // TODO Paul
     return true;
 }

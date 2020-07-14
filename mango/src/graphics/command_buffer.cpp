@@ -326,7 +326,7 @@ void command_buffer::bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer
             , m_buffer(uniform_buffer)
         {
         }
-        void execute(graphics_state& state) override
+        void execute(graphics_state&) override
         {
             m_buffer->bind(buffer_target::UNIFORM_BUFFER, m_index, 0);
         }
@@ -398,7 +398,7 @@ void command_buffer::bind_image_texture(uint32 binding, texture_ptr texture, g_i
         {
         }
 
-        void execute(graphics_state& state) override
+        void execute(graphics_state&) override
         {
             if (m_texture)
             {
@@ -455,7 +455,7 @@ void command_buffer::add_memory_barrier(memory_barrier_bit barrier_bit)
         {
         }
 
-        void execute(graphics_state& state) override
+        void execute(graphics_state&) override
         {
             glMemoryBarrier(m_barrier_bit);
         }
@@ -476,7 +476,7 @@ void command_buffer::lock_buffer(buffer_ptr buffer)
         {
         }
 
-        void execute(graphics_state& state) override
+        void execute(graphics_state&) override
         {
             m_buffer->lock();
         }
@@ -497,7 +497,7 @@ void command_buffer::wait_for_buffer(buffer_ptr buffer)
         {
         }
 
-        void execute(graphics_state& state) override
+        void execute(graphics_state&) override
         {
             m_buffer->request_wait();
         }
@@ -518,7 +518,7 @@ void command_buffer::calculate_mipmaps(texture_ptr texture)
         {
         }
 
-        void execute(graphics_state& state) override
+        void execute(graphics_state&) override
         {
             if(m_texture->mipmaps())
             {
@@ -638,7 +638,7 @@ void command_buffer::draw_arrays(primitive_topology topology, uint32 first, uint
         {
         }
 
-        void execute(graphics_state& state) override
+        void execute(graphics_state&) override
         {
             if (m_instance_count > 1)
             {
@@ -673,7 +673,7 @@ void command_buffer::draw_elements(primitive_topology topology, uint32 first, ui
         {
         }
 
-        void execute(graphics_state& state) override
+        void execute(graphics_state&) override
         {
             if (m_instance_count > 1)
             {
@@ -704,7 +704,7 @@ void command_buffer::dispatch_compute(uint32 num_x_groups, uint32 num_y_groups, 
         {
         }
 
-        void execute(graphics_state& state) override
+        void execute(graphics_state&) override
         {
             glDispatchCompute(m_x_groups, m_y_groups, m_z_groups);
         }

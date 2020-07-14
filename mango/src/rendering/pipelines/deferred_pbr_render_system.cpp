@@ -329,7 +329,7 @@ void deferred_pbr_render_system::set_model_info(const glm::mat4& model_matrix, b
         }
     };
 
-    scene_vertex_uniforms u{ std140_mat4(model_matrix), std140_mat3(glm::transpose(glm::inverse(model_matrix))), std140_bool(has_normals), std140_bool(has_tangents) };
+    scene_vertex_uniforms u{ std140_mat4(model_matrix), std140_mat3(glm::transpose(glm::inverse(model_matrix))), std140_bool(has_normals), std140_bool(has_tangents), 0, 0 };
 
     MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - sizeof(scene_vertex_uniforms), "Uniform buffer size is too small.");
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_vertex_uniforms));
@@ -359,7 +359,6 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
     };
 
     scene_material_uniforms u;
-    auto& state = m_command_buffer->get_state();
 
     u.base_color = std140_vec4(mat->base_color);
     u.metallic   = (g_float)mat->metallic;

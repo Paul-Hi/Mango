@@ -123,7 +123,9 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
     {
         const tinygltf::BufferView& buffer_view = m.bufferViews[i];
         if (buffer_view.target == 0)
+        {
             MANGO_LOG_WARN("Buffer view target is zero!"); // We can continue here.
+        }
 
         const tinygltf::Buffer& t_buffer = m.buffers[buffer_view.buffer];
 
@@ -259,8 +261,6 @@ void scene::attach(entity child, entity parent)
             true);
     }
 
-    node_component& parent_component = *m_nodes.get_component_for_entity(child);
-
     transform_component* parent_transform = m_transformations.get_component_for_entity(parent);
     if (nullptr == parent_transform)
     {
@@ -319,7 +319,7 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
         }
         if (n.rotation.size() == 4)
         {
-            glm::quat orient   = glm::quat(n.rotation[3], n.rotation[0], n.rotation[1], n.rotation[2]); // TODO Paul: Use quaternions.
+            glm::quat orient   = glm::quat(static_cast<float>(n.rotation[3]), static_cast<float>(n.rotation[0]), static_cast<float>(n.rotation[1]), static_cast<float>(n.rotation[2])); // TODO Paul: Use quaternions.
             transform.rotation = glm::vec4(glm::angle(orient), glm::axis(orient));
         }
         if (n.scale.size() == 3)
@@ -454,7 +454,9 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                 vb_idx++;
             }
             else
+            {
                 MANGO_LOG_DEBUG("Vertex attribute array is ignored: {0}!", attrib.first);
+            }
         }
 
         component_mesh.primitives.push_back(p);
@@ -468,7 +470,9 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
 
     const tinygltf::Material& p_m = m.materials[primitive.material];
     if (!p_m.name.empty())
+    {
         MANGO_LOG_DEBUG("Loading material: {0}", p_m.name.c_str());
+    }
 
     material.component_material->double_sided = p_m.doubleSided;
 
@@ -497,15 +501,15 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (base_col.source < 0)
             return;
 
-        const tinygltf::Image& image     = m.images[base_col.source];
-        const tinygltf::Sampler& sampler = m.samplers[base_col.sampler];
+        const tinygltf::Image& image     = m.images[static_cast<g_enum>(base_col.source)];
+        const tinygltf::Sampler& sampler = m.samplers[static_cast<g_enum>(base_col.sampler)];
 
         if (base_col.sampler >= 0)
         {
-            config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
-            config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
-            config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
-            config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
+            config.m_texture_min_filter = filter_parameter_from_gl(static_cast<g_enum>(sampler.minFilter));
+            config.m_texture_mag_filter = filter_parameter_from_gl(static_cast<g_enum>(sampler.magFilter));
+            config.m_texture_wrap_s     = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapS));
+            config.m_texture_wrap_t     = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapT));
         }
 
         config.m_is_standard_color_space = true;
@@ -546,8 +550,8 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     // metallic / roughness
     if (pbr.metallicRoughnessTexture.index < 0)
     {
-        material.component_material->metallic  = pbr.metallicFactor;
-        material.component_material->roughness = pbr.roughnessFactor;
+        material.component_material->metallic  = static_cast<float>(pbr.metallicFactor);
+        material.component_material->roughness = static_cast<float>(pbr.roughnessFactor);
     }
     else
     {
@@ -786,7 +790,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     if (p_m.alphaMode.compare("MASK") == 0)
     {
         material.component_material->alpha_rendering = alpha_mode::MODE_MASK;
-        material.component_material->alpha_cutoff    = p_m.alphaCutoff;
+        material.component_material->alpha_cutoff    = static_cast<float>(p_m.alphaCutoff);
     }
     if (p_m.alphaMode.compare("BLEND") == 0)
     {
@@ -816,8 +820,7 @@ static void scene_graph_update(scene_component_manager<node_component>& nodes, s
 static void transformation_update(scene_component_manager<transform_component>& transformations)
 {
     transformations.for_each(
-        [&transformations](transform_component& c, uint32& index) {
-            entity e                      = transformations.entity_at(index);
+        [&transformations](transform_component& c, uint32&) {
             c.local_transformation_matrix = glm::translate(glm::mat4(1.0), c.position);
             c.local_transformation_matrix = glm::rotate(c.local_transformation_matrix, c.rotation.x, glm::vec3(c.rotation.y, c.rotation.z, c.rotation.w));
             c.local_transformation_matrix = glm::scale(c.local_transformation_matrix, c.scale);

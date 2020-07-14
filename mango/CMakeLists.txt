@@ -102,6 +102,7 @@ add_library(mango::mango ALIAS mango)
 target_include_directories(mango
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+    SYSTEM
         ${CMAKE_SOURCE_DIR}/dependencies/glm
         ${CMAKE_SOURCE_DIR}/dependencies/glad/include
     PRIVATE
@@ -134,4 +135,10 @@ target_compile_definitions(mango
     PRIVATE
         $<$<BOOL:${WIN32}>:WIN32>
         $<$<BOOL:${LINUX}>:LINUX>
+)
+
+target_compile_options(mango
+    PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/Wall /WX>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -pedantic -Werror -Wconversion -pedantic-errors>
 )

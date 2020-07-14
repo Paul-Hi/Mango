@@ -34,7 +34,7 @@ def getDependencies():
     f = open('./glad/CMakeLists.txt','w+')
     f.write('project(glad)\r\n')
     f.write('add_library(glad src/glad.c include/glad/glad.h include/KHR/khrplatform.h)\r\n')
-    f.write('target_include_directories(glad PUBLIC include)\r\n')
+    f.write('target_include_directories(glad SYSTEM PUBLIC include)\r\n')
     f.close()
 
     # googletest
@@ -76,7 +76,7 @@ def getDependencies():
     f = open('./stb_image/CMakeLists.txt','w+')
     f.write('project(stb_image)\r\n')
     f.write('add_library(stb_image INTERFACE)\r\n')
-    f.write('target_include_directories(stb_image INTERFACE .)\r\n')
+    f.write('target_include_directories(stb_image SYSTEM INTERFACE .)\r\n')
     f.close()
 
     # glm
@@ -109,7 +109,7 @@ def getDependencies():
     f = open('./tiny_gltf/CMakeLists.txt','w+')
     f.write('project(tiny_gltf)\r\n')
     f.write('add_library(tiny_gltf INTERFACE)\r\n')
-    f.write('target_include_directories(tiny_gltf INTERFACE .)\r\n')
+    f.write('target_include_directories(tiny_gltf SYSTEM INTERFACE .)\r\n')
     f.close()
 
 

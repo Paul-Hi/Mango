@@ -21,3 +21,9 @@ target_link_libraries(editor
     PUBLIC
         mango::mango
 )
+
+target_compile_options(editor
+    PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/Wall /WX>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -pedantic -Werror -Wconversion -pedantic-errors>
+)

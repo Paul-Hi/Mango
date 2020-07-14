@@ -195,7 +195,7 @@ namespace mango
             component c = std::move(m_components.at(from));
             entity e    = m_entities.at(from);
 
-            const int d = from < to ? 1 : -1;
+            const size_t d = from < to ? 1 : -1;
             for (size_t i = from; i != to; i += d)
             {
                 const size_t next             = i + d;

@@ -31,11 +31,6 @@ set(VERSION_PATCH 1 CACHE STRING "Project patch version number.")
 mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
 message(STATUS "Mango Build type: " ${CMAKE_BUILD_TYPE})
 
-set(CMAKE_CXX_FLAGS_DEBUG          "-g")
-set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE        "-O4 -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
-
 # Add path to glm files for find_package.
 set(CMAKE_PREFIX_PATH "dependencies/glm/cmake/glm/")
 macro(find_package_verbose)
@@ -70,6 +65,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 set(OpenGL_GL_PREFERENCE "GLVND")
 find_package_verbose(OpenGL REQUIRED)
 
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation")
 add_subdirectory(dependencies/glfw)
 message(STATUS "Added glfw.")
 

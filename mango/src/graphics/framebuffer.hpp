@@ -27,13 +27,13 @@ namespace mango
             : graphics_configuration()
             , m_width(width)
             , m_height(height)
-            , m_color_attachment0(m_color_attachment0)
-            , m_color_attachment1(m_color_attachment1)
-            , m_color_attachment2(m_color_attachment2)
-            , m_color_attachment3(m_color_attachment3)
-            , m_depth_attachment(m_depth_attachment)
-            , m_stencil_attachment(m_stencil_attachment)
-            , m_depth_stencil_attachment(m_depth_stencil_attachment)
+            , m_color_attachment0(color_attachment0)
+            , m_color_attachment1(color_attachment1)
+            , m_color_attachment2(color_attachment2)
+            , m_color_attachment3(color_attachment3)
+            , m_depth_attachment(depth_attachment)
+            , m_stencil_attachment(stencil_attachment)
+            , m_depth_stencil_attachment(depth_stencil_attachment)
         {
         }
 

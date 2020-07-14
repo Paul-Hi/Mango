@@ -32,6 +32,7 @@ namespace mango
             , m_target(target)
             , m_access(access)
         {
+          MANGO_UNUSED(data);
         }
 
         //! \brief Size information.
