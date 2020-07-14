@@ -15,3 +15,8 @@ install/*
 dependencies/*
 # Textures -> A few example textures should be added for now.
 # res/textures/*
+# Documentation
+/doc/Doxyfile
+/doc/extra_style.css
+/doc/footer.html
+/doc/header.html

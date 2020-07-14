@@ -121,25 +121,21 @@ def tryRunningMake():
     makes = ['make', 'nmake', 'mingw32-make', 'ninja']
     for make in makes:
         makeCmd = [make]
-        status, _ = subprocess.getstatusoutput(makeCmd)
-        if status != 0:
+        print ('Trying ' + makeCmd[0] + '.')
+        try:
+            result = subprocess.check_call(makeCmd, stderr=subprocess.STDOUT, shell=False)
+        except:
             continue
-        else:
-            break
 
-    if status != 0:
+        if result == 0:
+            print ('Done building Mango.')
+            return
+        else:
+            continue
+
+    if result != 0:
         print ('Can not get the available make derivate or failed building Mango.')
         print ('Please run your \'make\' in the build directory!')
-        input('PRESS ENTER TO CONTINUE.')
-        os._exit(1)
-
-    print ('Using ' + makeCmd[0] + '.')
-    result = subprocess.check_call(makeCmd, stderr=subprocess.STDOUT, shell=False)
-    if result == 0:
-        print ('Done building Mango.')
-        return
-    else:
-        print ('Failed building Mango.')
         input('PRESS ENTER TO CONTINUE.')
         os._exit(1)
 
