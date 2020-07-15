@@ -92,9 +92,9 @@ set(SOURCES
 )
 
 add_library(mango
-    ${PUBLIC_HEADERS}
-    ${PRIVATE_HEADERS}
-    ${SOURCES}
+	${PUBLIC_HEADERS}
+	${PRIVATE_HEADERS}
+	${SOURCES}
 )
 
 add_library(mango::mango ALIAS mango)
@@ -139,6 +139,6 @@ target_compile_definitions(mango
 
 target_compile_options(mango
     PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/Wall /WX>
+    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -pedantic -Werror -Wconversion -pedantic-errors>
 )

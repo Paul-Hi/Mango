@@ -13,6 +13,9 @@ namespace mango
 {
 }
 
+#ifdef WIN32
+#include <windows.h>
+#endif
 #include <mango/application.hpp>
 #include <mango/assert.hpp>
 #include <mango/context.hpp>

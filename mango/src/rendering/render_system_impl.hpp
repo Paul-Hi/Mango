@@ -8,6 +8,7 @@
 #define MANGO_RENDER_SYSTEM_IMPL_HPP
 
 #include <core/context_impl.hpp>
+#define GLM_FORCE_SILENT_WARNINGS 1
 #include <glm/glm.hpp>
 #include <graphics/command_buffer.hpp>
 #include <mango/render_system.hpp>

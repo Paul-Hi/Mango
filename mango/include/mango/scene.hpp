@@ -14,8 +14,8 @@
 
 namespace tinygltf
 {
-    struct Model;
-    struct Node;
+    class Model;
+    class Node;
     struct Mesh;
     struct Primitive;
 } // namespace tinygltf

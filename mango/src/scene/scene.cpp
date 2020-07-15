@@ -6,6 +6,7 @@
 
 #include <core/context_impl.hpp>
 #include <glad/glad.h>
+#define GLM_FORCE_SILENT_WARNINGS 1
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/component_wise.hpp>
@@ -129,15 +130,15 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
 
         const tinygltf::Buffer& t_buffer = m.buffers[buffer_view.buffer];
 
-        buffer_configuration config;
-        config.m_access = buffer_access::NONE;
-        config.m_size   = buffer_view.byteLength;
-        config.m_target = (buffer_view.target == 0 || buffer_view.target == GL_ARRAY_BUFFER) ? buffer_target::VERTEX_BUFFER : buffer_target::INDEX_BUFFER;
+        buffer_configuration buffer_config;
+        buffer_config.m_access = buffer_access::NONE;
+        buffer_config.m_size   = buffer_view.byteLength;
+        buffer_config.m_target = (buffer_view.target == 0 || buffer_view.target == GL_ARRAY_BUFFER) ? buffer_target::VERTEX_BUFFER : buffer_target::INDEX_BUFFER;
 
         const unsigned char* buffer_start = t_buffer.data.data() + buffer_view.byteOffset;
         const void* buffer_data           = static_cast<const void*>(buffer_start);
-        config.m_data                     = buffer_data;
-        buffer_ptr buf                    = buffer::create(config);
+        buffer_config.m_data              = buffer_data;
+        buffer_ptr buf                    = buffer::create(buffer_config);
 
         index_to_buffer_data.insert({ i, buf });
     }

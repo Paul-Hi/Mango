@@ -181,7 +181,7 @@ namespace mango
         template <typename commandT, typename... Args>
         void submit(Args&&... args)
         {
-            unique_ptr<command> new_command = static_unique_pointer_cast<command>(make_unique<commandT>(std::forward<Args>(args)...));
+            unique_ptr<command> new_command = mango::static_unique_pointer_cast<command>(mango::make_unique<commandT>(std::forward<Args>(args)...));
 
             if (nullptr != m_first)
             {

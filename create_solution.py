@@ -24,7 +24,7 @@ def getDependencies():
 
     os.chdir('glad/gen')
 
-    gladGenCmd = ['python', '-m', 'glad', '--generator=c', '--spec=gl', '--out-path=..', '--reproducible']
+    gladGenCmd = ['python', '-m', 'glad', '--generator=c', '--spec=gl', '--profile=core', '--out-path=..', '--reproducible']
     result = subprocess.check_call(gladGenCmd, stderr=subprocess.STDOUT, shell=False)
     if result != 0:
         return False

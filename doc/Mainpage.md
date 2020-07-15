@@ -25,8 +25,8 @@ Keep in mind that I do this in my spare time, besides studying and working.
 
 * Python Version 3.x
 * minimum CMake Version 3.10
-* some c++11 compatible compiler using (or supporting) the posix thread model.
-* optional: Doxygen for generating the documentation
+* some c++11 compatible compiler
+* optional: Doxygen and Graphviz for generating the documentation (Make sure everything is in the PATH and functional)
 
 ## Build
 
@@ -83,10 +83,10 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 
 ## Images
 ### Damaged Helmet
-![alt text](https://github.com/Paul-Hi/Mango/blob/master/show/damaged_helmet.png "Damaged Helmet")
+<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/master/show/damaged_helmet.png" alt="alt text" width="75%"/>
 ### Boom Box
-![alt text](https://github.com/Paul-Hi/Mango/blob/master/show/boom_box.png "Boom Box")
+<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/master/show/boom_box.png" alt="alt text" width="75%"/>
 ### Water Bottle
-![alt text](https://github.com/Paul-Hi/Mango/blob/master/show/water_bottle.png "Water Bottle")
+<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/master/show/water_bottle.png" alt="alt text" width="75%"/>
 ### Metal Rough Spheres
-![alt text](https://github.com/Paul-Hi/Mango/blob/master/show/metal_rough_spheres.png "Metal Rough Spheres")
+<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/master/show/metal_rough_spheres.png" alt="alt text" width="75%"/>

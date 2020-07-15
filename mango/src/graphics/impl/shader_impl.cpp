@@ -16,8 +16,9 @@ shader_impl::shader_impl(const shader_configuration& configuration)
 {
     // load the shader from the source file
     string source_string = "";
-    std::ifstream input_stream(m_path, std::ios::in | std::ios::binary);
-    if (input_stream)
+    std::ifstream input_stream;
+    input_stream.open(m_path, std::ios::in | std::ios::binary);
+    if (input_stream.good())
     {
         input_stream.seekg(0, std::ios::end);
         source_string.resize(static_cast<uint32_t>(input_stream.tellg()));

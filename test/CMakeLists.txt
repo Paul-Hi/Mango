@@ -23,6 +23,11 @@ target_compile_definitions(AllTests
         MANGO_TEST
 )
 
+set_target_properties(AllTests
+    PROPERTIES
+		VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+
 target_link_libraries(AllTests
     gtest
     gmock

@@ -7,6 +7,7 @@
 #ifndef MANGO_GRAPHICS_STATE
 #define MANGO_GRAPHICS_STATE
 
+#include <array>
 #include <graphics/graphics_common.hpp>
 
 namespace mango

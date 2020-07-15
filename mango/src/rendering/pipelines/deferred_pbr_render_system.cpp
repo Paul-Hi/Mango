@@ -51,6 +51,7 @@ bool deferred_pbr_render_system::create()
         MANGO_LOG_ERROR("Initilization of glad failed! No opengl context is available!");
         return false;
     }
+    MANGO_LOG_INFO("Using OpenGL version: {0}", glGetString(GL_VERSION));
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS); // TODO Paul: Better place?
 
 #ifdef MANGO_DEBUG
@@ -520,7 +521,6 @@ static const char* getStringForSeverity(GLenum severity)
 
 static void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
-    return;
     (void)id;
     (void)length;
     (void)userParam;

@@ -25,8 +25,8 @@ Keep in mind that I do this in my spare time, besides studying and working.
 
 * Python Version 3.x
 * minimum CMake Version 3.10
-* some c++11 compatible compiler using (or supporting) the posix thread model.
-* optional: Doxygen for generating the documentation
+* some c++11 compatible compiler
+* optional: Doxygen and Graphviz for generating the documentation (Make sure everything is in the PATH and functional)
 
 ## Build
 

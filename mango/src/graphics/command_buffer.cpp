@@ -229,7 +229,7 @@ void command_buffer::bind_single_uniform(g_uint location, void* uniform_value, g
         bind_single_uniform_cmd(g_uint location, void* uniform_value, g_intptr data_size)
             : m_location(location)
         {
-            m_data.reserve(data_size);
+            m_data.resize(data_size);
             memcpy(&m_data[0], static_cast<uint8*>(uniform_value), data_size);
         }
 

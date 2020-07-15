@@ -36,12 +36,14 @@ bool win32_window_system::create()
 
     // Hints valid for all windows
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
 
     GLFWwindow* window = glfwCreateWindow(width, height, title, NULL, NULL);
     if (!window)
     {
-        MANGO_LOG_ERROR("glfwCreateWindow failed! No window is created!");
+        const char* description;
+        glfwGetError(&description);
+        MANGO_LOG_ERROR("glfwCreateWindow failed! No window is created! Error: {0}", description);
         return false;
     }
     m_platform_data->native_window_handle = static_cast<void*>(window);
@@ -87,7 +89,9 @@ void win32_window_system::configure(const window_configuration& configuration)
     GLFWwindow* window = glfwCreateWindow(width, height, title, NULL, NULL);
     if (!window)
     {
-        MANGO_LOG_ERROR("glfwCreateWindow failed! No window is created!");
+        const char* description;
+        glfwGetError(&description);
+        MANGO_LOG_ERROR("glfwCreateWindow failed! No window is created! Error: {0}", description);
         return;
     }
     m_platform_data->native_window_handle = static_cast<void*>(window);

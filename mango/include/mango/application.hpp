@@ -16,14 +16,15 @@
 #define UNICODE
 #endif
 
-#include <windows.h>
-
 //! \brief A macro to define an application main.
 //! \param[in] class_name Name of the application to run inheriting from mango::application.
 //! \return 0 on success, 1 else.
 #define MANGO_DEFINE_APPLICATION_MAIN(class_name)                    \
     int WINAPI WinMain(HINSTANCE, HINSTANCE, PSTR, int)              \
     {                                                                \
+        AllocConsole();                                              \
+        FILE* stream;                                                \
+        freopen_s(&stream, "CONOUT$", "w+", stdout);                 \
         shared_ptr<class_name> app = std::make_shared<class_name>(); \
         weak_ptr<context> c        = app->get_context();             \
         if (auto sp = c.lock())                                      \
