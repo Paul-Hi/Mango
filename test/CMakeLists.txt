@@ -25,7 +25,7 @@ target_compile_definitions(AllTests
 
 set_target_properties(AllTests
     PROPERTIES
-		VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
 )
 
 target_link_libraries(AllTests

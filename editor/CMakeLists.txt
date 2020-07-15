@@ -5,16 +5,16 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/editor.cpp
 )
 
-if(WIN32)
-	add_executable(
-		editor WIN32
-			${SOURCES}
-	)
+if(WIN32 AND CXX_COMPILER_ID:MSVC)
+    add_executable(
+        editor WIN32
+            ${SOURCES}
+    )
 else()
-	add_executable(
-		editor
-			${SOURCES}
-	)
+        add_executable(
+        editor
+            ${SOURCES}
+    )
 endif()
 
 set_target_properties(editor
@@ -22,7 +22,7 @@ set_target_properties(editor
         ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}$<$<CONFIG:Debug>:/debug>$<$<CONFIG:Release>:/release>/lib
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}$<$<CONFIG:Debug>:/debug>$<$<CONFIG:Release>:/release>/lib
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}$<$<CONFIG:Debug>:/debug>$<$<CONFIG:Release>:/release>/bin
-		VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
 )
 
 target_link_libraries(editor

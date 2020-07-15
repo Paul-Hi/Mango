@@ -131,6 +131,7 @@ target_link_libraries(mango
 target_compile_definitions(mango
     PUBLIC
         $<$<CONFIG:Debug>:MANGO_DEBUG>
+        $<$<CXX_COMPILER_ID:MSVC>:MANGO_WINMAIN>
         $<$<BOOL:${MANGO_BUILD_TESTS}>:MANGO_TEST>
     PRIVATE
         $<$<BOOL:${WIN32}>:WIN32>
