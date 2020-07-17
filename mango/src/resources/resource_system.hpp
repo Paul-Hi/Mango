@@ -24,7 +24,7 @@ namespace mango
 
         //! \brief Hash function for the \a resource_handle.
         //! \return The hash value.
-        std::size_t hash_code() const
+        ptr_size hash_code() const
         {
             fnv1a hash;
             hash(name.data(), name.size());

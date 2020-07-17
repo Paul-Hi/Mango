@@ -18,9 +18,9 @@ namespace mango
       public:
         virtual bool create()                                             = 0;
         virtual void configure(const window_configuration& configuration) = 0;
-        virtual uint32 get_width()                                        = 0;
-        virtual uint32 get_height()                                       = 0;
-        virtual void set_size(uint32 width, uint32 height)                = 0;
+        virtual int32 get_width()                                         = 0;
+        virtual int32 get_height()                                        = 0;
+        virtual void set_size(int32 width, int32 height)                  = 0;
 
         //! \brief Swaps the buffers in the \a window_system.
         //! \details The underlying window is double buffered.

@@ -140,6 +140,8 @@ target_compile_definitions(mango
 
 target_compile_options(mango
     PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
-    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -pedantic -Werror -Wconversion -pedantic-errors>
+    $<$<CXX_COMPILER_ID:MSVC>:/W4>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra>
+    $<$<BOOL:${MANGO_ENABLE_HARD_WARNINGS}>:$<CXX_COMPILER_ID>:/WX>
+    $<$<BOOL:${MANGO_ENABLE_HARD_WARNINGS}>:$<NOT:$<CXX_COMPILER_ID:MSVC>>:-pedantic -Werror -Wconversion -pedantic-errors>
 )

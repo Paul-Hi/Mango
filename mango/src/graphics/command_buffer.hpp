@@ -47,11 +47,11 @@ namespace mango
         void execute();
 
         //! \brief Sets the viewport size.
-        //! \param[in] x The x position of the viewport.
-        //! \param[in] y The y position of the viewport.
-        //! \param[in] width The width of the viewport.
-        //! \param[in] height The height of the viewport.
-        void set_viewport(uint32 x, uint32 y, uint32 width, uint32 height);
+        //! \param[in] x The x position of the viewport. Has to be a positive value.
+        //! \param[in] y The y position of the viewport. Has to be a positive value.
+        //! \param[in] width The width of the viewport. Has to be a positive value.
+        //! \param[in] height The height of the viewport. Has to be a positive value.
+        void set_viewport(int32 x, int32 y, int32 width, int32 height);
 
         //! \brief Clears attachments of a framebuffer.
         //! \param[in] buffer_mask The mask describes which buffers should be cleared.
@@ -61,7 +61,7 @@ namespace mango
         //! \param[in] b The blue component to clear color attachments.
         //! \param[in] a The alpha component to clear color attachments.
         //! \param[in] framebuffer The pointer to the \a framebuffer to clear. To clear the default framebuffer leave empty or pass nullptr.
-        void clear_framebuffer(clear_buffer_mask buffer_mask, attachment_mask att_mask, g_float r, g_float g, g_float b, g_float a, framebuffer_ptr framebuffer = nullptr);
+        void clear_framebuffer(clear_buffer_mask buffer_mask, attachment_mask att_mask, float r, float g, float b, float a, framebuffer_ptr framebuffer = nullptr);
 
         //! \brief Enables or disables the depth test.
         //! \param[in] enabled True if the depth test should be enabled, else false.
@@ -86,31 +86,31 @@ namespace mango
 
         //! \brief Binds a single \a uniform not included in uniform buffers for drawing.
         //! \details The void* \a uniform_data should contain the value for the uniform not included in any uniform buffer object.
-        //! \param[in] location The uniform location to bind the value to.
+        //! \param[in] location The uniform location to bind the value to. Has to be a positive value.
         //! \param[in] uniform_value Pointer to a value.
-        //! \param[in] data_size Size of the value in bytes.
-        void bind_single_uniform(g_uint location, void* uniform_value, g_intptr data_size);
+        //! \param[in] data_size Size of the value in bytes. Has to be a positive value.
+        void bind_single_uniform(int32 location, void* uniform_value, int64 data_size);
 
         //! \brief Binds an \a uniform \a buffer for drawing.
-        //! \param[in] index The \a uniform \a buffer index to bind the \a buffer to.
+        //! \param[in] index The \a uniform \a buffer index to bind the \a buffer to. Has to be a positive value.
         //! \param[in] uniform_buffer The \a uniform \a buffer to bind.
-        void bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer);
+        void bind_uniform_buffer(int32 index, buffer_ptr uniform_buffer);
 
         //! \brief Binds a \a texture for drawing.
-        //! \param[in] binding The binding location to bind the \a texture to.
+        //! \param[in] binding The binding location to bind the \a texture to. Has to be a positive value.
         //! \param[in] texture A pointer to the \a texture to bind.
-        //! \param[in] uniform_location The location to bind the index integer value to.
-        void bind_texture(uint32 binding, texture_ptr texture, g_uint uniform_location);
+        //! \param[in] uniform_location The location to bind the index integer value to. Has to be a positive value.
+        void bind_texture(int32 binding, texture_ptr texture, int32 uniform_location);
 
         //! \brief Binds a \a texture as an image.
-        //! \param[in] binding The binding location to bind the \a texture to.
+        //! \param[in] binding The binding location to bind the \a texture to. Has to be a positive value.
         //! \param[in] texture A pointer to the \a texture to bind.
-        //! \param[in] level The level of the image that should be bound.
+        //! \param[in] level The level of the image that should be bound. Has to be a positive value.
         //! \param[in] layered Specifies whether a layered texture binding is to be established.
-        //! \param[in] layer Spezifies the layer if \a layered is false.
+        //! \param[in] layer Spezifies the layer if \a layered is false. Has to be a positive value.
         //! \param[in] access The \a base_access type.
         //! \param[in] element_format The format used for formatted stores.
-        void bind_image_texture(uint32 binding, texture_ptr texture, g_int level, bool layered, g_int layer, base_access access, format element_format);
+        void bind_image_texture(int32 binding, texture_ptr texture, int32 level, bool layered, int32 layer, base_access access, format element_format);
 
         //! \brief Binds a \a framebuffer for drawing.
         //! \param[in] framebuffer The pointer to the \a framebuffer to bind.
@@ -128,7 +128,7 @@ namespace mango
         //! \param[in] buffer The pointer to the \a buffer to wait for.
         void wait_for_buffer(buffer_ptr buffer);
 
-        //! \brief Calcukates the mipmaps for the \a texture.
+        //! \brief Calukates the mipmaps for the \a texture.
         //! \details This is used to recalculate the mipmaps after the pixels where changed by a compute shader.
         //! \param[in] texture The pointer to the \a texture to calculate the mipmaps.
         void calculate_mipmaps(texture_ptr texture);
@@ -136,29 +136,29 @@ namespace mango
         //! \brief Draws arrays.
         //! \details All the information not given in the argument list is retrieved from the state.
         //! \param[in] topology The topology used for drawing the bound vertex data.
-        //! \param[in] first The first index to start drawing from.
-        //! \param[in] count The number of vertices to draw.
-        //! \param[in] instance_count The number of instances to draw. For normal drawing pass 1.
-        void draw_arrays(primitive_topology topology, uint32 first, uint32 count, uint32 instance_count = 1);
+        //! \param[in] first The first index to start drawing from. Has to be a positive value.
+        //! \param[in] count The number of vertices to draw. Has to be a positive value.
+        //! \param[in] instance_count The number of instances to draw. Has to be a positive value. For normal drawing pass 1.
+        void draw_arrays(primitive_topology topology, int32 first, int32 count, int32 instance_count = 1);
 
         //! \brief Draws elements.
         //! \details All the information not given in the argument list is retrieved from the state.
         //! \param[in] topology The topology used for drawing the bound vertex data.
-        //! \param[in] first The first index to start drawing from.
-        //! \param[in] count The number of indices to draw.
+        //! \param[in] first The first index to start drawing from. Has to be a positive value.
+        //! \param[in] count The number of indices to draw. Has to be a positive value.
         //! \param[in] type The \a index_type of the values in the index buffer.
-        //! \param[in] instance_count The number of instances to draw. For normal drawing pass 1.
-        void draw_elements(primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count = 1);
+        //! \param[in] instance_count The number of instances to draw. Has to be a positive value. For normal drawing pass 1.
+        void draw_elements(primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count = 1);
 
         //! \brief Enables or disables face culling.
         //! \param[in] enabled True if face culling should be enabled, else false.
         void set_face_culling(bool enabled);
 
         //! \brief Dispatches the bound compute \a shader.
-        //! \param[in] num_x_groups The number of work groups in x direction.
-        //! \param[in] num_y_groups The number of work groups in y direction.
-        //! \param[in] num_z_groups The number of work groups in z direction.
-        void dispatch_compute(uint32 num_x_groups, uint32 num_y_groups, uint32 num_z_groups);
+        //! \param[in] num_x_groups The number of work groups in x direction. Has to be a positive value.
+        //! \param[in] num_y_groups The number of work groups in y direction. Has to be a positive value.
+        //! \param[in] num_z_groups The number of work groups in z direction. Has to be a positive value.
+        void dispatch_compute(int32 num_x_groups, int32 num_y_groups, int32 num_z_groups);
 
         //! \brief Sets the \a polygon_face for face culling.
         //! \param[in] face The \a polygon_face to use for face culling.

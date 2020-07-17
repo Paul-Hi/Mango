@@ -39,7 +39,7 @@ scene::scene(const string& name)
     m_scene_boundaries.max = glm::vec3(-3.402823e+38f);
     m_scene_boundaries.min = glm::vec3(3.402823e+38f);
 
-    for (uint32 i = 1; i <= max_entities; ++i)
+    for (entity i = 1; i <= max_entities; ++i)
         m_free_entities.push(i);
 }
 
@@ -120,7 +120,7 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
     // load all model buffer views into buffers.
     std::map<int, buffer_ptr> index_to_buffer_data;
 
-    for (size_t i = 0; i < m.bufferViews.size(); ++i)
+    for (int64 i = 0; i < static_cast<int64>(m.bufferViews.size()); ++i)
     {
         const tinygltf::BufferView& buffer_view = m.bufferViews[i];
         if (buffer_view.target == 0)
@@ -145,7 +145,7 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
 
     int scene_id                 = m.defaultScene > -1 ? m.defaultScene : 0;
     const tinygltf::Scene& scene = m.scenes[scene_id];
-    for (uint32 i = 0; i < scene.nodes.size(); ++i)
+    for (int64 i = 0; i < static_cast<int64>(scene.nodes.size()); ++i)
     {
         entity node = build_model_node(scene_entities, m, m.nodes.at(scene.nodes.at(i)), glm::mat4(1.0), index_to_buffer_data);
 
@@ -245,9 +245,9 @@ void scene::attach(entity child, entity parent)
     if (m_nodes.size() > 1)
     {
         m_nodes.for_each(
-            [this](node_component, uint32& index) {
+            [this](node_component, int32& index) {
                 entity possible_parent = m_nodes.entity_at(index);
-                for (size_t j = 0; j < index; ++j)
+                for (int32 j = 0; j < index; ++j)
                 {
                     const node_component& possible_child = m_nodes.component_at(j);
 
@@ -337,7 +337,7 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
 
     if (n.mesh > -1)
     {
-        MANGO_ASSERT((uint32)n.mesh < m.meshes.size(), "Invalid gltf mesh!");
+        MANGO_ASSERT(n.mesh < static_cast<int32>(m.meshes.size()), "Invalid gltf mesh!");
         build_model_mesh(node, m, m.meshes.at(n.mesh), buffer_map);
         update_scene_boundaries(trafo, m, m.meshes.at(n.mesh), m_scene_boundaries.min, m_scene_boundaries.max);
     }
@@ -345,9 +345,9 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
     entities.push_back(node);
 
     // build child nodes.
-    for (uint32 i = 0; i < n.children.size(); ++i)
+    for (int64 i = 0; i < static_cast<int64>(n.children.size()); ++i)
     {
-        MANGO_ASSERT((uint32)n.children[i] < m.nodes.size(), "Invalid gltf node!");
+        MANGO_ASSERT(n.children[i] < static_cast<int32>(m.nodes.size()), "Invalid gltf node!");
 
         entity child = build_model_node(entities, m, m.nodes.at(n.children.at(i)), trafo, buffer_map);
         attach(child, node);
@@ -360,7 +360,7 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
 {
     auto& component_mesh = m_meshes.create_component_for(node);
 
-    for (size_t i = 0; i < mesh.primitives.size(); ++i)
+    for (int64 i = 0; i < static_cast<int64>(mesh.primitives.size()); ++i)
     {
         const tinygltf::Primitive& primitive = mesh.primitives[i];
 
@@ -374,8 +374,8 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
         {
             const tinygltf::Accessor& index_accessor = m.accessors[primitive.indices];
 
-            p.first      = index_accessor.byteOffset;
-            p.count      = index_accessor.count;
+            p.first      = static_cast<int32>(index_accessor.byteOffset); // TODO Paul: Is int32 big enough?
+            p.count      = static_cast<int32>(index_accessor.count); // TODO Paul: Is int32 big enough?
             p.type_index = static_cast<index_type>(index_accessor.componentType);
 
             auto it = buffer_map.find(index_accessor.bufferView);
@@ -404,7 +404,7 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
 
         component_mesh.materials.push_back(mat);
 
-        uint32 vb_idx               = 0;
+        int32 vb_idx                = 0;
         component_mesh.has_normals  = false;
         component_mesh.has_tangents = false;
 
@@ -442,14 +442,14 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                     MANGO_LOG_ERROR("No buffer data for bufferView {0}!", accessor.bufferView);
                     continue;
                 }
-                ptr_size stride = accessor.ByteStride(m.bufferViews[accessor.bufferView]);
+                int32 stride = accessor.ByteStride(m.bufferViews[accessor.bufferView]);
                 MANGO_ASSERT(stride > 0, "Broken gltf model! Attribute stride is {0}!", stride);
                 p.vertex_array_object->bind_vertex_buffer(vb_idx, it->second, accessor.byteOffset, stride);
                 p.vertex_array_object->set_vertex_attribute(attrib_array, vb_idx, attribute_format, 0);
 
                 if (attrib_array == 0 && !has_indices)
                 {
-                    p.count = accessor.count;
+                    p.count = static_cast<int32>(accessor.count); // TODO Paul: Is int32 big enough?
                 }
 
                 vb_idx++;
@@ -804,7 +804,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
 static void scene_graph_update(scene_component_manager<node_component>& nodes, scene_component_manager<transform_component>& transformations)
 {
     nodes.for_each(
-        [&nodes, &transformations](node_component& c, uint32& index) {
+        [&nodes, &transformations](node_component& c, int32& index) {
             const node_component& parent_component = c;
             entity e                               = nodes.entity_at(index);
 
@@ -821,7 +821,7 @@ static void scene_graph_update(scene_component_manager<node_component>& nodes, s
 static void transformation_update(scene_component_manager<transform_component>& transformations)
 {
     transformations.for_each(
-        [&transformations](transform_component& c, uint32&) {
+        [&transformations](transform_component& c, int32&) {
             c.local_transformation_matrix = glm::translate(glm::mat4(1.0), c.position);
             c.local_transformation_matrix = glm::rotate(c.local_transformation_matrix, c.rotation.x, glm::vec3(c.rotation.y, c.rotation.z, c.rotation.w));
             c.local_transformation_matrix = glm::scale(c.local_transformation_matrix, c.scale);
@@ -834,7 +834,7 @@ static void transformation_update(scene_component_manager<transform_component>& 
 static void camera_update(scene_component_manager<camera_component>& cameras, scene_component_manager<transform_component>& transformations)
 {
     cameras.for_each(
-        [&cameras, &transformations](camera_component& c, uint32& index) {
+        [&cameras, &transformations](camera_component& c, int32& index) {
             entity e                       = cameras.entity_at(index);
             transform_component* transform = transformations.get_component_for_entity(e);
             if (transform)
@@ -861,7 +861,7 @@ static void camera_update(scene_component_manager<camera_component>& cameras, sc
 static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_manager<mesh_component>& meshes, scene_component_manager<transform_component>& transformations)
 {
     meshes.for_each(
-        [&rs, &meshes, &transformations](mesh_component& c, uint32& index) {
+        [&rs, &meshes, &transformations](mesh_component& c, int32& index) {
             entity e                       = meshes.entity_at(index);
             transform_component* transform = transformations.get_component_for_entity(e);
             if (transform)
@@ -869,7 +869,7 @@ static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_man
                 auto cmdb = rs->get_command_buffer();
                 rs->set_model_info(transform->world_transformation_matrix, c.has_normals, c.has_tangents);
 
-                for (uint32 i = 0; i < c.primitives.size(); ++i)
+                for (int64 i = 0; i < static_cast<int64>(c.primitives.size()); ++i)
                 {
                     auto m = c.materials[i];
                     auto p = c.primitives[i];
@@ -892,7 +892,7 @@ static void update_scene_boundaries(glm::mat4& trafo, tinygltf::Model& m, tinygl
     glm::vec3 to_center;
     float radius;
 
-    for (size_t j = 0; j < mesh.primitives.size(); ++j)
+    for (int64 j = 0; j < static_cast<int64>(mesh.primitives.size()); ++j)
     {
         const tinygltf::Primitive& primitive = mesh.primitives[j];
 

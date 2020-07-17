@@ -32,8 +32,13 @@ graphics_state::graphics_state()
     m_internal_state.blending.dest         = blend_factor::ZERO;
 }
 
-bool graphics_state::set_viewport(uint32 x, uint32 y, uint32 width, uint32 height)
+bool graphics_state::set_viewport(int32 x, int32 y, int32 width, int32 height)
 {
+    MANGO_ASSERT(x >= 0, "Viewport x position has to be positive!");
+    MANGO_ASSERT(y >= 0, "Viewport y position has to be positive!");
+    MANGO_ASSERT(width >= 0, "Viewport width has to be positive!");
+    MANGO_ASSERT(height >= 0, "Viewport height has to be positive!");
+
     if (x != m_internal_state.viewport.x || y != m_internal_state.viewport.y || width != m_internal_state.viewport.width || height != m_internal_state.viewport.height)
     {
         m_internal_state.viewport.x      = x;
@@ -111,8 +116,9 @@ bool graphics_state::bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer
     return true;
 }
 
-bool graphics_state::bind_texture(uint32 binding, uint32 name)
+bool graphics_state::bind_texture(int32 binding, g_uint name)
 {
+    MANGO_ASSERT(binding >= 0, "Texture binding has to be greater than 0!");
     if (binding > max_texture_bindings)
         return true;
     auto& t_name = m_internal_state.m_active_texture_bindings.at(binding);

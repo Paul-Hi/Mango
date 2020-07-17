@@ -46,7 +46,7 @@ void texture_impl::release()
     m_name = 0; // This is needed for is_created();
 }
 
-void texture_impl::set_data(format internal_format, uint32 width, uint32 height, format pixel_format, format type, const void* data)
+void texture_impl::set_data(format internal_format, int32 width, int32 height, format pixel_format, format type, const void* data)
 {
     MANGO_ASSERT(is_created(), "Texture not created!");
     MANGO_ASSERT(width > 0, "Texture width is invalid!");
@@ -64,35 +64,35 @@ void texture_impl::set_data(format internal_format, uint32 width, uint32 height,
 
     if (!m_is_cubemap)
     {
-        glTextureStorage2D(m_name, mipmaps(), gl_internal_f, width, height); // TODO Paul: Mipmap number clamp?
+        glTextureStorage2D(m_name, static_cast<g_sizei>(mipmaps()), gl_internal_f, static_cast<g_sizei>(width), static_cast<g_sizei>(height)); // TODO Paul: Mipmap number clamp?
         if (data)
         {
-            glTextureSubImage2D(m_name, 0, 0, 0, width, height, gl_pixel_f, gl_type, data);
+            glTextureSubImage2D(m_name, 0, 0, 0, static_cast<g_sizei>(width), static_cast<g_sizei>(height), gl_pixel_f, gl_type, data);
         }
-        if (mipmaps())
+        if (mipmaps() > 0)
         {
             glGenerateTextureMipmap(m_name);
         }
     }
     else
     {
-        glTextureStorage2D(m_name, mipmaps(), gl_internal_f, width, height);
+        glTextureStorage2D(m_name, static_cast<g_sizei>(mipmaps()), gl_internal_f,static_cast<g_sizei>(width), static_cast<g_sizei>(height));
         if (data)
         {
-            for (uint32 i = 0; i < 6; ++i)
-                glTextureSubImage3D(m_name, 0, 0, 0, i, width, height, 1, gl_pixel_f, gl_type, data); // TODO Paul: Is this correct?
+            for (int32 i = 0; i < 6; ++i)
+                glTextureSubImage3D(m_name, 0, 0, 0, i, static_cast<g_sizei>(width), static_cast<g_sizei>(height), 1, gl_pixel_f, gl_type, data); // TODO Paul: Is this correct?
         }
-        if (mipmaps())
+        if (mipmaps() > 0)
         {
             glGenerateTextureMipmap(m_name);
         }
     }
 }
 
-void texture_impl::bind_texture_unit(g_uint unit)
+void texture_impl::bind_texture_unit(int32 unit)
 {
     MANGO_ASSERT(is_created(), "Texture not created!");
-    glBindTextureUnit(unit, m_name);
+    glBindTextureUnit(static_cast<g_uint>(unit), m_name);
 }
 
 void texture_impl::unbind()

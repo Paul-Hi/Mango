@@ -107,8 +107,6 @@ namespace mango
     using g_intptr = GLintptr;
     //! \brief Type alias for GLsizeiptr.
     using g_sizeiptr = GLsizeiptr;
-//! \brief The maximum size of a g_sizeiptr.
-#define MAX_G_SIZE_PTR_SIZE std::numeric_limits<g_sizeiptr>::max()
     //! \brief Type alias for GLsync.
     using g_sync = GLsync;
     //! \brief Type alias for GLbitfield.
@@ -125,6 +123,8 @@ namespace mango
     using g_clampd = GLclampd;
     //! \brief Type alias for GLchar.
     using g_char = GLchar;
+    //! \brief Type alias for GLsync.
+    using g_sync = GLsync;
 
     //! \brief A boolean in the glsl std140 layout.
     struct std140_bool
@@ -267,9 +267,13 @@ namespace mango
         //! \endcond
     };
 
-    inline uint32 calculate_mip_count(uint32 width, uint32 height)
+    //! \brief Calculates the number of mipmap images for a given images size.
+    //! \param[in] width The width of the image. Has to be a positive value.
+    //! \param[in] height The height of the image. Has to be a positive value.
+    //! \return The number of mipmaps that need to be gennerated.
+    inline int32 calculate_mip_count(int32 width, int32 height)
     {
-        uint32 levels = 1;
+        int32 levels = 1;
         while ((width | height) >> levels)
         {
             ++levels;
@@ -660,7 +664,7 @@ namespace mango
     //! \brief Retrieves the number of machine units, or size in bytes for a format.
     //! \param[in] internal_format The format to get the byte size for.
     //! \return The size in bytes.
-    inline g_intptr number_of_basic_machine_units(const format& internal_format)
+    inline int64 number_of_basic_machine_units(const format& internal_format)
     {
         switch (internal_format)
         {

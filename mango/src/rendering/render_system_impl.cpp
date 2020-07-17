@@ -70,9 +70,13 @@ void render_system_impl::finish_render()
     m_current_render_system->finish_render();
 }
 
-void render_system_impl::set_viewport(uint32 x, uint32 y, uint32 width, uint32 height)
+void render_system_impl::set_viewport(int32 x, int32 y, int32 width, int32 height)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    MANGO_ASSERT(x >= 0, "Viewport x position has to be positive!");
+    MANGO_ASSERT(y >= 0, "Viewport y position has to be positive!");
+    MANGO_ASSERT(width >= 0, "Viewport width has to be positive!");
+    MANGO_ASSERT(height >= 0, "Viewport height has to be positive!");
     m_current_render_system->set_viewport(x, y, width, height);
 }
 
@@ -82,9 +86,12 @@ void render_system_impl::set_model_info(const glm::mat4& model_matrix, bool has_
     m_current_render_system->set_model_info(model_matrix, has_normals, has_tangents);
 }
 
-void render_system_impl::draw_mesh(const material_ptr& mat, primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count)
+void render_system_impl::draw_mesh(const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
+    MANGO_ASSERT(count >= 0, "The index count has to be greater than 0!");
+    MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
     m_current_render_system->draw_mesh(mat, topology, first, count, type, instance_count);
 }
 

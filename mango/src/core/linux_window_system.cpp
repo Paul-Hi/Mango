@@ -30,8 +30,8 @@ bool linux_window_system::create()
         return false;
     }
 
-    uint32 width      = m_window_configuration.get_width();
-    uint32 height     = m_window_configuration.get_height();
+    int32 width       = m_window_configuration.get_width();
+    int32 height      = m_window_configuration.get_height();
     const char* title = m_window_configuration.get_title();
 
     // Hints valid for all windows
@@ -47,8 +47,8 @@ bool linux_window_system::create()
     m_platform_data->native_window_handle = static_cast<void*>(window);
 
     const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    uint32 pos_x            = mode->width / 2 - width / 2;
-    uint32 pos_y            = mode->height / 2 - height / 2;
+    int32 pos_x             = mode->width / 2 - width / 2;
+    int32 pos_y             = mode->height / 2 - height / 2;
     glfwSetWindowPos(window, pos_x, pos_y);
 
     MANGO_LOG_DEBUG("Window Position is ({0}, {1})", pos_x, pos_y);
@@ -63,7 +63,7 @@ void linux_window_system::swap_buffers()
     glfwSwapBuffers(static_cast<GLFWwindow*>(m_platform_data->native_window_handle));
 }
 
-void linux_window_system::set_size(uint32 width, uint32 height)
+void linux_window_system::set_size(int32 width, int32 height)
 {
     MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
     m_window_configuration.set_width(width);
@@ -78,8 +78,8 @@ void linux_window_system::configure(const window_configuration& configuration)
 
     m_window_configuration = configuration;
 
-    uint32 width      = m_window_configuration.get_width();
-    uint32 height     = m_window_configuration.get_height();
+    int32 width       = m_window_configuration.get_width();
+    int32 height      = m_window_configuration.get_height();
     const char* title = m_window_configuration.get_title();
 
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -93,8 +93,8 @@ void linux_window_system::configure(const window_configuration& configuration)
     m_platform_data->native_window_handle = static_cast<void*>(window);
 
     const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    uint32 pos_x            = mode->width / 2 - width / 2;
-    uint32 pos_y            = mode->height / 2 - height / 2;
+    int32 pos_x             = mode->width / 2 - width / 2;
+    int32 pos_y             = mode->height / 2 - height / 2;
     glfwSetWindowPos(window, pos_x, pos_y);
 
     MANGO_LOG_DEBUG("Window Position is ({0}, {1})", pos_x, pos_y);

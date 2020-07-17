@@ -109,7 +109,7 @@ namespace mango
         //! \param[in] argc Number of command line arguments \a argv.
         //! \param[in] argv Command line arguments.
         //! \return 0 on success, else 1.
-        uint32 run(uint32 argc = 0, char** argv = nullptr);
+        int run(int argc = 0, char** argv = nullptr);
 
         //! \brief Calls the application specific update routine.
         //! \details This has to be overriden by the inheriting application.

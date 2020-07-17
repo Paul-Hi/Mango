@@ -24,7 +24,7 @@ namespace mango
 
         //! \brief A list of \a uniform information filled after compiling.
         //! \details Maps locations to \a uniforms.
-        std::unordered_map<g_uint, uniform> listed_data;
+        std::unordered_map<int32, uniform> listed_data;
     };
 
     //! \brief A program containing compiled and linked shaders.

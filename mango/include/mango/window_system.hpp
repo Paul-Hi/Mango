@@ -7,6 +7,7 @@
 #ifndef MANGO_WINDOW_SYSTEM_HPP
 #define MANGO_WINDOW_SYSTEM_HPP
 
+#include <mango/assert.hpp>
 #include <mango/system.hpp>
 #include <mango/types.hpp>
 
@@ -26,30 +27,34 @@ namespace mango
         }
 
         //! \brief Constructs a \a window_configuration with specific values.
-        //! \param[in] width The configurated width for the \a window_system to create a window.
-        //! \param[in] height The configurated height for the \a window_system to create a window.
+        //! \param[in] width The configurated width for the \a window_system to create a window. Has to be a positive value.
+        //! \param[in] height The configurated height for the \a window_system to create a window. Has to be a positive value.
         //! \param[in] title The configurated title for the \a window_system to create a window.
-        window_configuration(uint32 width, uint32 height, const char* title)
+        window_configuration(int32 width, int32 height, const char* title)
             : m_width(width)
             , m_height(height)
             , m_title(title)
         {
+            MANGO_ASSERT(width > 0, "Invalid window width!");
+            MANGO_ASSERT(height > 0, "Invalid window height!");
         }
 
         //! \brief Sets or changes the width in the \a window_configuration.
-        //! \param[in] width The configurated width for the \a window_system to create a window.
+        //! \param[in] width The configurated width for the \a window_system to create a window. Has to be a positive value.
         //! \return A reference to the modified \a window_configuration.
-        inline window_configuration& set_width(uint32 width)
+        inline window_configuration& set_width(int32 width)
         {
+            MANGO_ASSERT(width > 0, "Invalid window width!");
             m_width = width;
             return *this;
         }
 
         //! \brief Sets or changes the height in the \a window_configuration.
-        //! \param[in] height The configurated height for the \a window_system to create a window.
+        //! \param[in] height The configurated height for the \a window_system to create a window. Has to be a positive value.
         //! \return A reference to the modified \a window_configuration.
-        inline window_configuration& set_height(uint32 height)
+        inline window_configuration& set_height(int32 height)
         {
+            MANGO_ASSERT(height > 0, "Invalid window height!");
             m_height = height;
             return *this;
         }
@@ -65,14 +70,14 @@ namespace mango
 
         //! \brief Retrieves and returns the width of the \a window_configuration.
         //! \return The current configurated width.
-        inline uint32 get_width()
+        inline int32 get_width()
         {
             return m_width;
         }
 
         //! \brief Retrieves and returns the height of the \a window_configuration.
         //! \return The current configurated height.
-        inline uint32 get_height()
+        inline int32 get_height()
         {
             return m_height;
         }
@@ -86,9 +91,9 @@ namespace mango
 
       private:
         //! \brief The configurated width of the \a window_configuration.
-        uint32 m_width;
+        int32 m_width;
         //! \brief The configurated height of the \a window_configuration.
-        uint32 m_height;
+        int32 m_height;
         //! \brief The configurated title of the \a window_configuration.
         const char* m_title;
     };
@@ -106,14 +111,14 @@ namespace mango
 
         //! \brief Returns the width of the \a window in pixels.
         //! \return Width of the \a window in pixels.
-        virtual uint32 get_width() = 0;
+        virtual int32 get_width() = 0;
         //! \brief Returns the height of the \a window in pixels.
         //! \return Height of the \a window in pixels.
-        virtual uint32 get_height() = 0;
+        virtual int32 get_height() = 0;
         //! \brief Sets the size of the \a window in pixels.
-        //! \param[in] width of the \a window in pixels.
-        //! \param[in] height of the \a window in pixels.
-        virtual void set_size(uint32 width, uint32 height) = 0;
+        //! \param[in] width of the \a window in pixels. Has to be a positive value.
+        //! \param[in] height of the \a window in pixels. Has to be a positive value.
+        virtual void set_size(int32 width, int32 height) = 0;
 
       protected:
         virtual bool create()         = 0;

@@ -20,14 +20,14 @@ namespace mango
         buffer_impl(const buffer_configuration& configuration);
         ~buffer_impl();
 
-        inline ptr_size byte_length() override
+        inline int64 byte_length() override
         {
             return m_size;
         }
 
-        void set_data(format internal_format, g_intptr offset, g_sizeiptr size, format pixel_format, format type, const void* data) override;
-        void bind(buffer_target target, g_uint index, g_intptr offset, g_sizeiptr size) override;
-        void* map(g_intptr offset, g_sizeiptr length, buffer_access access) override;
+        void set_data(format internal_format, int64 offset, int64 size, format pixel_format, format type, const void* data) override;
+        void bind(buffer_target target, int32 index, int64 offset, int64 size) override;
+        void* map(int64 offset, int64 length, buffer_access access) override;
         void unmap() override;
 
         void lock() override;
@@ -38,7 +38,7 @@ namespace mango
         void* m_persistent_data;
 
         //! \brief The size of the memory.
-        ptr_size m_size;
+        int64 m_size;
 
         //! \brief The target of the \a buffer. Used as a hint and fallback.
         g_enum m_target;
@@ -47,7 +47,7 @@ namespace mango
         g_bitfield m_access_flags;
 
         //! \brief Object used for cpu <-> gpu sync.
-        GLsync m_sync;
+        g_sync m_sync;
     };
 } // namespace mango
 

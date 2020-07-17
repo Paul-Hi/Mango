@@ -22,7 +22,16 @@ namespace mango
         }
 
         //! \brief Constructs a new \a framebuffer_configuration.
-        framebuffer_configuration(uint32 width, uint32 height, texture_ptr color_attachment0, texture_ptr color_attachment1, texture_ptr color_attachment2, texture_ptr color_attachment3, texture_ptr depth_attachment,
+        //! \param[in] width The width for the \a framebuffer to create. Has to be a positive value.
+        //! \param[in] height The height for the \a framebuffer to create. Has to be a positive value.
+        //! \param[in] color_attachment0 The \a texture_ptr to the \a texture bound as the \a framebuffers color attachment at position 0.
+        //! \param[in] color_attachment1 The \a texture_ptr to the \a texture bound as the \a framebuffers color attachment at position 1.
+        //! \param[in] color_attachment2 The \a texture_ptr to the \a texture bound as the \a framebuffers color attachment at position 2.
+        //! \param[in] color_attachment3 The \a texture_ptr to the \a texture bound as the \a framebuffers color attachment at position 3.
+        //! \param[in] depth_attachment The \a texture_ptr to the \a texture bound as the \a framebuffers depth attachment.
+        //! \param[in] stencil_attachment The \a texture_ptr to the \a texture bound as the \a framebuffers stencil attachment.
+        //! \param[in] depth_stencil_attachment The \a texture_ptr to the \a texture bound as the \a framebuffers depth stencil attachment.
+        framebuffer_configuration(int32 width, int32 height, texture_ptr color_attachment0, texture_ptr color_attachment1, texture_ptr color_attachment2, texture_ptr color_attachment3, texture_ptr depth_attachment,
                                   texture_ptr stencil_attachment, texture_ptr depth_stencil_attachment)
             : graphics_configuration()
             , m_width(width)
@@ -38,9 +47,9 @@ namespace mango
         }
 
         //! \brief The width of the \a framebuffer.
-        uint32 m_width;
+        int32 m_width;
         //! \brief The height of the \a framebuffer.
-        uint32 m_height;
+        int32 m_height;
         //! \brief The first color attachment.
         texture_ptr m_color_attachment0;
         //! \brief The second color attachment.
@@ -79,16 +88,16 @@ namespace mango
 
         //! \brief Returns the width of the \a framebuffer in pixels.
         //! \return Width of the \a framebuffer in pixels.
-        virtual uint32 get_width() = 0;
+        virtual int32 get_width() = 0;
 
         //! \brief Returns the height of the \a framebuffer in pixels.
         //! \return Height of the \a framebuffer in pixels.
-        virtual uint32 get_height() = 0;
+        virtual int32 get_height() = 0;
 
         //! \brief Resizes the \a framebuffer and all its attachments.
-        //! \param[in] width The new width of the \a framebuffer in pixels.
-        //! \param[in] height The new height of the \a framebuffer in pixels.
-        virtual void resize(uint32 width, uint32 height) = 0;
+        //! \param[in] width The new width of the \a framebuffer in pixels. Has to be a positive value.
+        //! \param[in] height The new height of the \a framebuffer in pixels. Has to be a positive value.
+        virtual void resize(int32 width, int32 height) = 0;
 
         //! \brief Returns a specific attachment of the \a framebuffer.
         //! \param[in] attachment The specificiation of the attachment \a texture to retrieve.

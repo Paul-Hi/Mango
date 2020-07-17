@@ -28,6 +28,9 @@ namespace mango
     //! \brief Type alias for a 64 bit integer.
     using int64 = ::int64_t;
 
+//! \brief The maximum size of a int64.
+#define MAX_INT64 std::numeric_limits<int64>::max()
+
     //! \brief Type alias for an 8 bit unsigned integer.
     using uint8 = ::uint8_t;
     //! \brief Type alias for a 16 bit unsigned integer.

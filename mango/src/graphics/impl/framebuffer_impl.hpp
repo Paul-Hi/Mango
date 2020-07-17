@@ -20,17 +20,17 @@ namespace mango
         framebuffer_impl(const framebuffer_configuration& configuration);
         ~framebuffer_impl();
 
-        inline uint32 get_width() override
+        inline int32 get_width() override
         {
             return m_width;
         }
 
-        inline uint32 get_height() override
+        inline int32 get_height() override
         {
             return m_width;
         }
 
-        void resize(uint32 width, uint32 height) override;
+        void resize(int32 width, int32 height) override;
 
         texture_ptr get_attachment(framebuffer_attachment attachment) override;
 
@@ -39,9 +39,9 @@ namespace mango
 
       private:
         //! \brief The width of the \a framebuffer.
-        uint32 m_width;
+        int32 m_width;
         //! \brief The height of the \a framebuffer.
-        uint32 m_height;
+        int32 m_height;
 
         //! \brief The attachments set as draw buffers.
         std::vector<g_enum> m_draw_buffers;

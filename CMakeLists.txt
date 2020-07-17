@@ -24,6 +24,7 @@ endif(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 
 option(MANGO_BUILD_DOC   "Build documentation" ON)
 option(MANGO_BUILD_TESTS "Build Unit Tests" OFF)
+option(MANGO_ENABLE_HARD_WARNINGS "Enables some compiler parameters. This should not be enabled, Mango will NOT build." OFF)
 
 set(VERSION_MAJOR 0 CACHE STRING "Project major version number.")
 set(VERSION_MINOR 0 CACHE STRING "Project minor version number.")

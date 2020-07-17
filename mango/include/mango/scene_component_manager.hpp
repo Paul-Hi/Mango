@@ -61,7 +61,7 @@ namespace mango
                 MANGO_LOG_DEBUG("Entity does not have a component of type {0}!", type_name<component>::get());
                 return;
             }
-            const size_t index   = it->second;
+            const int32 index   = it->second;
             const entity indexed = m_entities.at(index);
             MANGO_LOG_DEBUG("e == indexed is {0}", e == indexed);
 
@@ -88,13 +88,13 @@ namespace mango
                 MANGO_LOG_DEBUG("Entity does not have a component of type {0}!", type_name<component>::get());
                 return;
             }
-            const size_t index   = it->second;
+            const int32 index   = it->second;
             const entity indexed = m_entities.at(index);
             MANGO_LOG_DEBUG("e == indexed is {0}", e == indexed);
 
             if (index < end - 1)
             {
-                for (uint32 i = index + 1; i < end; ++i)
+                for (int32 i = index + 1; i < end; ++i)
                 {
                     m_components.at(i - 1)            = m_components.at(i);
                     m_entities.at(i - 1)              = m_entities.at(i);
@@ -123,27 +123,27 @@ namespace mango
         }
 
         //! \brief Retrieves a \a component from the array via an index.
-        //! \param[in] index The index in the array.
+        //! \param[in] index The index in the array. Has to be a positive value.
         //! \return A reference to the \a component at \a index.
-        component& operator[](size_t index)
+        component& operator[](int32 index)
         {
             MANGO_ASSERT(index < end, "Index not valid!");
             return m_components.at(index);
         }
 
         //! \brief Retrieves a \a component from the array via an index.
-        //! \param[in] index The index in the array.
+        //! \param[in] index The index in the array. Has to be a positive value.
         //! \return A reference to the \a component at \a index.
-        inline component& component_at(size_t index)
+        inline component& component_at(int32 index)
         {
             MANGO_ASSERT(index < end, "Index not valid!");
             return m_components.at(index);
         }
 
         //! \brief Retrieves a \a entity from the array via an index.
-        //! \param[in] index The index in the array.
+        //! \param[in] index The index in the array. Has to be a positive value.
         //! \return A reference to the \a entity at \a index.
-        inline entity entity_at(size_t index)
+        inline entity entity_at(int32 index)
         {
             MANGO_ASSERT(index < end, "Index not valid!");
             return m_entities.at(index);
@@ -152,28 +152,26 @@ namespace mango
         //! \brief Retrieves the array size.
         //! \details This means the size of the internal array used by the \a scene_component_manager.
         //! \return The size of the array.
-        inline size_t size() const
+        inline ptr_size size() const
         {
-            return end;
+            return static_cast<ptr_size>(end);
         }
 
         //! \brief Iterates over each \a component and call \a lambda on it.
         //! \param[in] lambda The lambda function to call on each \a component.
         //! \param[in] backwards Specifies if the iteration should be from the last to the first element, or from the first to the last.
-        inline void for_each(std::function<void(component& c, uint32& index)> lambda, bool backwards)
+        inline void for_each(std::function<void(component& c, int32& index)> lambda, bool backwards)
         {
             if (backwards)
             {
-                for (uint32 i = size() - 1; i > 0; --i)
+                for (int32 i = static_cast<int32>(size()) - 1; i >= 0; --i)
                 {
                     lambda(m_components.at(i), i);
                 }
-                uint32 z = 0;
-                lambda(m_components.at(z), z);
             }
             else
             {
-                for (uint32 i = 0; i < size(); ++i)
+                for (int32 i = 0; i < static_cast<int32>(size()); ++i)
                 {
                     lambda(m_components.at(i), i);
                 }
@@ -184,10 +182,10 @@ namespace mango
         //! \details This does also move other \a components to prevent hierarchy destruction.
         //! \param[in] from The index where the \a component is and should be moved away.
         //! \param[in] to The index where the \a componentshould be moved to.
-        inline void move(size_t from, size_t to)
+        inline void move(int32 from, int32 to)
         {
-            MANGO_ASSERT(from < size(), "Index from not valid!");
-            MANGO_ASSERT(to < size(), "Index to not valid!");
+            MANGO_ASSERT(from < static_cast<int32>(size()), "Index from not valid!");
+            MANGO_ASSERT(to < static_cast<int32>(size()), "Index to not valid!");
 
             if (from == to)
                 return;
@@ -195,10 +193,10 @@ namespace mango
             component c = std::move(m_components.at(from));
             entity e    = m_entities.at(from);
 
-            const size_t d = from < to ? 1 : -1;
-            for (size_t i = from; i != to; i += d)
+            const int32 d = from < to ? 1 : -1;
+            for (int32 i = from; i != to; i += d)
             {
-                const size_t next             = i + d;
+                const int32 next              = i + d;
                 m_components.at(i)            = std::move(m_components.at(next));
                 m_entities.at(i)              = m_entities.at(next);
                 m_lookup.at(m_entities.at(i)) = i;
@@ -215,15 +213,15 @@ namespace mango
         //! \brief The list of \a entities.
         std::array<entity, max_entities + 1> m_entities;
         //! \brief The current number of entries. Also the next free index.
-        size_t end;
+        int32 end;
         //! \brief A mapping from \a entities to indices.
-        std::unordered_map<entity, size_t> m_lookup;
+        std::unordered_map<entity, int32> m_lookup;
 
         //! \brief Asserts the internal state of the \a scene_component_manager.
         inline void assert_state()
         {
-            MANGO_ASSERT(end <= max_entities, "Too many entities in the system!");
-            MANGO_ASSERT(m_lookup.size() == end, "Number of lookups in table != Number of entities!");
+            MANGO_ASSERT(end <= static_cast<int32>(max_entities), "Too many entities in the system!");
+            MANGO_ASSERT(static_cast<int32>(m_lookup.size()) == end, "Number of lookups in table != Number of entities!");
         }
     };
 } // namespace mango

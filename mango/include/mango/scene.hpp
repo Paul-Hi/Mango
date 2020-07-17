@@ -160,8 +160,8 @@ namespace mango
         //! \brief Scene boundaries.
         struct scene_bounds
         {
-            glm::vec3 min; //!< Minimum geometry values.
-            glm::vec3 max; //!< Maximum geometry values.
+            glm::vec3 min;    //!< Minimum geometry values.
+            glm::vec3 max;    //!< Maximum geometry values.
         } m_scene_boundaries; //!< The boundaries of the current scene.
     };
 

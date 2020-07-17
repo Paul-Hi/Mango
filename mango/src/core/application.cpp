@@ -35,7 +35,7 @@ application::~application()
     m_context->destroy();
 }
 
-uint32 application::run(uint32 t_argc, char** t_argv)
+int32 application::run(int32 t_argc, char** t_argv)
 {
     MANGO_UNUSED(t_argc);
     MANGO_UNUSED(t_argv);
@@ -56,7 +56,7 @@ uint32 application::run(uint32 t_argc, char** t_argv)
         ws->poll_events();
         should_close = ws->should_close();
 
-        float frame_time = static_cast<float>(m_frame_timer->elapsedMicroseconds().count()) * 0.000001f; // We need the resolution.
+        float frame_time = static_cast<float>(m_frame_timer->elapsedMicroseconds().count()) * 0.000001f; // We need the resolution. TODO Paul: We could wrap this with some kind of 'high res clock'. 
         m_frame_timer->restart();
 
         // update

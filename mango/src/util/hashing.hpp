@@ -19,13 +19,13 @@ namespace mango
     class fnv1a
     {
         //! \brief Internal hash state to chain calls.
-        std::size_t m_state = 0x811c9dc5;
+        ptr_size m_state = 0x811c9dc5;
 
       public:
         //! \brief Hashes \a key and attaches it to the state.
         //! \param[in] key A pointer to the value to hash.
         //! \param[in] length The length of \a key in bytes.
-        void operator()(void const* key, std::size_t length) noexcept
+        void operator()(void const* key, ptr_size length) noexcept
         {
             unsigned char const* p       = static_cast<unsigned char const*>(key);
             unsigned char const* const e = p + length;
@@ -35,7 +35,7 @@ namespace mango
 
         //! \brief Returns the state holding the chained hashes.
         //! \return The state which is a hash value for all added hash calls.
-        explicit operator std::size_t() noexcept
+        explicit operator ptr_size() noexcept
         {
             return m_state;
         }
@@ -69,7 +69,7 @@ namespace mango
         //! \brief Returns the hash for a given \a key.
         //! \param[in] key The value to hash.
         //! \return The hash value for the \a key.
-        std::size_t operator()(const T& key) const
+        ptr_size operator()(const T& key) const
         {
             return key.hash_code();
         }
@@ -78,7 +78,7 @@ namespace mango
     //! \brief Combines two hash values and 'adds' them to the first one.
     //! \param[in,out] h0 The first hash value. \a h1 will be combined with \a h0 and \a h0 then holds the result.
     //! \param[in] h1 The second hash value.
-    inline void hash_combine(std::size_t& h0, std::size_t h1)
+    inline void hash_combine(ptr_size& h0, ptr_size h1)
     {
         h0 ^= h1 + 0x9e3779b9 + (h0 << 6) + (h0 >> 2);
     }

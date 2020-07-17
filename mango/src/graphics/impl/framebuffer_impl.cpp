@@ -72,8 +72,10 @@ framebuffer_impl::~framebuffer_impl()
     glDeleteFramebuffers(1, &m_name);
 }
 
-void framebuffer_impl::resize(uint32 width, uint32 height)
+void framebuffer_impl::resize(int32 width, int32 height)
 {
+    MANGO_ASSERT(width > 0, "Invalid framebuffer width!");
+    MANGO_ASSERT(height > 0, "Invalid framebuffer height!");
     MANGO_ASSERT(is_created(), "Framebuffer not created!");
     m_width  = width;
     m_height = height;

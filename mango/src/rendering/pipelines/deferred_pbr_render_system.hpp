@@ -26,13 +26,13 @@ namespace mango
         virtual void configure(const render_configuration& configuration) override;
         virtual void begin_render() override;
         virtual void finish_render() override;
-        virtual void set_viewport(uint32 x, uint32 y, uint32 width, uint32 height) override;
+        virtual void set_viewport(int32 x, int32 y, int32 width, int32 height) override;
         virtual void update(float dt) override;
         virtual void destroy() override;
         virtual render_pipeline get_base_render_pipeline() override;
 
         void set_model_info(const glm::mat4& model_matrix, bool has_normals, bool has_tangents) override;
-        void draw_mesh(const material_ptr& mat, primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count) override;
+        void draw_mesh(const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
         void set_view_projection_matrix(const glm::mat4& view_projection) override;
         void set_environment_texture(const texture_ptr& hdr_texture, float render_level) override;
 
@@ -50,8 +50,8 @@ namespace mango
 
         //! \brief The prealocated size for all uniforms.
         //! \details The buffer is filled every frame. 1 MiB should be enough for now.
-        const uint32 uniform_buffer_size = 1048576;
-        uint32 m_frame_uniform_offset;    //!< The current offset in the uniform memory to write to.
+        const int32 uniform_buffer_size = 1048576;
+        int32 m_frame_uniform_offset;    //!< The current offset in the uniform memory to write to.
         g_int m_uniform_buffer_alignment; //!< The alignment of the structures in the uniform buffer. Gets queried from OpenGL.
         //! \brief The mapped memory to be filled with all uniforms blocks per frame.
         void* m_mapped_uniform_memory;

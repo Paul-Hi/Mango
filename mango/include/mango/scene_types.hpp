@@ -18,7 +18,7 @@ namespace mango
     struct material;
     class texture;
 
-    //! \brief An \a entity. Just a integer used as an id.
+    //! \brief An \a entity. Just a positive integer used as an id.
     using entity = uint32;
     //! \brief Invalid \a entity.
     const entity invalid_entity = 0;
@@ -55,10 +55,10 @@ namespace mango
     {
         shared_ptr<vertex_array> vertex_array_object; //!< The vertex array object of the primitive.
         primitive_topology topology;                  //!< Topology of the primitive data.
-        uint32 first;                                 //!< First index.
-        uint32 count;                                 //!< Number of elements/vertices.
+        int32 first;                                  //!< First index.
+        int32 count;                                  //!< Number of elements/vertices.
         index_type type_index;                        //!< The type of the values in the index buffer.
-        uint32 instance_count;                        //!< Number of instances. Usually 1.
+        int32 instance_count;                         //!< Number of instances. Usually 1.
     };
 
     //! \brief Component used for materials.

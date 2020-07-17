@@ -26,11 +26,11 @@ namespace mango
         //! \brief The \a images data.
         void* data;
         //! \brief The loaded width of this \a image.
-        uint32 width;
+        int32 width;
         //! \brief The loaded height of this \a image.
-        uint32 height;
+        int32 height;
         //! \brief The loaded number of components of this \a image.
-        uint32 number_components;
+        int32 number_components;
 
         //! \brief The \a image_configuration of this \a image.
         image_configuration configuration;

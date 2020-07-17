@@ -22,15 +22,15 @@ namespace mango
         bool create() override;
         void configure(const window_configuration& configuration) override;
 
-        inline uint32 get_width() override
+        inline int32 get_width() override
         {
             return m_window_configuration.get_width();
         }
-        inline uint32 get_height() override
+        inline int32 get_height() override
         {
             return m_window_configuration.get_height();
         }
-        void set_size(uint32 width, uint32 height) override;
+        void set_size(int32 width, int32 height) override;
 
         void swap_buffers() override;
         void update(float dt) override;

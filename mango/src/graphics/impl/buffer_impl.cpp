@@ -72,16 +72,16 @@ buffer_impl::~buffer_impl()
     glDeleteBuffers(1, &m_name);
 }
 
-void buffer_impl::set_data(format internal_format, g_intptr offset, g_sizeiptr size, format pixel_format, format type, const void* data)
+void buffer_impl::set_data(format internal_format, int64 offset, int64 size, format pixel_format, format type, const void* data)
 {
-    g_sizeiptr buffer_size = static_cast<g_sizeiptr>(m_size);
-    size                   = (size == MAX_G_SIZE_PTR_SIZE) ? m_size - offset : size;
+    size = (size == MAX_INT64) ? m_size - offset : size;
+    MANGO_ASSERT(size > 0, "Negative size is not possible!");
     MANGO_ASSERT(is_created(), "Buffer not created!");
     MANGO_ASSERT((m_access_flags & GL_DYNAMIC_STORAGE_BIT), "Can not set the data! Buffer is not created with dynamic storage!");
-    MANGO_ASSERT(offset < buffer_size, "Can not set data outside the buffer!");
+    MANGO_ASSERT(offset < m_size, "Can not set data outside the buffer!");
     MANGO_ASSERT(offset >= 0, "Can not set data outside the buffer! Negative offset!");
-    MANGO_ASSERT(offset + size <= buffer_size, "Can not set data outside the buffer!");
-    g_intptr multiple = number_of_basic_machine_units(internal_format);
+    MANGO_ASSERT(offset + size <= m_size, "Can not set data outside the buffer!");
+    int64 multiple = number_of_basic_machine_units(internal_format);
     MANGO_ASSERT(offset % multiple == 0 && size % multiple == 0, "Alignment is not valid!");
     MANGO_ASSERT(nullptr != data, "Data is null!");
 
@@ -89,10 +89,10 @@ void buffer_impl::set_data(format internal_format, g_intptr offset, g_sizeiptr s
     g_enum gl_pixel_f    = static_cast<g_enum>(pixel_format);
     g_enum gl_type       = static_cast<g_enum>(type);
 
-    glClearNamedBufferSubData(m_name, gl_internal_f, offset, size, gl_pixel_f, gl_type, data);
+    glClearNamedBufferSubData(m_name, gl_internal_f, static_cast<g_intptr>(offset), static_cast<g_sizeiptr>(size), gl_pixel_f, gl_type, data);
 }
 
-void buffer_impl::bind(buffer_target target, g_uint index, g_intptr offset, g_sizeiptr size)
+void buffer_impl::bind(buffer_target target, int32 index, int64 offset, int64 size)
 {
     g_enum gl_target = GL_ARRAY_BUFFER; // Use this as default.
 
@@ -118,27 +118,27 @@ void buffer_impl::bind(buffer_target target, g_uint index, g_intptr offset, g_si
         MANGO_LOG_WARN("Target changed in bind! This may lead to errors!");
     }
 
-    g_sizeiptr buffer_size = static_cast<g_sizeiptr>(m_size);
+    MANGO_ASSERT(index >= 0, "Cannot bind buffer with negative index!");
     MANGO_ASSERT(is_created(), "Buffer not created!");
-    MANGO_ASSERT(offset < buffer_size, "Can not bind data outside the buffer!");
+    MANGO_ASSERT(offset < m_size, "Can not bind data outside the buffer!");
     MANGO_ASSERT(offset >= 0, "Can not bind data outside the buffer! Negative offset!");
 
-    size = (size == MAX_G_SIZE_PTR_SIZE) ? m_size - offset : size;
-    MANGO_ASSERT(offset + size <= buffer_size, "Can not bind data outside the buffer!");
+    size = (size == MAX_INT64) ? m_size - offset : size;
+    MANGO_ASSERT(size > 0, "Negative size is not possible!");
+    MANGO_ASSERT(offset + size <= m_size, "Can not bind data outside the buffer!");
 
-    glBindBufferRange(gl_target, index, m_name, offset, size);
+    glBindBufferRange(gl_target, static_cast<g_uint>(index), m_name, static_cast<g_intptr>(offset), static_cast<g_sizeiptr>(size));
 }
 
-void* buffer_impl::map(g_intptr offset, g_sizeiptr length, buffer_access)
+void* buffer_impl::map(int64 offset, int64 length, buffer_access)
 {
-    g_sizeiptr buffer_size = static_cast<g_sizeiptr>(m_size);
     MANGO_ASSERT(is_created(), "Buffer not created!");
-    MANGO_ASSERT(offset < buffer_size, "Can not map data outside the buffer!");
+    MANGO_ASSERT(offset < m_size, "Can not map data outside the buffer!");
     MANGO_ASSERT(offset >= 0, "Can not map data outside the buffer! Negative offset!");
-    MANGO_ASSERT(offset + length <= buffer_size, "Can not map data outside the buffer!");
+    MANGO_ASSERT(offset + length <= m_size, "Can not map data outside the buffer!");
     MANGO_ASSERT(m_persistent_data, "Can not map the buffer, maybe the wrong access flags where set!");
 
-    uint8* mapped_data = static_cast<uint8*>(m_persistent_data);
+    int8* mapped_data = static_cast<int8*>(m_persistent_data);
     mapped_data += offset;
 
     return static_cast<void*>(mapped_data);

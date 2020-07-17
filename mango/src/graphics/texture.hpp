@@ -22,7 +22,14 @@ namespace mango
         }
 
         //! \brief Constructs a new \a texture_configuration.
-        texture_configuration(texture_parameter min_filter, texture_parameter mag_filter, texture_parameter wrap_s, texture_parameter wrap_t, bool standard_color_space, uint32 generate_mipmaps,
+        //! \param[in] min_filter The filter \a texture_parameter of the \a texture for minification.
+        //! \param[in] mag_filter The filter \a texture_parameter of the \a texture for magnification.
+        //! \param[in] wrap_s The \a texture_parameter for texture wrapping in s direction.
+        //! \param[in] wrap_t The \a texture_parameter for texture wrapping in t direction.
+        //! \param[in] standard_color_space True if \a texture is SRGB, else false.
+        //! \param[in] generate_mipmaps The number of mipmaps of the \a texture. Has to be greater than 1.
+        //! \param[in] is_cubemap True if \a texture is cubemap, else false.
+        texture_configuration(texture_parameter min_filter, texture_parameter mag_filter, texture_parameter wrap_s, texture_parameter wrap_t, bool standard_color_space, int32 generate_mipmaps,
                               bool is_cubemap)
             : graphics_configuration()
             , m_texture_min_filter(min_filter)
@@ -35,9 +42,9 @@ namespace mango
         {
         }
 
-        //! \brief The filter to use when the texture size gets smaller.
+        //! \brief The filter to use for \a texture minification.
         texture_parameter m_texture_min_filter = texture_parameter::FILTER_LINEAR;
-        //! \brief The filter to use when the texture size gets bigger.
+        //! \brief The filter to use for \a texture magnification.
         texture_parameter m_texture_mag_filter = texture_parameter::FILTER_LINEAR;
         //! \brief The wrapping procedure in s direction for texture coordinates not in [0, 1].
         texture_parameter m_texture_wrap_s = texture_parameter::WRAP_REPEAT;
@@ -46,8 +53,8 @@ namespace mango
         //! \brief Specifies if the \a texture should be interpreted as SRGB etc.
         bool m_is_standard_color_space = true;
         //! \brief Specifies if a mipchain should be generated.
-        uint32 m_generate_mipmaps = 1;
-        //! \brief Specifies if the texture is a cubemap.
+        int32 m_generate_mipmaps = 1;
+        //! \brief Specifies if the \a texture is a cubemap.
         bool m_is_cubemap = false;
 
         // We could need more parameters:
@@ -73,15 +80,15 @@ namespace mango
 
         //! \brief Returns the width of the \a texture in pixels.
         //! \return Width of the \a texture in pixels.
-        virtual uint32 get_width() = 0;
+        virtual int32 get_width() = 0;
 
         //! \brief Returns the height of the \a texture in pixels.
         //! \return Height of the \a texture in pixels.
-        virtual uint32 get_height() = 0;
+        virtual int32 get_height() = 0;
 
         //! \brief Returns the number mipmap levels of the \a texture.
         //! \return 0 if the \a texture has no mipchain, else number of levels.
-        virtual uint32 mipmaps() = 0;
+        virtual int32 mipmaps() = 0;
         //! \brief Returns standard color space specification of the \a texture.
         //! \return True if the \a texture is in standard color space, else false.
         virtual bool is_in_standard_color_space() = 0;
@@ -113,18 +120,20 @@ namespace mango
         //! \brief Sets the data of the \a texture.
         //! \param[in] internal_format The internal \a texture \a format to use. Has to be \a R8, \a R16, \a R16F, \a R32F, \a R8I, \a R16I, \a R32I, \a R8UI, \a R16UI, \a R32UI, \a RG8, \a RG16,
         //! \a RG16F, \a RG32F, \a RG8I, \a RG16I, \a RG32I, \a RG8UI, \a RG16UI, \a RG32UI, \a RGB32F, \a RGB32I, \a RGB32UI, \a RGBA8, \a RGBA16, \a RGBA16F, \a RGBA32F, \a RGBA8I, \a RGBA16I,
-        //! \a RGBA32I, \a RGBA8UI, \a RGBA16UI, \a RGBA32UI, \a RGB4, \a RGB5, \a RGB8, \a RGB10, \a RGB12, \a RGB16, \a RGBA2, \a RGBA4, \a RGB5_A1, \a RGB10_A2 or \a RGBA12
-        //! \param[in] width The width of the \a texture. \param[in] height The height of the \a texture. \param[in] pixel_format The pixel \a format. Has to be \a RED, \a GREEN, \a
-        //! BLUE, \a RG, \a RGB, \a BGR, \a RGBA, \a BGRA, \a RED_INTEGER, \a GREEN_INTEGER, \a BLUE_INTEGER, \a RG_INTEGER, \a RGB_INTEGER, \a BGR_INTEGER, \a RGBA_INTEGER or \a BGRA_INTEGER
+        //! \a RGBA32I, \a RGBA8UI, \a RGBA16UI, \a RGBA32UI, \a RGB4, \a RGB5, \a RGB8, \a RGB10, \a RGB12, \a RGB16, \a RGBA2, \a RGBA4, \a RGB5_A1, \a RGB10_A2 or \a RGBA12.
+        //! \param[in] width The width of the \a texture. Has to be a positive value.
+        //! \param[in] height The height of the \a texture. Has to be a positive value.
+        //! \param[in] pixel_format The pixel \a format. Has to be \a RED, \a GREEN, \a BLUE, \a RG, \a RGB, \a BGR, \a RGBA, \a BGRA, \a RED_INTEGER, \a GREEN_INTEGER, 
+        //! \a BLUE_INTEGER, \a RG_INTEGER, \a RGB_INTEGER, \a BGR_INTEGER, \a RGBA_INTEGER or \a BGRA_INTEGER.
         //! \param[in] type The type of the data. Has to be \a \a UNSIGNED_BYTE, \a BYTE, \a UNSIGNED_SHORT, \a SHORT, \a UNSIGNED_INT, \a INT, \a FLOAT, \a UNSIGNED_BYTE_3_3_2,
         //! \a UNSIGNED_BYTE_2_3_3_REV, \a UNSIGNED_SHORT_5_6_5, \a UNSIGNED_SHORT_5_6_5_REV, \a UNSIGNED_SHORT_4_4_4_4, \a UNSIGNED_SHORT_4_4_4_4_REV, \a UNSIGNED_SHORT_5_5_5_1,
         //! \a UNSIGNED_SHORT_1_5_5_5_REV, \a UNSIGNED_INT_8_8_8_8, \a UNSIGNED_INT_8_8_8_8_REV, \a UNSIGNED_INT_10_10_10_2 or \a UNSIGNED_INT_2_10_10_10_REV.
         //! \param[in] data The data to set the \a texture memory specified before to.
-        virtual void set_data(format internal_format, uint32 width, uint32 height, format pixel_format, format type, const void* data) = 0;
+        virtual void set_data(format internal_format, int32 width, int32 height, format pixel_format, format type, const void* data) = 0;
 
         //! \brief Binds the \a texture to a specific unit.
-        //! \param[in] unit The unit to bind the \a texture to.
-        virtual void bind_texture_unit(g_uint unit) = 0;
+        //! \param[in] unit The unit to bind the \a texture to. Has to be a positive value.
+        virtual void bind_texture_unit(int32 unit) = 0;
 
         //! \brief Unbinds the \a texture.
         virtual void unbind() = 0;

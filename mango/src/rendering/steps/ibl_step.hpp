@@ -78,21 +78,21 @@ namespace mango
         float m_render_level;
 
         //! \brief The width of one cubemap face.
-        const uint32 m_cube_width = 1024;
+        const int32 m_cube_width = 1024;
         //! \brief The height of one cubemap face.
-        const uint32 m_cube_height = 1024;
+        const int32 m_cube_height = 1024;
         //! \brief The width of one irradiance map face.
-        const uint32 m_irradiance_width = 32;
+        const int32 m_irradiance_width = 32;
         //! \brief The height of one irradiance map face.
-        const uint32 m_irradiance_height = 32;
+        const int32 m_irradiance_height = 32;
         //! \brief The width of one prefiltered specular map face.
-        const uint32 m_prefiltered_base_width = 1024;
+        const int32 m_prefiltered_base_width = 1024;
         //! \brief The height of one prefiltered specular map face.
-        const uint32 m_prefiltered_base_height = 1024;
+        const int32 m_prefiltered_base_height = 1024;
         //! \brief The width of the brdf integration look up texture.
-        const uint32 m_integration_lut_width = 256;
+        const int32 m_integration_lut_width = 256;
         //! \brief The height of the brdf integration look up texture.
-        const uint32 m_integration_lut_height = 256;
+        const int32 m_integration_lut_height = 256;
     };
 } // namespace mango
 

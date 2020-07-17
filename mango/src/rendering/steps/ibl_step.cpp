@@ -140,7 +140,7 @@ bool ibl_step::create()
     m_cube_geometry->bind_index_buffer(ib);
 
     m_current_rotation_scale = glm::mat3(1.0f);
-    m_render_level           = 0;
+    m_render_level           = 0.0f;
 
     texture_configuration texture_config;
     texture_config.m_generate_mipmaps        = 1;

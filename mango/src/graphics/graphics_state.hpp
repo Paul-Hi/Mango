@@ -24,12 +24,12 @@ namespace mango
         ~graphics_state() = default;
 
         //! \brief Sets the viewport size.
-        //! \param[in] x The x position of the viewport.
-        //! \param[in] y The y position of the viewport.
-        //! \param[in] width The width of the viewport.
-        //! \param[in] height The height of the viewport.
+        //! \param[in] x The x position of the viewport. Has to be a positive value.
+        //! \param[in] y The y position of the viewport. Has to be a positive value.
+        //! \param[in] width The width of the viewport. Has to be a positive value.
+        //! \param[in] height The height of the viewport. Has to be a positive value.
         //! \return True if state changed, else false.
-        bool set_viewport(uint32 x, uint32 y, uint32 width, uint32 height);
+        bool set_viewport(int32 x, int32 y, int32 width, int32 height);
 
         //! \brief Enables or disables the depth test.
         //! \param[in] enabled True if the depth test should be enabled, else false.
@@ -69,10 +69,10 @@ namespace mango
         bool bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer);
 
         //! \brief Binds a \a texture for drawing.
-        //! \param[in] binding The binding location to bind the \a texture too.
+        //! \param[in] binding The binding location to bind the \a texture too. Has to be a positive value.
         //! \param[in] name The name of the \a texture.
         //! \return True if state changed, else false.
-        bool bind_texture(uint32 binding, uint32 name);
+        bool bind_texture(int32 binding, g_uint name);
 
         //! \brief Binds a \a framebuffer for drawing.
         //! \param[in] framebuffer The pointer to the \a framebuffer to bind.
@@ -101,7 +101,7 @@ namespace mango
         bool set_blend_factors(blend_factor source, blend_factor destination);
 
         //! \brief The maximum number of texture bindings (not really, just supported by the state).
-        const static uint32 max_texture_bindings = 16; // TODO Paul: We should really define these things somewhere else. And query from OpenGL.
+        const static int32 max_texture_bindings = 16; // TODO Paul: We should really define these things somewhere else. And query from OpenGL.
         //! \brief Structure to cache the state of the graphics pipeline.
         struct internal_state
         {
@@ -109,15 +109,15 @@ namespace mango
             framebuffer_ptr framebuffer;       //!< Cached framebuffer.
             vertex_array_ptr vertex_array;     //!< Cached vertex array.
 
-            std::array<uint32, max_texture_bindings> m_active_texture_bindings; //!< Bindings from binding points to texture names.
+            std::array<g_uint, max_texture_bindings> m_active_texture_bindings; //!< Bindings from binding points to texture names.
 
             struct
             {
-                uint32 x;      //!< Viewport x position.
-                uint32 y;      //!< Viewport y position.
-                uint32 width;  //!< Viewport width.
-                uint32 height; //!< Viewport height.
-            } viewport;        //!< Cached viewport.
+                int32 x;      //!< Viewport x position.
+                int32 y;      //!< Viewport y position.
+                int32 width;  //!< Viewport width.
+                int32 height; //!< Viewport height.
+            } viewport;       //!< Cached viewport.
 
             struct
             {

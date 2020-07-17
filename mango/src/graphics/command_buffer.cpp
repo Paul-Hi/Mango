@@ -48,27 +48,31 @@ void command_buffer::execute()
     m_last = nullptr;
 }
 
-void command_buffer::set_viewport(uint32 x, uint32 y, uint32 width, uint32 height)
+void command_buffer::set_viewport(int32 x, int32 y, int32 width, int32 height)
 {
+    MANGO_ASSERT(x >= 0, "Viewport x position has to be positive!");
+    MANGO_ASSERT(y >= 0, "Viewport y position has to be positive!");
+    MANGO_ASSERT(width >= 0, "Viewport width has to be positive!");
+    MANGO_ASSERT(height >= 0, "Viewport height has to be positive!");
     class set_viewport_cmd : public command
     {
       public:
         struct
         {
-            uint32 x;
-            uint32 y;
-            uint32 width;
-            uint32 height;
+            int32 x;
+            int32 y;
+            int32 width;
+            int32 height;
         } m_vp;
 
-        set_viewport_cmd(uint32 x, uint32 y, uint32 width, uint32 height)
+        set_viewport_cmd(int32 x, int32 y, int32 width, int32 height)
             : m_vp{ x, y, width, height }
         {
         }
 
         void execute(graphics_state& state) override
         {
-            glViewport(m_vp.x, m_vp.y, m_vp.width, m_vp.height);
+            glViewport(m_vp.x, m_vp.y, static_cast<g_sizei>(m_vp.width), static_cast<g_sizei>(m_vp.height));
             state.set_viewport(m_vp.x, m_vp.y, m_vp.width, m_vp.height);
         }
     };
@@ -219,14 +223,16 @@ void command_buffer::bind_shader_program(shader_program_ptr shader_program)
     }
 }
 
-void command_buffer::bind_single_uniform(g_uint location, void* uniform_value, g_intptr data_size)
+void command_buffer::bind_single_uniform(int32 location, void* uniform_value, int64 data_size)
 {
+    MANGO_ASSERT(location >= 0, "Uniform location has to be greater than 0!");
+    MANGO_ASSERT(data_size > 0, "The uniforms size has to be positive!");
     class bind_single_uniform_cmd : public command
     {
       public:
         std::vector<uint8> m_data;
-        g_uint m_location;
-        bind_single_uniform_cmd(g_uint location, void* uniform_value, g_intptr data_size)
+        int32 m_location;
+        bind_single_uniform_cmd(int32 location, void* uniform_value, int64 data_size)
             : m_location(location)
         {
             m_data.resize(data_size);
@@ -252,53 +258,53 @@ void command_buffer::bind_single_uniform(g_uint location, void* uniform_value, g
             }
             case shader_resource_type::FVEC2:
             {
-                float* vec = static_cast<float*>(data);
+                float* vec = static_cast<g_float*>(data);
                 glUniform2f(m_location, vec[0], vec[1]);
                 break;
             }
             case shader_resource_type::FVEC3:
             {
-                float* vec = static_cast<float*>(data);
+                float* vec = static_cast<g_float*>(data);
                 glUniform3f(m_location, vec[0], vec[1], vec[2]);
                 break;
             }
             case shader_resource_type::FVEC4:
             {
-                float* vec = static_cast<float*>(data);
+                float* vec = static_cast<g_float*>(data);
                 glUniform4f(m_location, vec[0], vec[1], vec[2], vec[3]);
                 break;
             }
             case shader_resource_type::INT:
             {
-                glUniform1i(m_location, *static_cast<int*>(data));
+                glUniform1i(m_location, *static_cast<g_int*>(data));
                 break;
             }
             case shader_resource_type::IVEC2:
             {
-                int* vec = static_cast<int*>(data);
+                int* vec = static_cast<g_int*>(data);
                 glUniform2i(m_location, vec[0], vec[1]);
                 break;
             }
             case shader_resource_type::IVEC3:
             {
-                int* vec = static_cast<int*>(data);
+                int* vec = static_cast<g_int*>(data);
                 glUniform3i(m_location, vec[0], vec[1], vec[2]);
                 break;
             }
             case shader_resource_type::IVEC4:
             {
-                int* vec = static_cast<int*>(data);
+                int* vec = static_cast<g_int*>(data);
                 glUniform4i(m_location, vec[0], vec[1], vec[2], vec[3]);
                 break;
             }
             case shader_resource_type::MAT3:
             {
-                glUniformMatrix3fv(m_location, 1, GL_FALSE, static_cast<float*>(data));
+                glUniformMatrix3fv(m_location, 1, GL_FALSE, static_cast<g_float*>(data));
                 break;
             }
             case shader_resource_type::MAT4:
             {
-                glUniformMatrix4fv(m_location, 1, GL_FALSE, static_cast<float*>(data));
+                glUniformMatrix4fv(m_location, 1, GL_FALSE, static_cast<g_float*>(data));
                 break;
             }
             default:
@@ -314,14 +320,15 @@ void command_buffer::bind_single_uniform(g_uint location, void* uniform_value, g
     }
 }
 
-void command_buffer::bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer)
+void command_buffer::bind_uniform_buffer(int32 index, buffer_ptr uniform_buffer)
 {
+    MANGO_ASSERT(index >= 0, "Uniform buffer index has to be greater than 0!");
     class bind_uniform_buffer_cmd : public command
     {
       public:
-        g_uint m_index;
+        int32 m_index;
         buffer_ptr m_buffer;
-        bind_uniform_buffer_cmd(g_uint index, buffer_ptr uniform_buffer)
+        bind_uniform_buffer_cmd(int32 index, buffer_ptr uniform_buffer)
             : m_index(index)
             , m_buffer(uniform_buffer)
         {
@@ -338,15 +345,17 @@ void command_buffer::bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer
     }
 }
 
-void command_buffer::bind_texture(uint32 binding, texture_ptr texture, g_uint uniform_location)
+void command_buffer::bind_texture(int32 binding, texture_ptr texture, int32 uniform_location)
 {
+    MANGO_ASSERT(uniform_location >= 0, "Texture uniform location has to be greater than 0!");
+    MANGO_ASSERT(binding >= 0, "The texture binding has to be greater than 0!");
     class bind_texture_cmd : public command
     {
       public:
-        uint32 m_binding;
+        int32 m_binding;
         texture_ptr m_texture;
-        uint32 m_uniform_location;
-        bind_texture_cmd(uint32 binding, texture_ptr texture, g_uint uniform_location)
+        int32 m_uniform_location;
+        bind_texture_cmd(int32 binding, texture_ptr texture, int32 uniform_location)
             : m_binding(binding)
             , m_texture(texture)
             , m_uniform_location(uniform_location)
@@ -375,19 +384,22 @@ void command_buffer::bind_texture(uint32 binding, texture_ptr texture, g_uint un
     }
 }
 
-void command_buffer::bind_image_texture(uint32 binding, texture_ptr texture, g_int level, bool layered, g_int layer, base_access access, format element_format)
+void command_buffer::bind_image_texture(int32 binding, texture_ptr texture, int32 level, bool layered, int32 layer, base_access access, format element_format)
 {
+    MANGO_ASSERT(binding >= 0, "Image texture binding has to be greater than 0!");
+    MANGO_ASSERT(level >= 0, "Image texture level has to be greater than 0!");
+    MANGO_ASSERT(layer >= 0, "VImage texture layer has to be greater than 0!");
     class bind_image_texture_cmd : public command
     {
       public:
-        uint32 m_binding;
+        int32 m_binding;
         texture_ptr m_texture;
-        g_int m_level;
+        int32 m_level;
         bool m_layered;
-        g_int m_layer;
+        int32 m_layer;
         g_enum m_access;
         g_enum m_element_format;
-        bind_image_texture_cmd(uint32 binding, texture_ptr texture, g_int level, bool layered, g_int layer, base_access access, format element_format)
+        bind_image_texture_cmd(int32 binding, texture_ptr texture, int32 level, bool layered, int32 layer, base_access access, format element_format)
             : m_binding(binding)
             , m_texture(texture)
             , m_level(level)
@@ -402,11 +414,11 @@ void command_buffer::bind_image_texture(uint32 binding, texture_ptr texture, g_i
         {
             if (m_texture)
             {
-                glBindImageTexture(m_binding, m_texture->get_name(), m_level, m_layered, m_layer, m_access, m_element_format);
+                glBindImageTexture(static_cast<g_uint>(m_binding), m_texture->get_name(), m_level, m_layered, m_layer, m_access, m_element_format);
             }
             else
             {
-                glBindImageTexture(m_binding, 0, m_level, m_layered, m_layer, m_access, m_element_format);
+                glBindImageTexture(static_cast<g_uint>(m_binding), 0, m_level, m_layered, m_layer, m_access, m_element_format);
             }
         }
     };
@@ -530,7 +542,7 @@ void command_buffer::calculate_mipmaps(texture_ptr texture)
     submit<calculate_mipmaps_cmd>(texture);
 }
 
-void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment_mask att_mask, g_float r, g_float g, g_float b, g_float a, framebuffer_ptr framebuffer)
+void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment_mask att_mask, float r, float g, float b, float a, framebuffer_ptr framebuffer)
 {
     class clear_cmd : public command
     {
@@ -538,8 +550,8 @@ void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment
         framebuffer_ptr m_framebuffer;
         clear_buffer_mask m_buffer_mask;
         attachment_mask m_attachment_mask;
-        g_float m_r, m_g, m_b, m_a;
-        clear_cmd(framebuffer_ptr framebuffer, clear_buffer_mask buffer_mask, attachment_mask att_mask, g_float r, g_float g, g_float b, g_float a)
+        float m_r, m_g, m_b, m_a;
+        clear_cmd(framebuffer_ptr framebuffer, clear_buffer_mask buffer_mask, attachment_mask att_mask, float r, float g, float b, float a)
             : m_framebuffer(framebuffer)
             , m_buffer_mask(buffer_mask)
             , m_attachment_mask(att_mask)
@@ -564,7 +576,7 @@ void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment
                 {
                     // We asume that all attached color textures are also draw buffers.
                     const float rgb[4] = { m_r, m_g, m_b, m_a };
-                    for (uint32 i = 0; i < 4; ++i)
+                    for (int32 i = 0; i < 4; ++i)
                     {
                         if (m_framebuffer->get_attachment(static_cast<framebuffer_attachment>(i)) &&
                             (m_attachment_mask & static_cast<attachment_mask>(1 << i)) != attachment_mask::NONE)
@@ -621,16 +633,19 @@ void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment
     submit<clear_cmd>(framebuffer, buffer_mask, att_mask, r, g, b, a);
 }
 
-void command_buffer::draw_arrays(primitive_topology topology, uint32 first, uint32 count, uint32 instance_count)
+void command_buffer::draw_arrays(primitive_topology topology, int32 first, int32 count, int32 instance_count)
 {
+    MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
+    MANGO_ASSERT(count >= 0, "The vertex count has to be greater than 0!");
+    MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
     class draw_arrays_cmd : public command
     {
       public:
         primitive_topology m_topology;
-        uint32 m_first;
-        uint32 m_count;
-        uint32 m_instance_count;
-        draw_arrays_cmd(primitive_topology topology, uint32 first, uint32 count, uint32 instance_count)
+        int32 m_first;
+        int32 m_count;
+        int32 m_instance_count;
+        draw_arrays_cmd(primitive_topology topology, int32 first, int32 count, int32 instance_count)
             : m_topology(topology)
             , m_first(first)
             , m_count(count)
@@ -642,11 +657,11 @@ void command_buffer::draw_arrays(primitive_topology topology, uint32 first, uint
         {
             if (m_instance_count > 1)
             {
-                glDrawArraysInstanced(static_cast<g_enum>(m_topology), m_first, m_count, m_instance_count);
+                glDrawArraysInstanced(static_cast<g_enum>(m_topology), m_first, static_cast<g_sizei>(m_count), static_cast<g_sizei>(m_instance_count));
             }
             else
             {
-                glDrawArrays(static_cast<g_enum>(m_topology), m_first, m_count);
+                glDrawArrays(static_cast<g_enum>(m_topology), m_first, static_cast<g_sizei>(m_count));
             }
         }
     };
@@ -654,17 +669,20 @@ void command_buffer::draw_arrays(primitive_topology topology, uint32 first, uint
     submit<draw_arrays_cmd>(topology, first, count, instance_count);
 }
 
-void command_buffer::draw_elements(primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count)
+void command_buffer::draw_elements(primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
 {
+    MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
+    MANGO_ASSERT(count >= 0, "The index count has to be greater than 0!");
+    MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
     class draw_elements_cmd : public command
     {
       public:
         primitive_topology m_topology;
-        uint32 m_first;
-        uint32 m_count;
+        int32 m_first;
+        int32 m_count;
         index_type m_type;
-        uint32 m_instance_count;
-        draw_elements_cmd(primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count)
+        int32 m_instance_count;
+        draw_elements_cmd(primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
             : m_topology(topology)
             , m_first(first)
             , m_count(count)
@@ -677,11 +695,11 @@ void command_buffer::draw_elements(primitive_topology topology, uint32 first, ui
         {
             if (m_instance_count > 1)
             {
-                glDrawElementsInstanced(static_cast<g_enum>(m_topology), m_count, static_cast<g_enum>(m_type), (g_byte*)NULL + m_first, m_instance_count);
+                glDrawElementsInstanced(static_cast<g_enum>(m_topology), static_cast<g_sizei>(m_count), static_cast<g_enum>(m_type), (g_byte*)NULL + m_first, static_cast<g_sizei>(m_instance_count));
             }
             else
             {
-                glDrawElements(static_cast<g_enum>(m_topology), m_count, static_cast<g_enum>(m_type), (g_byte*)NULL + m_first);
+                glDrawElements(static_cast<g_enum>(m_topology), static_cast<g_sizei>(m_count), static_cast<g_enum>(m_type), (g_byte*)NULL + m_first);
             }
         }
     };
@@ -689,15 +707,18 @@ void command_buffer::draw_elements(primitive_topology topology, uint32 first, ui
     submit<draw_elements_cmd>(topology, first, count, type, instance_count);
 }
 
-void command_buffer::dispatch_compute(uint32 num_x_groups, uint32 num_y_groups, uint32 num_z_groups)
+void command_buffer::dispatch_compute(int32 num_x_groups, int32 num_y_groups, int32 num_z_groups)
 {
+    MANGO_ASSERT(num_x_groups >= 0, "The number of groups (x) has to be greater than 0!");
+    MANGO_ASSERT(num_y_groups >= 0, "The number of groups (y) has to be greater than 0!");
+    MANGO_ASSERT(num_z_groups >= 0, "The number of groups (z) has to be greater than 0!");
     class dispatch_compute_cmd : public command
     {
       public:
-        uint32 m_x_groups;
-        uint32 m_y_groups;
-        uint32 m_z_groups;
-        dispatch_compute_cmd(uint32 num_x_groups, uint32 num_y_groups, uint32 num_z_groups)
+        int32 m_x_groups;
+        int32 m_y_groups;
+        int32 m_z_groups;
+        dispatch_compute_cmd(int32 num_x_groups, int32 num_y_groups, int32 num_z_groups)
             : m_x_groups(num_x_groups)
             , m_y_groups(num_y_groups)
             , m_z_groups(num_z_groups)
@@ -706,7 +727,7 @@ void command_buffer::dispatch_compute(uint32 num_x_groups, uint32 num_y_groups, 
 
         void execute(graphics_state&) override
         {
-            glDispatchCompute(m_x_groups, m_y_groups, m_z_groups);
+            glDispatchCompute(static_cast<g_uint>(m_x_groups), static_cast<g_uint>(m_y_groups), static_cast<g_uint>(m_z_groups));
         }
     };
 

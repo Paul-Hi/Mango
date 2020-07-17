@@ -17,11 +17,12 @@
 #include <rendering/pipelines/deferred_pbr_render_system.hpp>
 #include <rendering/steps/ibl_step.hpp>
 
-#ifdef MANGO_DEBUG
-static void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
-#endif // MANGO_DEBUG
-
 using namespace mango;
+
+#ifdef MANGO_DEBUG
+
+static void GLAPIENTRY debugCallback(g_enum source, g_enum type, g_uint id, g_enum severity, g_sizei length, const g_char* message, const void* userParam);
+#endif // MANGO_DEBUG
 
 //! \brief Single uniforms for the lighting pass accessed and utilized only internally by the renderer at the moment.
 struct lighting_pass_uniforms
@@ -65,8 +66,8 @@ bool deferred_pbr_render_system::create()
 
     shared_ptr<window_system_impl> ws = m_shared_context->get_window_system_internal().lock();
     MANGO_ASSERT(ws, "Window System is expireds!");
-    uint32 w = ws->get_width();
-    uint32 h = ws->get_height();
+    int32 w = ws->get_width();
+    int32 h = ws->get_height();
 
     framebuffer_configuration config;
     texture_configuration attachment_config;
@@ -292,8 +293,12 @@ void deferred_pbr_render_system::finish_render()
     m_frame_uniform_offset = 0;
 }
 
-void deferred_pbr_render_system::set_viewport(uint32 x, uint32 y, uint32 width, uint32 height)
+void deferred_pbr_render_system::set_viewport(int32 x, int32 y, int32 width, int32 height)
 {
+    MANGO_ASSERT(x >= 0, "Viewport x position has to be positive!");
+    MANGO_ASSERT(y >= 0, "Viewport y position has to be positive!");
+    MANGO_ASSERT(width >= 0, "Viewport width has to be positive!");
+    MANGO_ASSERT(height >= 0, "Viewport height has to be positive!");
     m_command_buffer->set_viewport(x, y, width, height);
     m_gbuffer->resize(width, height);
 }
@@ -316,8 +321,8 @@ void deferred_pbr_render_system::set_model_info(const glm::mat4& model_matrix, b
     {
       public:
         buffer_ptr m_uniform_buffer;
-        uint32 m_offset;
-        set_model_matrix_cmd(buffer_ptr uniform_buffer, uint32 offset)
+        int32 m_offset;
+        set_model_matrix_cmd(buffer_ptr uniform_buffer, int32 offset)
             : m_uniform_buffer(uniform_buffer)
             , m_offset(offset)
         {
@@ -332,21 +337,24 @@ void deferred_pbr_render_system::set_model_info(const glm::mat4& model_matrix, b
 
     scene_vertex_uniforms u{ std140_mat4(model_matrix), std140_mat3(glm::transpose(glm::inverse(model_matrix))), std140_bool(has_normals), std140_bool(has_tangents), 0, 0 };
 
-    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - sizeof(scene_vertex_uniforms), "Uniform buffer size is too small.");
+    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - static_cast<int32>(sizeof(scene_vertex_uniforms)), "Uniform buffer size is too small.");
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_vertex_uniforms));
 
     m_command_buffer->submit<set_model_matrix_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
     m_frame_uniform_offset += m_uniform_buffer_alignment;
 }
 
-void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count)
+void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
 {
+    MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
+    MANGO_ASSERT(count >= 0, "The index count has to be greater than 0!");
+    MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
     class push_material_cmd : public command
     {
       public:
         buffer_ptr m_uniform_buffer;
-        uint32 m_offset;
-        push_material_cmd(buffer_ptr uniform_buffer, uint32 offset)
+        int32 m_offset;
+        push_material_cmd(buffer_ptr uniform_buffer, int32 offset)
             : m_uniform_buffer(uniform_buffer)
             , m_offset(offset)
         {
@@ -421,7 +429,7 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
     u.alpha_mode   = static_cast<g_int>(mat->alpha_rendering);
     u.alpha_cutoff = mat->alpha_cutoff;
 
-    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - sizeof(scene_material_uniforms), "Uniform buffer size is too small.");
+    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - static_cast<int32>(sizeof(scene_material_uniforms)), "Uniform buffer size is too small.");
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_material_uniforms));
 
     m_command_buffer->submit<push_material_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
@@ -455,7 +463,7 @@ void deferred_pbr_render_system::set_environment_texture(const texture_ptr& hdr_
 
 #ifdef MANGO_DEBUG
 
-static const char* getStringForType(GLenum type)
+static const char* getStringForType(g_enum type)
 {
     switch (type)
     {
@@ -479,7 +487,7 @@ static const char* getStringForType(GLenum type)
     }
 }
 
-static const char* getStringForSource(GLenum source)
+static const char* getStringForSource(g_enum source)
 {
     switch (source)
     {
@@ -501,7 +509,7 @@ static const char* getStringForSource(GLenum source)
     }
 }
 
-static const char* getStringForSeverity(GLenum severity)
+static const char* getStringForSeverity(g_enum severity)
 {
     switch (severity)
     {
@@ -519,7 +527,7 @@ static const char* getStringForSeverity(GLenum severity)
     }
 }
 
-static void GLAPIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+static void GLAPIENTRY debugCallback(g_enum source, g_enum type, g_uint id, g_enum severity, g_sizei length, const g_char* message, const void* userParam)
 {
     (void)id;
     (void)length;

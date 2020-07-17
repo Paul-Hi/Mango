@@ -50,11 +50,11 @@ namespace mango
         //! \brief Sets the viewport.
         //! \details  Should be called on resizing events, instead of scheduling a viewport command directly.
         //! This manages the resizing of eventually created \a framebuffers internally and schedules the \a command as well.
-        //! \param[in] x The x start coordinate.
-        //! \param[in] y The y start coordinate.
-        //! \param[in] width The width of the viewport after this call.
-        //! \param[in] height The height of the viewport after this call.
-        virtual void set_viewport(uint32 x, uint32 y, uint32 width, uint32 height);
+        //! \param[in] x The x start coordinate. Has to be a positive value.
+        //! \param[in] y The y start coordinate. Has to be a positive value.
+        //! \param[in] width The width of the viewport after this call. Has to be a positive value.
+        //! \param[in] height The height of the viewport after this call. Has to be a positive value.
+        virtual void set_viewport(int32 x, int32 y, int32 width, int32 height);
 
         virtual void update(float dt) override;
         virtual void destroy() override;
@@ -73,11 +73,11 @@ namespace mango
         //! \brief Schedules drawing of a \a mesh with \a material.
         //! \param[in] mat The \a material for the next draw call.
         //! \param[in] topology The topology used for drawing the bound vertex data.
-        //! \param[in] first The first index to start drawing from.
-        //! \param[in] count The number of indices to draw.
+        //! \param[in] first The first index to start drawing from. Has to be a positive value.
+        //! \param[in] count The number of indices to draw. Has to be a positive value.
         //! \param[in] type The \a index_type of the values in the index buffer.
-        //! \param[in] instance_count The number of instances to draw. For normal drawing pass 1.
-        virtual void draw_mesh(const material_ptr& mat, primitive_topology topology, uint32 first, uint32 count, index_type type, uint32 instance_count = 1);
+        //! \param[in] instance_count The number of instances to draw. Has to be a positive value. For normal drawing pass 1.
+        virtual void draw_mesh(const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count = 1);
 
         //! \brief Sets the view projection matrix for the next draw calls.
         //! \param[in] view_projection The view projection for the next draw calls.

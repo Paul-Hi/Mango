@@ -20,17 +20,17 @@ namespace mango
         texture_impl(const texture_configuration& configuration);
         ~texture_impl();
 
-        inline uint32 get_width() override
+        inline int32 get_width() override
         {
             return m_width;
         }
 
-        inline uint32 get_height() override
+        inline int32 get_height() override
         {
             return m_height;
         }
 
-        inline uint32 mipmaps() override
+        inline int32 mipmaps() override
         {
             return m_generate_mipmaps;
         }
@@ -80,16 +80,16 @@ namespace mango
             return m_is_cubemap;
         }
 
-        void set_data(format internal_format, uint32 width, uint32 height, format pixel_format, format type, const void* data) override;
-        void bind_texture_unit(g_uint unit) override;
+        void set_data(format internal_format, int32 width, int32 height, format pixel_format, format type, const void* data) override;
+        void bind_texture_unit(int32 unit) override;
         void unbind() override;
         void release() override;
 
       private:
         //! \brief The width of the \a texture.
-        uint32 m_width;
+        int32 m_width;
         //! \brief The height of the \a texture.
-        uint32 m_height;
+        int32 m_height;
         //! \brief Format information.
         format m_format;
         //! \brief Internal format information.
@@ -107,7 +107,7 @@ namespace mango
         //! \brief Specifies if the \a texture should be interpreted as SRGB etc.
         bool m_is_standard_color_space;
         //! \brief Number of mipmap levels.
-        uint32 m_generate_mipmaps;
+        int32 m_generate_mipmaps;
         //! \brief Specifies if the texture is a cubemap.
         bool m_is_cubemap;
     };
