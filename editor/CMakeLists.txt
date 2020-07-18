@@ -37,3 +37,6 @@ target_compile_options(editor
     $<$<BOOL:${MANGO_ENABLE_HARD_WARNINGS}>:$<CXX_COMPILER_ID>:/WX>
     $<$<BOOL:${MANGO_ENABLE_HARD_WARNINGS}>:$<NOT:$<CXX_COMPILER_ID:MSVC>>:-pedantic -Werror -Wconversion -pedantic-errors>
 )
+
+install(TARGETS editor DESTINATION bin)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/res/ DESTINATION bin/res)

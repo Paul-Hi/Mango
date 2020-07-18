@@ -7,6 +7,7 @@ add_executable(AllTests
     init_test.cpp
     window_system_test.cpp
     render_system_test.cpp
+    graphics_common_test.cpp
 )
 
 target_include_directories(AllTests

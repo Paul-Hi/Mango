@@ -4,6 +4,8 @@
 //! \date      2020
 //! \copyright Apache License 2.0
 
+#if 0
+
 #include "mock_classes.hpp"
 #include <gtest/gtest.h>
 #include <mango/mango.hpp>
@@ -52,3 +54,5 @@ TEST_F(window_system_test, platform_window_system_no_failure_on_function_calls)
 }
 
 //! \endcond
+
+#endif

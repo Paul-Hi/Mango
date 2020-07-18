@@ -96,6 +96,3 @@ endif()
 add_subdirectory(mango)
 #spdlog_enable_warnings(mango)
 add_subdirectory(editor)
-
-install(TARGETS editor DESTINATION bin)
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/res/ DESTINATION bin/res)
