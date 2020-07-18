@@ -48,4 +48,4 @@ jobs:
           python-version: 3.7.7 # using this version because it is my current one as well
       - name: create solution and build
         run: |
-          python create_solution.py -G ${{ matrix.config.cmake_gen }}
+          python create_solution.py -G "${{ matrix.config.cmake_gen }}"
