@@ -52,12 +52,12 @@ buffer_impl::buffer_impl(const buffer_configuration& configuration)
     }
 
     glCreateBuffers(1, &m_name);
-    glNamedBufferStorage(m_name, m_size, configuration.m_data, m_access_flags);
+    glNamedBufferStorage(m_name, static_cast<g_sizeiptr>(m_size), configuration.m_data, m_access_flags);
 
     if (persistent)
     {
         g_bitfield all_map = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-        m_persistent_data  = static_cast<void*>(glMapNamedBufferRange(m_name, 0, m_size, all_map & m_access_flags));
+        m_persistent_data  = static_cast<void*>(glMapNamedBufferRange(m_name, 0, static_cast<g_sizeiptr>(m_size), all_map & m_access_flags));
         MANGO_ASSERT(nullptr != m_persistent_data, "Failed mapping buffer {0}!", m_name);
     }
 }

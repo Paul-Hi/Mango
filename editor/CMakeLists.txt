@@ -5,7 +5,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/editor.cpp
 )
 
-if(WIN32 AND CXX_COMPILER_ID:MSVC)
+if(WIN32 AND MSVC)
     add_executable(
         editor WIN32
             ${SOURCES}

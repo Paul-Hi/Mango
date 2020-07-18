@@ -120,7 +120,7 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
     // load all model buffer views into buffers.
     std::map<int, buffer_ptr> index_to_buffer_data;
 
-    for (int64 i = 0; i < static_cast<int64>(m.bufferViews.size()); ++i)
+    for (int32 i = 0; i < static_cast<int32>(m.bufferViews.size()); ++i)
     {
         const tinygltf::BufferView& buffer_view = m.bufferViews[i];
         if (buffer_view.target == 0)
@@ -145,7 +145,7 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
 
     int scene_id                 = m.defaultScene > -1 ? m.defaultScene : 0;
     const tinygltf::Scene& scene = m.scenes[scene_id];
-    for (int64 i = 0; i < static_cast<int64>(scene.nodes.size()); ++i)
+    for (int32 i = 0; i < static_cast<int32>(scene.nodes.size()); ++i)
     {
         entity node = build_model_node(scene_entities, m, m.nodes.at(scene.nodes.at(i)), glm::mat4(1.0), index_to_buffer_data);
 
@@ -345,7 +345,7 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
     entities.push_back(node);
 
     // build child nodes.
-    for (int64 i = 0; i < static_cast<int64>(n.children.size()); ++i)
+    for (int32 i = 0; i < static_cast<int32>(n.children.size()); ++i)
     {
         MANGO_ASSERT(n.children[i] < static_cast<int32>(m.nodes.size()), "Invalid gltf node!");
 
@@ -360,7 +360,7 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
 {
     auto& component_mesh = m_meshes.create_component_for(node);
 
-    for (int64 i = 0; i < static_cast<int64>(mesh.primitives.size()); ++i)
+    for (int32 i = 0; i < static_cast<int32>(mesh.primitives.size()); ++i)
     {
         const tinygltf::Primitive& primitive = mesh.primitives[i];
 
@@ -727,7 +727,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     if (p_m.emissiveTexture.index < 0)
     {
         auto col                                    = p_m.emissiveFactor;
-        material.component_material->emissive_color = glm::vec4((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
+        material.component_material->emissive_color = glm::vec3((float)col[0], (float)col[1], (float)col[2]);
     }
     else
     {
@@ -869,7 +869,7 @@ static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_man
                 auto cmdb = rs->get_command_buffer();
                 rs->set_model_info(transform->world_transformation_matrix, c.has_normals, c.has_tangents);
 
-                for (int64 i = 0; i < static_cast<int64>(c.primitives.size()); ++i)
+                for (int32 i = 0; i < static_cast<int32>(c.primitives.size()); ++i)
                 {
                     auto m = c.materials[i];
                     auto p = c.primitives[i];
@@ -892,7 +892,7 @@ static void update_scene_boundaries(glm::mat4& trafo, tinygltf::Model& m, tinygl
     glm::vec3 to_center;
     float radius;
 
-    for (int64 j = 0; j < static_cast<int64>(mesh.primitives.size()); ++j)
+    for (int32 j = 0; j < static_cast<int32>(mesh.primitives.size()); ++j)
     {
         const tinygltf::Primitive& primitive = mesh.primitives[j];
 

@@ -235,8 +235,8 @@ void command_buffer::bind_single_uniform(int32 location, void* uniform_value, in
         bind_single_uniform_cmd(int32 location, void* uniform_value, int64 data_size)
             : m_location(location)
         {
-            m_data.resize(data_size);
-            memcpy(&m_data[0], static_cast<uint8*>(uniform_value), data_size);
+            m_data.resize(static_cast<ptr_size>(data_size));
+            memcpy(&m_data[0], static_cast<uint8*>(uniform_value), static_cast<ptr_size>(data_size));
         }
 
         void execute(graphics_state& state) override
