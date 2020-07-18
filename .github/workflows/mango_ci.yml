@@ -46,20 +46,19 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.7.7 # using this version because it is my current one as well
-      - name: Install OpenGL And GLFW Dependencies And Do CMake Compiler Setup For Linux
+      - name: Setup, Solution And Build For Linux
         if: ${{ matrix.config.os == 'ubuntu-latest' }}
         run: |
+            sudo apt-get install xorg-dev
             sudo apt-get install freeglut3-dev
-            sudo apt-get install libxrandr-dev
-            sudo apt-get install libxinerama-dev
-            sudo apt-get install libxcursor-dev
-            sudo apt-get install libxi-dev
             export CC=${{ matrix.config.cc }}
             export CXX=${{ matrix.config.cxx }}
-      - name: Open VS Developer Console for NMake
+      - name: Setup, Solution And Build For Windows With MSVC
         if: ${{ matrix.config.os == 'windows-latest' && matrix.config.cc == 'cl' }}
         run: |
             "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat"
-      - name: Create Solution And Build
+            python create_solution.py -G "${{ matrix.config.cmake_gen }}"
+      - name: Setup, Solution And Build For Windows With MinGW
+        if: ${{ matrix.config.os == 'windows-latest' && matrix.config.cc == 'gcc' }}
         run: |
             python create_solution.py -G "${{ matrix.config.cmake_gen }}"
