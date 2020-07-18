@@ -1,0 +1,51 @@
+name: Continuous Integration
+
+on:
+    push:
+        branches: [ master ]
+    pull_request:
+        branches: [ master ]
+
+jobs:
+    build:
+      strategy:
+        fail-fast: false
+        matrix:
+          config:
+            - name: "Windows Latest MSVC"
+              artifact: "Windows-MSVC.tar.xz" # No artifacts at the moment
+              os: windows-latest
+              cc: "cl" # Not relevant
+              cxx: "cl" # Not relevant
+              cmake_gen: "Visual Studio 15 2017"
+            - name: "Windows Latest MinGW"
+              artifact: "Windows-MinGW.tar.xz" # No artifacts at the moment
+              os: windows-latest
+              cc: "gcc" # Not relevant
+              cxx: "g++" # Not relevant
+              cmake_gen: "MinGW Makefiles"
+            - name: "Ubuntu Latest GCC"
+              artifact: "Linux-GCC.tar.xz" # No artifacts at the moment
+              os: ubuntu-latest
+              cc: "gcc" # Not relevant
+              cxx: "g++" # Not relevant
+              cmake_gen: "Unix Makefiles"
+            - name: "Ubuntu Latest Clang"
+              artifact: "Linux-Clang.tar.xz" # No artifacts at the moment
+              os: ubuntu-latest
+              cc: "clang" # Not relevant
+              cxx: "clang++" # Not relevant
+              cmake_gen: "Unix Makefiles"
+            
+      name: ${{ matrix.config.name }}
+      runs-on: ${{ matrix.config.os }}
+      steps:
+      - name: mango checkout
+        uses: actions/checkout@v2
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7.7 # using this version because it is my current one as well
+      - name: create solution and build
+        run: |
+          python create_solution.py -G ${{ matrix.config.cmake_gen }}
