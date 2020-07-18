@@ -15,37 +15,51 @@ jobs:
             - name: "Windows Latest MSVC"
               artifact: "Windows-MSVC.tar.xz" # No artifacts at the moment
               os: windows-latest
-              cc: "cl" # Not relevant
-              cxx: "cl" # Not relevant
-              cmake_gen: "Visual Studio 15 2017"
+              cc: "cl"
+              cxx: "cl"
+              cmake_gen: "NMake Makefiles"
             - name: "Windows Latest MinGW"
               artifact: "Windows-MinGW.tar.xz" # No artifacts at the moment
               os: windows-latest
-              cc: "gcc" # Not relevant
-              cxx: "g++" # Not relevant
+              cc: "gcc"
+              cxx: "g++"
               cmake_gen: "MinGW Makefiles"
             - name: "Ubuntu Latest GCC"
               artifact: "Linux-GCC.tar.xz" # No artifacts at the moment
               os: ubuntu-latest
-              cc: "gcc" # Not relevant
-              cxx: "g++" # Not relevant
+              cc: "gcc"
+              cxx: "g++"
               cmake_gen: "Unix Makefiles"
             - name: "Ubuntu Latest Clang"
               artifact: "Linux-Clang.tar.xz" # No artifacts at the moment
               os: ubuntu-latest
-              cc: "clang" # Not relevant
-              cxx: "clang++" # Not relevant
+              cc: "clang"
+              cxx: "clang++"
               cmake_gen: "Unix Makefiles"
             
       name: ${{ matrix.config.name }}
       runs-on: ${{ matrix.config.os }}
       steps:
-      - name: mango checkout
+      - name: Mango Checkout
         uses: actions/checkout@v2
       - name: setup python
         uses: actions/setup-python@v2
         with:
           python-version: 3.7.7 # using this version because it is my current one as well
-      - name: create solution and build
+      - name: Install OpenGL And GLFW Dependencies And Do CMake Compiler Setup For Linux
+        if: ${{ matrix.config.os == 'ubuntu-latest' }}
         run: |
-          python create_solution.py -G "${{ matrix.config.cmake_gen }}"
+            sudo apt-get install freeglut3-dev
+            sudo apt-get install libxrandr-dev
+            sudo apt-get install libxinerama-dev
+            sudo apt-get install libxcursor-dev
+            sudo apt-get install libxi-dev
+            export CC=${{ matrix.config.cc }}
+            export CXX=${{ matrix.config.cxx }}
+      - name: Open VS Developer Console for NMake
+        if: ${{ matrix.config.os == 'windows-latest' && matrix.config.cc == 'cl' }}
+        run: |
+            "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat"
+      - name: Create Solution And Build
+        run: |
+            python create_solution.py -G "${{ matrix.config.cmake_gen }}"
