@@ -119,6 +119,7 @@ def getDependencies():
 
 def tryRunningMake():
     makes = ['make', 'nmake', 'mingw32-make', 'ninja']
+    result = 1
     for make in makes:
         makeCmd = [make]
         print ('Trying ' + makeCmd[0] + '.')
@@ -128,15 +129,13 @@ def tryRunningMake():
             continue
 
         if result == 0:
-            print ('Done building Mango.')
-            return
+            return True
         else:
-            continue
+            return False
 
     if result != 0:
-        print ('Can not get the available make derivate or failed building Mango.')
+        print ('Can not get the available \'make\' derivate.')
         print ('Please run your \'make\' in the build directory!')
-        input('PRESS ENTER TO CONTINUE.')
         os._exit(1)
 
 
@@ -176,7 +175,6 @@ def main(argv):
         print('Done loading dependencies.')
     else:
         print('Failed loading dependencies.')
-        input('PRESS ENTER TO CONTINUE.')
         os._exit(1)
 
     print ('Running CMake.')
@@ -189,16 +187,17 @@ def main(argv):
         print ('Done running CMake.')
     else:
         print ('Failed running CMake.')
-        input('PRESS ENTER TO CONTINUE.')
         os._exit(1)
 
 
     print ('Building Mango.')
-    tryRunningMake()
-
-    os.chdir('..')
-    input('PRESS ENTER TO CONTINUE.')
-
+    result = tryRunningMake()
+    if result:
+        print ('Build successful!')
+        os._exit(0)
+    else:
+        print ('Failed building Mango!')
+        os._exit(1)
 
 if __name__== '__main__':
    main(sys.argv[1:])
