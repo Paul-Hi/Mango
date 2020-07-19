@@ -1,0 +1,62 @@
+name: Continuous Integration
+
+on:
+    push:
+        branches: [ master ]
+    pull_request:
+        branches: [ master ]
+
+jobs:
+    build:
+      strategy:
+        fail-fast: false
+        matrix:
+          config:
+            - name: "Windows Latest MSVC"
+              artifact: "Windows-MSVC.tar.xz" # No artifacts at the moment
+              os: windows-latest
+              cc: "cl"
+              cxx: "cl"
+              cmake_gen: "NMake Makefiles"
+            - name: "Windows Latest MinGW"
+              artifact: "Windows-MinGW.tar.xz" # No artifacts at the moment
+              os: windows-latest
+              cc: "gcc"
+              cxx: "g++"
+              cmake_gen: "MinGW Makefiles"
+            - name: "Ubuntu Latest GCC"
+              artifact: "Linux-GCC.tar.xz" # No artifacts at the moment
+              os: ubuntu-latest
+              cc: "gcc"
+              cxx: "g++"
+              cmake_gen: "Unix Makefiles"
+            - name: "Ubuntu Latest Clang"
+              artifact: "Linux-Clang.tar.xz" # No artifacts at the moment
+              os: ubuntu-latest
+              cc: "clang"
+              cxx: "clang++"
+              cmake_gen: "Unix Makefiles"
+      name: ${{ matrix.config.name }}
+      runs-on: ${{ matrix.config.os }}
+      steps:
+      - name: Mango Checkout
+        uses: actions/checkout@v2
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7.7 # Using this version because it is my current one as well
+      - name: Setup, Create Solution And Build For Linux
+        if: ${{ matrix.config.os == 'ubuntu-latest' }}
+        run: |
+            sudo apt update
+            sudo apt install -y xorg-dev freeglut3-dev
+            export CC=${{ matrix.config.cc }}
+            export CXX=${{ matrix.config.cxx }}
+            python create_solution.py -G "${{ matrix.config.cmake_gen }}"
+      - name: Setup MSVC-Developer-Console For Windows With MSVC
+        if: ${{ matrix.config.cc == 'cl' }}
+        uses: ilammy/msvc-dev-cmd@v1 # To get nmake to find cl
+      - name: Create Solution And Build For Windows
+        if: ${{ matrix.config.os == 'windows-latest' }}
+        run: |
+            python create_solution.py -G "${{ matrix.config.cmake_gen }}"
