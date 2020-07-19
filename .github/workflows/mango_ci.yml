@@ -52,6 +52,7 @@ jobs:
             sudo apt install -y xorg-dev freeglut3-dev
             export CC=${{ matrix.config.cc }}
             export CXX=${{ matrix.config.cxx }}
+            python create_solution.py -G "${{ matrix.config.cmake_gen }}"
       - name: Setup MSVC-Developer-Console For Windows With MSVC
         if: ${{ matrix.config.cc == 'cl' }}
         uses: ilammy/msvc-dev-cmd@v1 # To get nmake to find cl
