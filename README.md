@@ -2,7 +2,7 @@
   <img src="res/textures/logo.png" width="20%">
 </p>
 <p align="center">
-  <a href="https://github.com/Paul-Hi/Mango/workflows/Continuous%20Integration"><img alt="Continuous Integration Status" src="https://github.com/Paul-Hi/Mango/workflows/Continuous%20Integration/badge.svg"></a>
+  <a href="https://github.com/Paul-Hi/Mango/actions?query=workflow%3A%22Continuous+Integration%22"><img alt="Continuous Integration Status" src="https://github.com/Paul-Hi/Mango/workflows/Continuous%20Integration/badge.svg"></a>
 </p>
 
 # Mango
