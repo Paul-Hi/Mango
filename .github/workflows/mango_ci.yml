@@ -39,6 +39,7 @@ jobs:
             
       name: ${{ matrix.config.name }}
       runs-on: ${{ matrix.config.os }}
+      
       steps:
       - name: Mango Checkout
         uses: actions/checkout@v2
@@ -46,19 +47,17 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.7.7 # using this version because it is my current one as well
-      - name: Setup, Solution And Build For Linux
+      - name: Setup, Create Solution And Build For Linux
         if: ${{ matrix.config.os == 'ubuntu-latest' }}
         run: |
-            sudo apt-get install xorg-dev
-            sudo apt-get install freeglut3-dev
+            sudo apt update
+            sudo apt install -y xorg-dev freeglut3-dev
             export CC=${{ matrix.config.cc }}
             export CXX=${{ matrix.config.cxx }}
-      - name: Setup, Solution And Build For Windows With MSVC
-        if: ${{ matrix.config.os == 'windows-latest' && matrix.config.cc == 'cl' }}
-        run: |
-            "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat"
-            python create_solution.py -G "${{ matrix.config.cmake_gen }}"
-      - name: Setup, Solution And Build For Windows With MinGW
-        if: ${{ matrix.config.os == 'windows-latest' && matrix.config.cc == 'gcc' }}
+      - name: Setup MSVC-Developer-Console For Windows With MSVC
+        if: ${{ matrix.config.cc == 'cl' }}
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Create Solution And Build For Windows
+        if: ${{ matrix.config.os == 'windows-latest' }}
         run: |
             python create_solution.py -G "${{ matrix.config.cmake_gen }}"
