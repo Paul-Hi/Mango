@@ -75,7 +75,7 @@ namespace mango
         void make_current();
 
         //! \brief Destruction function for the context.
-        //! \details Destriys various systems like \a window_system.
+        //! \details Destroys various systems like \a window_system.
         //! This function is only callable by mango internally.
         void destroy();
 

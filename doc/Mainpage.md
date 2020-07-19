@@ -1,6 +1,7 @@
+<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/master/res/textures/logo.png" alt="alt text" width="5%" style="float:right; margin:1%"/>
 # Mango
 
-Mango is an Open Source Frameowrk. Or at least it should be in the future.
+Mango is an Open Source Framework. Or at least it should be in the future.
 A playground for people like me.
 
 Just to be clear: This is not the first attempt!
@@ -31,12 +32,13 @@ Keep in mind that I do this in my spare time, besides studying and working.
 ## Build
 
 For an easy build you (hopefully) just need to run the ```create_solution.py``` script.
-This will query all dependencies and populate the dependencies folder.
+This will query all dependencies and populate the dependencies folder with the dependencies mentioned down below.
 The script should also run ```cmake``` and the correct ```make```.
 
 There are two extra options in the cmake configuration:
-* MANGO_BUILD_TESTS (Default OFF): This enables the "Testing Mode" in mango and builds the tests. This should ONLY be enabled, if you plan to run the tests. It enables and disables functionalities in mango.
 * MANGO_BUILD_DOC (Default ON): This builds the documentation for mango.
+* MANGO_BUILD_TESTS (Default OFF): This enables the "Testing Mode" in mango and builds the tests. This should ONLY be enabled, if you plan to run the tests. It enables and disables functionalities in mango.
+* MANGO_ENABLE_HARD_WARNINGS (Default OFF): This enables some warning compiler flags. Attention: This will cause Mango to stop building, as even some libraries do not build without errors.
 
 If the dependency population fails you could try to populate the directory by yourself.
 If ```cmake``` or ```make``` fails you could also try to build it manually like that:
@@ -45,10 +47,10 @@ If ```cmake``` or ```make``` fails you could also try to build it manually like 
 mkdir build
 cd build
 cmake -G "Insert Generator Here" ..
-make
 ```
 
-Make sure that you use the right generator for cmake and an installed make.
+After that it should be possible to build with some make derivate or under Windows with a Visual Studio solution.
+
 If you still have a problem just reach out to me on GitHub and I'll try to fix it.
 
 ## Usage
