@@ -15,6 +15,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene_component_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input_codes.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/ui_system.hpp
 )
 
 set(PRIVATE_HEADERS
@@ -31,6 +32,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/image_structures.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/model_structures.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/timer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_system_impl.hpp
 
     # graphics
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_common.hpp
@@ -66,6 +68,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/ibl_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_system_impl.cpp
 
     # graphics
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_state.cpp

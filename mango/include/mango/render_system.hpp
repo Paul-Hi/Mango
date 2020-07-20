@@ -75,7 +75,7 @@ namespace mango
 
         //! \brief Enables an additional \a render_step in the \a render_configuration.
         //! \details This is then used to add the \a render_step in to base \a render_pipeline of the \a render_system.
-        //! \param[in] additional_render_step The configurated \a render_step tp enable.
+        //! \param[in] additional_render_step The configurated \a render_step to enable.
         //! \return A reference to the modified \a render_configuration.
         inline render_configuration& enable_render_step(render_step additional_render_step)
         {

@@ -14,6 +14,7 @@ Keep in mind that I do this in my spare time, besides studying and working.
 
 ## Features
 
+* Building and running on Linux and Windows.
 * Basic support of GLTF models (No animations yet, some features missing, no draco encoding)
 * HDR support and image based lighting
 * Many physically based rendering features
@@ -40,8 +41,8 @@ There are two extra options in the cmake configuration:
 * MANGO_BUILD_TESTS (Default OFF): This enables the "Testing Mode" in mango and builds the tests. This should ONLY be enabled, if you plan to run the tests. It enables and disables functionalities in mango.
 * MANGO_ENABLE_HARD_WARNINGS (Default OFF): This enables some warning compiler flags. Attention: This will cause Mango to stop building, as even some libraries do not build without errors.
 
-If the dependency population fails you could try to populate the directory by yourself.
-If ```cmake``` or ```make``` fails you could also try to build it manually like that:
+If the dependency population fails, you might as well just try to populate the directory by yourself.
+If ```cmake``` or ```make``` fails, you might as well just try to build it manually like that:
 
 ```console
 mkdir build
@@ -50,6 +51,7 @@ cmake -G "Insert Generator Here" ..
 ```
 
 After that it should be possible to build with some make derivate or under Windows with a Visual Studio solution.
+
 
 If you still have a problem just reach out to me on GitHub and I'll try to fix it.
 

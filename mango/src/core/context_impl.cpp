@@ -17,6 +17,7 @@
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
+#include <ui/ui_system_impl.hpp>
 
 using namespace mango;
 
@@ -50,6 +51,11 @@ weak_ptr<input_system> context_impl::get_input_system()
 weak_ptr<render_system> context_impl::get_render_system()
 {
     return m_render_system;
+}
+
+weak_ptr<ui_system> context_impl::get_ui_system()
+{
+    return m_ui_system;
 }
 
 void context_impl::register_scene(shared_ptr<scene>& scene)
@@ -92,6 +98,11 @@ weak_ptr<resource_system> context_impl::get_resource_system_internal()
     return m_resource_system;
 }
 
+weak_ptr<ui_system_impl> context_impl::get_ui_system_internal()
+{
+    return m_ui_system;
+}
+
 const mango_gl_load_proc& context_impl::get_gl_loading_procedure()
 {
     return m_procedure;
@@ -118,6 +129,9 @@ bool context_impl::create()
     m_render_system = std::make_shared<render_system_impl>(shared_from_this());
     success         = success && m_render_system->create();
 
+    m_ui_system = std::make_shared<ui_system_impl>(shared_from_this());
+    success     = success && m_ui_system->create();
+
     m_resource_system = std::make_shared<resource_system>(shared_from_this());
     success           = success && m_resource_system->create();
 
@@ -133,6 +147,8 @@ void context_impl::destroy()
 {
     MANGO_ASSERT(m_resource_system, "Resource System is invalid!");
     m_resource_system->destroy();
+    MANGO_ASSERT(m_ui_system, "UI System is invalid!");
+    m_ui_system->destroy();
     MANGO_ASSERT(m_render_system, "Render System is invalid!");
     m_render_system->destroy();
     MANGO_ASSERT(m_input_system, "Input System is invalid!");

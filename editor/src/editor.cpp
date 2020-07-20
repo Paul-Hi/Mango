@@ -28,9 +28,21 @@ bool editor::create()
     MANGO_ASSERT(mango_rs, "Render System is expired!");
     mango_rs->configure(render_config);
 
+    ui_configuration ui_config;
+    ui_config.enable_dock_space(true)
+            .show_widget(mango::ui_widget::hardware_info)
+            .submit_custom([this] () {
+   //             ImGui::Begin();
+   //             ImGui::Text("This is an example for custom ui functionality with ImGui!");
+   //             ImGui::End();
+            });
+
+    shared_ptr<ui_system> mango_uis = mango_context->get_ui_system().lock();
+    MANGO_ASSERT(mango_uis, "UI System is expired!");
+    mango_uis->configure(ui_config);
+
     shared_ptr<scene> application_scene = std::make_shared<scene>("test_scene");
     mango_context->register_scene(application_scene);
-
 
     // camera
     m_main_camera = application_scene->create_default_camera();

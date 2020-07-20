@@ -14,6 +14,7 @@ namespace mango
     class window_system_impl;
     class input_system_impl;
     class render_system_impl;
+    class ui_system_impl;
     class shader_system;
     class resource_system;
     //! \brief The implementation of the public context.
@@ -26,6 +27,7 @@ namespace mango
         weak_ptr<window_system> get_window_system() override;
         weak_ptr<input_system> get_input_system() override;
         weak_ptr<render_system> get_render_system() override;
+        weak_ptr<ui_system> get_ui_system() override;
         void register_scene(shared_ptr<scene>& scene) override;
         void make_scene_current(shared_ptr<scene>& scene) override;
         shared_ptr<scene>& get_current_scene() override;
@@ -50,6 +52,11 @@ namespace mango
         //! \details This enables you using internal functionalities.
         //! \return A weak pointer to the internal \a render_system.
         virtual weak_ptr<render_system_impl> get_render_system_internal();
+
+        //! \brief Queries and returns a weak pointer to mangos \a ui_system.
+        //! \details This enables you using internal functionalities.
+        //! \return A weak pointer to the internal \a ui_system.
+        virtual weak_ptr<ui_system_impl> get_ui_system_internal();
 
         //! \brief Queries and returns a weak pointer to mangos \a shader_system.
         //! \details The \a shader_system is only available internally, but the function name was choosen to be consistent.
@@ -92,6 +99,8 @@ namespace mango
         shared_ptr<shader_system> m_shader_system;
         //! \brief A shared pointer to the \a resource_system of mango.
         shared_ptr<resource_system> m_resource_system;
+        //! \brief A shared pointer to the \a ui_system of mango.
+        shared_ptr<ui_system_impl> m_ui_system;
         //! \brief A shared pointer to the current \a scene of mango.
         shared_ptr<scene> m_current_scene;
         //! \brief The gl loading procedure of mango.

@@ -26,5 +26,6 @@ namespace mango
 #include <mango/system.hpp>
 #include <mango/types.hpp>
 #include <mango/window_system.hpp>
+#include <mango/ui_system.hpp>
 
 #endif // MANGO_HPP

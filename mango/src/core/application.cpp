@@ -14,6 +14,7 @@
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
+#include <ui/ui_system_impl.hpp>
 
 // test
 #include <graphics/texture.hpp>
@@ -50,21 +51,24 @@ int32 application::run(int32 t_argc, char** t_argv)
         MANGO_ASSERT(is, "Input System is expired!");
         shared_ptr<render_system_impl> rs = m_context->get_render_system_internal().lock();
         MANGO_ASSERT(rs, "Render System is expired!");
+        shared_ptr<ui_system_impl> uis = m_context->get_ui_system_internal().lock();
+        MANGO_ASSERT(uis, "UI System is expired!");
         shared_ptr<scene> scene = m_context->get_current_scene();
 
         // poll events
         ws->poll_events();
         should_close = ws->should_close();
 
-        float frame_time = static_cast<float>(m_frame_timer->elapsedMicroseconds().count()) * 0.000001f; // We need the resolution. TODO Paul: We could wrap this with some kind of 'high res clock'. 
+        float frame_time = static_cast<float>(m_frame_timer->elapsedMicroseconds().count()) * 0.000001f; // We need the resolution. TODO Paul: We could wrap this with some kind of 'high res clock'.
         m_frame_timer->restart();
 
         // update
         update(frame_time);
+        scene->update(frame_time);
         ws->update(frame_time);
         is->update(frame_time);
         rs->update(frame_time);
-        scene->update(frame_time);
+        uis->update(frame_time);
 
         // render
         rs->begin_render();
@@ -72,6 +76,8 @@ int32 application::run(int32 t_argc, char** t_argv)
         scene->render();
         //
         rs->finish_render();
+        //
+        uis->draw_ui();
 
         // swap buffers
         ws->swap_buffers();

@@ -15,6 +15,7 @@ namespace mango
     class window_system;
     class input_system;
     class render_system;
+    class ui_system;
     class scene;
 
     //! \brief Context interface.
@@ -43,6 +44,11 @@ namespace mango
         //! \details Can be used to configure the \a rendering_pipeline used by mango.
         //! \return A weak pointer to the mango \a render_system.
         virtual weak_ptr<render_system> get_render_system() = 0;
+
+        //! \brief Queries and returns a weak pointer to mangos \a ui_system.
+        //! \details Mangos ui.
+        //! \return A weak pointer to the mango \a ui_system.
+        virtual weak_ptr<ui_system> get_ui_system() = 0;
 
         //! \brief Registers a \a scene to mango.
         //! \details This is used to inject the internal \a context into the scene.
