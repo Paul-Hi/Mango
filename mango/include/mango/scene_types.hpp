@@ -7,7 +7,9 @@
 #ifndef MANGO_SCENE_TYPES_HPP
 #define MANGO_SCENE_TYPES_HPP
 
+//! \cond NO_COND
 #define GLM_FORCE_SILENT_WARNINGS 1
+//! \endcond
 #include <glm/glm.hpp>
 #include <mango/types.hpp>
 

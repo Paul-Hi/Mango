@@ -13,11 +13,11 @@
 
 namespace mango
 {
-
+    //! \brief Available widgets for the ui.
     enum ui_widget
     {
-        hardware_info,
-        number_of_ui_widgets
+        hardware_info,       //! << Widget giving some hardware info.
+        number_of_ui_widgets //! << Number of widgets.
     };
 
     //! \brief The configuration for the \a ui_system.
@@ -93,11 +93,11 @@ namespace mango
         }
 
       private:
-      //! \brief The configurated setting of the \a ui_configuration to enable or disable docking in the \a ui_system.
+        //! \brief The configurated setting of the \a ui_configuration to enable or disable docking in the \a ui_system.
         bool m_docking;
-      //! \brief The configurated \a ui_widgets in the \a ui_configuration to show in the \a ui_system.
+        //! \brief The configurated \a ui_widgets in the \a ui_configuration to show in the \a ui_system.
         bool m_ui_widgets[ui_widget::number_of_ui_widgets];
-      //! \brief The configurated custom ui function in the \a ui_configuration to display in the \a ui_system.
+        //! \brief The configurated custom ui function in the \a ui_configuration to display in the \a ui_system.
         std::function<void()> m_custom_ui_function;
     };
 
