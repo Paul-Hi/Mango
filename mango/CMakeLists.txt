@@ -5,14 +5,14 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/application.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/context.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/types.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene_types.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene_ecs.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/log.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/assert.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/window_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/render_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene_component_manager.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene_component_pool.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input_codes.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/ui_system.hpp
@@ -33,6 +33,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/model_structures.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/timer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_system_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/ecs_internal.hpp
 
     # graphics
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_common.hpp
