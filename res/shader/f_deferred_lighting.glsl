@@ -116,7 +116,7 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     vec3 prefiltered_color = textureLod(prefiltered_specular, dominant_refl, perceptual_roughness * MAX_REFLECTION_LOD).rgb;
     vec3 specular_ibl      = prefiltered_color * (f0 * dfg.x + vec3(f90) * dfg.y);
 
-    return (diffuse_ibl + specular_ibl) * occlusion_factor;
+    return diffuse_ibl * occlusion_factor + specular_ibl;
 }
 
 vec3 uncharted2_tonemap(in vec3 color)
