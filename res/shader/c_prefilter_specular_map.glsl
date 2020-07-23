@@ -50,7 +50,7 @@ void main()
 
     vec3 prefiltered = vec3(0.0);
     float weight = 0.0;
-    uint real_sample_count = uint(float(sample_count) * roughness);
+    uint real_sample_count = uint(1.0 + float(sample_count) * roughness);
 
     for(uint s = 0; s < real_sample_count; ++s)
     {
@@ -126,8 +126,8 @@ void importance_sample_ggx_direction(in vec2 u, in vec3 view, in vec3 normal, in
 
 vec3 cube_to_world(in ivec3 cube_coord, in vec2 cubemap_size)
 {
-    vec2 tex_coord = vec2(cube_coord.xy) / cubemap_size;
-    tex_coord = tex_coord  * 2.0 - 1.0;
+    vec2 tex_coord = vec2(cube_coord.xy + 0.5) / cubemap_size;
+    tex_coord = tex_coord * 2.0 - 1.0;
     switch(cube_coord.z)
     {
         case 0: return vec3(1.0, -tex_coord.yx);

@@ -53,8 +53,7 @@ void main()
             // Omega_s = PI / (fSampleCount * cos(theta))
             float o = (6.0 * width_sqr) / (4.0 * float(sample_count) * n_dot_l);
             float mip_level = max(0.5 * log2(o), 0.0);
-            float bias = 1.0; // bias reduces artefacts
-
+            float bias = min(mip_level / 4.0, 1.5); // bias reduces artefacts
             irradiance += textureLod(cubemap_in, to_light, mip_level + bias).rgb * n_dot_l;
         }
     }
@@ -102,8 +101,8 @@ void importance_sample_cosinus_direction(in vec2 u, in vec3 normal, out vec3 to_
 
 vec3 cube_to_world(in ivec3 cube_coord, in vec2 cubemap_size)
 {
-    vec2 tex_coord = vec2(cube_coord.xy) / cubemap_size;
-    tex_coord = tex_coord  * 2.0 - 1.0;
+    vec2 tex_coord = vec2(cube_coord.xy + 0.5) / cubemap_size;
+    tex_coord = tex_coord * 2.0 - 1.0;
     switch(cube_coord.z)
     {
         case 0: return vec3(1.0, -tex_coord.yx);
