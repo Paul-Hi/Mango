@@ -105,11 +105,14 @@ add_library(mango::mango ALIAS mango)
 target_include_directories(mango
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-    SYSTEM
-        ${CMAKE_SOURCE_DIR}/dependencies/glm
-        ${CMAKE_SOURCE_DIR}/dependencies/glad/include
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_include_directories(mango SYSTEM
+    PUBLIC
+        ${CMAKE_SOURCE_DIR}/dependencies/glm
+        ${CMAKE_SOURCE_DIR}/dependencies/glad/include
 )
 
 set_target_properties(mango
