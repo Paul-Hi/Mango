@@ -90,6 +90,9 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 * googletest (Testing)
 * Doxygen (Documentation)
 
+## Contribution
+See the [guidelines](https://github.com/Paul-Hi/Mango/blob/master/CONTRIBUTING.md).
+
 ## Images
 ### Water Bottle
 ![alt text](https://github.com/Paul-Hi/Mango/blob/master/show/water_bottle.png "Water Bottle")
