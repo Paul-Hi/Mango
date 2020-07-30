@@ -1,0 +1,27 @@
+<header role="banner" class="absolute-top navbar-mango">
+    <div class="container-fluid max-content-width">
+        <nav class="navbar navbar-expand-lg navbar-dark d-flex justify-content-start align-items-center">
+            <button class="navbar-toggler mr-3" type="button" data-toggle="collapse" data-target="#navbar"
+                aria-controls="navbar" aria-expanded="false">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <a class="navbar-brand" href="{{ "" | absolute_url }}">
+                <span class="d-inline-flex">{{ site.title }}</span>
+            </a>
+
+            <div class="collapse navbar-collapse" id="navbar">
+                <ul class="navbar-nav mr-auto pl-3">
+                    {% for item in site.data.page_list.nav_pages %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if item.url == page.url %}active{% endif %}"
+                            href="{{ item.url }}">{{ item.title }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <a class="mango-link ml-auto m-3" href="{{ "" | absolute_url }}">
+                <img src="{{ "/assets/logo.svg" | absolute_url }}" width="64" height="64" class="d-inline-flex">
+            </a>
+        </nav>
+    </div>
+</header>

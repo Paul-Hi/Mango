@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>About | Mango</title>
+    <meta name="description" content="Mango">
+    <meta name="author" content="Paul Himmler">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- jquery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <!-- bootstrap -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
+    <!-- font-awesome -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- mine -->
+    <link rel="stylesheet" type="text/css" href="http://192.168.178.54:4000/assets/style.css">
+    <link rel="shortcut icon" type="image/png" href="/assets/logo.svg">
+</head>
+
+<body>
+    <header role="banner" class="absolute-top navbar-mango">
+    <div class="container-fluid max-content-width">
+        <nav class="navbar navbar-expand-lg navbar-dark d-flex justify-content-start align-items-center">
+            <button class="navbar-toggler mr-3" type="button" data-toggle="collapse" data-target="#navbar"
+                aria-controls="navbar" aria-expanded="false">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <a class="navbar-brand" href="http://192.168.178.54:4000/">
+                <span class="d-inline-flex">Mango</span>
+            </a>
+
+            <div class="collapse navbar-collapse" id="navbar">
+                <ul class="navbar-nav mr-auto pl-3">
+                    
+                    <li class="nav-item">
+                        <a class="nav-link "
+                            href="/index.html">Home</a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link active"
+                            href="/about.html">About</a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link "
+                            href="/blog.html">Blog</a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link "
+                            href="/contact.html">Contact</a>
+                    </li>
+                    
+                </ul>
+            </div>
+            <a class="mango-link ml-auto m-3" href="http://192.168.178.54:4000/">
+                <img src="http://192.168.178.54:4000/assets/logo.svg" width="64" height="64" class="d-inline-flex">
+            </a>
+        </nav>
+    </div>
+</header>
+
+    <div class="container-fluid max-content-width page-content">
+        <div class="d-flex flex-row flex-lg-nowrap flex-wrap">
+    <div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body">
+            <h1 class="card-title">About</h1>
+            <p class="card-text">All the information about Mango!</p>
+        </div>
+    </div>
+    <!-- ROADMAP -->
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body">
+            <h1 class="card-title">Roadmap</h1>
+            <p class="card-text">
+            (unordered and incomplete)
+                <ul class="pl-2">
+    <li>
+        Implementing the compilation and saving of scenes (own format and gltf export)
+    </li>
+    <li>
+        Support for GLTF animations
+    </li>
+    <li>
+        Support for translucent materials
+    </li>
+    <li>
+        Rendering improvements (performance and appearance)
+    </li>
+    <li>
+        Scene management improvements
+    </li>
+    <li>
+        GUI with DearImGui
+    </li>
+    <li>
+        Performance measurement tools
+    </li>
+    <li>
+        Editor improvements and some better examples for the use of Mango
+    </li>
+    <li>
+        Many features like shadows, global light effects (GI, AO, reflections), live editing, hot swapable resources, and more
+    </li>
+</ul>
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex flex-column justify-content-between col">
+    <!-- WHAT IS IT -->
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body">
+            <h1 class="card-title">What is Mango</h1>
+            <p class="card-text">
+                Mango is an Open Source Framework. Or at least it should be in the future.
+                A playground for people like me.<br /><br />
+                Just to be clear: This is not the first attempt!
+                I plan to implement various features, with main focus on computer graphics.
+                A few of them are described below, but there will be added a lot more in the future.
+                There should also always be a documentation and tests to ensure cleaner and more
+                functional
+                code.<br /><br />
+                If you have suggestions for improvement or find a bug just let me know on <a class="mango-link" href="https://github.com/Paul-Hi/Mango">GitHub</a>.
+                Keep in mind that I do this in my spare time, besides studying and working.<br /><br />
+                For more info have a look at the first blog post
+                '<a class="mango-link" href="http://192.168.178.54:4000/2020/06/09/From-0.html">From 0 to 0.5</a>'.
+            </p>
+        </div>
+    </div>
+    <!-- FEATURES -->
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body">
+            <h1 class="card-title">Features</h1>
+            <p class="card-text">
+                <ul class="pl-2">
+    <li>
+        Building and running on Linux and Windows.
+    </li>
+    <li>
+        Basic support of GLTF models (No animations yet, some features missing, no draco encoding)
+    </li>
+    <li>
+        HDR support and image based lighting
+    </li>
+    <li>
+        Many physically based rendering features
+    </li>
+    <li>
+        Deferred rendering with OpenGL backend
+    </li>
+    <li>
+        Entity Component System
+    </li>
+    <li>
+        Basic framework architecture
+    </li>
+    <li>
+        Editor featuring .gltf and .hdr file loading via drag'n'drop and a simple camera controller
+    </li>
+</ul>
+            </p>
+        </div>
+    </div>
+    <!-- CLICKUP BOARD -->
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body">
+            <h1 class="card-title">ClickUp Board</h1>
+            <iframe class="clickup-embed" src="https://share.clickup.com/b/h/6-17154399-2/ae014866f2d5daa" frameborder="0" onmousewheel="" style="background: transparent; border: 1px solid #ccc;"></iframe>
+        </div>
+    </div>
+</div>
+
+</div>
+    </div>
+
+    <footer class="page-footer font-small">
+    <ul class="list-unstyled list-inline text-center py-3">
+        <li class="list-inline-item">
+            <a class="btn-floating btn-dribbble mx-1" href="https://github.com/Paul-Hi/Mango">
+                <i class="mango-link fa fa-github fa-2x"></i>
+            </a>
+        </li>
+    </ul>
+    <div class="footer-copyright text-center pb-3">
+        © 2020 Copyright: Paul Himmler
+        <br>
+        Powered by <a class="mango-link" href="https://jekyllrb.com/">Jekyll</a>.
+        Hosted at  <a class="mango-link" href="https://pages.github.com">Github</a>.
+    </div>
+</footer>
+
+</body>
+
+</html>

@@ -1,0 +1,13 @@
+nav_pages:
+
+- title: Home
+  url: /index.html
+
+- title: About
+  url: /about.html
+
+- title: Blog
+  url: /blog.html
+
+- title: Contact
+  url: /contact.html

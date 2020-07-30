@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>From 0 to 0.5 | Mango</title>
+    <meta name="description" content="Mango">
+    <meta name="author" content="Paul Himmler">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- jquery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <!-- bootstrap -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
+    <!-- font-awesome -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- mine -->
+    <link rel="stylesheet" type="text/css" href="http://192.168.178.54:4000/assets/style.css">
+    <link rel="shortcut icon" type="image/png" href="/assets/logo.svg">
+</head>
+
+<body>
+    <header role="banner" class="absolute-top navbar-mango">
+    <div class="container-fluid max-content-width">
+        <nav class="navbar navbar-expand-lg navbar-dark d-flex justify-content-start align-items-center">
+            <button class="navbar-toggler mr-3" type="button" data-toggle="collapse" data-target="#navbar"
+                aria-controls="navbar" aria-expanded="false">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <a class="navbar-brand" href="http://192.168.178.54:4000/">
+                <span class="d-inline-flex">Mango</span>
+            </a>
+
+            <div class="collapse navbar-collapse" id="navbar">
+                <ul class="navbar-nav mr-auto pl-3">
+                    
+                    <li class="nav-item">
+                        <a class="nav-link "
+                            href="/index.html">Home</a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link "
+                            href="/about.html">About</a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link "
+                            href="/blog.html">Blog</a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link "
+                            href="/contact.html">Contact</a>
+                    </li>
+                    
+                </ul>
+            </div>
+            <a class="mango-link ml-auto m-3" href="http://192.168.178.54:4000/">
+                <img src="http://192.168.178.54:4000/assets/logo.svg" width="64" height="64" class="d-inline-flex">
+            </a>
+        </nav>
+    </div>
+</header>
+
+    <div class="container-fluid max-content-width page-content">
+        <div class="d-flex flex-row flex-lg-nowrap flex-wrap-reverse">
+    <div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body">
+            <h1 class="card-title">Other Posts</h1>
+            <div class="card-text">
+                
+                
+                
+                
+                <h4 id="y2020">2020</h4>
+                
+                
+                <a class="mango-card-link d-flex p-2" href="/2020/06/09/From-0.html">
+                    <span class="pl-2"> From 0 to 0.5 </span>
+                    <span class="post-date ml-auto pl-2"> Jun 9, 2020</span>
+                </a>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex flex-column justify-content-between col">
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body post-card" style="background-image:url(http://192.168.178.54:4000/assets/metal_rough_spheres.png);">
+            <h1 class="card-title">From 0 to 0.5</h1>
+            <h2 class="card-text">Getting started is the hardest part</h2>
+            <span class="post-date"> Jun 9, 2020</span>
+        </div>
+    </div>
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body">
+            <div class="post-content card-text text-justify">
+                <p>A lot has happened since <strong>Mango</strong> saw the light of day.</p>
+
+<p>A short summary.</p>
+
+<!--more-->
+
+<hr />
+
+<h2 id="the-beginning">The Beginning</h2>
+
+<p>Okay, so let’s face it: The last attempt was not perfect.</p>
+
+<p><strong>Mango</strong> started out as the predecessor failed miserably to become what it was meant to be.
+After a lot of work and some success, the code base of the previous attempt (named <em>Wipe</em>) was overloaded with abstract layers and it took forever to add new features.
+Because of that the decision was made to restart and learn from the mistakes made.</p>
+
+<p>So while some good parts where adopted, most of the code was completely rewritten. Sometime in the near future there will be a post with a short overview of <strong>Mango</strong> as a whole.
+The design of the engine / framework has it’s flaws, but for sure it is much better than last time, and hopefully it will get even better over time.</p>
+
+<h2 id="the-name">The Name</h2>
+
+<p>So, how do you come up with such a name for a graphical framework with approaches of a game engine?
+Well, actually quite simple: I like mango! No other deeper meaning, but let me know if you find one.</p>
+
+<h2 id="status">Status</h2>
+
+<p>At the moment <strong>Mango</strong> is still in the early stages. There is a functional basis to work with. When the editor, which is not a real editor at the moment, is started and some files are dragged onto it, something is visible and it looks fine. “Behind the scenes” there are some systems available (for example ECS, Deferred Renderer, Input). So let’s call it ‘work in progress’.</p>
+
+<h2 id="the-vision-and-mission--">The Vision (and Mission ; ))</h2>
+
+<p><strong>Mango</strong> is an Open Source Framework.
+Or at least it should be in the future. The idea is to create a playground for people like me. There are planned features I already know about and some I probably haven’t thought about yet.</p>
+
+<p>What will <strong>Mango</strong> be someday? I don’t know, but hopefully useful and above all brilliant. That sets the bar high for the time being.
+And in order not to lose the drive, there will always be updates, upgrades, pictures, articles and maybe even videos here. This webpage will also get updates … For example, I would really like to give you the opportunity to add comments.</p>
+
+<h2 id="now-what">Now what?</h2>
+
+<p>There will be short updates on the <em>Blog</em> page under <em>In Progress</em>. I’ll try to summarize everything that happens with <strong>Mango</strong> in a short form there.</p>
+
+<p>Even more up-to-date is the <em>ClickUp Board</em> on the <em>About</em> page. But be warned: It might be a little bit messy.
+Sometimes I will select some features of <strong>Mango</strong> and write an article about the feature or a related topic. You’ll find it here.
+If you have suggestions for improvement or find a bug just open an issue on <a href="https://github.com/Paul-Hi/Mango">GitHub</a> and I’ll see what I can do.</p>
+
+<p><br /></p>
+
+<hr />
+
+<p>And that’s it for now. Hope you’ve found this short article useful. Comments and suggestions are welcome.</p>
+
+<p><img src="http://192.168.178.54:4000/assets/logo.svg#inline-left" alt="image" /></p>
+
+<p><br />
+  Paul</p>
+
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+    </div>
+
+    <footer class="page-footer font-small">
+    <ul class="list-unstyled list-inline text-center py-3">
+        <li class="list-inline-item">
+            <a class="btn-floating btn-dribbble mx-1" href="https://github.com/Paul-Hi/Mango">
+                <i class="mango-link fa fa-github fa-2x"></i>
+            </a>
+        </li>
+    </ul>
+    <div class="footer-copyright text-center pb-3">
+        © 2020 Copyright: Paul Himmler
+        <br>
+        Powered by <a class="mango-link" href="https://jekyllrb.com/">Jekyll</a>.
+        Hosted at  <a class="mango-link" href="https://pages.github.com">Github</a>.
+    </div>
+</footer>
+
+</body>
+
+</html>

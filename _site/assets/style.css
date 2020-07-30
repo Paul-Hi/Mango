@@ -1,0 +1,194 @@
+html {
+    overflow-y: scroll;
+}
+
+body {
+    font-family: sans-serif;
+    background-color: #222222;
+    color: #cccccc;
+}
+
+/* Landscape phone to portrait tablet */
+@media (max-width: 767px) {
+    /* Scaling will be done by layout */
+}
+
+/* Landscape phones and down */
+@media (max-width: 480px){
+    /* Scaling will be done by layout */
+}
+
+/* Portrait tablet to landscape and desktop */
+@media (min-width: 768px) {
+    .max-content-width {
+        max-width: 979px;
+    }
+    .sidebar-mango {
+        min-width: 275px !important;
+    }
+}
+
+/* Large desktop */
+@media (min-width: 1600px) {
+    .max-content-width {
+        max-width: 1280px;
+    }
+    .sidebar-mango {
+        min-width: 320px !important;
+    }
+}
+
+/* Widesceen desktop */
+@media (min-width: 2560px) {
+    .max-content-width {
+        max-width: 1920px;
+    }
+    .sidebar-mango {
+        min-width: 495px !important;
+    }
+}
+
+/*
+mango-primary color: #ffcc22
+mango-light color: #ffe75d
+mango-dark color: #c79c00
+dark color: #222222
+light dark color: #333333
+*/
+
+/* navbar */
+.navbar-mango {
+    background-color: #222222;
+    box-shadow: black 0 0 12px;
+}
+
+.navbar-mango .navbar-brand,
+.navbar-mango .navbar-brand:focus,
+.navbar-mango .navbar-brand:hover {
+    color: #ffcc22;
+}
+
+.navbar-mango .navbar-nav .nav-item .nav-link.active,
+.navbar-mango .navbar-nav .nav-item .nav-link:focus,
+.navbar-mango .navbar-nav .nav-item .nav-link:hover {
+    color: #c79c00;
+}
+
+.navbar-mango .navbar-nav .nav-item .nav-link {
+    color: #888888;
+}
+
+/* body */
+.page-content h2 {
+    margin-top: 36px;
+}
+
+.page-content h3 {
+    margin-top: 28px;
+}
+
+.page-content h4 {
+    margin-top: 24px;
+}
+
+.page-content p {
+    margin-top: 12px;
+}
+
+.page-content hr {
+    border-top: 1px solid #c79c00;
+}
+
+.page-content a {
+    color: #ffcc22;
+}
+
+.page-content a:focus,
+.page-content a:hover {
+    color: #ffe75d;
+}
+
+
+.mango-link {
+    color: #ffcc22;
+}
+
+.mango-link:focus,
+.mango-link:hover {
+    color: #ffe75d;
+}
+
+.card {
+    background-color: #333333;
+}
+
+.mango-card-link {
+    color: #ffcc22;
+}
+
+.mango-card-link:focus,
+.mango-card-link:hover {
+    color: #ffcc22;
+    background-color: #222222;
+    text-decoration: none;
+}
+
+.carousel img{
+    min-width: auto;
+    object-fit: contain;
+}
+
+.clickup-embed {
+  width: 100%;
+  height: 750px;
+}
+
+.post-date {
+    color: #888888;
+}
+
+.post-content {
+    padding-left: 5%;
+    padding-right: 5%;
+}
+
+.post-content img {
+    max-width: 100%;
+}
+
+.post-content img[src*="#center"] {
+    max-width: 100%;
+    display: block;
+    margin-left:auto;
+    margin-right:auto;
+}
+
+.post-content img[src*="#inline"] {
+    max-width: 100%;
+    display: inline-flex;
+ }
+
+.post-content img[src*="#inline-left"] {
+    max-width: 100%;
+    display: inline-flex;
+    float: left;
+}
+
+.post-content img[src*="#inline-right"] {
+    max-width: 100%;
+    display: inline-flex;
+    float: right;
+}
+
+.post-card {
+    background-color: #222222;
+    background-size: cover !important;
+    background-position: center !important;
+    background-blend-mode: overlay !important;
+}
+
+/* footer */
+
+.page-footer {
+    color: #888888;
+}

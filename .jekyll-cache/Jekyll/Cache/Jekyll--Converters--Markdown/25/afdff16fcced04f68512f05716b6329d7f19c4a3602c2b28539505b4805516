@@ -1,0 +1,55 @@
+I"�<p>A lot has happened since <strong>Mango</strong> saw the light of day.</p>
+
+<p>A short summary.</p>
+
+<!--more-->
+
+<hr />
+
+<h2 id="the-beginning">The Beginning</h2>
+
+<p>Okay, so let’s face it: The last attempt was not perfect.</p>
+
+<p><strong>Mango</strong> started out as the predecessor failed miserably to become what it was meant to be.
+After a lot of work and some success, the code base of the previous attempt (named <em>Wipe</em>) was overloaded with abstract layers and it took forever to add new features.
+Because of that the decision was made to restart and learn from the mistakes made.</p>
+
+<p>So while some good parts where adopted, most of the code was completely rewritten. Sometime in the near future there will be a post with a short overview of <strong>Mango</strong> as a whole.
+The design of the engine / framework has it’s flaws, but for sure it is much better than last time, and hopefully it will get even better over time.</p>
+
+<h2 id="the-name">The Name</h2>
+
+<p>So, how do you come up with such a name for a graphical framework with approaches of a game engine?
+Well, actually quite simple: I like mango! No other deeper meaning, but let me know if you find one.</p>
+
+<h2 id="status">Status</h2>
+
+<p>At the moment <strong>Mango</strong> is still in the early stages. There is a functional basis to work with. When the editor, which is not a real editor at the moment, is started and some files are dragged onto it, something is visible and it looks fine. “Behind the scenes” there are some systems available (for example ECS, Deferred Renderer, Input). So let’s call it ‘work in progress’.</p>
+
+<h2 id="the-vision-and-mission--">The Vision (and Mission ; ))</h2>
+
+<p><strong>Mango</strong> is an Open Source Framework.
+Or at least it should be in the future. The idea is to create a playground for people like me. There are planned features I already know about and some I probably haven’t thought about yet.</p>
+
+<p>What will <strong>Mango</strong> be someday? I don’t know, but hopefully useful and above all brilliant. That sets the bar high for the time being.
+And in order not to lose the drive, there will always be updates, upgrades, pictures, articles and maybe even videos here. This webpage will also get updates … For example, I would really like to give you the opportunity to add comments.</p>
+
+<h2 id="now-what">Now what?</h2>
+
+<p>There will be short updates on the <em>Blog</em> page under <em>In Progress</em>. I’ll try to summarize everything that happens with <strong>Mango</strong> in a short form there.</p>
+
+<p>Even more up-to-date is the <em>ClickUp Board</em> on the <em>About</em> page. But be warned: It might be a little bit messy.
+Sometimes I will select some features of <strong>Mango</strong> and write an article about the feature or a related topic. You’ll find it here.
+If you have suggestions for improvement or find a bug just open an issue on <a href="https://github.com/Paul-Hi/Mango">GitHub</a> and I’ll see what I can do.</p>
+
+<p><br /></p>
+
+<hr />
+
+<p>And that’s it for now. Hope you’ve found this short article useful. Comments and suggestions are welcome.</p>
+
+<p><img src="http://192.168.178.54:4000/assets/logo.svg#inline-left" alt="image" /></p>
+
+<p><br />
+  Paul</p>
+:ET
