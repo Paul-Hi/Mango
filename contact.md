@@ -52,8 +52,8 @@ url: contact.html
             <h6>Data according to §5 TMG</h6>
             <p class="small">Paul Himmler<br/>
             91522 Ansbach</p>
-            <h6>contact</h6>
-            E-mail: sup.paul.h@gmail.com</p>
+            <h6>Contact</h6>
+            <p>E-mail: sup.paul.h@gmail.com</p>
             <h6>Responsible for the content according to §55 Abs. 2 RStV (Interstate Broadcasting Treaty)</h6>
             <p class="small">Paul Himmler</p>
             <h7>Liability for contents</h7>
