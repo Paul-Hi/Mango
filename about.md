@@ -43,7 +43,7 @@ url: about.html
                     class="mango-link" href="https://github.com/Paul-Hi/Mango">GitHub</a>.
                 Keep in mind that I do this in my spare time, besides studying and working.<br><br>
                 For more info have a look at the first blog post
-                '<a class="mango-link" href="{{ "/2020/06/09/From-0.html" | absolute_url }}">From 0 to 0.5</a>'.
+                '<a class="mango-link" href="{{ "/2020/06/09/From-0.html" | relative_url }}">From 0 to 0.5</a>'.
             </p>
         </div>
     </div>

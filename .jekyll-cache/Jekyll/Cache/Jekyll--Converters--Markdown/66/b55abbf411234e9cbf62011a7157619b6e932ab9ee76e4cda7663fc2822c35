@@ -1,4 +1,4 @@
-I"<div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
+I"<div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
     <div class="card mt-3 flex-grow-1">
         <div class="card-body">
             <h1 class="card-title">About</h1>
@@ -62,7 +62,7 @@
                 If you have suggestions for improvement or find a bug just let me know on <a class="mango-link" href="https://github.com/Paul-Hi/Mango">GitHub</a>.
                 Keep in mind that I do this in my spare time, besides studying and working.<br /><br />
                 For more info have a look at the first blog post
-                '<a class="mango-link" href="http://192.168.178.54:4000/2020/06/09/From-0.html">From 0 to 0.5</a>'.
+                '<a class="mango-link" href="/2020/06/09/From-0.html">From 0 to 0.5</a>'.
             </p>
         </div>
     </div>

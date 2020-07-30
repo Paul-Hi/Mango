@@ -49,7 +49,7 @@ url: blog.html
             <p class="card-text">
                 {% for post in site.posts %}
                     <div class="card mt-3 flex-grow-1">
-                        <div class="card-body post-card" style="background-image:url({{ post.fimg | absolute_url }});">
+                        <div class="card-body post-card" style="background-image:url({{ post.fimg | relative_url }});">
                             <a class="card-title mango-link" href="{{ post.url }}">
                                 <h2 class="mt-0">{{ post.title }}</h2>
                             </a>
