@@ -1,5 +1,6 @@
 name: Mango
 title: Mango
+
 baseurl: "/Mango"
 
 excerpt_separator: <!--more-->

@@ -1,4 +1,4 @@
-I"Y<div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
+I"k<div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
     <div class="card mt-3 flex-grow-1">
         <div class="card-body">
             <h1 class="card-title">Home</h1>
@@ -66,7 +66,7 @@
                     <div class="carousel-item active">
                     
                         <div class="view">
-                            <img class="d-block w-100" src="/assets/boom_box.png" alt="Boom Box" />
+                            <img class="d-block w-100" src="/Mango/assets/boom_box.png" alt="Boom Box" />
                             <div class="mask rgba-black-light"></div>
                         </div>
                         <div class="carousel-caption">
@@ -78,7 +78,7 @@
                     <div class="carousel-item">
                     
                         <div class="view">
-                            <img class="d-block w-100" src="/assets/water_bottle.png" alt="Water Bottle" />
+                            <img class="d-block w-100" src="/Mango/assets/water_bottle.png" alt="Water Bottle" />
                             <div class="mask rgba-black-light"></div>
                         </div>
                         <div class="carousel-caption">
@@ -90,7 +90,7 @@
                     <div class="carousel-item">
                     
                         <div class="view">
-                            <img class="d-block w-100" src="/assets/metal_rough_spheres.png" alt="Metal Rough Spheres" />
+                            <img class="d-block w-100" src="/Mango/assets/metal_rough_spheres.png" alt="Metal Rough Spheres" />
                             <div class="mask rgba-black-light"></div>
                         </div>
                         <div class="carousel-caption">
