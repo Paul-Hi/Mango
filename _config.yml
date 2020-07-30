@@ -1,7 +1,6 @@
 name: Mango
 title: Mango
-
-host: 192.168.178.54
+baseurl: "/Mango"
 
 excerpt_separator: <!--more-->
 defaults:
