@@ -20,7 +20,7 @@ url: index.html
             <h1 class="card-title">Latest Posts</h1>
             <p class="card-text">
                 {% for post in site.posts limit:3 %}
-                <a class="mango-card-link d-flex p-2" href="{{ post.url }}">
+                <a class="mango-card-link d-flex p-2" href="{{ post.url | relative_url }}">
                     <span class="pl-2"> {{ post.title}} </span>
                     <span class="post-date ml-auto pl-2"> {{ post.date | date: "%b %-d, %Y" }}</span>
                 </a>

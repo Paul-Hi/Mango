@@ -32,7 +32,7 @@ url: blog.html
                         <h4 id="y{{post.date | date: "%Y"}}">{{ currentdate }}</h4>
                         {% assign date = currentdate %}
                     {% endif %}
-                    <a class="mango-card-link d-flex p-2" href="{{ post.url }}">
+                    <a class="mango-card-link d-flex p-2" href="{{ post.url | relative_url }}">
                         <span class="pl-2"> {{ post.title}} </span>
                         <span class="post-date ml-auto pl-2"> {{ post.date | date: "%b %-d, %Y" }}</span>
                     </a>
@@ -50,13 +50,13 @@ url: blog.html
                 {% for post in site.posts %}
                     <div class="card mt-3 flex-grow-1">
                         <div class="card-body post-card" style="background-image:url({{ post.fimg | relative_url }});">
-                            <a class="card-title mango-link" href="{{ post.url }}">
+                            <a class="card-title mango-link" href="{{ post.url | relative_url }}">
                                 <h2 class="mt-0">{{ post.title }}</h2>
                             </a>
                             <p class="card-text">
                                 <h3>{{ post.subtitle }}</h3>
                                 <p>{{ post.excerpt }}</p>
-                                <a class="mango-link" href="{{ post.url }}">Read more...</a>
+                                <a class="mango-link" href="{{ post.url | relative_url }}">Read more...</a>
                             </p>
                         </div>
                     </div>
