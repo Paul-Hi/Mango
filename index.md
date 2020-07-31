@@ -43,7 +43,7 @@ url: index.html
         <div class="card-body">
             <h1 class="card-title">Mango</h1>
             <p class="card-text">
-                Mango is an Open Source Framework. Or at least it should be the future.
+                Mango is an Open Source Framework. Or at least it should be in the future.
                 A playground for people like me.
             </p>
         </div>

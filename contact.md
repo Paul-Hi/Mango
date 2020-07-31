@@ -48,28 +48,36 @@ url: contact.html
             </p>
             <br>
             <br>
-            <h5>Imprint</h5>
-            <h6>Data according to §5 TMG</h6>
-            <p class="small">Paul Himmler<br/>
-            91522 Ansbach</p>
-            <h6>Contact</h6>
-            <p class="small">E-mail: sup.paul.h@gmail.com</p>
-            <h6>Responsible for the content according to §55 Abs. 2 RStV (Interstate Broadcasting Treaty)</h6>
-            <p class="small">Paul Himmler</p>
-            <h7>Liability for contents</h7>
-            <p class="small">As a service provider, we are responsible for our own content on these pages according to §7 paragraph 1 TMG (German Telemedia Act) under general law. According to §§8 to 10 TMG we are not obliged to monitor transmitted or stored information or to investigate circumstances that indicate illegal activity.
-            </p>
-            <p class="small">Obligations to remove or block the use of information according to general laws remain unaffected by this. However, liability in this respect is only possible from the time of knowledge of a concrete infringement. If we become aware of any such legal infringements, we will remove the content in question immediately.
-            </p>
-            <h7>Adhesion for links</h7>
-            <p class="small">Our offer contains links to external websites of third parties, on whose contents we have no influence. Therefore, we cannot assume any liability for these external contents. The respective provider or operator of the sites is always responsible for the contents of the linked sites. The linked pages were checked for possible legal violations at the time of linking. Illegal contents were not identified at the time of linking.
-            </p>
-            <p class="small">A permanent control of the content of the linked pages is not reasonable without concrete evidence of a violation of the law. If we become aware of any infringements, we will remove such links immediately.
-            </p>
-            <h7>Copyright</h7>
-            <p class="small">The contents and works on these pages created by the site operators are subject to German copyright law. The reproduction, editing, distribution and any kind of use outside the limits of copyright law require the written consent of the respective author or creator. Downloads and copies of these pages are only permitted for private, non-commercial use.
-            </p>
-            <p class="small">Insofar as the content on this site was not created by the operator, the copyrights of third parties are respected. In particular, third-party content is identified as such. Should you nevertheless become aware of a copyright infringement, we ask you to inform us accordingly. If we become aware of any infringements, we will remove such contents immediately.
+            <br>
+            <br>
+            <br>
+            <hr>
+            <br>
+            <br>
+            <br>
+            <h5 class="card-title">Impressum</h5>
+            <p class="card-text">
+                <h6>Angaben gemäß § 5 TMG</h6>
+                <p class="small">
+                Paul Himmler
+                <br/>
+                91522 Ansbach
+                <br/>
+                Deutschland
+                </p>
+                <h6>Kontakt</h6>
+                <p class="small">E-Mail: sup.paul.h@gmail.com</p>
+                <h6>Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h6>
+                <p class="small">Paul Himmler</p>
+                <h7>Haftung für Inhalte</h7>
+                <p class="small">Als Diensteanbieter sind wir gemäß § 7 Abs.1 TMG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen.</p>
+                <p class="small">Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon unberührt. Eine diesbezügliche Haftung ist jedoch erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. Bei Bekanntwerden von entsprechenden Rechtsverletzungen werden wir diese Inhalte umgehend entfernen.</p>
+                <h7>Haftung für Links</h7>
+                <p class="small">Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich. Die verlinkten Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft. Rechtswidrige Inhalte waren zum Zeitpunkt der Verlinkung nicht erkennbar.</p>
+                <p class="small">Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist jedoch ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar. Bei Bekanntwerden von Rechtsverletzungen werden wir derartige Links umgehend entfernen.</p>
+                <h7>Urheberrecht</h7>
+                <p class="small">Die durch die Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers. Downloads und Kopien dieser Seite sind nur für den privaten, nicht kommerziellen Gebrauch gestattet.</p>
+                <p class="small">Soweit die Inhalte auf dieser Seite nicht vom Betreiber erstellt wurden, werden die Urheberrechte Dritter beachtet. Insbesondere werden Inhalte Dritter als solche gekennzeichnet. Sollten Sie trotzdem auf eine Urheberrechtsverletzung aufmerksam werden, bitten wir um einen entsprechenden Hinweis. Bei Bekanntwerden von Rechtsverletzungen werden wir derartige Inhalte umgehend entfernen.</p>
             </p>
         </div>
     </div>
