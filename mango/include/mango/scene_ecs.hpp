@@ -10,7 +10,9 @@
 #include <algorithm>
 #include <bitset>
 #include <vector>
+//! \cond NO_COND
 #define GLM_FORCE_SILENT_WARNINGS 1
+//! \endcond
 #include <glm/glm.hpp>
 
 namespace mango

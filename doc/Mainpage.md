@@ -86,11 +86,9 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 * Doxygen (Documentation)
 
 ## Images
-### Damaged Helmet
-<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/master/show/damaged_helmet.png" alt="alt text" width="75%"/>
-### Boom Box
-<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/master/show/boom_box.png" alt="alt text" width="75%"/>
 ### Water Bottle
 <img src="https://raw.githubusercontent.com/Paul-Hi/Mango/master/show/water_bottle.png" alt="alt text" width="75%"/>
+### Boom Box
+<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/master/show/boom_box.png" alt="alt text" width="75%"/>
 ### Metal Rough Spheres
 <img src="https://raw.githubusercontent.com/Paul-Hi/Mango/master/show/metal_rough_spheres.png" alt="alt text" width="75%"/>

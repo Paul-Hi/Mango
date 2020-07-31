@@ -74,7 +74,7 @@ namespace mango
         glm::mat3 m_current_rotation_scale;
         //! \brief The view projection matrix to render with.
         glm::mat4 m_view_projection;
-        //! \brief The miplevel to render th cubemap with.
+        //! \brief The miplevel to render the cubemap with.
         float m_render_level;
 
         //! \brief The width of one cubemap face.

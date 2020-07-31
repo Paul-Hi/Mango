@@ -6,7 +6,9 @@
 
 #include <core/context_impl.hpp>
 #include <glad/glad.h>
+//! \cond NO_COND
 #define GLM_FORCE_SILENT_WARNINGS 1
+//! \endcond
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/component_wise.hpp>

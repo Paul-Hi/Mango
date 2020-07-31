@@ -106,11 +106,14 @@ add_library(mango::mango ALIAS mango)
 target_include_directories(mango
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-    SYSTEM
-        ${CMAKE_SOURCE_DIR}/dependencies/glm
-        ${CMAKE_SOURCE_DIR}/dependencies/glad/include
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_include_directories(mango SYSTEM
+    PUBLIC
+        ${CMAKE_SOURCE_DIR}/dependencies/glm
+        ${CMAKE_SOURCE_DIR}/dependencies/glad/include
 )
 
 set_target_properties(mango
@@ -144,8 +147,8 @@ target_compile_definitions(mango
 
 target_compile_options(mango
     PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/W4>
-    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra>
-    $<$<BOOL:${MANGO_ENABLE_HARD_WARNINGS}>:$<CXX_COMPILER_ID>:/WX>
-    $<$<BOOL:${MANGO_ENABLE_HARD_WARNINGS}>:$<NOT:$<CXX_COMPILER_ID:MSVC>>:-pedantic -Werror -Wconversion -pedantic-errors>
+    $<$<CXX_COMPILER_ID:MSVC>: /W4>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>: -Wall -Wextra>
+    $<$<CXX_COMPILER_ID:MSVC>:$<$<BOOL:${MANGO_ENABLE_HARD_WARNINGS}>: /WX>>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:$<$<BOOL:${MANGO_ENABLE_HARD_WARNINGS}>: -pedantic -Werror -Wconversion -pedantic-errors>>
 )

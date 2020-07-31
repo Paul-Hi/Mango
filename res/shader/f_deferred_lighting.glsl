@@ -87,8 +87,6 @@ void main()
     float f90 = saturate(dot(f0, vec3(50.0 * 0.33)));
     lighting += calculate_image_based_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, f90, occlusion_factor);
 
-    // lighting += calculateTestLight(n_dot_v, view_dir, normal, perceptual_roughness, f0, real_albedo, position, occlusion_factor);
-
     vec3 emissive = get_emissive();
     lighting += emissive;
 
@@ -113,10 +111,11 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
 
     vec3 refl              = -normalize(reflect(view_dir, normal));
     vec3 dominant_refl     = get_specular_dominant_direction(normal, refl, perceptual_roughness);
-    vec3 prefiltered_color = textureLod(prefiltered_specular, dominant_refl, perceptual_roughness * MAX_REFLECTION_LOD).rgb;
+    float mip_index        = perceptual_roughness * MAX_REFLECTION_LOD;
+    vec3 prefiltered_color = textureLod(prefiltered_specular, dominant_refl, mip_index).rgb;
     vec3 specular_ibl      = prefiltered_color * (f0 * dfg.x + vec3(f90) * dfg.y);
 
-    return (diffuse_ibl + specular_ibl) * occlusion_factor;
+    return diffuse_ibl * occlusion_factor + specular_ibl;
 }
 
 vec3 uncharted2_tonemap(in vec3 color)
