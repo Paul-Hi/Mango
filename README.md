@@ -3,6 +3,19 @@
 </p>
 <p align="center">
   <a href="https://github.com/Paul-Hi/Mango/actions?query=workflow%3A%22Continuous+Integration%22"><img alt="Continuous Integration Status" src="https://github.com/Paul-Hi/Mango/workflows/Continuous%20Integration/badge.svg"></a>
+  <br>
+  <br>
+  <a href="https://github.com/Paul-Hi/Mango"><img alt="Tag" src="https://img.shields.io/github/tag/Paul-Hi/Mango.svg"></a>
+  <a href="https://paul-hi.github.io/Mango/"><img alt="Website" src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg"></a>
+  <a href="https://github.com/Paul-Hi/Mango/blob/master/LICENSE"><img alt="License" src="https://badgen.net/github/license/Paul-Hi/Mango"></a>
+  <a href="https://img.shields.io/github/languages/code-size/Paul-Hi/Mango.svg"><img alt="Code Size" src="https://img.shields.io/github/languages/code-size/Paul-Hi/Mango.svg"></a>
+  <a href="https://www.doxygen.nl/index.html"><img alt="Doxygen" src="https://img.shields.io/badge/document-doxygen-brightgreen"></a>
+  <br>
+  <a href="https://github.com/Paul-Hi/Mango/graphs/commit-activity"><img alt="Commits" src="https://badgen.net/github/commits/Paul-Hi/Mango"></a>
+  <a href="https://github.com/Paul-Hi/Mango/graphs/commit-activity"><img alt="Last Commit" src="https://badgen.net/github/last-commit/Paul-Hi/Mango"></a>
+  <a href="https://github.com/Paul-Hi/Mango/issues/"><img alt="Issues" src="https://img.shields.io/github/issues/Paul-Hi/Mango.svg"></a>
+  <a href="https://github.com/Paul-Hi/Mango/pull/"><img alt="Pull Requests" src="https://img.shields.io/github/issues-pr/Paul-Hi/Mango.svg"></a>
+  <a href="https://github.com/Paul-Hi/Mango/graphs/contributors"><img alt="Contributors" src="https://img.shields.io/github/contributors/Paul-Hi/Mango.svg"></a>
 </p>
 
 # Mango
@@ -17,6 +30,7 @@ There should also always be a documentation and tests to ensure cleaner and more
 
 If you have suggestions for improvement or find a bug just let me know.
 Keep in mind that I do this in my spare time, besides studying and working.
+Also have a look at the [Website](https://paul-hi.github.io/Mango/)!
 
 ## Features
 
