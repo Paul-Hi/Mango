@@ -20,6 +20,7 @@ ui_system_impl::~ui_system_impl()
 
 bool ui_system_impl::create()
 {
+    // Initialize ImGui
     return true;
 }
 

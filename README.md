@@ -100,6 +100,7 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 * spdlog
 * tiny_gltf
 * stb_image
+* dear imgui
 
 * googletest (Testing)
 * Doxygen (Documentation)
