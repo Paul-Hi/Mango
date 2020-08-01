@@ -29,10 +29,6 @@ namespace mango
         //! \brief Does all the setup and draws the user interface.
         virtual void draw_ui();
 
-      protected:
-        //! \brief Mangos internal context for shared usage in all \a ui_systems.
-        shared_ptr<context_impl> m_shared_context;
-
       private:
         //! \brief Specifies if docking is enabled or not.
         //! \details This does also enable rendering to a backbuffer so the rendered content remains visible.
@@ -41,6 +37,9 @@ namespace mango
         shared_ptr<ui_widget> m_ui_widgets[mango::ui_widget::number_of_ui_widgets];
         //! \brief The custom ui function.
         std::function<void()> m_custom_ui_function;
+
+        //! \brief Mangos internal context for shared usage in all \a ui_systems.
+        shared_ptr<context_impl> m_shared_context;
     };
 
 } // namespace mango
