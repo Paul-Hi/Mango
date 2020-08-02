@@ -50,9 +50,11 @@ static bool g_InstalledCallbacks                          = false;
 static bool g_WantUpdateMonitors                          = true;
 
 // Chain GLFW callbacks for main viewport: our callbacks will call the user's previously installed callbacks, if any.
-static GLFWmousebuttonfun g_PrevUserCallbackMousebutton = NULL;
-static GLFWscrollfun g_PrevUserCallbackScroll           = NULL;
 static GLFWkeyfun g_PrevUserCallbackKey                 = NULL;
+static GLFWmousebuttonfun g_PrevUserCallbackMousebutton = NULL;
+static GLFWcursorposfun g_PrevUserCallbackMouseposition = NULL;
+static GLFWscrollfun g_PrevUserCallbackScroll           = NULL;
+static GLFWdropfun g_PrevUserCallbackDragNDrop          = NULL;
 static GLFWcharfun g_PrevUserCallbackChar               = NULL;
 static GLFWmonitorfun g_PrevUserCallbackMonitor         = NULL;
 
@@ -71,31 +73,13 @@ static void ImGui_ImplGlfw_SetClipboardText(void* user_data, const char* text)
     glfwSetClipboardString((GLFWwindow*)user_data, text);
 }
 
-void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
-{
-    if (g_PrevUserCallbackMousebutton != NULL && window == g_Window)
-        g_PrevUserCallbackMousebutton(window, button, action, mods);
-
-    if (action == GLFW_PRESS && button >= 0 && button < IM_ARRAYSIZE(g_MouseJustPressed))
-        g_MouseJustPressed[button] = true;
-}
-
-void ImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
-{
-    if (g_PrevUserCallbackScroll != NULL && window == g_Window)
-        g_PrevUserCallbackScroll(window, xoffset, yoffset);
-
-    ImGuiIO& io = ImGui::GetIO();
-    io.MouseWheelH += (float)xoffset;
-    io.MouseWheel += (float)yoffset;
-}
-
 void ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (g_PrevUserCallbackKey != NULL && window == g_Window)
+    ImGuiIO& io = ImGui::GetIO();
+    bool call = (!ImGui::IsAnyWindowHovered() || !ImGui::IsAnyWindowFocused()) && !io.WantCaptureKeyboard;
+    if (g_PrevUserCallbackKey != NULL && window == g_Window && call)
         g_PrevUserCallbackKey(window, key, scancode, action, mods);
 
-    ImGuiIO& io = ImGui::GetIO();
     if (action == GLFW_PRESS)
         io.KeysDown[key] = true;
     if (action == GLFW_RELEASE)
@@ -112,12 +96,51 @@ void ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int key, int scancode, int a
 #endif
 }
 
+void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+    ImGuiIO& io = ImGui::GetIO();
+    bool call = (!ImGui::IsAnyWindowHovered() || !ImGui::IsAnyWindowFocused()) && !io.WantCaptureMouse;
+    if (g_PrevUserCallbackMousebutton != NULL && window == g_Window && call)
+        g_PrevUserCallbackMousebutton(window, button, action, mods);
+
+    if (action == GLFW_PRESS && button >= 0 && button < IM_ARRAYSIZE(g_MouseJustPressed))
+        g_MouseJustPressed[button] = true;
+}
+
+void ImGui_ImplGlfw_MousePositionCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    ImGuiIO& io = ImGui::GetIO();
+    bool call = (!ImGui::IsAnyWindowHovered() || !ImGui::IsAnyWindowFocused()) && !io.WantCaptureMouse;
+    if (g_PrevUserCallbackMouseposition != NULL && window == g_Window && call)
+        g_PrevUserCallbackMouseposition(window, xpos, ypos);
+}
+
+void ImGui_ImplGlfw_DragNDropCallback(GLFWwindow* window, int count, const char** paths)
+{
+    ImGuiIO& io = ImGui::GetIO();
+    bool call = (!ImGui::IsAnyWindowHovered() || !ImGui::IsAnyWindowFocused()) && !io.WantCaptureMouse;
+    if (g_PrevUserCallbackDragNDrop != NULL && window == g_Window && call)
+        g_PrevUserCallbackDragNDrop(window, count, paths);
+}
+
+void ImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    ImGuiIO& io = ImGui::GetIO();
+    bool call = (!ImGui::IsAnyWindowHovered() || !ImGui::IsAnyWindowFocused()) && !io.WantCaptureMouse;
+    if (g_PrevUserCallbackScroll != NULL && window == g_Window && call)
+        g_PrevUserCallbackScroll(window, xoffset, yoffset);
+
+    io.MouseWheelH += (float)xoffset;
+    io.MouseWheel += (float)yoffset;
+}
+
 void ImGui_ImplGlfw_CharCallback(GLFWwindow* window, unsigned int c)
 {
-    if (g_PrevUserCallbackChar != NULL && window == g_Window)
+    ImGuiIO& io = ImGui::GetIO();
+    bool call = (!ImGui::IsAnyWindowHovered() || !ImGui::IsAnyWindowFocused()) && !io.WantCaptureKeyboard;
+    if (g_PrevUserCallbackChar != NULL && window == g_Window && call)
         g_PrevUserCallbackChar(window, c);
 
-    ImGuiIO& io = ImGui::GetIO();
     io.AddInputCharacter(c);
 }
 
@@ -193,19 +216,24 @@ static bool ImGui_ImplGlfw_Init(GLFWwindow* window, bool install_callbacks, Glfw
     glfwSetErrorCallback(prev_error_callback);
 
     // Chain GLFW callbacks: our callbacks will call the user's previously installed callbacks, if any.
-    g_PrevUserCallbackMousebutton = NULL;
-    g_PrevUserCallbackScroll      = NULL;
-    g_PrevUserCallbackKey         = NULL;
-    g_PrevUserCallbackChar        = NULL;
-    g_PrevUserCallbackMonitor     = NULL;
+    g_PrevUserCallbackKey           = NULL;
+    g_PrevUserCallbackMousebutton   = NULL;
+    g_PrevUserCallbackMouseposition = NULL;
+    g_PrevUserCallbackScroll        = NULL;
+    g_PrevUserCallbackDragNDrop     = NULL;
+    g_PrevUserCallbackChar          = NULL;
+    g_PrevUserCallbackMonitor       = NULL;
     if (install_callbacks)
     {
-        g_InstalledCallbacks          = true;
-        g_PrevUserCallbackMousebutton = glfwSetMouseButtonCallback(window, ImGui_ImplGlfw_MouseButtonCallback);
-        g_PrevUserCallbackScroll      = glfwSetScrollCallback(window, ImGui_ImplGlfw_ScrollCallback);
-        g_PrevUserCallbackKey         = glfwSetKeyCallback(window, ImGui_ImplGlfw_KeyCallback);
-        g_PrevUserCallbackChar        = glfwSetCharCallback(window, ImGui_ImplGlfw_CharCallback);
-        g_PrevUserCallbackMonitor     = glfwSetMonitorCallback(ImGui_ImplGlfw_MonitorCallback);
+        g_InstalledCallbacks = true;
+
+        g_PrevUserCallbackKey           = glfwSetKeyCallback(window, ImGui_ImplGlfw_KeyCallback);
+        g_PrevUserCallbackMousebutton   = glfwSetMouseButtonCallback(window, ImGui_ImplGlfw_MouseButtonCallback);
+        g_PrevUserCallbackMouseposition = glfwSetCursorPosCallback(window, ImGui_ImplGlfw_MousePositionCallback);
+        g_PrevUserCallbackScroll        = glfwSetScrollCallback(window, ImGui_ImplGlfw_ScrollCallback);
+        g_PrevUserCallbackDragNDrop     = glfwSetDropCallback(window, ImGui_ImplGlfw_DragNDropCallback);
+        g_PrevUserCallbackChar          = glfwSetCharCallback(window, ImGui_ImplGlfw_CharCallback);
+        g_PrevUserCallbackMonitor       = glfwSetMonitorCallback(ImGui_ImplGlfw_MonitorCallback);
     }
 
     // Update monitors the first time (note: monitor callback are broken in GLFW 3.2 and earlier, see github.com/glfw/glfw/issues/784)

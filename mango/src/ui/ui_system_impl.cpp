@@ -6,9 +6,11 @@
 
 #define GLFW_INCLUDE_NONE // for glad
 #include <GLFW/glfw3.h>
+#include <core/input_system_impl.hpp>
 #include <core/window_system_impl.hpp>
 #include <glad/glad.h>
 #include <imgui.h>
+#include <mango/assert.hpp>
 #include <ui/dear_imgui/imgui_glfw.hpp>
 #include <ui/dear_imgui/imgui_opengl3.hpp>
 #include <ui/ui_system_impl.hpp>
@@ -55,7 +57,7 @@ void ui_system_impl::configure(const ui_configuration& configuration)
 {
     MANGO_UNUSED(configuration);
 
-    // We need to do this here, because before that we can not be sure to have GL bindings.
+    // TODO Paul: There has to be a cleaner solution for this. Right now the window and input configuration has to be done before any ui related stuff.
     auto platform_data = m_shared_context->get_window_system_internal().lock()->get_platform_data();
 
     ImGui_ImplGlfw_InitForOpenGL(static_cast<GLFWwindow*>(platform_data->native_window_handle), true);
@@ -66,11 +68,12 @@ void ui_system_impl::update(float dt)
 {
     MANGO_UNUSED(dt);
 
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-     ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        ImGui::ShowDemoWindow();
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    ImGui::ShowDemoWindow();
 }
 
 void ui_system_impl::destroy()
@@ -84,7 +87,8 @@ void ui_system_impl::draw_ui()
 {
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
         GLFWwindow* backup_current_context = glfwGetCurrentContext();
