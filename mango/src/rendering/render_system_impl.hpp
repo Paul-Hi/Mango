@@ -90,6 +90,10 @@ namespace mango
         //! \param[in] render_level The level from the hdr \a texture to render. -1 means no rendering.
         virtual void set_environment_texture(const texture_ptr& hdr_texture, float render_level);
 
+        //! \brief Returns the backbuffer of the a render_system.
+        //! \return The backbuffer.
+        virtual framebuffer_ptr get_backbuffer();
+
       protected:
         //! \brief Mangos internal context for shared usage in all \a render_systems.
         shared_ptr<context_impl> m_shared_context;

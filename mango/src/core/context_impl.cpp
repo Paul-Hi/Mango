@@ -73,6 +73,11 @@ shared_ptr<scene>& context_impl::get_current_scene()
     return m_current_scene;
 }
 
+shared_ptr<application> context_impl::get_application()
+{
+    return m_application;
+}
+
 weak_ptr<window_system_impl> context_impl::get_window_system_internal()
 {
     return m_window_system;

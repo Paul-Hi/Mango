@@ -53,7 +53,7 @@ bool deferred_pbr_render_system::create()
         return false;
     }
     MANGO_LOG_INFO("Using OpenGL version: {0}", glGetString(GL_VERSION));
-    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS); // TODO Paul: Better place?
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS); // TODO Paul: Better place?m_backbuffer
 
 #ifdef MANGO_DEBUG
     glEnable(GL_DEBUG_OUTPUT);
@@ -65,11 +65,10 @@ bool deferred_pbr_render_system::create()
 #endif // MANGO_DEBUG
 
     shared_ptr<window_system_impl> ws = m_shared_context->get_window_system_internal().lock();
-    MANGO_ASSERT(ws, "Window System is expireds!");
+    MANGO_ASSERT(ws, "Window System is expired!");
     int32 w = ws->get_width();
     int32 h = ws->get_height();
 
-    framebuffer_configuration config;
     texture_configuration attachment_config;
     attachment_config.m_generate_mipmaps        = 1;
     attachment_config.m_is_standard_color_space = false;
@@ -78,27 +77,43 @@ bool deferred_pbr_render_system::create()
     attachment_config.m_texture_wrap_s          = texture_parameter::WRAP_CLAMP_TO_EDGE;
     attachment_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
 
-    config.m_color_attachment0 = texture::create(attachment_config);
-    config.m_color_attachment0->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_INT_8_8_8_8, nullptr);
-    config.m_color_attachment1 = texture::create(attachment_config);
-    config.m_color_attachment1->set_data(format::RGB10_A2, w, h, format::RGBA, format::UNSIGNED_INT_10_10_10_2, nullptr);
-    config.m_color_attachment2 = texture::create(attachment_config);
-    config.m_color_attachment2->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_INT_8_8_8_8, nullptr);
-    config.m_color_attachment3 = texture::create(attachment_config);
-    config.m_color_attachment3->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_INT_8_8_8_8, nullptr);
-    config.m_depth_attachment = texture::create(attachment_config);
-    // glTextureParameteri(config.m_depth_attachment->get_name(), GL_TEXTURE_COMPARE_MODE, GL_NONE);
-    // glTextureParameteri(config.m_depth_attachment->get_name(), GL_DEPTH_TEXTURE_MODE, GL_LUMINANCE);
-    config.m_depth_attachment->set_data(format::DEPTH_COMPONENT32F, w, h, format::DEPTH_COMPONENT, format::FLOAT, nullptr);
+    framebuffer_configuration gbuffer_config;
+    gbuffer_config.m_color_attachment0 = texture::create(attachment_config);
+    gbuffer_config.m_color_attachment0->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_INT_8_8_8_8, nullptr);
+    gbuffer_config.m_color_attachment1 = texture::create(attachment_config);
+    gbuffer_config.m_color_attachment1->set_data(format::RGB10_A2, w, h, format::RGBA, format::UNSIGNED_INT_10_10_10_2, nullptr);
+    gbuffer_config.m_color_attachment2 = texture::create(attachment_config);
+    gbuffer_config.m_color_attachment2->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_INT_8_8_8_8, nullptr);
+    gbuffer_config.m_color_attachment3 = texture::create(attachment_config);
+    gbuffer_config.m_color_attachment3->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_INT_8_8_8_8, nullptr);
+    gbuffer_config.m_depth_attachment = texture::create(attachment_config);
+    gbuffer_config.m_depth_attachment->set_data(format::DEPTH_COMPONENT32F, w, h, format::DEPTH_COMPONENT, format::FLOAT, nullptr);
 
-    config.m_width  = w;
-    config.m_height = h;
+    gbuffer_config.m_width  = w;
+    gbuffer_config.m_height = h;
 
-    m_gbuffer = framebuffer::create(config);
+    m_gbuffer = framebuffer::create(gbuffer_config);
 
     if (!m_gbuffer)
     {
         MANGO_LOG_ERROR("Creation of gbuffer failed! Render system not available!");
+        return false;
+    }
+
+    framebuffer_configuration backbuffer_config;
+    backbuffer_config.m_color_attachment0 = texture::create(attachment_config);
+    backbuffer_config.m_color_attachment0->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_INT_8_8_8_8, nullptr);
+    backbuffer_config.m_depth_attachment = texture::create(attachment_config);
+    backbuffer_config.m_depth_attachment->set_data(format::DEPTH_COMPONENT32F, w, h, format::DEPTH_COMPONENT, format::FLOAT, nullptr);
+
+    backbuffer_config.m_width  = w;
+    backbuffer_config.m_height = h;
+
+    m_backbuffer = framebuffer::create(backbuffer_config);
+
+    if (!m_backbuffer)
+    {
+        MANGO_LOG_ERROR("Creation of backbuffer failed! Render system not available!");
         return false;
     }
 
@@ -241,8 +256,8 @@ void deferred_pbr_render_system::finish_render()
     m_command_buffer->bind_vertex_array(nullptr);
     m_command_buffer->bind_shader_program(nullptr);
 
-    m_command_buffer->bind_framebuffer(nullptr); // bind default.
-    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH_STENCIL, attachment_mask::ALL, 0.0f, 0.0f, 0.2f, 1.0f);
+    m_command_buffer->bind_framebuffer(m_backbuffer); // bind backbuffer.
+    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.2f, 1.0f, m_backbuffer);
     m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::FILL);
     m_command_buffer->bind_shader_program(m_lighting_pass);
 
@@ -288,6 +303,10 @@ void deferred_pbr_render_system::finish_render()
 
     m_command_buffer->lock_buffer(m_frame_uniform_buffer);
 
+    m_command_buffer->bind_framebuffer(nullptr); // bind default.
+    // TODO Paul: This should not be done here, this is pretty bad!
+    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH_STENCIL, attachment_mask::ALL, 0.1f, 0.1f, 0.1f, 1.0f);
+
     m_command_buffer->execute();
 
     m_frame_uniform_offset = 0;
@@ -301,6 +320,7 @@ void deferred_pbr_render_system::set_viewport(int32 x, int32 y, int32 width, int
     MANGO_ASSERT(height >= 0, "Viewport height has to be positive!");
     m_command_buffer->set_viewport(x, y, width, height);
     m_gbuffer->resize(width, height);
+    m_backbuffer->resize(width, height);
 }
 
 void deferred_pbr_render_system::update(float dt)

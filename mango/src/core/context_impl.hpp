@@ -38,6 +38,10 @@ namespace mango
         //! \return True on creation success, else false.
         bool create();
 
+        //! \brief Queries and returns a shared pointer to the current \a application.
+        //! \return A shared pointer to the current \a application.
+        virtual shared_ptr<application> get_application();
+
         //! \brief Queries and returns a weak pointer to mangos \a window_system.
         //! \details This enables you using internal functionalities.
         //! \return A weak pointer to the internal \a window_system.

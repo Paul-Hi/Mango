@@ -104,33 +104,41 @@ namespace mango
         //! \return True on creation success, else false.
         virtual bool create() = 0;
 
-        //! \brief Runs the application.
+        //! \brief Runs the \a application.
         //! \details This includes the application loop that runs until the termination.
         //! \param[in] argc Number of command line arguments \a argv.
         //! \param[in] argv Command line arguments.
         //! \return 0 on success, else 1.
         int run(int argc = 0, char** argv = nullptr);
 
-        //! \brief Calls the application specific update routine.
+        //! \brief Calls the \a application specific update routine.
         //! \details This has to be overriden by the inheriting application.
         //! All the necessary application specific updates can be done in here.
         //! The function gets called by mango and should not be called elsewhere.
         //! \param[in] dt Past time since last call. Can be used for frametime independent motion.
         virtual void update(float dt) = 0;
 
-        //! \brief Destroys the application.
+        //! \brief Destroys the \a application.
         //! \details This has to be overriden by the inheriting application.
         //! All the necessary application specific cleanup should be done in here and not in the destructor.
         //! The function gets called by mango and should not be called elsewhere.
         virtual void destroy() = 0;
 
-        //! \brief Returns the name of the application.
+        //! \brief Returns the name of the \a application.
         //! \details This can be overriden by the inheriting application.
         //! Returns a default name for the application if not set.
         //! \return The name of the application.
         virtual const char* get_name()
         {
             return "Mango Application";
+        }
+
+        //! \briefCloses the \a application.
+        //! \details This can be overriden by the inheriting application.
+        //! Returns a default name for the application if not set.
+        void close()
+        {
+            m_should_close = true;
         }
 
         //! \brief Returns the current mango application context.
@@ -142,6 +150,8 @@ namespace mango
         shared_ptr<context_impl> m_context;
         //! \brief The timer per frame of the application.
         shared_ptr<timer> m_frame_timer;
+        //! \brief Specifies if the application was closed.
+        bool m_should_close;
     };
 
 } // namespace mango

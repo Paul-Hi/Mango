@@ -16,6 +16,7 @@ namespace mango
     //! \brief Available widgets for the ui.
     enum ui_widget
     {
+        render_view,         //! << Widget displaying the rendered scene.
         hardware_info,       //! << Widget giving some hardware info.
         number_of_ui_widgets //! << Number of widgets.
     };

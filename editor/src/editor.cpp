@@ -30,6 +30,7 @@ bool editor::create()
 
     ui_configuration ui_config;
     ui_config.enable_dock_space(true)
+            .show_widget(mango::ui_widget::render_view)
             .show_widget(mango::ui_widget::hardware_info)
             .submit_custom([this] () {
    //             ImGui::Begin();
@@ -138,9 +139,6 @@ void editor::update(float dt)
 {
     MANGO_UNUSED(dt);
     shared_ptr<context> mango_context = get_context().lock();
-
-    shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
-    MANGO_ASSERT(mango_is, "Input System is expired!");
 
     MANGO_ASSERT(mango_context, "Context is expired!");
     auto application_scene = mango_context->get_current_scene();

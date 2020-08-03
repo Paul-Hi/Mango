@@ -40,6 +40,9 @@ namespace mango
 
         //! \brief Mangos internal context for shared usage in all \a ui_systems.
         shared_ptr<context_impl> m_shared_context;
+
+        //! \brief The \a ui_configuration of the \a ui_system.
+        ui_configuration m_configuration;
     };
 
 } // namespace mango

@@ -57,6 +57,7 @@ static GLFWscrollfun g_PrevUserCallbackScroll           = NULL;
 static GLFWdropfun g_PrevUserCallbackDragNDrop          = NULL;
 static GLFWcharfun g_PrevUserCallbackChar               = NULL;
 static GLFWmonitorfun g_PrevUserCallbackMonitor         = NULL;
+static bool g_block_chained_callbacks                   = true;
 
 // Forward Declarations
 static void ImGui_ImplGlfw_UpdateMonitors();
@@ -73,11 +74,16 @@ static void ImGui_ImplGlfw_SetClipboardText(void* user_data, const char* text)
     glfwSetClipboardString((GLFWwindow*)user_data, text);
 }
 
+void ImGui_ImplGlfw_BlockChainedCallbacks(bool block)
+{
+    g_block_chained_callbacks = block;
+}
+
 void ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    ImGuiIO& io = ImGui::GetIO();
-    bool call = (!ImGui::IsAnyWindowHovered() || !ImGui::IsAnyWindowFocused()) && !io.WantCaptureKeyboard;
-    if (g_PrevUserCallbackKey != NULL && window == g_Window && call)
+    ImGuiIO& io  = ImGui::GetIO();
+    bool handled = g_block_chained_callbacks && io.WantCaptureKeyboard;
+    if (g_PrevUserCallbackKey != NULL && window == g_Window && !handled)
         g_PrevUserCallbackKey(window, key, scancode, action, mods);
 
     if (action == GLFW_PRESS)
@@ -98,9 +104,9 @@ void ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int key, int scancode, int a
 
 void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
-    ImGuiIO& io = ImGui::GetIO();
-    bool call = (!ImGui::IsAnyWindowHovered() || !ImGui::IsAnyWindowFocused()) && !io.WantCaptureMouse;
-    if (g_PrevUserCallbackMousebutton != NULL && window == g_Window && call)
+    ImGuiIO& io  = ImGui::GetIO();
+    bool handled = g_block_chained_callbacks && io.WantCaptureMouse;
+    if (g_PrevUserCallbackMousebutton != NULL && window == g_Window && !handled)
         g_PrevUserCallbackMousebutton(window, button, action, mods);
 
     if (action == GLFW_PRESS && button >= 0 && button < IM_ARRAYSIZE(g_MouseJustPressed))
@@ -109,25 +115,25 @@ void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int acti
 
 void ImGui_ImplGlfw_MousePositionCallback(GLFWwindow* window, double xpos, double ypos)
 {
-    ImGuiIO& io = ImGui::GetIO();
-    bool call = (!ImGui::IsAnyWindowHovered() || !ImGui::IsAnyWindowFocused()) && !io.WantCaptureMouse;
-    if (g_PrevUserCallbackMouseposition != NULL && window == g_Window && call)
+    ImGuiIO& io  = ImGui::GetIO();
+    bool handled = g_block_chained_callbacks && io.WantCaptureMouse;
+    if (g_PrevUserCallbackMouseposition != NULL && window == g_Window && !handled)
         g_PrevUserCallbackMouseposition(window, xpos, ypos);
 }
 
 void ImGui_ImplGlfw_DragNDropCallback(GLFWwindow* window, int count, const char** paths)
 {
-    ImGuiIO& io = ImGui::GetIO();
-    bool call = (!ImGui::IsAnyWindowHovered() || !ImGui::IsAnyWindowFocused()) && !io.WantCaptureMouse;
-    if (g_PrevUserCallbackDragNDrop != NULL && window == g_Window && call)
+    ImGuiIO& io  = ImGui::GetIO();
+    bool handled = g_block_chained_callbacks && io.WantCaptureMouse;
+    if (g_PrevUserCallbackDragNDrop != NULL && window == g_Window && !handled)
         g_PrevUserCallbackDragNDrop(window, count, paths);
 }
 
 void ImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
-    ImGuiIO& io = ImGui::GetIO();
-    bool call = (!ImGui::IsAnyWindowHovered() || !ImGui::IsAnyWindowFocused()) && !io.WantCaptureMouse;
-    if (g_PrevUserCallbackScroll != NULL && window == g_Window && call)
+    ImGuiIO& io  = ImGui::GetIO();
+    bool handled = g_block_chained_callbacks && io.WantCaptureMouse;
+    if (g_PrevUserCallbackScroll != NULL && window == g_Window && !handled)
         g_PrevUserCallbackScroll(window, xoffset, yoffset);
 
     io.MouseWheelH += (float)xoffset;
@@ -136,9 +142,9 @@ void ImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yo
 
 void ImGui_ImplGlfw_CharCallback(GLFWwindow* window, unsigned int c)
 {
-    ImGuiIO& io = ImGui::GetIO();
-    bool call = (!ImGui::IsAnyWindowHovered() || !ImGui::IsAnyWindowFocused()) && !io.WantCaptureKeyboard;
-    if (g_PrevUserCallbackChar != NULL && window == g_Window && call)
+    ImGuiIO& io  = ImGui::GetIO();
+    bool handled = g_block_chained_callbacks && io.WantCaptureKeyboard;
+    if (g_PrevUserCallbackChar != NULL && window == g_Window && !handled)
         g_PrevUserCallbackChar(window, c);
 
     io.AddInputCharacter(c);
