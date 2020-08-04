@@ -1,0 +1,74 @@
+I"<div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body">
+            <h1 class="card-title">Blog</h1>
+            <p class="card-text">Interesting blog entries will be posted here!</p>
+        </div>
+    </div>
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body">
+            <h1 class="card-title">In Progress</h1>
+            <p class="card-text">
+                <div>
+    After implementing some core functionalities, I now spend most of my time cleaning up. Tests have to be
+    written. Improvements have to be made.<br /><br />
+
+    Regarding new features:
+    <br />
+    I recently added some basic editor UI. I will add some images soon.
+    <br />
+    I also want more lights, not just the image-based environment, but before adding this there is a lot of work to do.
+    The ECS and the scenes as a whole need to be improved.
+</div>
+            </p>
+        </div>
+    </div>
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body">
+            <h1 class="card-title">Post History</h1>
+            <div class="card-text">
+                
+                    
+                    
+                        
+                        <h4 id="y2020">2020</h4>
+                        
+                    
+                    <a class="mango-card-link d-flex p-2" href="/Mango/2020/06/09/From-0.html">
+                        <span class="pl-2"> From 0 to 0.5 </span>
+                        <span class="post-date ml-auto pl-2"> Jun 9, 2020</span>
+                    </a>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex flex-column justify-content-between col">
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body">
+            <h1 class="card-title">Blog Posts</h1>
+            <p class="card-text">
+                
+                    <div class="card mt-3 flex-grow-1">
+                        <div class="card-body post-card" style="background-image:url(/Mango/assets/metal_rough_spheres.png);">
+                            <a class="card-title mango-link" href="/Mango/2020/06/09/From-0.html">
+                                <h2 class="mt-0">From 0 to 0.5</h2>
+                            </a>
+                            <p class="card-text">
+                                <h3>Getting started is the hardest part</h3>
+                                <p><p>A lot has happened since <strong>Mango</strong> saw the light of day.</p>
+
+<p>A short summary.</p>
+
+</p>
+                                <a class="mango-link" href="/Mango/2020/06/09/From-0.html">Read more...</a>
+                            </p>
+                        </div>
+                    </div>
+                
+            </p>
+        </div>
+    </div>
+</div>
+:ET

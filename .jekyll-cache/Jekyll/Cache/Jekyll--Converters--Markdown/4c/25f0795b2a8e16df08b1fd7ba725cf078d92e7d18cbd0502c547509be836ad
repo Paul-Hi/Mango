@@ -1,4 +1,4 @@
-I"<div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
+I"þ<div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
     <div class="card mt-3 flex-grow-1">
         <div class="card-body">
             <h1 class="card-title">About</h1>
@@ -26,9 +26,6 @@
     </li>
     <li>
         Scene management improvements
-    </li>
-    <li>
-        GUI with DearImGui
     </li>
     <li>
         Performance measurement tools
@@ -82,6 +79,9 @@
         HDR support and image based lighting
     </li>
     <li>
+        Basic GUI with DearImGui
+    </li>
+    <li>
         Many physically based rendering features
     </li>
     <li>
@@ -94,7 +94,7 @@
         Basic framework architecture
     </li>
     <li>
-        Editor featuring .gltf and .hdr file loading via drag'n'drop and a simple camera controller
+        Editor featuring .gltf and .hdr file loading and a simple camera controller
     </li>
 </ul>
             </p>
