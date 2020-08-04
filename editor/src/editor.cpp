@@ -41,7 +41,7 @@ bool editor::create()
             shared_ptr<context> mango_context = get_context().lock();
             MANGO_ASSERT(mango_context, "Context is expired!");
             auto application_scene = mango_context->get_current_scene();
-            char* query_path       = tinyfd_openFileDialog("", "/", 3, filter, NULL, 1);
+            char* query_path       = tinyfd_openFileDialog("", "res/", 3, filter, NULL, 1);
             if (query_path)
             {
                 string queried = string(query_path);
