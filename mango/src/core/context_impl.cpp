@@ -21,10 +21,6 @@
 
 using namespace mango;
 
-context_impl::context_impl() {}
-
-context_impl::~context_impl() {}
-
 void context_impl::set_application(const shared_ptr<application>& application)
 {
     if (m_application)

@@ -21,6 +21,14 @@ namespace mango
         number_of_ui_widgets //!< Number of widgets.
     };
 
+    //! \brief The custom ui data.
+    struct custom_ui_data
+    {
+        string window_name;                          //!< The name of the window used for menu generation.
+        std::function<void(bool& enabled)> function; //!< The custom function with the imgui code.
+        bool always_open;                            //!< True if window should always be open, else false.
+    };
+
     //! \brief The configuration for the \a ui_system.
     //! \details Should be used to configure the \a ui_system in the \a application create() method.
     class ui_configuration
@@ -82,7 +90,6 @@ namespace mango
             return m_docking;
         }
 
-        struct custom_ui_data;
         //! \brief Retrieves and returns the custom ui data set in the \a ui_configuration.
         //! \return The current configurated custom ui data of the \a ui_system.
         inline custom_ui_data get_custom_ui_data() const
@@ -104,14 +111,8 @@ namespace mango
         bool m_docking;
         //! \brief The configurated \a ui_widgets in the \a ui_configuration to show in the \a ui_system.
         bool m_ui_widgets[ui_widget::number_of_ui_widgets];
-
-        //! \brief The custom ui data.
-        struct custom_ui_data
-        {
-            string window_name;                          //!< The name of the window used for menu generation.
-            std::function<void(bool& enabled)> function; //!< The custom function with the imgui code.
-            bool always_open;                            //!< True if window should always be open, else false.
-        } m_custom_ui_data;                              //!< The configurated custom ui data.
+        //! \brief The configurated custom ui data.
+        custom_ui_data m_custom_ui_data;
     };
 
     //! \brief A system for user interface drawing.
