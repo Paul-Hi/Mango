@@ -101,6 +101,7 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 * tiny_gltf
 * stb_image
 * dear imgui
+* tiny file dialogs
 
 * googletest (Testing)
 * Doxygen (Documentation)

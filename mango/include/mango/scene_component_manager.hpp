@@ -55,24 +55,25 @@ namespace mango
         //! \param[in] e The \a entity to remove the \a component from.
         void remove_component_from(entity e)
         {
+            assert_state();
             auto it = m_lookup.find(e);
             if (it == m_lookup.end())
             {
                 MANGO_LOG_DEBUG("Entity does not have a component of type {0}!", type_name<component>::get());
                 return;
             }
-            const int32 index   = it->second;
+            const int32 index    = it->second;
             const entity indexed = m_entities.at(index);
             MANGO_LOG_DEBUG("e == indexed is {0}", e == indexed);
 
             if (index < end - 1)
             {
                 m_components.at(index)            = m_components.at(end - 1);
-                m_components.at(end - 1)          = component(); // reinitialize default
                 m_entities.at(index)              = m_entities.at(end - 1);
                 m_lookup.at(m_entities.at(index)) = index;
             }
 
+            m_components.at(end - 1) = component(); // reinitialize default
             m_entities.at(end--) = invalid_entity;
             m_lookup.erase(indexed);
         }
@@ -82,13 +83,14 @@ namespace mango
         //! \param[in] e The \a entity to remove the \a component from.
         void sort_remove_component_from(entity e)
         {
+            assert_state();
             auto it = m_lookup.find(e);
             if (it == m_lookup.end())
             {
                 MANGO_LOG_DEBUG("Entity does not have a component of type {0}!", type_name<component>::get());
                 return;
             }
-            const int32 index   = it->second;
+            const int32 index    = it->second;
             const entity indexed = m_entities.at(index);
             MANGO_LOG_DEBUG("e == indexed is {0}", e == indexed);
 
@@ -112,6 +114,7 @@ namespace mango
         //! \return A pointer to the \a component.
         component* get_component_for_entity(entity e)
         {
+            assert_state();
             auto it = m_lookup.find(e);
             if (it == m_lookup.end())
             {
@@ -127,6 +130,7 @@ namespace mango
         //! \return A reference to the \a component at \a index.
         component& operator[](int32 index)
         {
+            assert_state();
             MANGO_ASSERT(index < end, "Index not valid!");
             return m_components.at(index);
         }
@@ -136,6 +140,7 @@ namespace mango
         //! \return A reference to the \a component at \a index.
         inline component& component_at(int32 index)
         {
+            assert_state();
             MANGO_ASSERT(index < end, "Index not valid!");
             return m_components.at(index);
         }
@@ -145,6 +150,7 @@ namespace mango
         //! \return A reference to the \a entity at \a index.
         inline entity entity_at(int32 index)
         {
+            assert_state();
             MANGO_ASSERT(index < end, "Index not valid!");
             return m_entities.at(index);
         }
@@ -162,6 +168,7 @@ namespace mango
         //! \param[in] backwards Specifies if the iteration should be from the last to the first element, or from the first to the last.
         inline void for_each(std::function<void(component& c, int32& index)> lambda, bool backwards)
         {
+            assert_state();
             if (backwards)
             {
                 for (int32 i = static_cast<int32>(size()) - 1; i >= 0; --i)
@@ -186,6 +193,7 @@ namespace mango
         {
             MANGO_ASSERT(from < static_cast<int32>(size()), "Index from not valid!");
             MANGO_ASSERT(to < static_cast<int32>(size()), "Index to not valid!");
+            assert_state();
 
             if (from == to)
                 return;
@@ -220,6 +228,7 @@ namespace mango
         //! \brief Asserts the internal state of the \a scene_component_manager.
         inline void assert_state()
         {
+            MANGO_ASSERT(end >= 0, "Negative number is invalid for end!");
             MANGO_ASSERT(end <= static_cast<int32>(max_entities), "Too many entities in the system!");
             MANGO_ASSERT(static_cast<int32>(m_lookup.size()) == end, "Number of lookups in table != Number of entities!");
         }

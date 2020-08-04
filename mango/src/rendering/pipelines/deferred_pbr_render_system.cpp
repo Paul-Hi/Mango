@@ -52,8 +52,10 @@ bool deferred_pbr_render_system::create()
         MANGO_LOG_ERROR("Initilization of glad failed! No opengl context is available!");
         return false;
     }
-    MANGO_LOG_INFO("Using OpenGL version: {0}", glGetString(GL_VERSION));
-    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS); // TODO Paul: Better place?m_backbuffer
+    m_hardware_stats.api_version = "OpenGL ";
+    m_hardware_stats.api_version.append(string((const char*)glGetString(GL_VERSION)));
+    MANGO_LOG_INFO("Using: {0}", m_hardware_stats.api_version);
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS); // TODO Paul: Better place?
 
 #ifdef MANGO_DEBUG
     glEnable(GL_DEBUG_OUTPUT);
@@ -232,6 +234,7 @@ void deferred_pbr_render_system::configure(const render_configuration& configura
 
 void deferred_pbr_render_system::begin_render()
 {
+    m_hardware_stats.last_frame.draw_calls = 0;
     m_command_buffer->set_depth_test(true);
     m_command_buffer->set_depth_func(compare_operation::LESS);
     m_command_buffer->set_face_culling(true);
@@ -283,6 +286,7 @@ void deferred_pbr_render_system::finish_render()
     m_command_buffer->bind_vertex_array(default_vao);
 
     m_command_buffer->draw_arrays(primitive_topology::POINTS, 0, 1);
+    m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done, on glCalls.
 
     // We try to reset the default state as possible, without crashing all optimizations.
 
@@ -462,6 +466,8 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
         m_command_buffer->draw_arrays(topology, first, count, instance_count);
     else
         m_command_buffer->draw_elements(topology, first, count, type, instance_count);
+
+    m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done, on glCalls.
 
     m_command_buffer->set_face_culling(true);
 }

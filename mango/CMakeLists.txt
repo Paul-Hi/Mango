@@ -35,6 +35,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_system_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_glfw.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_widgets.hpp
 
     # graphics
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_common.hpp
@@ -130,6 +131,7 @@ target_link_libraries(mango
     PUBLIC
         spdlog::spdlog
         imgui
+        tinyfd
         $<$<BOOL:${MANGO_BUILD_TESTS}>:glad>
     PRIVATE
         ${OPENGL_LIBRARIES}

@@ -134,6 +134,22 @@ def getDependencies():
         f.write('target_include_directories(imgui SYSTEM PUBLIC .)\r\n')
         f.close()
 
+    # tiny file dialogs
+    if not os.path.exists('tinyfd'):
+        repository ='http://git.code.sf.net/p/tinyfiledialogs/code'
+        folder ='tinyfd'
+
+        gitCmd = ['git', 'clone', repository, folder]
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
+
+        f = open('./tinyfd/CMakeLists.txt','w+')
+        f.write('project(tinyfd)\r\n')
+        f.write('add_library(tinyfd tinyfiledialogs.c tinyfiledialogs.h)\r\n')
+        f.write('target_include_directories(imgui SYSTEM PUBLIC .)\r\n')
+        f.close()
+
 
     os.chdir('..')
     return True

@@ -9,15 +9,12 @@
 #include <core/input_system_impl.hpp>
 #include <core/window_system_impl.hpp>
 #include <glad/glad.h>
-#include <graphics/framebuffer.hpp>
-#include <graphics/texture.hpp>
 #include <imgui.h>
 #include <mango/application.hpp>
 #include <mango/assert.hpp>
-#include <mango/scene.hpp>
-#include <rendering/render_system_impl.hpp>
 #include <ui/dear_imgui/imgui_glfw.hpp>
 #include <ui/dear_imgui/imgui_opengl3.hpp>
+#include <ui/dear_imgui/imgui_widgets.hpp>
 #include <ui/ui_system_impl.hpp>
 
 using namespace mango;
@@ -42,6 +39,8 @@ bool ui_system_impl::create()
     // io.ConfigViewportsNoTaskBarIcon = true;
 
     io.Fonts->AddFontFromFileTTF("res/fonts/Roboto-Medium.ttf", 16.0);
+
+    io.ConfigWindowsMoveFromTitleBarOnly = true; // Only move from title bar
 
     // Setup Dear ImGui style
     ImVec4* colors                         = ImGui::GetStyle().Colors;
@@ -167,6 +166,10 @@ void ui_system_impl::update(float dt)
         }
     }
 
+    const bool* widgets               = m_configuration.get_ui_widgets();
+    static bool render_view_enabled   = true;
+    static bool hardware_info_enabled = true;
+
     // menu bar
     if (ImGui::BeginMenuBar())
     {
@@ -176,33 +179,28 @@ void ui_system_impl::update(float dt)
                 m_shared_context->get_application()->close();
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("Widgets"))
+        {
+            if (widgets[ui_widget::render_view] && ImGui::MenuItem("Render View"))
+                render_view_enabled = true;
+            if (widgets[ui_widget::render_view] && ImGui::MenuItem("Hardware Info"))
+                hardware_info_enabled = true;
+            ImGui::EndMenu();
+        }
 
         ImGui::EndMenuBar();
     }
 
-    // Test Render View
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
-    ImGui::Begin("Render View", NULL);
+    // Render View
+    if (widgets[ui_widget::render_view] && render_view_enabled)
+        render_view_widget(m_shared_context, render_view_enabled);
+    // Hardware Info
+    if (widgets[ui_widget::hardware_info] && hardware_info_enabled)
+        hardware_info_widget(m_shared_context, hardware_info_enabled);
 
-    bool block_engine_callbacks = (!ImGui::IsWindowHovered() || !ImGui::IsWindowFocused());
-
-    ImGui_ImplGlfw_BlockChainedCallbacks(block_engine_callbacks);
-
-    ImVec2 position = ImGui::GetCursorScreenPos();
-    ImVec2 size     = ImGui::GetWindowSize();
-
-    ImGui::GetWindowDrawList()->AddImage((void*)m_shared_context->get_render_system_internal().lock()->get_backbuffer()->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0)->get_name(),
-                                         position, ImVec2(position.x + size.x, position.y + size.y), ImVec2(0, 1), ImVec2(1, 0));
-    ImGui::PopStyleVar();
-    ImGui::End();
-
-    if (size.x > 0 && size.y > 0)
-    {
-        auto cam_info = m_shared_context->get_current_scene()->get_active_camera_data().camera_info;
-        if (cam_info)
-            cam_info->aspect = (float)size.x / (float)size.y;
-        m_shared_context->get_render_system_internal().lock()->set_viewport(0, 0, size.x, size.y);
-    }
+    // Custom
+    if (auto custom = m_configuration.get_custom_ui_function())
+        custom();
 
     // dock space end
     ImGui::End();

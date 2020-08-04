@@ -6,6 +6,8 @@
 
 #include "editor.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "imgui.h"
+#include "tinyfiledialogs.h"
 
 using namespace mango;
 
@@ -29,14 +31,34 @@ bool editor::create()
     mango_rs->configure(render_config);
 
     ui_configuration ui_config;
-    ui_config.enable_dock_space(true)
-            .show_widget(mango::ui_widget::render_view)
-            .show_widget(mango::ui_widget::hardware_info)
-            .submit_custom([this] () {
-   //             ImGui::Begin();
-   //             ImGui::Text("This is an example for custom ui functionality with ImGui!");
-   //             ImGui::End();
-            });
+    ui_config.enable_dock_space(true).show_widget(mango::ui_widget::render_view).show_widget(mango::ui_widget::hardware_info).submit_custom([this]() {
+        ImGui::Begin("Load GLTF and HDRI");
+        ImGui::Text("Load a .gltf file or a .hdr environment.");
+        if (ImGui::Button("Open"))
+        {
+            char const* filter[3] = { "*.gltf", "*.glb", "*.hdr" };
+
+            shared_ptr<context> mango_context = get_context().lock();
+            MANGO_ASSERT(mango_context, "Context is expired!");
+            auto application_scene = mango_context->get_current_scene();
+            char* query_path       = tinyfd_openFileDialog("", "/", 3, filter, NULL, 1);
+            if (query_path)
+            {
+                string queried = string(query_path);
+
+                ptr_size pos = 0;
+                string token;
+                while ((pos = queried.find('|')) != string::npos)
+                {
+                    token = queried.substr(0, pos);
+                    try_open_path(application_scene, token);
+                    queried.erase(0, pos + 1);
+                }
+                try_open_path(application_scene, queried);
+            }
+        }
+        ImGui::End();
+    });
 
     shared_ptr<ui_system> mango_uis = mango_context->get_ui_system().lock();
     MANGO_ASSERT(mango_uis, "UI System is expired!");
@@ -61,19 +83,7 @@ bool editor::create()
         for (int32 i = 0; i < count; i++)
         {
             string path = string(paths[i]);
-            auto ext    = path.substr(path.find_last_of(".") + 1);
-            if (ext == "hdr")
-            {
-                application_scene->remove_entity(m_environment);
-                m_environment = application_scene->create_environment_from_hdr(path, 0.0f);
-            }
-            else if (ext == "glb" || ext == "gltf")
-            {
-                for (entity e : m_model)
-                    application_scene->remove_entity(e);
-
-                m_model = application_scene->create_entities_from_model(path);
-            }
+            try_open_path(application_scene, path);
         }
     });
 
@@ -161,3 +171,20 @@ void editor::update(float dt)
 }
 
 void editor::destroy() {}
+
+void editor::try_open_path(const shared_ptr<mango::scene>& application_scene, string path)
+{
+    auto ext = path.substr(path.find_last_of(".") + 1);
+    if (ext == "hdr")
+    {
+        application_scene->remove_entity(m_environment);
+        m_environment = application_scene->create_environment_from_hdr(path, 0.0f);
+    }
+    else if (ext == "glb" || ext == "gltf")
+    {
+        for (entity e : m_model)
+            application_scene->remove_entity(e);
+
+        m_model = application_scene->create_entities_from_model(path);
+    }
+}

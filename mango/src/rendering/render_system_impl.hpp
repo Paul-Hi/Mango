@@ -37,7 +37,8 @@ namespace mango
         //! \return The \a command_buffer of the \a render_system.
         inline command_buffer_ptr get_command_buffer()
         {
-            return m_command_buffer;
+            MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+            return m_current_render_system->m_command_buffer;
         }
 
         //! \brief Does all the setup and has to be called before rendering the scene.
@@ -94,12 +95,32 @@ namespace mango
         //! \return The backbuffer.
         virtual framebuffer_ptr get_backbuffer();
 
+        struct hardware_stats;
+
+        //! \brief Returns some stats regarding hardware.
+        //! \return some stats regarding hardware.
+        inline const hardware_stats& get_hardware_stats()
+        {
+            MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+            return m_current_render_system->m_hardware_stats;
+        }
+
       protected:
         //! \brief Mangos internal context for shared usage in all \a render_systems.
         shared_ptr<context_impl> m_shared_context;
 
         //! \brief The \a command_buffer for the \a render_system.
         command_buffer_ptr m_command_buffer;
+
+        //! \brief Some stats regarding hardware.
+        struct hardware_stats
+        {
+            string api_version; //! << The graphics API version used.
+            struct
+            {
+                int32 draw_calls;            //! << The number of draw calls.
+            } last_frame; //! << Measured stats from the last rendered frame.
+        } m_hardware_stats;
 
       private:
         //! \brief A shared pointer to the currently used internal \a render_system.

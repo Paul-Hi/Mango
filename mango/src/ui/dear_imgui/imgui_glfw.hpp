@@ -16,7 +16,8 @@ IMGUI_IMPL_API bool ImGui_ImplGlfw_InitForOpenGL(GLFWwindow* window, bool instal
 IMGUI_IMPL_API bool ImGui_ImplGlfw_InitForVulkan(GLFWwindow* window, bool install_callbacks);
 IMGUI_IMPL_API void ImGui_ImplGlfw_Shutdown();
 IMGUI_IMPL_API void ImGui_ImplGlfw_NewFrame();
-IMGUI_IMPL_API void ImGui_ImplGlfw_BlockChainedCallbacks(bool block);
+IMGUI_IMPL_API void ImGui_ImplGlfw_FrameHovered(bool hovered);
+IMGUI_IMPL_API void ImGui_ImplGlfw_FrameFocused(bool focused);
 
 IMGUI_IMPL_API void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 IMGUI_IMPL_API void ImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
