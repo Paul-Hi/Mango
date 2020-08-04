@@ -71,6 +71,9 @@ bool deferred_pbr_render_system::create()
     int32 w = ws->get_width();
     int32 h = ws->get_height();
 
+    m_hardware_stats.last_frame.canvas_width  = w;
+    m_hardware_stats.last_frame.canvas_height = h;
+
     texture_configuration attachment_config;
     attachment_config.m_generate_mipmaps        = 1;
     attachment_config.m_is_standard_color_space = false;
@@ -325,6 +328,9 @@ void deferred_pbr_render_system::set_viewport(int32 x, int32 y, int32 width, int
     m_command_buffer->set_viewport(x, y, width, height);
     m_gbuffer->resize(width, height);
     m_backbuffer->resize(width, height);
+
+    m_hardware_stats.last_frame.canvas_width  = width;
+    m_hardware_stats.last_frame.canvas_height = height;
 }
 
 void deferred_pbr_render_system::update(float dt)

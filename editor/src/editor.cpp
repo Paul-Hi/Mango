@@ -19,7 +19,7 @@ bool editor::create()
     MANGO_ASSERT(mango_context, "Context is expired!");
 
     window_configuration window_config;
-    window_config.set_width(1280).set_height(720).set_title(get_name());
+    window_config.set_width(1920).set_height(1080).set_title(get_name());
     shared_ptr<window_system> mango_ws = mango_context->get_window_system().lock();
     MANGO_ASSERT(mango_ws, "Window System is expired!");
     mango_ws->configure(window_config);
@@ -31,8 +31,8 @@ bool editor::create()
     mango_rs->configure(render_config);
 
     ui_configuration ui_config;
-    ui_config.enable_dock_space(true).show_widget(mango::ui_widget::render_view).show_widget(mango::ui_widget::hardware_info).submit_custom([this]() {
-        ImGui::Begin("Load GLTF and HDRI");
+    ui_config.enable_dock_space(true).show_widget(mango::ui_widget::render_view).show_widget(mango::ui_widget::hardware_info).submit_custom("Editor File Load", [this](bool& enabled) {
+        ImGui::Begin("Editor File Load", &enabled);
         ImGui::Text("Load a .gltf file or a .hdr environment.");
         if (ImGui::Button("Open"))
         {

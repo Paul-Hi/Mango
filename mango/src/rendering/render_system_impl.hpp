@@ -18,6 +18,20 @@
 
 namespace mango
 {
+    //! \brief Some stats regarding hardware.
+    struct hardware_stats
+    {
+        //! \brief The graphics API version used.
+        string api_version;
+
+        struct
+        {
+            int32 draw_calls;    //!< The number of draw calls.
+            int32 canvas_width;  //!< The width of the current render canvas.
+            int32 canvas_height; //!< The height of the current render canvas.
+        } last_frame;            //!< Measured stats from the last rendered frame.
+    };
+
     //! \brief The implementation of the \a render_system.
     //! \details This class only manages the configuration of the base \a render_system and forwards everything else to the real implementation of the specific configured one.
     class render_system_impl : public render_system
@@ -95,8 +109,6 @@ namespace mango
         //! \return The backbuffer.
         virtual framebuffer_ptr get_backbuffer();
 
-        struct hardware_stats;
-
         //! \brief Returns some stats regarding hardware.
         //! \return some stats regarding hardware.
         inline const hardware_stats& get_hardware_stats()
@@ -112,15 +124,8 @@ namespace mango
         //! \brief The \a command_buffer for the \a render_system.
         command_buffer_ptr m_command_buffer;
 
-        //! \brief Some stats regarding hardware.
-        struct hardware_stats
-        {
-            string api_version; //! << The graphics API version used.
-            struct
-            {
-                int32 draw_calls;            //! << The number of draw calls.
-            } last_frame; //! << Measured stats from the last rendered frame.
-        } m_hardware_stats;
+        //! \brief The hardware stats.
+        hardware_stats m_hardware_stats;
 
       private:
         //! \brief A shared pointer to the currently used internal \a render_system.

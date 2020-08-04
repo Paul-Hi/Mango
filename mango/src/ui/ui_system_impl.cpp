@@ -132,8 +132,6 @@ void ui_system_impl::configure(const ui_configuration& configuration)
 
 void ui_system_impl::update(float dt)
 {
-    MANGO_UNUSED(dt);
-
     ImGuiIO& io = ImGui::GetIO();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -166,6 +164,8 @@ void ui_system_impl::update(float dt)
         }
     }
 
+    auto custom                       = m_configuration.get_custom_ui_data();
+    static bool custom_enabled        = true;
     const bool* widgets               = m_configuration.get_ui_widgets();
     static bool render_view_enabled   = true;
     static bool hardware_info_enabled = true;
@@ -185,6 +185,8 @@ void ui_system_impl::update(float dt)
                 render_view_enabled = true;
             if (widgets[ui_widget::render_view] && ImGui::MenuItem("Hardware Info"))
                 hardware_info_enabled = true;
+            if (custom.function && !custom.always_open && ImGui::MenuItem(custom.window_name.c_str()))
+                custom_enabled = true;
             ImGui::EndMenu();
         }
 
@@ -196,11 +198,12 @@ void ui_system_impl::update(float dt)
         render_view_widget(m_shared_context, render_view_enabled);
     // Hardware Info
     if (widgets[ui_widget::hardware_info] && hardware_info_enabled)
-        hardware_info_widget(m_shared_context, hardware_info_enabled);
+        hardware_info_widget(m_shared_context, hardware_info_enabled, dt);
 
     // Custom
-    if (auto custom = m_configuration.get_custom_ui_function())
-        custom();
+    custom_enabled |= custom.always_open;
+    if (custom.function && custom_enabled)
+        custom.function(custom_enabled);
 
     // dock space end
     ImGui::End();

@@ -9,6 +9,8 @@
 
 #include <imgui.h>
 
+//! \cond NO_COND
+
 struct GLFWwindow;
 struct GLFWmonitor;
 
@@ -24,5 +26,7 @@ IMGUI_IMPL_API void ImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xof
 IMGUI_IMPL_API void ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 IMGUI_IMPL_API void ImGui_ImplGlfw_CharCallback(GLFWwindow* window, unsigned int c);
 IMGUI_IMPL_API void ImGui_ImplGlfw_MonitorCallback(GLFWmonitor* monitor, int event);
+
+//! \endcond
 
 #endif // IMGUI_GLFW_HPP

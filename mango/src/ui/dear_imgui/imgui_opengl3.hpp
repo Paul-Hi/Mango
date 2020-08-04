@@ -9,6 +9,8 @@
 
 #include <imgui.h>
 
+//! \cond NO_COND
+
 IMGUI_IMPL_API bool ImGui_ImplOpenGL3_Init(const char* glsl_version = NULL);
 IMGUI_IMPL_API void ImGui_ImplOpenGL3_Shutdown();
 IMGUI_IMPL_API void ImGui_ImplOpenGL3_NewFrame();
@@ -21,5 +23,7 @@ IMGUI_IMPL_API void ImGui_ImplOpenGL3_DestroyDeviceObjects();
 
 // Defining this for now
 #define IMGUI_IMPL_OPENGL_LOADER_GLAD
+
+//! \endcond
 
 #endif // IMGUI_OPENGL3_HPP

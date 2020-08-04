@@ -16,9 +16,9 @@ namespace mango
     //! \brief Available widgets for the ui.
     enum ui_widget
     {
-        render_view,         //! << Widget displaying the rendered scene.
-        hardware_info,       //! << Widget giving some hardware info.
-        number_of_ui_widgets //! << Number of widgets.
+        render_view,         //!< Widget displaying the rendered scene.
+        hardware_info,       //!< Widget giving some hardware info.
+        number_of_ui_widgets //!< Number of widgets.
     };
 
     //! \brief The configuration for the \a ui_system.
@@ -61,12 +61,17 @@ namespace mango
         }
 
         //! \brief Submits any custom ui function to the \a ui_system.
+        //! \details  Has to be only one window at the moment.
+        //! \param[in] window_name The name of the top window in the custom function.
         //! \param[in] custom_ui_function The function with custom ui to show.
+        //! \param[in] always_open Specifies if window can be closed.
         //! \return A reference to the modified \a ui_configuration.
-        inline ui_configuration& submit_custom(std::function<void()> custom_ui_function)
+        inline ui_configuration& submit_custom(string window_name, std::function<void(bool& enabled)> custom_ui_function, bool always_open = false)
         {
             MANGO_ASSERT(custom_ui_function, "Function does not exist!");
-            m_custom_ui_function = custom_ui_function;
+            m_custom_ui_data.window_name = window_name;
+            m_custom_ui_data.function    = custom_ui_function;
+            m_custom_ui_data.always_open = always_open;
             return *this;
         }
 
@@ -77,11 +82,12 @@ namespace mango
             return m_docking;
         }
 
-        //! \brief Retrieves and returns the custom ui function set in the \a ui_configuration.
-        //! \return The current configurated custom ui function of the \a ui_system.
-        inline std::function<void()> get_custom_ui_function() const
+        struct custom_ui_data;
+        //! \brief Retrieves and returns the custom ui data set in the \a ui_configuration.
+        //! \return The current configurated custom ui data of the \a ui_system.
+        inline custom_ui_data get_custom_ui_data() const
         {
-            return m_custom_ui_function;
+            return m_custom_ui_data;
         }
 
         //! \brief Retrieves and returns the array of possible \a ui_widgets set in the \a ui_configuration.
@@ -98,8 +104,14 @@ namespace mango
         bool m_docking;
         //! \brief The configurated \a ui_widgets in the \a ui_configuration to show in the \a ui_system.
         bool m_ui_widgets[ui_widget::number_of_ui_widgets];
-        //! \brief The configurated custom ui function in the \a ui_configuration to display in the \a ui_system.
-        std::function<void()> m_custom_ui_function;
+
+        //! \brief The custom ui data.
+        struct custom_ui_data
+        {
+            string window_name;                          //!< The name of the window used for menu generation.
+            std::function<void(bool& enabled)> function; //!< The custom function with the imgui code.
+            bool always_open;                            //!< True if window should always be open, else false.
+        } m_custom_ui_data;                              //!< The configurated custom ui data.
     };
 
     //! \brief A system for user interface drawing.

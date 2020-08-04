@@ -133,7 +133,7 @@ namespace mango
             return "Mango Application";
         }
 
-        //! \briefCloses the \a application.
+        //! \brief Closes the \a application.
         //! \details This can be overriden by the inheriting application.
         //! Returns a default name for the application if not set.
         void close()

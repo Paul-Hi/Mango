@@ -18,13 +18,10 @@
 
 namespace mango
 {
-    // enum ui_widget
-    // {
-    //     render_view,         //! << Widget displaying the rendered scene.
-    //     hardware_info,       //! << Widget giving some hardware info.
-    //     number_of_ui_widgets //! << Number of widgets.
-    // };
 
+    //! \brief This is an imgui widget drawing the render view and the frame produced by the renderer.
+    //! \param[in] shared_context The shared context.
+    //! \param[in] enabled Specifies if window is rendered or not and can be set by imgui.
     void render_view_widget(const shared_ptr<context_impl>& shared_context, bool& enabled)
     {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
@@ -43,24 +40,33 @@ namespace mango
         ImGui::PopStyleVar();
         ImGui::End();
 
-        if (last_size.x != size.x && last_size.y != size.y && size.x > 0 && size.y > 0)
+        if ((last_size.x != size.x || last_size.y != size.y) && size.x > 0 && size.y > 0)
         {
             auto cam_info = shared_context->get_current_scene()->get_active_camera_data().camera_info;
             if (cam_info)
                 cam_info->aspect = (float)size.x / (float)size.y;
-            shared_context->get_render_system_internal().lock()->set_viewport(0, 0, size.x, size.y);
+            shared_context->get_render_system_internal().lock()->set_viewport(0, 0, static_cast<int32>(size.x), static_cast<int32>(size.y));
             last_size = size;
         }
     }
 
-    void hardware_info_widget(const shared_ptr<context_impl>& shared_context, bool& enabled)
+    //! \brief This is an imgui widget drawing some stats of the framework.
+    //! \param[in] shared_context The shared context.
+    //! \param[in] enabled Specifies if window is rendered or not and can be set by imgui.
+    //! \param[in] dt The time since the last call.
+    void hardware_info_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, float dt)
     {
         ImGui::Begin("Hardware Info", &enabled);
+        if (ImGui::CollapsingHeader("Editor Stats"))
+        {
+            ImGui::Text("Approx. Frame Time: %.2f ms", dt * 1000.0f);
+        }
         if (ImGui::CollapsingHeader("Renderer Stats"))
         {
             auto stats = shared_context->get_render_system_internal().lock()->get_hardware_stats();
             ImGui::Text("API Version: %s", stats.api_version.c_str());
             ImGui::Text("Draw Calls: %d", stats.last_frame.draw_calls);
+            ImGui::Text("Canvas Size: (%d x %d) px", stats.last_frame.canvas_width, stats.last_frame.canvas_height);
         }
         ImGui::End();
     }

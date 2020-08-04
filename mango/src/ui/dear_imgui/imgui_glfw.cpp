@@ -6,6 +6,8 @@
 
 #include <ui/dear_imgui/imgui_glfw.hpp>
 
+//! \cond NO_COND
+
 // GLFW
 #define GLFW_INCLUDE_NONE // for glad
 #include <GLFW/glfw3.h>
@@ -335,7 +337,7 @@ static void ImGui_ImplGlfw_UpdateMousePosAndButtons()
                     // Multi-viewport mode: mouse position in OS absolute coordinates (io.MousePos is (0,0) when the mouse is on the upper-left of the primary monitor)
                     int window_x, window_y;
                     glfwGetWindowPos(window, &window_x, &window_y);
-                    io.MousePos = ImVec2((float)mouse_x + window_x, (float)mouse_y + window_y);
+                    io.MousePos = ImVec2((float)mouse_x + (float)window_x, (float)mouse_y + (float)window_y);
                 }
                 else
                 {
@@ -488,7 +490,7 @@ void ImGui_ImplGlfw_NewFrame()
     glfwGetFramebufferSize(g_Window, &display_w, &display_h);
     io.DisplaySize = ImVec2((float)w, (float)h);
     if (w > 0 && h > 0)
-        io.DisplayFramebufferScale = ImVec2((float)display_w / w, (float)display_h / h);
+        io.DisplayFramebufferScale = ImVec2((float)display_w / (float)w, (float)display_h / (float)h);
     if (g_WantUpdateMonitors)
         ImGui_ImplGlfw_UpdateMonitors();
 
@@ -880,3 +882,5 @@ static void ImGui_ImplGlfw_InitPlatformInterface()
 }
 
 static void ImGui_ImplGlfw_ShutdownPlatformInterface() {}
+
+//! \endcond
