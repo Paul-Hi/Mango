@@ -41,9 +41,9 @@ int32 application::run(int32 t_argc, char** t_argv)
     MANGO_UNUSED(t_argc);
     MANGO_UNUSED(t_argv);
 
-    bool should_close = false;
+    m_should_close = false;
 
-    while (!should_close)
+    while (!m_should_close)
     {
         shared_ptr<window_system_impl> ws = m_context->get_window_system_internal().lock();
         MANGO_ASSERT(ws, "Window System is expired!");
@@ -57,7 +57,7 @@ int32 application::run(int32 t_argc, char** t_argv)
 
         // poll events
         ws->poll_events();
-        should_close = ws->should_close();
+        m_should_close = m_should_close || ws->should_close();
 
         float frame_time = static_cast<float>(m_frame_timer->elapsedMicroseconds().count()) * 0.000001f; // We need the resolution. TODO Paul: We could wrap this with some kind of 'high res clock'.
         m_frame_timer->restart();

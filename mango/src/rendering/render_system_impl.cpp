@@ -107,6 +107,12 @@ void render_system_impl::set_environment_texture(const texture_ptr& hdr_texture,
     m_current_render_system->set_environment_texture(hdr_texture, render_level);
 }
 
+framebuffer_ptr render_system_impl::get_backbuffer()
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    return m_current_render_system->get_backbuffer();
+}
+
 void render_system_impl::update(float dt)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");

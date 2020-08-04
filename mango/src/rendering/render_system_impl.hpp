@@ -18,6 +18,20 @@
 
 namespace mango
 {
+    //! \brief Some stats regarding hardware.
+    struct hardware_stats
+    {
+        //! \brief The graphics API version used.
+        string api_version;
+
+        struct
+        {
+            int32 draw_calls;    //!< The number of draw calls.
+            int32 canvas_width;  //!< The width of the current render canvas.
+            int32 canvas_height; //!< The height of the current render canvas.
+        } last_frame;            //!< Measured stats from the last rendered frame.
+    };
+
     //! \brief The implementation of the \a render_system.
     //! \details This class only manages the configuration of the base \a render_system and forwards everything else to the real implementation of the specific configured one.
     class render_system_impl : public render_system
@@ -37,7 +51,8 @@ namespace mango
         //! \return The \a command_buffer of the \a render_system.
         inline command_buffer_ptr get_command_buffer()
         {
-            return m_command_buffer;
+            MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+            return m_current_render_system->m_command_buffer;
         }
 
         //! \brief Does all the setup and has to be called before rendering the scene.
@@ -90,12 +105,27 @@ namespace mango
         //! \param[in] render_level The level from the hdr \a texture to render. -1 means no rendering.
         virtual void set_environment_texture(const texture_ptr& hdr_texture, float render_level);
 
+        //! \brief Returns the backbuffer of the a render_system.
+        //! \return The backbuffer.
+        virtual framebuffer_ptr get_backbuffer();
+
+        //! \brief Returns some stats regarding hardware.
+        //! \return some stats regarding hardware.
+        inline const hardware_stats& get_hardware_stats()
+        {
+            MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+            return m_current_render_system->m_hardware_stats;
+        }
+
       protected:
         //! \brief Mangos internal context for shared usage in all \a render_systems.
         shared_ptr<context_impl> m_shared_context;
 
         //! \brief The \a command_buffer for the \a render_system.
         command_buffer_ptr m_command_buffer;
+
+        //! \brief The hardware stats.
+        hardware_stats m_hardware_stats;
 
       private:
         //! \brief A shared pointer to the currently used internal \a render_system.

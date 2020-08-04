@@ -115,7 +115,7 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
     auto start                     = path.find_last_of("\\/") + 1;
     auto name                      = path.substr(start, path.find_last_of(".") - start);
     model_configuration config     = { name };
-    const shared_ptr<model> loaded = rs->load_gltf(path, config);
+    const shared_ptr<model> loaded = rs->get_gltf_model(path, config);
     tinygltf::Model& m             = loaded->gltf_model;
 
     // load the default scene or the first one.
@@ -197,7 +197,7 @@ entity scene::create_environment_from_hdr(const string& path, float rendered_mip
     img_config.is_standard_color_space = false;
     img_config.is_hdr                  = true;
 
-    auto hdr_image = res->load_image(path, img_config);
+    auto hdr_image = res->get_image(path, img_config);
 
     texture_configuration tex_config;
     tex_config.m_generate_mipmaps        = 1;

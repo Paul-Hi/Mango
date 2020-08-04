@@ -21,8 +21,8 @@ namespace mango
     class context_impl : public context, public std::enable_shared_from_this<context_impl>
     {
       public:
-        context_impl();
-        ~context_impl();
+        context_impl() = default;
+        virtual ~context_impl() = default;
         void set_application(const shared_ptr<application>& application) override;
         weak_ptr<window_system> get_window_system() override;
         weak_ptr<input_system> get_input_system() override;
@@ -37,6 +37,10 @@ namespace mango
         //! This function is only callable by mango internally.
         //! \return True on creation success, else false.
         bool create();
+
+        //! \brief Queries and returns a shared pointer to the current \a application.
+        //! \return A shared pointer to the current \a application.
+        virtual shared_ptr<application> get_application();
 
         //! \brief Queries and returns a weak pointer to mangos \a window_system.
         //! \details This enables you using internal functionalities.
