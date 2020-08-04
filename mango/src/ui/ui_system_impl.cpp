@@ -35,6 +35,7 @@ bool ui_system_impl::create()
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
     // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Enable Multi-Viewport / Platform Windows
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;   // Enable docking for all windows.
     // io.ConfigViewportsNoAutoMerge = true;
     // io.ConfigViewportsNoTaskBarIcon = true;
 
@@ -111,8 +112,6 @@ void ui_system_impl::configure(const ui_configuration& configuration)
     m_configuration = configuration;
     if (m_configuration.is_dock_space_enabled())
     {
-        ImGuiIO& io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable docking for all windows.
         // When docking is enabled we setup a default layout.
     }
     else
@@ -132,36 +131,33 @@ void ui_system_impl::configure(const ui_configuration& configuration)
 
 void ui_system_impl::update(float dt)
 {
-    ImGuiIO& io = ImGui::GetIO();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
     // dock space
-    if (bool dockspace_enabled = m_configuration.is_dock_space_enabled())
-    {
-        static ImGuiDockNodeFlags d_flags = ImGuiDockNodeFlags_PassthruCentralNode;
-        static ImGuiWindowFlags w_flags   = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
-        ImGuiViewport* viewport           = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->Pos);
-        ImGui::SetNextWindowSize(viewport->Size);
-        ImGui::SetNextWindowViewport(viewport->ID);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-        w_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-        w_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-        w_flags |= ImGuiWindowFlags_NoBackground;
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        ImGui::Begin("DockSpace", &dockspace_enabled, w_flags);
-        ImGui::PopStyleVar();
-        ImGui::PopStyleVar(2);
+    bool dockspace_enabled = m_configuration.is_dock_space_enabled();
+    static ImGuiDockNodeFlags d_flags = ImGuiDockNodeFlags_PassthruCentralNode;
+    static ImGuiWindowFlags w_flags   = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+    ImGuiViewport* viewport           = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    w_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    w_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+    w_flags |= ImGuiWindowFlags_NoBackground;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::Begin("DockSpace", &dockspace_enabled, w_flags);
+    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(2);
 
-        // real dock space
-        if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
-        {
-            ImGuiID dockspace_id = ImGui::GetID("MangoDockSpace");
-            ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), d_flags);
-        }
+    // real dock space
+    if (dockspace_enabled)
+    {
+        ImGuiID dockspace_id = ImGui::GetID("MangoDockSpace");
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), d_flags);
     }
 
     auto custom                       = m_configuration.get_custom_ui_data();
@@ -196,6 +192,7 @@ void ui_system_impl::update(float dt)
     // Render View
     if (widgets[ui_widget::render_view] && render_view_enabled)
         render_view_widget(m_shared_context, render_view_enabled);
+
     // Hardware Info
     if (widgets[ui_widget::hardware_info] && hardware_info_enabled)
         hardware_info_widget(m_shared_context, hardware_info_enabled, dt);
@@ -205,8 +202,7 @@ void ui_system_impl::update(float dt)
     if (custom.function && custom_enabled)
         custom.function(custom_enabled);
 
-    // dock space end
-    ImGui::End();
+    ImGui::End(); // dock space end
 }
 
 void ui_system_impl::destroy()
