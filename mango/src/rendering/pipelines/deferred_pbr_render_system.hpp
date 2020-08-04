@@ -36,9 +36,16 @@ namespace mango
         void set_view_projection_matrix(const glm::mat4& view_projection) override;
         void set_environment_texture(const texture_ptr& hdr_texture, float render_level) override;
 
+        framebuffer_ptr get_backbuffer() override
+        {
+            return m_backbuffer;
+        }
+
       private:
         //! \brief The gbuffer of the deferred pipeline.
         framebuffer_ptr m_gbuffer;
+        //! \brief The backbuffer of the deferred pipeline.
+        framebuffer_ptr m_backbuffer;
 
         //! \brief The \a shader_program for the deferred geometry pass.
         //! \details This fills the g-buffer for later use in the lighting pass.
@@ -51,7 +58,7 @@ namespace mango
         //! \brief The prealocated size for all uniforms.
         //! \details The buffer is filled every frame. 1 MiB should be enough for now.
         const int32 uniform_buffer_size = 1048576;
-        int32 m_frame_uniform_offset;    //!< The current offset in the uniform memory to write to.
+        int32 m_frame_uniform_offset;     //!< The current offset in the uniform memory to write to.
         g_int m_uniform_buffer_alignment; //!< The alignment of the structures in the uniform buffer. Gets queried from OpenGL.
         //! \brief The mapped memory to be filled with all uniforms blocks per frame.
         void* m_mapped_uniform_memory;
@@ -65,8 +72,8 @@ namespace mango
             std140_mat4 model_matrix;  //!< The model matrix.
             std140_mat3 normal_matrix; //!< The normal matrix.
 
-            std140_bool has_normals;   //!< Specifies if the next mesh has normals as a vertex attribute.
-            std140_bool has_tangents;  //!< Specifies if the next mesh has tangents as a vertex attribute.
+            std140_bool has_normals;  //!< Specifies if the next mesh has normals as a vertex attribute.
+            std140_bool has_tangents; //!< Specifies if the next mesh has tangents as a vertex attribute.
 
             g_float padding0; //!< Padding needed for st140 layout.
             g_float padding1; //!< Padding needed for st140 layout.

@@ -227,16 +227,22 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
     texture_config.m_texture_wrap_s          = texture_parameter::WRAP_CLAMP_TO_EDGE;
     texture_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
 
+    if (m_cubemap)
+        m_cubemap->release();
     m_cubemap = texture::create(texture_config);
     m_cubemap->set_data(format::RGBA16F, m_cube_width, m_cube_height, format::RGBA, format::FLOAT, nullptr);
 
     texture_config.m_generate_mipmaps = calculate_mip_count(m_prefiltered_base_width, m_prefiltered_base_height);
-    m_prefiltered_specular            = texture::create(texture_config);
+    if (m_prefiltered_specular)
+        m_prefiltered_specular->release();
+    m_prefiltered_specular = texture::create(texture_config);
     m_prefiltered_specular->set_data(format::RGBA16F, m_prefiltered_base_width, m_prefiltered_base_height, format::RGBA, format::FLOAT, nullptr);
 
     texture_config.m_generate_mipmaps   = 1;
     texture_config.m_texture_min_filter = texture_parameter::FILTER_LINEAR;
-    m_irradiance_map                    = texture::create(texture_config);
+    if (m_irradiance_map)
+        m_irradiance_map->release();
+    m_irradiance_map = texture::create(texture_config);
     m_irradiance_map->set_data(format::RGBA16F, m_irradiance_width, m_irradiance_height, format::RGBA, format::FLOAT, nullptr);
 
     glm::vec2 out;

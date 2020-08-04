@@ -1,116 +1,154 @@
 import os, subprocess, sys, getopt, errno
 
 def getDependencies():
-    if os.path.exists('dependencies'):
-        return True
-    os.mkdir('dependencies')
+    if not os.path.exists('dependencies'):
+        os.mkdir('dependencies')
     os.chdir('dependencies')
 
     # glfw
-    repository = 'https://github.com/glfw/glfw.git'
-    folder = 'glfw'
-    gitCmd = ['git', 'clone', repository, folder]
-    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
-    if result != 0:
-        return False
+    if not os.path.exists('glfw'):
+        repository = 'https://github.com/glfw/glfw.git'
+        folder = 'glfw'
+        gitCmd = ['git', 'clone', repository, folder]
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
 
     # glad
-    repository ='https://github.com/Dav1dde/glad.git'
-    folder ='glad/gen'
-    gitCmd = ['git', 'clone', repository, folder]
-    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
-    if result != 0:
-        return False
+    if not os.path.exists('glad'):
+        repository ='https://github.com/Dav1dde/glad.git'
+        folder ='glad/gen'
+        gitCmd = ['git', 'clone', repository, folder]
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
 
-    os.chdir('glad/gen')
+        os.chdir('glad/gen')
 
-    gladGenCmd = ['python', '-m', 'glad', '--generator=c', '--spec=gl', '--profile=core', '--out-path=..', '--reproducible']
-    result = subprocess.check_call(gladGenCmd, stderr=subprocess.STDOUT, shell=False)
-    if result != 0:
-        return False
+        gladGenCmd = ['python', '-m', 'glad', '--generator=c', '--spec=gl', '--profile=core', '--out-path=..', '--reproducible']
+        result = subprocess.check_call(gladGenCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
 
-    os.chdir('../..')
+        os.chdir('../..')
 
-    f = open('./glad/CMakeLists.txt','w+')
-    f.write('project(glad)\r\n')
-    f.write('add_library(glad src/glad.c include/glad/glad.h include/KHR/khrplatform.h)\r\n')
-    f.write('target_include_directories(glad SYSTEM PUBLIC include)\r\n')
-    f.close()
+        f = open('./glad/CMakeLists.txt','w+')
+        f.write('project(glad)\r\n')
+        f.write('add_library(glad src/glad.c include/glad/glad.h include/KHR/khrplatform.h)\r\n')
+        f.write('target_include_directories(glad SYSTEM PUBLIC include)\r\n')
+        f.close()
 
     # googletest
-    repository ='https://github.com/google/googletest.git'
-    folder ='googletest'
+    if not os.path.exists('googletest'):
+        repository ='https://github.com/google/googletest.git'
+        folder ='googletest'
 
-    gitCmd = ['git', 'clone', repository, folder]
-    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
-    if result != 0:
-        return False
+        gitCmd = ['git', 'clone', repository, folder]
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
 
     # spdlog
-    repository ='https://github.com/gabime/spdlog.git'
-    folder ='spdlog'
+    if not os.path.exists('spdlog'):
+        repository ='https://github.com/gabime/spdlog.git'
+        folder ='spdlog'
 
-    gitCmd = ['git', 'clone', repository, folder]
-    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
-    if result != 0:
-        return False
+        gitCmd = ['git', 'clone', repository, folder]
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
 
     # stb_image
-    repository ='https://github.com/nothings/stb.git'
-    folder ='stb_image'
+    if not os.path.exists('stb_image'):
+        repository ='https://github.com/nothings/stb.git'
+        folder ='stb_image'
 
-    gitCmd = ['git', 'clone', '-n', repository, folder]
-    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
-    if result != 0:
-        return False
+        gitCmd = ['git', 'clone', '-n', repository, folder]
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
 
-    os.chdir('stb_image')
+        os.chdir('stb_image')
 
-    gitCmd = ['git', 'checkout', 'HEAD', 'stb_image.h', 'stb_image_write.h']
-    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
-    if result != 0:
-        return False
+        gitCmd = ['git', 'checkout', 'HEAD', 'stb_image.h', 'stb_image_write.h']
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
 
-    os.chdir('..')
+        os.chdir('..')
 
-    f = open('./stb_image/CMakeLists.txt','w+')
-    f.write('project(stb_image)\r\n')
-    f.write('add_library(stb_image INTERFACE)\r\n')
-    f.write('target_include_directories(stb_image SYSTEM INTERFACE .)\r\n')
-    f.close()
+        f = open('./stb_image/CMakeLists.txt','w+')
+        f.write('project(stb_image)\r\n')
+        f.write('add_library(stb_image INTERFACE)\r\n')
+        f.write('target_include_directories(stb_image SYSTEM INTERFACE .)\r\n')
+        f.close()
 
     # glm
-    repository ='https://github.com/g-truc/glm.git'
-    folder ='glm'
+    if not os.path.exists('glm'):
+        repository ='https://github.com/g-truc/glm.git'
+        folder ='glm'
 
-    gitCmd = ['git', 'clone', repository, folder]
-    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
-    if result != 0:
-        return False
+        gitCmd = ['git', 'clone', repository, folder]
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
 
     # tiny_gltf
-    repository ='https://github.com/syoyo/tinygltf.git'
-    folder ='tiny_gltf'
+    if not os.path.exists('tiny_gltf'):
+        repository ='https://github.com/syoyo/tinygltf.git'
+        folder ='tiny_gltf'
 
-    gitCmd = ['git', 'clone', '-n', repository, folder]
-    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
-    if result != 0:
-        return False
+        gitCmd = ['git', 'clone', '-n', repository, folder]
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
 
-    os.chdir('tiny_gltf')
+        os.chdir('tiny_gltf')
 
-    gitCmd = ['git', 'checkout', 'HEAD', 'json.hpp', 'tiny_gltf.h']
-    result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
-    if result != 0:
-        return False
+        gitCmd = ['git', 'checkout', 'HEAD', 'json.hpp', 'tiny_gltf.h']
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
 
-    os.chdir('..')
+        os.chdir('..')
 
-    f = open('./tiny_gltf/CMakeLists.txt','w+')
-    f.write('project(tiny_gltf)\r\n')
-    f.write('add_library(tiny_gltf INTERFACE)\r\n')
-    f.write('target_include_directories(tiny_gltf SYSTEM INTERFACE .)\r\n')
-    f.close()
+        f = open('./tiny_gltf/CMakeLists.txt','w+')
+        f.write('project(tiny_gltf)\r\n')
+        f.write('add_library(tiny_gltf INTERFACE)\r\n')
+        f.write('target_include_directories(tiny_gltf SYSTEM INTERFACE .)\r\n')
+        f.close()
+
+    # dear imgui
+    if not os.path.exists('imgui'):
+        repository ='https://github.com/ocornut/imgui.git'
+        folder ='imgui'
+
+        gitCmd = ['git', 'clone', repository, folder, '--branch', 'docking']
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
+
+        f = open('./imgui/CMakeLists.txt','w+')
+        f.write('project(imgui)\r\n')
+        f.write('add_library(imgui imgui.cpp imgui_demo.cpp imgui_draw.cpp imgui_widgets.cpp imgui.h imconfig.h imgui_internal.h imstb_rectpack.h imstb_textedit.h imstb_truetype.h)\r\n')
+        f.write('target_include_directories(imgui SYSTEM PUBLIC .)\r\n')
+        f.close()
+
+    # tiny file dialogs
+    if not os.path.exists('tinyfd'):
+        repository ='http://git.code.sf.net/p/tinyfiledialogs/code'
+        folder ='tinyfd'
+
+        gitCmd = ['git', 'clone', repository, folder]
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
+
+        f = open('./tinyfd/CMakeLists.txt','w+')
+        f.write('project(tinyfd)\r\n')
+        f.write('add_library(tinyfd tinyfiledialogs.c tinyfiledialogs.h)\r\n')
+        f.write('target_include_directories(imgui SYSTEM PUBLIC .)\r\n')
+        f.close()
 
 
     os.chdir('..')

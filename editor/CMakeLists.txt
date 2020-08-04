@@ -40,3 +40,4 @@ target_compile_options(editor
 
 install(TARGETS editor DESTINATION bin)
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/res/ DESTINATION bin/res)
+install(FILES ${CMAKE_SOURCE_DIR}/imgui.ini DESTINATION bin)

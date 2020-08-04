@@ -82,6 +82,12 @@ message(STATUS "Added stb_image.")
 add_subdirectory(dependencies/tiny_gltf)
 message(STATUS "Added tiny_gltf.")
 
+add_subdirectory(dependencies/imgui)
+message(STATUS "Added dear imgui.")
+
+add_subdirectory(dependencies/tinyfd)
+message(STATUS "Added tiny file dialogs.")
+
 find_package_verbose(glm REQUIRED)
 
 if(MANGO_BUILD_TESTS)

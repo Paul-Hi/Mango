@@ -11,8 +11,6 @@ build/*
 install/*
 # Dependencies
 dependencies/*
-# Textures -> A few example textures should be added for now.
-# res/textures/*
 # Documentation
 /doc/Doxyfile
 /doc/extra_style.css

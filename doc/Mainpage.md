@@ -17,11 +17,12 @@ Keep in mind that I do this in my spare time, besides studying and working.
 * Building and running on Linux and Windows.
 * Basic support of GLTF models (No animations yet, some features missing, no draco encoding)
 * HDR support and image based lighting
+* Basic GUI with DearImGui
 * Many physically based rendering features
 * Deferred rendering with OpenGL backend
 * Entity Component System
 * Basic framework architecture
-* Editor featuring .gltf and .hdr file loading via drag'n'drop and a simple camera controller
+* Editor featuring .gltf and .hdr file loading and a simple camera controller
 
 ## Requirements
 
@@ -68,7 +69,6 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 * Support for translucent materials
 * Rendering improvements (performance and appearance)
 * Scene management improvements
-* GUI with DearImGui
 * Performance measurement tools
 * Editor improvements and some better examples for the use of Mango
 * Many features like shadows, global light effects (GI, AO, reflections), live editing, hot swapable resources, and more
@@ -81,6 +81,8 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 * spdlog
 * tiny_gltf
 * stb_image
+* dear imgui
+* tiny file dialogs
 
 * googletest (Testing)
 * Doxygen (Documentation)
