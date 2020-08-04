@@ -37,11 +37,12 @@ Also have a look at the [Website](https://paul-hi.github.io/Mango/)!
 * Building and running on Linux and Windows.
 * Basic support of GLTF models (No animations yet, some features missing, no draco encoding)
 * HDR support and image based lighting
+* Basic GUI with DearImGui
 * Many physically based rendering features
 * Deferred rendering with OpenGL backend
 * Entity Component System
 * Basic framework architecture
-* Editor featuring .gltf and .hdr file loading via drag'n'drop and a simple camera controller
+* Editor featuring .gltf and .hdr file loading and a simple camera controller
 
 ## Requirements
 
@@ -78,7 +79,7 @@ If you still have a problem just reach out to me on GitHub and I'll try to fix i
 
 Just head into ```\build``` and run ```make install``` to install mango.
 There is a default install path ```install\mango\bin``` where the editor executable can be found. But you can also specify another one.
-As an alternative you could just go to ```\build\debug\bin``` or ```\build\release\bin``` and run the editor executable, but keep in mind that you'll have to copy the ```\res``` folder there to get it to work properly.
+As an alternative you could just go to ```\build\debug\bin``` or ```\build\release\bin``` and run the editor executable, but keep in mind that you'll have to copy the ```\res``` folder there to get it to work properly. Also there seem to be some slowdowns when the file dialog is opened with attached debugger.
 
 ## Roadmap (unordered and incomplete)
 
@@ -87,7 +88,6 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 * Support for translucent materials
 * Rendering improvements (performance and appearance)
 * Scene management improvements
-* GUI with DearImGui
 * Performance measurement tools
 * Editor improvements and some better examples for the use of Mango
 * Many features like shadows, global light effects (GI, AO, reflections), live editing, hot swapable resources, and more
