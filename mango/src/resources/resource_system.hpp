@@ -55,39 +55,21 @@ namespace mango
         virtual void update(float dt) override;
         virtual void destroy() override;
 
-        //! \brief Loads a image.
+        //! \brief Gets an image and loads it when necessary.
         //! \param[in] path The path to the image. Relative to the project folder.
         //! \param[in] configuration The \a image_configuration of the image.
         //! \return A pointer to the image loaded before.
-        const shared_ptr<image> load_image(const string& path, const image_configuration& configuration);
+        const shared_ptr<image> get_image(const string& path, const image_configuration& configuration);
 
-        //! \brief Retrieves an already loaded image.
-        //! \param[in] name The name of the image specified in the \a image_configuration on load.
-        //! \return A pointer to the image specified.
-        const shared_ptr<image> get_image(const string& name);
-
-        //! \brief Loads a gltf model.
+        //! \brief Gets a gltf model and loads it when necessary.
         //! \param[in] path The path to the model. Relative to the project folder.
         //! \param[in] configuration The \a model_configuration of the model.
         //! \return A pointer to the model loaded before.
-        const shared_ptr<model> load_gltf(const string& path, const model_configuration& configuration);
-
-        //! \brief Retrieves an already loaded model.
-        //! \param[in] name The name of the model specified in the \a model_configuration on load.
-        //! \return A pointer to the model specified.
-        const shared_ptr<model> get_gltf_model(const string& name);
+        const shared_ptr<model> get_gltf_model(const string& path, const model_configuration& configuration);
 
       private:
         //! \brief Mangos internal context for shared usage in the \a resource_system.
         shared_ptr<context_impl> m_shared_context;
-
-        //! \brief The storage for \a images.
-        //! \details The key is a resource_handle which is hashed with fnv1a.
-        std::unordered_map<resource_handle, shared_ptr<image>, hash<resource_handle>> m_image_storage;
-
-        //! \brief The storage for \a images.
-        //! \details The key is a resource_handle which is hashed with fnv1a.
-        std::unordered_map<resource_handle, shared_ptr<model>, hash<resource_handle>> m_model_storage;
     };
 
 } // namespace mango

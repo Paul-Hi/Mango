@@ -36,54 +36,20 @@ void resource_system::update(float dt)
     MANGO_UNUSED(dt);
 }
 
-void resource_system::destroy()
-{
-    for (auto sp : m_image_storage)
-    {
-        stbi_image_free(sp.second->data);
-    }
-    m_image_storage.clear();
-    m_model_storage.clear();
-}
+void resource_system::destroy() {}
 
-const shared_ptr<image> resource_system::load_image(const string& path, const image_configuration& configuration)
+const shared_ptr<image> resource_system::get_image(const string& path, const image_configuration& configuration)
 {
-    resource_handle handle = { configuration.name };
-    // check if image is already loaded
-    auto it = m_image_storage.find(handle);
-    if (it != m_image_storage.end())
-    {
-        MANGO_LOG_INFO("Image '{0}' is already loaded!", configuration.name);
-        return it->second;
-    }
-
     image img = load_image_from_file(path, configuration);
-    m_image_storage.insert({ handle, std::make_shared<image>(img) });
-    return m_image_storage.at(handle);
+    return std::shared_ptr<image>(new image(img), [](image* img) {
+        stbi_image_free(img->data);
+        delete img;
+    });
 }
 
-const shared_ptr<image> resource_system::get_image(const string& name)
-{
-    resource_handle handle = { name };
-    // check if image is loaded
-    auto it = m_image_storage.find(handle);
-    if (it != m_image_storage.end())
-        return it->second;
-
-    MANGO_LOG_ERROR("Image '{0}' is not loaded!", name);
-    return nullptr;
-}
-
-const shared_ptr<model> resource_system::load_gltf(const string& path, const model_configuration& configuration)
+const shared_ptr<model> resource_system::get_gltf_model(const string& path, const model_configuration& configuration)
 {
     resource_handle handle = { configuration.name };
-    // check if model is already loaded
-    auto it = m_model_storage.find(handle);
-    if (it != m_model_storage.end())
-    {
-        MANGO_LOG_INFO("Model '{0}' is already loaded!", configuration.name);
-        return it->second;
-    }
 
     model m;
     tinygltf::TinyGLTF loader;
@@ -112,23 +78,7 @@ const shared_ptr<model> resource_system::load_gltf(const string& path, const mod
         return nullptr;
     }
 
-    m.configuration = configuration;
-
-    m_model_storage.insert({ handle, std::make_shared<model>(m) });
-
-    return m_model_storage.at(handle);
-}
-
-const shared_ptr<model> resource_system::get_gltf_model(const string& name)
-{
-    resource_handle handle = { name };
-    // check if model is loaded
-    auto it = m_model_storage.find(handle);
-    if (it != m_model_storage.end())
-        return it->second;
-
-    MANGO_LOG_ERROR("Model '{0}' is not loaded!", name);
-    return nullptr;
+    return std::make_shared<model>(m);
 }
 
 static image load_image_from_file(const string& path, const image_configuration& configuration)
