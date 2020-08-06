@@ -73,11 +73,11 @@ namespace mango
                         auto right      = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), front)); // TODO Paul: Global up vector?
                         c.up            = glm::normalize(glm::cross(front, right));
                         c.view          = glm::lookAt(transform->position, c.target, c.up);
-                        if (c.type == camera_type::perspective_camera)
+                        if (c.cam_type == camera_type::perspective_camera)
                         {
                             c.projection = glm::perspective(c.vertical_field_of_view, c.aspect, c.z_near, c.z_far);
                         }
-                        else if (c.type == camera_type::orthographic_camera)
+                        else if (c.cam_type == camera_type::orthographic_camera)
                         {
                             const float distance = c.z_far - c.z_near;
                             c.projection         = glm::ortho(-c.aspect * distance, c.aspect * distance, -distance, distance);

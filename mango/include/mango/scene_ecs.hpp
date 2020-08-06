@@ -119,7 +119,7 @@ namespace mango
     //! \brief Component used for camera entities.
     struct camera_component
     {
-        camera_type type; //!< The type of camera projection.
+        camera_type cam_type; //!< The type of camera projection.
 
         float z_near;                 //!< Distance of the near plane.
         float z_far;                  //!< Distance of the far plane.

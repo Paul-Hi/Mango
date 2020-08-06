@@ -38,6 +38,8 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_glfw.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_widgets.hpp
 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/ecs_common.hpp
+
     # graphics
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_common.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_state.hpp
