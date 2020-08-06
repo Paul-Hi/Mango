@@ -25,7 +25,7 @@ bool editor::create()
     mango_ws->configure(window_config);
 
     render_configuration render_config;
-    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(true).enable_render_step(mango::render_step::ibl);
+    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(false).enable_render_step(mango::render_step::ibl);
     shared_ptr<render_system> mango_rs = mango_context->get_render_system().lock();
     MANGO_ASSERT(mango_rs, "Render System is expired!");
     mango_rs->configure(render_config);

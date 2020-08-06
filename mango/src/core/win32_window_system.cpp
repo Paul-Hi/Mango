@@ -9,6 +9,7 @@
 #include <core/input_system_impl.hpp>
 #include <core/win32_window_system.hpp>
 #include <mango/assert.hpp>
+#include <mango/profile.hpp>
 
 using namespace mango;
 
@@ -63,6 +64,7 @@ void win32_window_system::swap_buffers()
 {
     MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
     glfwSwapBuffers(static_cast<GLFWwindow*>(m_platform_data->native_window_handle));
+    GL_PROFILE_COLLECT;
 }
 
 void win32_window_system::set_size(int32 width, int32 height)

@@ -13,6 +13,7 @@
 #include <graphics/shader_program.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
+#include <mango/profile.hpp>
 #include <mango/scene.hpp>
 #include <rendering/pipelines/deferred_pbr_render_system.hpp>
 #include <rendering/steps/ibl_step.hpp>
@@ -56,6 +57,7 @@ bool deferred_pbr_render_system::create()
     m_hardware_stats.api_version.append(string((const char*)glGetString(GL_VERSION)));
     MANGO_LOG_INFO("Using: {0}", m_hardware_stats.api_version);
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS); // TODO Paul: Better place?
+    GL_PROFILED_CONTEXT;
 
 #ifdef MANGO_DEBUG
     glEnable(GL_DEBUG_OUTPUT);

@@ -21,11 +21,12 @@ namespace mango
 #include <mango/context.hpp>
 #include <mango/input_system.hpp>
 #include <mango/log.hpp>
+#include <mango/profile.hpp>
 #include <mango/render_system.hpp>
 #include <mango/scene.hpp>
 #include <mango/system.hpp>
 #include <mango/types.hpp>
-#include <mango/window_system.hpp>
 #include <mango/ui_system.hpp>
+#include <mango/window_system.hpp>
 
 #endif // MANGO_HPP
