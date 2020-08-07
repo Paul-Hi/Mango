@@ -163,7 +163,7 @@ def getDependencies():
         f = open('./tracy/CMakeLists.txt','w+')
         f.write('project(tracy)\r\n')
         f.write('add_library(tracy TracyClient.cpp TracyOpenGL.hpp)\r\n')
-        f.write('target_link_libraries(tracy PUBLIC $<$<BOOL:${WIN32}>:wsock32> $<$<BOOL:${WIN32}>:ws2_32> $<$<BOOL:${WIN32}>:dbghelp>)')
+        f.write('target_link_libraries(tracy PUBLIC $<$<BOOL:${WIN32}>:wsock32> $<$<BOOL:${WIN32}>:ws2_32> $<$<BOOL:${WIN32}>:dbghelp>)\r\n')
         f.write('target_include_directories(tracy SYSTEM PUBLIC .)\r\n')
         f.write('target_compile_definitions(tracy PUBLIC $<$<CONFIG:Release>:$<$<BOOL:${MANGO_PROFILE}>:TRACY_ENABLE>> $<$<BOOL:${WIN32}>:WINVER=0x0601 _WIN32_WINNT=0x0601 _WINSOCKAPI_>)\r\n')
         f.close()
