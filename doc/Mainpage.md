@@ -37,10 +37,11 @@ For an easy build you (hopefully) just need to run the ```create_solution.py``` 
 This will query all dependencies and populate the dependencies folder with the dependencies mentioned down below.
 The script should also run ```cmake``` and the correct ```make```.
 
-There are two extra options in the cmake configuration:
+There are a few extra options in the cmake configuration:
 * MANGO_BUILD_DOC (Default ON): This builds the documentation for mango.
 * MANGO_BUILD_TESTS (Default OFF): This enables the "Testing Mode" in mango and builds the tests. This should ONLY be enabled, if you plan to run the tests. It enables and disables functionalities in mango.
-* MANGO_ENABLE_HARD_WARNINGS (Default OFF): This enables some warning compiler flags. Attention: This will cause Mango to stop building, as even some libraries do not build without errors.
+* MANGO_ENABLE_HARD_WARNINGS (Default OFF): This enables some warning compiler flags. Attention: This could cause Mango to stop building.
+* MANGO_PROFILE (Default OFF): This enables profiling mode that can be used to profile Mango with Tracy. You will need to install the Tracy-0.7.0 Visual Profiler from [here](https://github.com/wolfpld/tracy/releases/tag/v0.7).
 
 If the dependency population fails, you might as well just try to populate the directory by yourself.
 If ```cmake``` or ```make``` fails, you might as well just try to build it manually like that:
@@ -84,6 +85,7 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 * dear imgui
 * tiny file dialogs
 
+* tracy (Profiling)
 * googletest (Testing)
 * Doxygen (Documentation)
 

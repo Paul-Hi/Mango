@@ -203,6 +203,7 @@ void ibl_step::attach() {}
 
 void ibl_step::execute(command_buffer_ptr& command_buffer)
 {
+    PROFILE_ZONE;
     if (m_render_level < 0.0f || !m_cubemap)
         return;
 
@@ -320,6 +321,7 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
 
 void ibl_step::bind_image_based_light_maps(command_buffer_ptr& command_buffer)
 {
+    PROFILE_ZONE;
     if (m_cubemap)
     {
         command_buffer->bind_texture(5, m_irradiance_map, 7);       // TODO Paul: Binding and location...

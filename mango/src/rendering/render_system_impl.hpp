@@ -27,6 +27,9 @@ namespace mango
         struct
         {
             int32 draw_calls;    //!< The number of draw calls.
+            int32 meshes;    //!< The number of meshes.
+            int32 primitives;    //!< The number of primitives.
+            int32 materials;    //!< The number of materials.
             int32 canvas_width;  //!< The width of the current render canvas.
             int32 canvas_height; //!< The height of the current render canvas.
         } last_frame;            //!< Measured stats from the last rendered frame.

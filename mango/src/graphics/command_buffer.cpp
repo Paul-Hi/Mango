@@ -10,6 +10,7 @@
 #include <graphics/shader_program.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
+#include <mango/profile.hpp>
 
 using namespace mango;
 
@@ -34,6 +35,7 @@ command_buffer::~command_buffer()
 
 void command_buffer::execute()
 {
+    NAMED_PROFILE_ZONE("Commandbuffer Execution");
     MANGO_ASSERT(m_first != nullptr, "Command buffer is empty!");
     MANGO_ASSERT(m_last != nullptr, "Command buffer is empty!");
 
@@ -50,6 +52,7 @@ void command_buffer::execute()
 
 void command_buffer::set_viewport(int32 x, int32 y, int32 width, int32 height)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(x >= 0, "Viewport x position has to be positive!");
     MANGO_ASSERT(y >= 0, "Viewport y position has to be positive!");
     MANGO_ASSERT(width >= 0, "Viewport width has to be positive!");
@@ -72,6 +75,8 @@ void command_buffer::set_viewport(int32 x, int32 y, int32 width, int32 height)
 
         void execute(graphics_state& state) override
         {
+            NAMED_PROFILE_ZONE("Set Viewport");
+            GL_NAMED_PROFILE_ZONE("Set Viewport");
             glViewport(m_vp.x, m_vp.y, static_cast<g_sizei>(m_vp.width), static_cast<g_sizei>(m_vp.height));
             state.set_viewport(m_vp.x, m_vp.y, m_vp.width, m_vp.height);
         }
@@ -85,6 +90,7 @@ void command_buffer::set_viewport(int32 x, int32 y, int32 width, int32 height)
 
 void command_buffer::set_depth_test(bool enabled)
 {
+    PROFILE_ZONE;
     class set_depth_test_cmd : public command
     {
       public:
@@ -96,6 +102,8 @@ void command_buffer::set_depth_test(bool enabled)
 
         void execute(graphics_state& state) override
         {
+            NAMED_PROFILE_ZONE("Set Depth Test");
+            GL_NAMED_PROFILE_ZONE("Set Depth Test");
             if (m_enabled)
             {
                 glEnable(GL_DEPTH_TEST);
@@ -116,6 +124,7 @@ void command_buffer::set_depth_test(bool enabled)
 
 void command_buffer::set_depth_func(compare_operation op)
 {
+    PROFILE_ZONE;
     class set_depth_func_cmd : public command
     {
       public:
@@ -127,6 +136,8 @@ void command_buffer::set_depth_func(compare_operation op)
 
         void execute(graphics_state& state) override
         {
+            NAMED_PROFILE_ZONE("Set Depth Func");
+            GL_NAMED_PROFILE_ZONE("Set Depth Func");
             glDepthFunc(compare_operation_to_gl(m_compare_op));
             state.set_depth_func(m_compare_op);
         }
@@ -140,6 +151,7 @@ void command_buffer::set_depth_func(compare_operation op)
 
 void command_buffer::set_polygon_mode(polygon_face face, polygon_mode mode)
 {
+    PROFILE_ZONE;
     class set_polygon_mode_cmd : public command
     {
       public:
@@ -153,6 +165,8 @@ void command_buffer::set_polygon_mode(polygon_face face, polygon_mode mode)
 
         void execute(graphics_state& state) override
         {
+            NAMED_PROFILE_ZONE("Set Polygon Mode");
+            GL_NAMED_PROFILE_ZONE("Set Polygon Mode");
             glPolygonMode(polygon_face_to_gl(m_face), polygon_mode_to_gl(m_mode));
             state.set_polygon_mode(m_face, m_mode);
         }
@@ -166,6 +180,7 @@ void command_buffer::set_polygon_mode(polygon_face face, polygon_mode mode)
 
 void command_buffer::bind_vertex_array(vertex_array_ptr vertex_array)
 {
+    PROFILE_ZONE;
     class bind_vertex_array_cmd : public command
     {
       public:
@@ -177,6 +192,8 @@ void command_buffer::bind_vertex_array(vertex_array_ptr vertex_array)
 
         void execute(graphics_state& state) override
         {
+            NAMED_PROFILE_ZONE("Bind Vertex Array");
+            GL_NAMED_PROFILE_ZONE("Bind Vertex Array");
             if (nullptr != m_vertex_array)
                 glBindVertexArray(m_vertex_array->get_name());
             else
@@ -193,6 +210,7 @@ void command_buffer::bind_vertex_array(vertex_array_ptr vertex_array)
 
 void command_buffer::bind_shader_program(shader_program_ptr shader_program)
 {
+    PROFILE_ZONE;
     class bind_shader_program_cmd : public command
     {
       public:
@@ -204,6 +222,8 @@ void command_buffer::bind_shader_program(shader_program_ptr shader_program)
 
         void execute(graphics_state& state) override
         {
+            NAMED_PROFILE_ZONE("Bind Shader Program");
+            GL_NAMED_PROFILE_ZONE("Bind Shader Program");
             if (m_shader_program)
             {
                 m_shader_program->use();
@@ -225,6 +245,7 @@ void command_buffer::bind_shader_program(shader_program_ptr shader_program)
 
 void command_buffer::bind_single_uniform(int32 location, void* uniform_value, int64 data_size)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(location >= 0, "Uniform location has to be greater than 0!");
     MANGO_ASSERT(data_size > 0, "The uniforms size has to be positive!");
     class bind_single_uniform_cmd : public command
@@ -241,6 +262,8 @@ void command_buffer::bind_single_uniform(int32 location, void* uniform_value, in
 
         void execute(graphics_state& state) override
         {
+            NAMED_PROFILE_ZONE("Bind Single Uniform");
+            GL_NAMED_PROFILE_ZONE("Bind Single Uniform");
             void* data    = static_cast<void*>(m_data.data());
             auto uniforms = state.m_internal_state.shader_program->get_single_bindings();
             auto it       = uniforms.listed_data.find(m_location);
@@ -322,6 +345,7 @@ void command_buffer::bind_single_uniform(int32 location, void* uniform_value, in
 
 void command_buffer::bind_uniform_buffer(int32 index, buffer_ptr uniform_buffer)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(index >= 0, "Uniform buffer index has to be greater than 0!");
     class bind_uniform_buffer_cmd : public command
     {
@@ -335,6 +359,8 @@ void command_buffer::bind_uniform_buffer(int32 index, buffer_ptr uniform_buffer)
         }
         void execute(graphics_state&) override
         {
+            NAMED_PROFILE_ZONE("Bind Uniform Buffer");
+            GL_NAMED_PROFILE_ZONE("Bind Uniform Buffer");
             m_buffer->bind(buffer_target::UNIFORM_BUFFER, m_index, 0);
         }
     };
@@ -347,6 +373,7 @@ void command_buffer::bind_uniform_buffer(int32 index, buffer_ptr uniform_buffer)
 
 void command_buffer::bind_texture(int32 binding, texture_ptr texture, int32 uniform_location)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(uniform_location >= 0, "Texture uniform location has to be greater than 0!");
     MANGO_ASSERT(binding >= 0, "The texture binding has to be greater than 0!");
     class bind_texture_cmd : public command
@@ -364,6 +391,8 @@ void command_buffer::bind_texture(int32 binding, texture_ptr texture, int32 unif
 
         void execute(graphics_state& state) override
         {
+            NAMED_PROFILE_ZONE("Bind Texture");
+            GL_NAMED_PROFILE_ZONE("Bind Texture");
             if (m_texture)
             {
                 m_texture->bind_texture_unit(m_binding);
@@ -386,6 +415,7 @@ void command_buffer::bind_texture(int32 binding, texture_ptr texture, int32 unif
 
 void command_buffer::bind_image_texture(int32 binding, texture_ptr texture, int32 level, bool layered, int32 layer, base_access access, format element_format)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(binding >= 0, "Image texture binding has to be greater than 0!");
     MANGO_ASSERT(level >= 0, "Image texture level has to be greater than 0!");
     MANGO_ASSERT(layer >= 0, "VImage texture layer has to be greater than 0!");
@@ -412,6 +442,8 @@ void command_buffer::bind_image_texture(int32 binding, texture_ptr texture, int3
 
         void execute(graphics_state&) override
         {
+            NAMED_PROFILE_ZONE("Bind Image Texture");
+            GL_NAMED_PROFILE_ZONE("Bind Image Texture");
             if (m_texture)
             {
                 glBindImageTexture(static_cast<g_uint>(m_binding), m_texture->get_name(), m_level, m_layered, m_layer, m_access, m_element_format);
@@ -423,14 +455,15 @@ void command_buffer::bind_image_texture(int32 binding, texture_ptr texture, int3
         }
     };
 
-    //if (m_building_state.bind_texture(binding, texture ? texture->get_name() : 0)) // TODO Paul: We need extra handling in the state. Because of layer access.
+    // if (m_building_state.bind_texture(binding, texture ? texture->get_name() : 0)) // TODO Paul: We need extra handling in the state. Because of layer access.
     //{
-        submit<bind_image_texture_cmd>(binding, texture, level, layered, layer, access, element_format);
+    submit<bind_image_texture_cmd>(binding, texture, level, layered, layer, access, element_format);
     //}
 }
 
 void command_buffer::bind_framebuffer(framebuffer_ptr framebuffer)
 {
+    PROFILE_ZONE;
     class bind_framebuffer_cmd : public command
     {
       public:
@@ -442,6 +475,8 @@ void command_buffer::bind_framebuffer(framebuffer_ptr framebuffer)
 
         void execute(graphics_state& state) override
         {
+            NAMED_PROFILE_ZONE("Bind Framebuffer");
+            GL_NAMED_PROFILE_ZONE("Bind Framebuffer");
             if (nullptr != m_framebuffer)
                 m_framebuffer->bind();
             else
@@ -458,6 +493,7 @@ void command_buffer::bind_framebuffer(framebuffer_ptr framebuffer)
 
 void command_buffer::add_memory_barrier(memory_barrier_bit barrier_bit)
 {
+    PROFILE_ZONE;
     class add_memory_barrier_cmd : public command
     {
       public:
@@ -469,6 +505,8 @@ void command_buffer::add_memory_barrier(memory_barrier_bit barrier_bit)
 
         void execute(graphics_state&) override
         {
+            NAMED_PROFILE_ZONE("Add Memory Barrier");
+            GL_NAMED_PROFILE_ZONE("Add Memory Barrier");
             glMemoryBarrier(m_barrier_bit);
         }
     };
@@ -479,6 +517,7 @@ void command_buffer::add_memory_barrier(memory_barrier_bit barrier_bit)
 
 void command_buffer::lock_buffer(buffer_ptr buffer)
 {
+    PROFILE_ZONE;
     class lock_buffer_cmd : public command
     {
       public:
@@ -490,6 +529,8 @@ void command_buffer::lock_buffer(buffer_ptr buffer)
 
         void execute(graphics_state&) override
         {
+            NAMED_PROFILE_ZONE("Lock Buffer");
+            GL_NAMED_PROFILE_ZONE("Lock Buffer");
             m_buffer->lock();
         }
     };
@@ -500,6 +541,7 @@ void command_buffer::lock_buffer(buffer_ptr buffer)
 
 void command_buffer::wait_for_buffer(buffer_ptr buffer)
 {
+    PROFILE_ZONE;
     class wait_for_buffer_cmd : public command
     {
       public:
@@ -511,6 +553,8 @@ void command_buffer::wait_for_buffer(buffer_ptr buffer)
 
         void execute(graphics_state&) override
         {
+            NAMED_PROFILE_ZONE("Wait For Buffer");
+            GL_NAMED_PROFILE_ZONE("Wait For Buffer");
             m_buffer->request_wait();
         }
     };
@@ -521,6 +565,7 @@ void command_buffer::wait_for_buffer(buffer_ptr buffer)
 
 void command_buffer::calculate_mipmaps(texture_ptr texture)
 {
+    PROFILE_ZONE;
     class calculate_mipmaps_cmd : public command
     {
       public:
@@ -532,7 +577,9 @@ void command_buffer::calculate_mipmaps(texture_ptr texture)
 
         void execute(graphics_state&) override
         {
-            if(m_texture->mipmaps())
+            NAMED_PROFILE_ZONE("Calculate Mipmaps");
+            GL_NAMED_PROFILE_ZONE("Calculate Mipmaps");
+            if (m_texture->mipmaps())
             {
                 glGenerateTextureMipmap(m_texture->get_name());
             }
@@ -544,6 +591,7 @@ void command_buffer::calculate_mipmaps(texture_ptr texture)
 
 void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment_mask att_mask, float r, float g, float b, float a, framebuffer_ptr framebuffer)
 {
+    PROFILE_ZONE;
     class clear_cmd : public command
     {
       public:
@@ -564,6 +612,8 @@ void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment
 
         void execute(graphics_state&) override
         {
+            NAMED_PROFILE_ZONE("Clear Framebuffer");
+            GL_NAMED_PROFILE_ZONE("Clear Framebuffer");
             // TODO Paul: Check if these clear functions do always clear correct *fv, *uiv ..... etc.
             if ((m_buffer_mask & clear_buffer_mask::COLOR_BUFFER) != clear_buffer_mask::NONE)
             {
@@ -578,8 +628,7 @@ void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment
                     const float rgb[4] = { m_r, m_g, m_b, m_a };
                     for (int32 i = 0; i < 4; ++i)
                     {
-                        if (m_framebuffer->get_attachment(static_cast<framebuffer_attachment>(i)) &&
-                            (m_attachment_mask & static_cast<attachment_mask>(1 << i)) != attachment_mask::NONE)
+                        if (m_framebuffer->get_attachment(static_cast<framebuffer_attachment>(i)) && (m_attachment_mask & static_cast<attachment_mask>(1 << i)) != attachment_mask::NONE)
                         {
                             glClearNamedFramebufferfv(m_framebuffer->get_name(), GL_COLOR, i, rgb);
                         }
@@ -635,6 +684,7 @@ void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment
 
 void command_buffer::draw_arrays(primitive_topology topology, int32 first, int32 count, int32 instance_count)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
     MANGO_ASSERT(count >= 0, "The vertex count has to be greater than 0!");
     MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
@@ -655,12 +705,15 @@ void command_buffer::draw_arrays(primitive_topology topology, int32 first, int32
 
         void execute(graphics_state&) override
         {
+            NAMED_PROFILE_ZONE("Draw Arrays (Instanced)");
             if (m_instance_count > 1)
             {
+                GL_NAMED_PROFILE_ZONE("Draw Arrays Instanced");
                 glDrawArraysInstanced(static_cast<g_enum>(m_topology), m_first, static_cast<g_sizei>(m_count), static_cast<g_sizei>(m_instance_count));
             }
             else
             {
+                GL_NAMED_PROFILE_ZONE("Draw Arrays");
                 glDrawArrays(static_cast<g_enum>(m_topology), m_first, static_cast<g_sizei>(m_count));
             }
         }
@@ -671,6 +724,7 @@ void command_buffer::draw_arrays(primitive_topology topology, int32 first, int32
 
 void command_buffer::draw_elements(primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
     MANGO_ASSERT(count >= 0, "The index count has to be greater than 0!");
     MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
@@ -693,12 +747,15 @@ void command_buffer::draw_elements(primitive_topology topology, int32 first, int
 
         void execute(graphics_state&) override
         {
+            NAMED_PROFILE_ZONE("Draw Elements (Instanced)");
             if (m_instance_count > 1)
             {
+                GL_NAMED_PROFILE_ZONE("Draw Elements Instanced");
                 glDrawElementsInstanced(static_cast<g_enum>(m_topology), static_cast<g_sizei>(m_count), static_cast<g_enum>(m_type), (g_byte*)NULL + m_first, static_cast<g_sizei>(m_instance_count));
             }
             else
             {
+                GL_NAMED_PROFILE_ZONE("Draw Elements");
                 glDrawElements(static_cast<g_enum>(m_topology), static_cast<g_sizei>(m_count), static_cast<g_enum>(m_type), (g_byte*)NULL + m_first);
             }
         }
@@ -709,6 +766,7 @@ void command_buffer::draw_elements(primitive_topology topology, int32 first, int
 
 void command_buffer::dispatch_compute(int32 num_x_groups, int32 num_y_groups, int32 num_z_groups)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(num_x_groups >= 0, "The number of groups (x) has to be greater than 0!");
     MANGO_ASSERT(num_y_groups >= 0, "The number of groups (y) has to be greater than 0!");
     MANGO_ASSERT(num_z_groups >= 0, "The number of groups (z) has to be greater than 0!");
@@ -727,6 +785,8 @@ void command_buffer::dispatch_compute(int32 num_x_groups, int32 num_y_groups, in
 
         void execute(graphics_state&) override
         {
+            NAMED_PROFILE_ZONE("Dispatch Compute");
+            GL_NAMED_PROFILE_ZONE("Dispatch Compute");
             glDispatchCompute(static_cast<g_uint>(m_x_groups), static_cast<g_uint>(m_y_groups), static_cast<g_uint>(m_z_groups));
         }
     };
@@ -736,6 +796,7 @@ void command_buffer::dispatch_compute(int32 num_x_groups, int32 num_y_groups, in
 
 void command_buffer::set_face_culling(bool enabled)
 {
+    PROFILE_ZONE;
     class set_face_culling_cmd : public command
     {
       public:
@@ -747,6 +808,8 @@ void command_buffer::set_face_culling(bool enabled)
 
         void execute(graphics_state& state) override
         {
+            NAMED_PROFILE_ZONE("Set Face Culling");
+            GL_NAMED_PROFILE_ZONE("Set Face Culling");
             if (m_enabled)
             {
                 glEnable(GL_CULL_FACE);
@@ -767,6 +830,7 @@ void command_buffer::set_face_culling(bool enabled)
 
 void command_buffer::set_cull_face(polygon_face face)
 {
+    PROFILE_ZONE;
     class set_cull_face_cmd : public command
     {
       public:
@@ -778,6 +842,8 @@ void command_buffer::set_cull_face(polygon_face face)
 
         void execute(graphics_state& state) override
         {
+            NAMED_PROFILE_ZONE("Set Cull Face");
+            GL_NAMED_PROFILE_ZONE("Set Cull Face");
             glCullFace(polygon_face_to_gl(m_face));
             state.set_cull_face(m_face);
         }
@@ -791,6 +857,7 @@ void command_buffer::set_cull_face(polygon_face face)
 
 void command_buffer::set_blending(bool enabled)
 {
+    PROFILE_ZONE;
     class set_blending_cmd : public command
     {
       public:
@@ -802,6 +869,8 @@ void command_buffer::set_blending(bool enabled)
 
         void execute(graphics_state& state) override
         {
+            NAMED_PROFILE_ZONE("Set Blending");
+            GL_NAMED_PROFILE_ZONE("Set Blending");
             if (m_enabled)
             {
                 glEnable(GL_BLEND);
@@ -822,6 +891,7 @@ void command_buffer::set_blending(bool enabled)
 
 void command_buffer::set_blend_factors(blend_factor source, blend_factor destination)
 {
+    PROFILE_ZONE;
     class set_blend_factors_cmd : public command
     {
       public:
@@ -835,6 +905,8 @@ void command_buffer::set_blend_factors(blend_factor source, blend_factor destina
 
         void execute(graphics_state& state) override
         {
+            NAMED_PROFILE_ZONE("Set Blend Factors");
+            GL_NAMED_PROFILE_ZONE("Set Blend Factors");
             glBlendFunc(blend_factor_to_gl(m_source), blend_factor_to_gl(m_destination));
             state.set_blend_factors(m_source, m_destination);
         }

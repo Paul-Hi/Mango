@@ -29,4 +29,9 @@ namespace mango
 #include <mango/ui_system.hpp>
 #include <mango/window_system.hpp>
 
+
+// Third Party
+#include "imgui.h"
+#include "tinyfiledialogs.h"
+
 #endif // MANGO_HPP

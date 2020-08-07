@@ -57,7 +57,7 @@ framebuffer_impl::framebuffer_impl(const framebuffer_configuration& configuratio
         glNamedFramebufferTexture(m_name, GL_DEPTH_STENCIL_ATTACHMENT, m_depth_stencil_attachment->get_name(), 0);
     }
 
-    glNamedFramebufferDrawBuffers(m_name, m_draw_buffers.size(), m_draw_buffers.data());
+    glNamedFramebufferDrawBuffers(m_name, static_cast<g_sizei>(m_draw_buffers.size()), m_draw_buffers.data());
 
     if (g_enum status = glCheckNamedFramebufferStatus(m_name, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {

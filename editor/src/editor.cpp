@@ -6,8 +6,6 @@
 
 #include "editor.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-#include "imgui.h"
-#include "tinyfiledialogs.h"
 
 using namespace mango;
 
@@ -15,6 +13,7 @@ MANGO_DEFINE_APPLICATION_MAIN(editor)
 
 bool editor::create()
 {
+    PROFILE_ZONE;
     shared_ptr<context> mango_context = get_context().lock();
     MANGO_ASSERT(mango_context, "Context is expired!");
 
@@ -147,6 +146,7 @@ bool editor::create()
 
 void editor::update(float dt)
 {
+    PROFILE_ZONE;
     MANGO_UNUSED(dt);
     shared_ptr<context> mango_context = get_context().lock();
 
@@ -174,6 +174,7 @@ void editor::destroy() {}
 
 void editor::try_open_path(const shared_ptr<mango::scene>& application_scene, string path)
 {
+    PROFILE_ZONE;
     auto ext = path.substr(path.find_last_of(".") + 1);
     if (ext == "hdr")
     {

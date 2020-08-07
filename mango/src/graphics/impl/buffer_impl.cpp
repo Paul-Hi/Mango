@@ -164,6 +164,11 @@ void buffer_impl::request_wait()
             g_enum wait_return = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, 10);
             if (wait_return == GL_ALREADY_SIGNALED || wait_return == GL_CONDITION_SATISFIED)
                 return;
+            if (wait_return == GL_TIMEOUT_EXPIRED)
+            {
+                MANGO_LOG_DEBUG("Buffer lock timeout expired! Bad?");
+                return;
+            }
         }
     }
 }

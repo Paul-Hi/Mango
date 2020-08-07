@@ -37,6 +37,7 @@ scene::scene(const string& name)
     , m_meshes()
     , m_cameras()
 {
+    PROFILE_ZONE;
     MANGO_UNUSED(name);
     m_active_camera        = invalid_entity;
     m_scene_boundaries.max = glm::vec3(-3.402823e+38f);
