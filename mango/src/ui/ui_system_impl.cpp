@@ -12,6 +12,7 @@
 #include <imgui.h>
 #include <mango/application.hpp>
 #include <mango/assert.hpp>
+#include <mango/profile.hpp>
 #include <ui/dear_imgui/imgui_glfw.hpp>
 #include <ui/dear_imgui/imgui_opengl3.hpp>
 #include <ui/dear_imgui/imgui_widgets.hpp>
@@ -28,6 +29,7 @@ ui_system_impl::~ui_system_impl() {}
 
 bool ui_system_impl::create()
 {
+    PROFILE_ZONE;
     // Initialize ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -109,6 +111,7 @@ bool ui_system_impl::create()
 
 void ui_system_impl::configure(const ui_configuration& configuration)
 {
+    PROFILE_ZONE;
     m_configuration = configuration;
     if (m_configuration.is_dock_space_enabled())
     {
@@ -131,12 +134,13 @@ void ui_system_impl::configure(const ui_configuration& configuration)
 
 void ui_system_impl::update(float dt)
 {
+    PROFILE_ZONE;
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
     // dock space
-    bool dockspace_enabled = m_configuration.is_dock_space_enabled();
+    bool dockspace_enabled            = m_configuration.is_dock_space_enabled();
     static ImGuiDockNodeFlags d_flags = ImGuiDockNodeFlags_PassthruCentralNode;
     static ImGuiWindowFlags w_flags   = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
     ImGuiViewport* viewport           = ImGui::GetMainViewport();
@@ -207,6 +211,7 @@ void ui_system_impl::update(float dt)
 
 void ui_system_impl::destroy()
 {
+    PROFILE_ZONE;
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -214,6 +219,8 @@ void ui_system_impl::destroy()
 
 void ui_system_impl::draw_ui()
 {
+    PROFILE_ZONE;
+    GL_NAMED_PROFILE_ZONE("UI System Draw");
     auto ws = m_shared_context->get_window_system_internal().lock();
     MANGO_ASSERT(ws, "Window system is expired!");
 

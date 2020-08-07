@@ -9,6 +9,7 @@
 #include <graphics/shader_program.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
+#include <mango/profile.hpp>
 #include <rendering/steps/ibl_step.hpp>
 
 using namespace mango;
@@ -23,6 +24,7 @@ texture_ptr default_ibl_texture;
 
 bool ibl_step::create()
 {
+    PROFILE_ZONE;
     // compute shader to convert from equirectangular projected hdr textures to a cube map.
     shader_configuration shader_config;
     shader_config.m_path       = "res/shader/c_equi_to_cubemap.glsl";
@@ -171,7 +173,10 @@ bool ibl_step::create()
 
     compute_commands->bind_shader_program(nullptr);
 
-    compute_commands->execute();
+    {
+        GL_NAMED_PROFILE_ZONE("Generating brdf lookup");
+        compute_commands->execute();
+    }
 
     // default texture needed
     texture_config.m_texture_min_filter = texture_parameter::FILTER_NEAREST;
@@ -198,6 +203,7 @@ void ibl_step::attach() {}
 
 void ibl_step::execute(command_buffer_ptr& command_buffer)
 {
+    PROFILE_ZONE;
     if (m_render_level < 0.0f || !m_cubemap)
         return;
 
@@ -218,6 +224,7 @@ void ibl_step::destroy() {}
 
 void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
 {
+    PROFILE_ZONE;
     texture_configuration texture_config;
     texture_config.m_generate_mipmaps        = calculate_mip_count(m_cube_width, m_cube_height);
     texture_config.m_is_standard_color_space = false;
@@ -306,11 +313,15 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
 
     compute_commands->bind_shader_program(nullptr);
 
-    compute_commands->execute();
+    {
+        GL_NAMED_PROFILE_ZONE("Generating IBL");
+        compute_commands->execute();
+    }
 }
 
 void ibl_step::bind_image_based_light_maps(command_buffer_ptr& command_buffer)
 {
+    PROFILE_ZONE;
     if (m_cubemap)
     {
         command_buffer->bind_texture(5, m_irradiance_map, 7);       // TODO Paul: Binding and location...

@@ -18,7 +18,6 @@
 
 namespace mango
 {
-
     //! \brief This is an imgui widget drawing the render view and the frame produced by the renderer.
     //! \param[in] shared_context The shared context.
     //! \param[in] enabled Specifies if window is rendered or not and can be set by imgui.
@@ -35,7 +34,7 @@ namespace mango
         ImVec2 size             = ImGui::GetWindowSize();
         static ImVec2 last_size = ImVec2(0.0f, 0.0f);
 
-        ImGui::GetWindowDrawList()->AddImage((void*)shared_context->get_render_system_internal().lock()->get_backbuffer()->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0)->get_name(),
+        ImGui::GetWindowDrawList()->AddImage(reinterpret_cast<void*>(shared_context->get_render_system_internal().lock()->get_backbuffer()->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0)->get_name()),
                                              position, ImVec2(position.x + size.x, position.y + size.y), ImVec2(0, 1), ImVec2(1, 0));
         ImGui::PopStyleVar();
         ImGui::End();
@@ -66,6 +65,9 @@ namespace mango
             auto stats = shared_context->get_render_system_internal().lock()->get_hardware_stats();
             ImGui::Text("API Version: %s", stats.api_version.c_str());
             ImGui::Text("Draw Calls: %d", stats.last_frame.draw_calls);
+            ImGui::Text("Rendered Meshes: %d", stats.last_frame.meshes);
+            ImGui::Text("Rendered Primitives: %d", stats.last_frame.primitives);
+            ImGui::Text("Rendered Materials: %d", stats.last_frame.materials);
             ImGui::Text("Canvas Size: (%d x %d) px", stats.last_frame.canvas_width, stats.last_frame.canvas_height);
         }
         ImGui::End();

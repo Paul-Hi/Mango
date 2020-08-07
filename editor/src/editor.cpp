@@ -6,8 +6,6 @@
 
 #include "editor.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-#include "imgui.h"
-#include "tinyfiledialogs.h"
 
 using namespace mango;
 
@@ -15,6 +13,7 @@ MANGO_DEFINE_APPLICATION_MAIN(editor)
 
 bool editor::create()
 {
+    PROFILE_ZONE;
     shared_ptr<context> mango_context = get_context().lock();
     MANGO_ASSERT(mango_context, "Context is expired!");
 
@@ -25,7 +24,7 @@ bool editor::create()
     mango_ws->configure(window_config);
 
     render_configuration render_config;
-    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(true).enable_render_step(mango::render_step::ibl);
+    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(false).enable_render_step(mango::render_step::ibl);
     shared_ptr<render_system> mango_rs = mango_context->get_render_system().lock();
     MANGO_ASSERT(mango_rs, "Render System is expired!");
     mango_rs->configure(render_config);
@@ -147,6 +146,7 @@ bool editor::create()
 
 void editor::update(float dt)
 {
+    PROFILE_ZONE;
     MANGO_UNUSED(dt);
     shared_ptr<context> mango_context = get_context().lock();
 
@@ -174,6 +174,7 @@ void editor::destroy() {}
 
 void editor::try_open_path(const shared_ptr<mango::scene>& application_scene, string path)
 {
+    PROFILE_ZONE;
     auto ext = path.substr(path.find_last_of(".") + 1);
     if (ext == "hdr")
     {

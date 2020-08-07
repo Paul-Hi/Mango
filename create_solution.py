@@ -147,9 +147,26 @@ def getDependencies():
         f = open('./tinyfd/CMakeLists.txt','w+')
         f.write('project(tinyfd)\r\n')
         f.write('add_library(tinyfd tinyfiledialogs.c tinyfiledialogs.h)\r\n')
-        f.write('target_include_directories(imgui SYSTEM PUBLIC .)\r\n')
+        f.write('target_include_directories(tinyfd SYSTEM PUBLIC .)\r\n')
         f.close()
 
+    # tracy
+    if not os.path.exists('tracy'):
+        repository ='https://github.com/wolfpld/tracy.git'
+        folder ='tracy'
+
+        gitCmd = ['git', 'clone', '--depth', '1', '--branch', 'v0.7', repository, folder]
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
+
+        f = open('./tracy/CMakeLists.txt','w+')
+        f.write('project(tracy)\r\n')
+        f.write('add_library(tracy TracyClient.cpp TracyOpenGL.hpp)\r\n')
+        f.write('target_link_libraries(tracy PUBLIC $<$<BOOL:${WIN32}>:wsock32> $<$<BOOL:${WIN32}>:ws2_32> $<$<BOOL:${WIN32}>:dbghelp>)\r\n')
+        f.write('target_include_directories(tracy SYSTEM PUBLIC .)\r\n')
+        f.write('target_compile_definitions(tracy PUBLIC $<$<CONFIG:Release>:$<$<BOOL:${MANGO_PROFILE}>:TRACY_ENABLE>> $<$<BOOL:${WIN32}>:WINVER=0x0601 _WIN32_WINNT=0x0601 _WINSOCKAPI_>)\r\n')
+        f.close()
 
     os.chdir('..')
     return True

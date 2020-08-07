@@ -16,6 +16,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input_codes.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/ui_system.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/profile.hpp
 )
 
 set(PRIVATE_HEADERS
@@ -100,9 +101,9 @@ set(SOURCES
 )
 
 add_library(mango
-	${PUBLIC_HEADERS}
-	${PRIVATE_HEADERS}
-	${SOURCES}
+    ${PUBLIC_HEADERS}
+    ${PRIVATE_HEADERS}
+    ${SOURCES}
 )
 
 add_library(mango::mango ALIAS mango)
@@ -132,6 +133,7 @@ target_link_libraries(mango
         spdlog::spdlog
         imgui
         tinyfd
+        $<$<CONFIG:Release>:$<$<BOOL:${MANGO_PROFILE}>:tracy>>
         $<$<BOOL:${MANGO_BUILD_TESTS}>:glad>
     PRIVATE
         ${OPENGL_LIBRARIES}
@@ -146,6 +148,7 @@ target_compile_definitions(mango
         $<$<CONFIG:Debug>:MANGO_DEBUG>
         $<$<CXX_COMPILER_ID:MSVC>:MANGO_WINMAIN>
         $<$<BOOL:${MANGO_BUILD_TESTS}>:MANGO_TEST>
+        $<$<BOOL:${MANGO_PROFILE}>:MANGO_PROFILE>
     PRIVATE
         $<$<BOOL:${WIN32}>:WIN32>
         $<$<BOOL:${LINUX}>:LINUX>

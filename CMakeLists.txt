@@ -23,6 +23,7 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 
 option(MANGO_BUILD_DOC   "Build documentation" ON)
+option(MANGO_PROFILE "Enables profiling when build is Release!" OFF)
 option(MANGO_BUILD_TESTS "Build Unit Tests" OFF)
 option(MANGO_ENABLE_HARD_WARNINGS "Enables some compiler parameters. This should not be enabled, Mango will NOT build." OFF)
 
@@ -87,6 +88,11 @@ message(STATUS "Added dear imgui.")
 
 add_subdirectory(dependencies/tinyfd)
 message(STATUS "Added tiny file dialogs.")
+
+if(MANGO_PROFILE)
+    add_subdirectory(dependencies/tracy)
+    message(STATUS "Added tracy.")
+endif()
 
 find_package_verbose(glm REQUIRED)
 
