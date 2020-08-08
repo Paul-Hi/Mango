@@ -24,7 +24,7 @@ namespace mango
       public:
         void update(float, scene_component_pool<transform_component>& transformations) override
         {
-            PROFILE_ZONE;
+            NAMED_PROFILE_ZONE("Transformation Update");
             transformations.for_each(
                 [&transformations](transform_component& c, int32&) {
                     c.local_transformation_matrix = glm::translate(glm::mat4(1.0), c.position);
@@ -43,7 +43,7 @@ namespace mango
       public:
         void update(float, scene_component_pool<node_component>& nodes, scene_component_pool<transform_component>& transformations) override
         {
-            PROFILE_ZONE;
+            NAMED_PROFILE_ZONE("Scene Graph Update");
             nodes.for_each(
                 [&nodes, &transformations](node_component& c, int32& index) {
                     node_component& parent_component = c;
@@ -66,7 +66,7 @@ namespace mango
       public:
         void update(float, scene_component_pool<camera_component>& cameras, scene_component_pool<transform_component>& transformations) override
         {
-            PROFILE_ZONE;
+            NAMED_PROFILE_ZONE("Camera Update");
             cameras.for_each(
                 [&cameras, &transformations](camera_component& c, int32& index) {
                     entity e                       = cameras.entity_at(index);
