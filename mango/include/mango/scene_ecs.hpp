@@ -7,9 +7,6 @@
 #ifndef MANGO_SCENE_ECS_HPP
 #define MANGO_SCENE_ECS_HPP
 
-#include <algorithm>
-#include <bitset>
-#include <vector>
 //! \cond NO_COND
 #define GLM_FORCE_SILENT_WARNINGS 1
 //! \endcond
@@ -21,8 +18,6 @@ namespace mango
     const uint32 max_pool_entries = 1000; // Extend if necessary.
     //! \brief Maximum number of \a entities in mango.
     const uint32 max_entities = max_pool_entries;
-    //! \brief Maximum number of \a components in mango.
-    const uint32 max_components = max_pool_entries;
 
     //! \brief An \a entity. Just a positive integer used as an id.
     using entity = uint32;
@@ -30,7 +25,7 @@ namespace mango
     const entity invalid_entity = 0;
 
     template <typename component> // FWD
-    class scene_component_pool; // FWD
+    class scene_component_pool;   // FWD
 
     //! \brief A templated base class for all ecs systems that require one component.
     template <typename component>
