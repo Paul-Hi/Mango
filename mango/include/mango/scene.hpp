@@ -7,8 +7,8 @@
 #ifndef MANGO_SCENE_HPP
 #define MANGO_SCENE_HPP
 
-#include <mango/scene_component_manager.hpp>
-#include <mango/scene_types.hpp>
+#include <mango/scene_component_pool.hpp>
+#include <mango/scene_ecs.hpp>
 #include <map>
 #include <queue>
 
@@ -34,15 +34,6 @@ namespace mango
         //! \param[in] name The name of the new \a scene.
         scene(const string& name);
         ~scene();
-
-        //! \brief Updates the \a scene.
-        //! \details Includes all system functions and reactions to input.
-        //! \param[in] dt Past time since last call.
-        void update(float dt);
-
-        //! \brief Renders the \a scene.
-        //! \details Retrieves all relevant \a render_commands from different components and submits them to the \a render_system.
-        void render();
 
         //! \brief Creates an empty entity with no components.
         entity create_empty();
@@ -112,6 +103,16 @@ namespace mango
         }
 
       private:
+        friend class application; // TODO Paul: We maybe should handle this without a friend.
+        //! \brief Updates the \a scene.
+        //! \details Includes all system functions and reactions to input.
+        //! \param[in] dt Past time since last call.
+        void update(float dt);
+
+        //! \brief Renders the \a scene.
+        //! \details Retrieves all relevant \a render_commands from different components and submits them to the \a render_system.
+        void render();
+
         //! \brief Builds one or more entities that describe an entire model with data loaded by tinygltf.
         //! \details Internally called by create_entities_from_model(...).
         //! This also creates the hierarchy incl. \a transform_components and \a node_components.
@@ -142,18 +143,19 @@ namespace mango
         //! \brief Mangos internal context for shared usage in all \a render_systems.
         shared_ptr<context_impl> m_shared_context;
 
-        //! \brief All free entities.
-        std::queue<entity> m_free_entities;
+        //! \brief All free entity ids.
+        std::queue<uint32> m_free_entities;
+
         //! \brief All \a node_components.
-        scene_component_manager<node_component> m_nodes;
+        scene_component_pool<node_component> m_nodes;
         //! \brief All \a transform_components.
-        scene_component_manager<transform_component> m_transformations;
+        scene_component_pool<transform_component> m_transformations;
         //! \brief All \a mesh_components.
-        scene_component_manager<mesh_component> m_meshes;
+        scene_component_pool<mesh_component> m_meshes;
         //! \brief All \a camera_components.
-        scene_component_manager<camera_component> m_cameras;
+        scene_component_pool<camera_component> m_cameras;
         //! \brief All \a environment_components. There is only one unique at the moment.
-        scene_component_manager<environment_component> m_environments;
+        scene_component_pool<environment_component> m_environments;
         //! \brief The currently active camera entity.
         entity m_active_camera;
 

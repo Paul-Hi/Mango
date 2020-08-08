@@ -1,4 +1,4 @@
-//! \file      scene_component_manager.hpp
+//! \file      scene_component_pool.hpp
 //! \author    Paul Himmler
 //! \version   1.0
 //! \date      2020
@@ -9,7 +9,7 @@
 
 #include <array>
 #include <mango/assert.hpp>
-#include <mango/scene_types.hpp>
+#include <mango/scene_ecs.hpp>
 #include <unordered_map>
 
 namespace mango
@@ -19,10 +19,10 @@ namespace mango
     //! \brief Manages entities and components for a specific component.
     //! \brief Does all the mapping, provides a quick way to iterate and does provide functionality to get components for entities, entities for components etc.
     template <typename component>
-    class scene_component_manager
+    class scene_component_pool
     {
       public:
-        scene_component_manager()
+        scene_component_pool()
             : end(0)
         {
             m_entities.fill(invalid_entity);
@@ -156,7 +156,7 @@ namespace mango
         }
 
         //! \brief Retrieves the array size.
-        //! \details This means the size of the internal array used by the \a scene_component_manager.
+        //! \details This means the size of the internal array used by the \a scene_component_pool.
         //! \return The size of the array.
         inline ptr_size size() const
         {
@@ -225,7 +225,7 @@ namespace mango
         //! \brief A mapping from \a entities to indices.
         std::unordered_map<entity, int32> m_lookup;
 
-        //! \brief Asserts the internal state of the \a scene_component_manager.
+        //! \brief Asserts the internal state of the \a scene_component_pool.
         inline void assert_state()
         {
             MANGO_ASSERT(end >= 0, "Negative number is invalid for end!");

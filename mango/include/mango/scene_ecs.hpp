@@ -1,31 +1,66 @@
-//! \file      scene_types.hpp
+//! \file      scene_ecs.hpp
 //! \author    Paul Himmler
 //! \version   1.0
 //! \date      2020
 //! \copyright Apache License 2.0
 
-#ifndef MANGO_SCENE_TYPES_HPP
-#define MANGO_SCENE_TYPES_HPP
+#ifndef MANGO_SCENE_ECS_HPP
+#define MANGO_SCENE_ECS_HPP
 
 //! \cond NO_COND
 #define GLM_FORCE_SILENT_WARNINGS 1
 //! \endcond
 #include <glm/glm.hpp>
-#include <mango/types.hpp>
 
 namespace mango
 {
-    // fwd
-    class vertex_array;
-    struct material;
-    class texture;
+    //! \brief Maximum number of scene \a pool entries in mango.
+    const uint32 max_pool_entries = 1000; // Extend if necessary.
+    //! \brief Maximum number of \a entities in mango.
+    const uint32 max_entities = max_pool_entries;
 
     //! \brief An \a entity. Just a positive integer used as an id.
     using entity = uint32;
     //! \brief Invalid \a entity.
     const entity invalid_entity = 0;
-    //! \brief Maximum number of \a entities in mango.
-    const entity max_entities = 1000; // Extend if necessary.
+
+    template <typename component> // FWD
+    class scene_component_pool;   // FWD
+
+    //! \brief A templated base class for all ecs systems that require one component.
+    template <typename component>
+    class ecsystem_1
+    {
+      public:
+        //! \brief The update function for the \a ecsystem.
+        //! \param[in] dt The time since the last call.
+        //! \param[in] components A \a component_pool.
+        virtual void update(float dt, scene_component_pool<component>& components);
+    };
+
+    //! \brief A templated base class for all ecs systems that require two components.
+    template <typename component_1, typename component_2>
+    class ecsystem_2
+    {
+      public:
+        //! \brief The update function for the \a ecsystem.
+        //! \param[in] dt The time since the last call.
+        //! \param[in] components_1 First \a component_pool.
+        //! \param[in] components_2 Second \a component_pool.
+        virtual void update(float dt, scene_component_pool<component_1>& components_1, scene_component_pool<component_2>& components_2);
+    };
+
+    // fwd
+    class vertex_array;
+    struct material;
+    class texture;
+
+    //! \brief Camera types used in \a camera_components.
+    enum class camera_type : uint8
+    {
+        perspective_camera, //!< Perspective projection. Usually useful for 3D scenes.
+        orthographic_camera //!< Orthographic projection. Usually useful for 2D scenes or UI.
+    };
 
     //! \brief Component used to transform anything in the scene.
     struct transform_component
@@ -43,13 +78,6 @@ namespace mango
     struct node_component
     {
         entity parent_entity = invalid_entity; //!< The parents entity id.
-    };
-
-    //! \brief Camera types used in \a camera_components.
-    enum class camera_type : uint8
-    {
-        perspective_camera, //!< Perspective projection. Usually useful for 3D scenes.
-        orthographic_camera //!< Orthographic projection. Usually useful for 2D scenes or UI.
     };
 
     //! \brief Component used to describe a primitive draw call. Used by \a mesh_component.
@@ -86,7 +114,7 @@ namespace mango
     //! \brief Component used for camera entities.
     struct camera_component
     {
-        camera_type type; //!< The type of camera projection.
+        camera_type cam_type; //!< The type of camera projection.
 
         float z_near;                 //!< Distance of the near plane.
         float z_far;                  //!< Distance of the far plane.
@@ -102,19 +130,19 @@ namespace mango
         glm::mat4 view_projection;
     };
 
-    //! \brief Structure used for collecting all the camera data of the current active camera.
-    struct camera_data
-    {
-        camera_component* camera_info;  //!< The camera info.
-        transform_component* transform; //!< The cameras transform.
-    };
-
     //! \brief Component used for the scene environment.
     //! \details This could be extended from the entities, because there will be only one active environment in the scene normally.
     struct environment_component
     {
         glm::mat3 rotation_scale_matrix = glm::mat3(1.0f); //!< The rotation and scale of the environment.
         shared_ptr<texture> hdr_texture;                   //!< The hdr texture used to build the environment.
+    };
+
+    //! \brief Structure used for collecting all the camera data of the current active camera.
+    struct camera_data
+    {
+        camera_component* camera_info;  //!< The camera info.
+        transform_component* transform; //!< The cameras transform.
     };
 
     // TODO Paul: This will be reworked when we need the reflection for the components.
@@ -187,4 +215,4 @@ namespace mango
     //! \endcond
 } // namespace mango
 
-#endif // MANGO_SCENE_TYPES_HPP
+#endif // MANGO_SCENE_ECS_HPP

@@ -18,18 +18,23 @@
 #include <graphics/vertex_array.hpp>
 #include <mango/profile.hpp>
 #include <mango/scene.hpp>
-#include <mango/scene_types.hpp>
+#include <mango/scene_ecs.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
+#include <scene/ecs_internal.hpp>
 
 using namespace mango;
 
+//! \brief The internal \a ecsystem for transformation updates.
+transformation_update_system transformation_update;
+//! \brief The internal \a ecsystem for scene graph updates.
+scene_graph_update_system scene_graph_update;
+//! \brief The internal \a ecsystem for camera updates.
+camera_update_system camera_update;
+
 static void update_scene_boundaries(glm::mat4& trafo, tinygltf::Model& m, tinygltf::Mesh& mesh, glm::vec3& min, glm::vec3& max);
 
-static void scene_graph_update(scene_component_manager<node_component>& nodes, scene_component_manager<transform_component>& transformations);
-static void transformation_update(scene_component_manager<transform_component>& transformations);
-static void camera_update(scene_component_manager<camera_component>& cameras, scene_component_manager<transform_component>& transformations);
-static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_manager<mesh_component>& meshes, scene_component_manager<transform_component>& transformations);
+static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_pool<mesh_component>& meshes, scene_component_pool<transform_component>& transformations);
 
 scene::scene(const string& name)
     : m_nodes()
@@ -43,7 +48,7 @@ scene::scene(const string& name)
     m_scene_boundaries.max = glm::vec3(-3.402823e+38f);
     m_scene_boundaries.min = glm::vec3(3.402823e+38f);
 
-    for (entity i = 1; i <= max_entities; ++i)
+    for (uint32 i = 1; i <= max_entities; ++i)
         m_free_entities.push(i);
 }
 
@@ -81,7 +86,7 @@ entity scene::create_default_camera()
     auto& transform_component = m_transformations.create_component_for(camera_entity);
 
     // default parameters
-    camera_component.type                   = camera_type::perspective_camera;
+    camera_component.cam_type               = camera_type::perspective_camera;
     camera_component.aspect                 = 16.0f / 9.0f;
     camera_component.z_near                 = 0.015f;
     camera_component.z_far                  = 15.0f;
@@ -229,9 +234,9 @@ void scene::update(float dt)
 {
     PROFILE_ZONE;
     MANGO_UNUSED(dt);
-    transformation_update(m_transformations);
-    scene_graph_update(m_nodes, m_transformations);
-    camera_update(m_cameras, m_transformations);
+    transformation_update.update(dt, m_transformations);
+    scene_graph_update.update(dt, m_nodes, m_transformations);
+    camera_update.update(dt, m_cameras, m_transformations);
 }
 
 void scene::render()
@@ -819,67 +824,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     }
 }
 
-static void scene_graph_update(scene_component_manager<node_component>& nodes, scene_component_manager<transform_component>& transformations)
-{
-    PROFILE_ZONE;
-    nodes.for_each(
-        [&nodes, &transformations](node_component& c, int32& index) {
-            const node_component& parent_component = c;
-            entity e                               = nodes.entity_at(index);
-
-            transform_component* child_transform  = transformations.get_component_for_entity(e);
-            transform_component* parent_transform = transformations.get_component_for_entity(parent_component.parent_entity);
-            if (nullptr != child_transform && nullptr != parent_transform)
-            {
-                child_transform->world_transformation_matrix = parent_transform->world_transformation_matrix * child_transform->local_transformation_matrix;
-            }
-        },
-        false);
-}
-
-static void transformation_update(scene_component_manager<transform_component>& transformations)
-{
-    PROFILE_ZONE;
-    transformations.for_each(
-        [&transformations](transform_component& c, int32&) {
-            c.local_transformation_matrix = glm::translate(glm::mat4(1.0), c.position);
-            c.local_transformation_matrix = glm::rotate(c.local_transformation_matrix, c.rotation.x, glm::vec3(c.rotation.y, c.rotation.z, c.rotation.w));
-            c.local_transformation_matrix = glm::scale(c.local_transformation_matrix, c.scale);
-
-            c.world_transformation_matrix = c.local_transformation_matrix;
-        },
-        false);
-}
-
-static void camera_update(scene_component_manager<camera_component>& cameras, scene_component_manager<transform_component>& transformations)
-{
-    PROFILE_ZONE;
-    cameras.for_each(
-        [&cameras, &transformations](camera_component& c, int32& index) {
-            entity e                       = cameras.entity_at(index);
-            transform_component* transform = transformations.get_component_for_entity(e);
-            if (transform)
-            {
-                glm::vec3 front = glm::normalize(c.target - transform->position);
-                auto right      = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), front)); // TODO Paul: Global up vector?
-                c.up            = glm::normalize(glm::cross(front, right));
-                c.view          = glm::lookAt(transform->position, c.target, c.up);
-                if (c.type == camera_type::perspective_camera)
-                {
-                    c.projection = glm::perspective(c.vertical_field_of_view, c.aspect, c.z_near, c.z_far);
-                }
-                else if (c.type == camera_type::orthographic_camera)
-                {
-                    const float distance = c.z_far - c.z_near;
-                    c.projection         = glm::ortho(-c.aspect * distance, c.aspect * distance, -distance, distance);
-                }
-                c.view_projection = c.projection * c.view;
-            }
-        },
-        false);
-}
-
-static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_manager<mesh_component>& meshes, scene_component_manager<transform_component>& transformations)
+static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_pool<mesh_component>& meshes, scene_component_pool<transform_component>& transformations)
 {
     PROFILE_ZONE;
     meshes.for_each(
