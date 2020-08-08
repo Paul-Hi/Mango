@@ -9,6 +9,7 @@
 #include <GLFW/glfw3.h>
 #include <graphics/command_buffer.hpp>
 #include <mango/assert.hpp>
+#include <mango/profile.hpp>
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
 
@@ -32,6 +33,7 @@ bool win32_input_system::create()
 
 void win32_input_system::set_platform_data(const shared_ptr<platform_data>& data)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(data->native_window_handle, "Invalid platform data!");
     m_platform_data = data;
 

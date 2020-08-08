@@ -6,6 +6,7 @@
 
 #include <rendering/pipelines/deferred_pbr_render_system.hpp>
 #include <rendering/render_system_impl.hpp>
+#include <mango/profile.hpp>
 
 using namespace mango;
 
@@ -27,6 +28,7 @@ bool render_system_impl::create()
 
 void render_system_impl::configure(const render_configuration& configuration)
 {
+    PROFILE_ZONE;
     bool success                        = false;
     render_pipeline configured_pipeline = configuration.get_base_render_pipeline();
     if (!m_current_render_system || configured_pipeline != m_current_render_system->get_base_render_pipeline())

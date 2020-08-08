@@ -13,6 +13,7 @@
 #include <graphics/shader_program.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
+#include <mango/profile.hpp>
 #include <mango/scene.hpp>
 #include <rendering/pipelines/deferred_pbr_render_system.hpp>
 #include <rendering/steps/ibl_step.hpp>
@@ -45,6 +46,7 @@ deferred_pbr_render_system::~deferred_pbr_render_system() {}
 
 bool deferred_pbr_render_system::create()
 {
+    PROFILE_ZONE;
     m_shared_context->make_current();
     GLADloadproc proc = static_cast<GLADloadproc>(m_shared_context->get_gl_loading_procedure());
     if (!gladLoadGLLoader(proc))
@@ -56,6 +58,7 @@ bool deferred_pbr_render_system::create()
     m_hardware_stats.api_version.append(string((const char*)glGetString(GL_VERSION)));
     MANGO_LOG_INFO("Using: {0}", m_hardware_stats.api_version);
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS); // TODO Paul: Better place?
+    GL_PROFILED_CONTEXT;
 
 #ifdef MANGO_DEBUG
     glEnable(GL_DEBUG_OUTPUT);
@@ -220,6 +223,7 @@ bool deferred_pbr_render_system::create()
 
 void deferred_pbr_render_system::configure(const render_configuration& configuration)
 {
+    PROFILE_ZONE;
     auto ws = m_shared_context->get_window_system_internal().lock();
     MANGO_ASSERT(ws, "Window System is expired!");
     ws->set_vsync(configuration.is_vsync_enabled());
@@ -237,7 +241,11 @@ void deferred_pbr_render_system::configure(const render_configuration& configura
 
 void deferred_pbr_render_system::begin_render()
 {
+    PROFILE_ZONE;
     m_hardware_stats.last_frame.draw_calls = 0;
+    m_hardware_stats.last_frame.meshes     = 0;
+    m_hardware_stats.last_frame.primitives = 0;
+    m_hardware_stats.last_frame.materials  = 0;
     m_command_buffer->set_depth_test(true);
     m_command_buffer->set_depth_func(compare_operation::LESS);
     m_command_buffer->set_face_culling(true);
@@ -259,6 +267,7 @@ void deferred_pbr_render_system::begin_render()
 
 void deferred_pbr_render_system::finish_render()
 {
+    PROFILE_ZONE;
     m_command_buffer->bind_vertex_array(nullptr);
     m_command_buffer->bind_shader_program(nullptr);
 
@@ -314,13 +323,17 @@ void deferred_pbr_render_system::finish_render()
     // TODO Paul: This should not be done here, this is pretty bad!
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH_STENCIL, attachment_mask::ALL, 0.1f, 0.1f, 0.1f, 1.0f);
 
-    m_command_buffer->execute();
+    {
+        GL_NAMED_PROFILE_ZONE("Deferred Renderer Frame Draw");
+        m_command_buffer->execute();
+    }
 
     m_frame_uniform_offset = 0;
 }
 
 void deferred_pbr_render_system::set_viewport(int32 x, int32 y, int32 width, int32 height)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(x >= 0, "Viewport x position has to be positive!");
     MANGO_ASSERT(y >= 0, "Viewport y position has to be positive!");
     MANGO_ASSERT(width >= 0, "Viewport width has to be positive!");
@@ -347,12 +360,13 @@ render_pipeline deferred_pbr_render_system::get_base_render_pipeline()
 
 void deferred_pbr_render_system::set_model_info(const glm::mat4& model_matrix, bool has_normals, bool has_tangents)
 {
-    class set_model_matrix_cmd : public command
+    PROFILE_ZONE;
+    class set_model_info_cmd : public command
     {
       public:
         buffer_ptr m_uniform_buffer;
         int32 m_offset;
-        set_model_matrix_cmd(buffer_ptr uniform_buffer, int32 offset)
+        set_model_info_cmd(buffer_ptr uniform_buffer, int32 offset)
             : m_uniform_buffer(uniform_buffer)
             , m_offset(offset)
         {
@@ -360,6 +374,7 @@ void deferred_pbr_render_system::set_model_info(const glm::mat4& model_matrix, b
 
         void execute(graphics_state&) override
         {
+            GL_NAMED_PROFILE_ZONE("Set Model Info");
             MANGO_ASSERT(m_uniform_buffer, "Uniforms do not exist anymore.");
             m_uniform_buffer->bind(buffer_target::UNIFORM_BUFFER, 0, m_offset, sizeof(scene_vertex_uniforms));
         }
@@ -370,12 +385,14 @@ void deferred_pbr_render_system::set_model_info(const glm::mat4& model_matrix, b
     MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - static_cast<int32>(sizeof(scene_vertex_uniforms)), "Uniform buffer size is too small.");
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_vertex_uniforms));
 
-    m_command_buffer->submit<set_model_matrix_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
+    m_command_buffer->submit<set_model_info_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
     m_frame_uniform_offset += m_uniform_buffer_alignment;
+    m_hardware_stats.last_frame.meshes++;
 }
 
 void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
     MANGO_ASSERT(count >= 0, "The index count has to be greater than 0!");
     MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
@@ -392,6 +409,7 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
 
         void execute(graphics_state&) override
         {
+            GL_NAMED_PROFILE_ZONE("Push Material");
             MANGO_ASSERT(m_uniform_buffer, "Uniforms do not exist anymore.");
             m_uniform_buffer->bind(buffer_target::UNIFORM_BUFFER, 1, m_offset, sizeof(scene_material_uniforms));
         }
@@ -474,17 +492,21 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
         m_command_buffer->draw_elements(topology, first, count, type, instance_count);
 
     m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done, on glCalls.
+    m_hardware_stats.last_frame.primitives++;
+    m_hardware_stats.last_frame.materials++;
 
     m_command_buffer->set_face_culling(true);
 }
 
 void deferred_pbr_render_system::set_view_projection_matrix(const glm::mat4& view_projection)
 {
+    PROFILE_ZONE;
     m_command_buffer->bind_single_uniform(0, &const_cast<glm::mat4&>(view_projection), sizeof(glm::mat4));
 }
 
 void deferred_pbr_render_system::set_environment_texture(const texture_ptr& hdr_texture, float render_level)
 {
+    PROFILE_ZONE;
     if (m_pipeline_steps[mango::render_step::ibl])
     {
         auto ibl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);

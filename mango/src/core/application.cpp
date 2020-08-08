@@ -15,6 +15,7 @@
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
 #include <ui/ui_system_impl.hpp>
+#include <mango/profile.hpp>
 
 // test
 #include <graphics/texture.hpp>
@@ -23,6 +24,7 @@ using namespace mango;
 
 application::application()
 {
+    NAMED_PROFILE_ZONE("Application Startup");
     m_context = std::make_shared<context_impl>();
     m_context->create();
 
@@ -32,6 +34,7 @@ application::application()
 
 application::~application()
 {
+    NAMED_PROFILE_ZONE("Application Destruction");
     MANGO_ASSERT(m_context, "Context is not valid!");
     m_context->destroy();
 }
@@ -81,6 +84,8 @@ int32 application::run(int32 t_argc, char** t_argv)
 
         // swap buffers
         ws->swap_buffers();
+
+        MARK_FRAME;
     }
 
     return 0;

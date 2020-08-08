@@ -11,6 +11,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
+#include <mango/profile.hpp>
 #include <mango/scene_component_pool.hpp>
 #include <mango/scene_ecs.hpp>
 #include <mango/types.hpp>
@@ -23,6 +24,7 @@ namespace mango
       public:
         void update(float, scene_component_pool<transform_component>& transformations) override
         {
+            PROFILE_ZONE;
             transformations.for_each(
                 [&transformations](transform_component& c, int32&) {
                     c.local_transformation_matrix = glm::translate(glm::mat4(1.0), c.position);
@@ -41,6 +43,7 @@ namespace mango
       public:
         void update(float, scene_component_pool<node_component>& nodes, scene_component_pool<transform_component>& transformations) override
         {
+            PROFILE_ZONE;
             nodes.for_each(
                 [&nodes, &transformations](node_component& c, int32& index) {
                     node_component& parent_component = c;
@@ -63,6 +66,7 @@ namespace mango
       public:
         void update(float, scene_component_pool<camera_component>& cameras, scene_component_pool<transform_component>& transformations) override
         {
+            PROFILE_ZONE;
             cameras.for_each(
                 [&cameras, &transformations](camera_component& c, int32& index) {
                     entity e                       = cameras.entity_at(index);

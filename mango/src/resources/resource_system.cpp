@@ -5,6 +5,7 @@
 //! \copyright Apache License 2.0
 
 #include <mango/log.hpp>
+#include <mango/profile.hpp>
 #include <resources/resource_system.hpp>
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
@@ -40,6 +41,7 @@ void resource_system::destroy() {}
 
 const shared_ptr<image> resource_system::get_image(const string& path, const image_configuration& configuration)
 {
+    PROFILE_ZONE;
     image img = load_image_from_file(path, configuration);
     return std::shared_ptr<image>(new image(img), [](image* img) {
         stbi_image_free(img->data);
@@ -49,6 +51,7 @@ const shared_ptr<image> resource_system::get_image(const string& path, const ima
 
 const shared_ptr<model> resource_system::get_gltf_model(const string& path, const model_configuration& configuration)
 {
+    PROFILE_ZONE;
     resource_handle handle = { configuration.name };
 
     model m;
@@ -83,6 +86,7 @@ const shared_ptr<model> resource_system::get_gltf_model(const string& path, cons
 
 static image load_image_from_file(const string& path, const image_configuration& configuration)
 {
+    PROFILE_ZONE;
     image img;
     // stbi_set_flip_vertically_on_load(true); // This is usually needed for OpenGl
 

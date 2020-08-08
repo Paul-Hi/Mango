@@ -16,12 +16,12 @@
 #include <graphics/buffer.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
+#include <mango/profile.hpp>
 #include <mango/scene.hpp>
 #include <mango/scene_ecs.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
 #include <scene/ecs_internal.hpp>
-
 
 using namespace mango;
 
@@ -42,6 +42,7 @@ scene::scene(const string& name)
     , m_meshes()
     , m_cameras()
 {
+    PROFILE_ZONE;
     MANGO_UNUSED(name);
     m_active_camera        = invalid_entity;
     m_scene_boundaries.max = glm::vec3(-3.402823e+38f);
@@ -55,6 +56,7 @@ scene::~scene() {}
 
 entity scene::create_empty()
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(!m_free_entities.empty(), "Reached maximum number of entities!");
     entity new_entity = m_free_entities.front();
     m_free_entities.pop();
@@ -64,6 +66,7 @@ entity scene::create_empty()
 
 void scene::remove_entity(entity e)
 {
+    PROFILE_ZONE;
     if (e == invalid_entity)
         return;
     detach(e);
@@ -77,12 +80,13 @@ void scene::remove_entity(entity e)
 
 entity scene::create_default_camera()
 {
+    PROFILE_ZONE;
     entity camera_entity      = create_empty();
     auto& camera_component    = m_cameras.create_component_for(camera_entity);
     auto& transform_component = m_transformations.create_component_for(camera_entity);
 
     // default parameters
-    camera_component.type                   = camera_type::perspective_camera;
+    camera_component.cam_type               = camera_type::perspective_camera;
     camera_component.aspect                 = 16.0f / 9.0f;
     camera_component.z_near                 = 0.015f;
     camera_component.z_far                  = 15.0f;
@@ -106,6 +110,7 @@ entity scene::create_default_camera()
 
 std::vector<entity> scene::create_entities_from_model(const string& path)
 {
+    PROFILE_ZONE;
     std::vector<entity> scene_entities;
     entity scene_root = create_empty();
     auto& transform   = m_transformations.create_component_for(scene_root);
@@ -182,6 +187,7 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
 
 entity scene::create_environment_from_hdr(const string& path, float rendered_mip_level)
 {
+    PROFILE_ZONE;
     entity environment_entity = create_empty();
     auto& environment         = m_environments.create_component_for(environment_entity);
 
@@ -226,6 +232,7 @@ entity scene::create_environment_from_hdr(const string& path, float rendered_mip
 
 void scene::update(float dt)
 {
+    PROFILE_ZONE;
     MANGO_UNUSED(dt);
     transformation_update.update(dt, m_transformations);
     scene_graph_update.update(dt, m_nodes, m_transformations);
@@ -234,6 +241,7 @@ void scene::update(float dt)
 
 void scene::render()
 {
+    PROFILE_ZONE;
     shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
     MANGO_ASSERT(rs, "Render System is expired!");
 
@@ -242,6 +250,7 @@ void scene::render()
 
 void scene::attach(entity child, entity parent)
 {
+    PROFILE_ZONE;
     if (m_nodes.contains(child))
     {
         detach(child);
@@ -252,6 +261,7 @@ void scene::attach(entity child, entity parent)
     // reorder subtrees if necessary
     if (m_nodes.size() > 1)
     {
+        NAMED_PROFILE_ZONE("Reordering on entity attachment");
         m_nodes.for_each(
             [this](node_component, int32& index) {
                 entity possible_parent = m_nodes.entity_at(index);
@@ -287,6 +297,7 @@ void scene::attach(entity child, entity parent)
 
 void scene::detach(entity child)
 {
+    PROFILE_ZONE;
     node_component* parent_component = m_nodes.get_component_for_entity(child);
 
     if (nullptr == parent_component)
@@ -309,6 +320,7 @@ void scene::detach(entity child)
 
 entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world, const std::map<int, buffer_ptr>& buffer_map)
 {
+    PROFILE_ZONE;
     entity node     = create_empty();
     auto& transform = m_transformations.create_component_for(node);
     if (n.matrix.size() == 16)
@@ -367,6 +379,7 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
 
 void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& mesh, const std::map<int, buffer_ptr>& buffer_map)
 {
+    PROFILE_ZONE;
     auto& component_mesh = m_meshes.create_component_for(node);
 
     for (int32 i = 0; i < static_cast<int32>(mesh.primitives.size()); ++i)
@@ -475,6 +488,7 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
 
 void scene::load_material(material_component& material, const tinygltf::Primitive& primitive, tinygltf::Model& m)
 {
+    PROFILE_ZONE;
     if (primitive.material < 0)
         return;
 
@@ -812,6 +826,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
 
 static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_pool<mesh_component>& meshes, scene_component_pool<transform_component>& transformations)
 {
+    PROFILE_ZONE;
     meshes.for_each(
         [&rs, &meshes, &transformations](mesh_component& c, int32& index) {
             entity e                       = meshes.entity_at(index);
@@ -835,6 +850,7 @@ static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_poo
 
 static void update_scene_boundaries(glm::mat4& trafo, tinygltf::Model& m, tinygltf::Mesh& mesh, glm::vec3& min, glm::vec3& max)
 {
+    PROFILE_ZONE;
     if (mesh.primitives.empty())
         return;
 

@@ -14,6 +14,7 @@
 #endif
 #include <mango/application.hpp>
 #include <mango/assert.hpp>
+#include <mango/profile.hpp>
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
@@ -23,6 +24,7 @@ using namespace mango;
 
 void context_impl::set_application(const shared_ptr<application>& application)
 {
+    PROFILE_ZONE;
     if (m_application)
     {
         m_application->destroy();
@@ -116,6 +118,7 @@ void context_impl::set_gl_loading_procedure(mango_gl_load_proc procedure)
 
 bool context_impl::create()
 {
+    NAMED_PROFILE_ZONE("Context Creation");
     bool success = true;
 #if defined(WIN32)
     m_window_system = std::make_shared<win32_window_system>(shared_from_this());
@@ -146,6 +149,7 @@ void context_impl::make_current()
 
 void context_impl::destroy()
 {
+    NAMED_PROFILE_ZONE("Context Destruction");
     MANGO_ASSERT(m_resource_system, "Resource System is invalid!");
     m_resource_system->destroy();
     MANGO_ASSERT(m_ui_system, "UI System is invalid!");

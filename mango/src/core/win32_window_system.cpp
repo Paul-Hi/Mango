@@ -9,6 +9,7 @@
 #include <core/input_system_impl.hpp>
 #include <core/win32_window_system.hpp>
 #include <mango/assert.hpp>
+#include <mango/profile.hpp>
 
 using namespace mango;
 
@@ -24,6 +25,7 @@ win32_window_system::~win32_window_system() {}
 
 bool win32_window_system::create()
 {
+    PROFILE_ZONE;
     if (!glfwInit())
     {
         MANGO_LOG_ERROR("Initilization of glfw failed! No window is created!");
@@ -63,6 +65,7 @@ void win32_window_system::swap_buffers()
 {
     MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
     glfwSwapBuffers(static_cast<GLFWwindow*>(m_platform_data->native_window_handle));
+    GL_PROFILE_COLLECT;
 }
 
 void win32_window_system::set_size(int32 width, int32 height)
@@ -75,6 +78,7 @@ void win32_window_system::set_size(int32 width, int32 height)
 
 void win32_window_system::configure(const window_configuration& configuration)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
     glfwDestroyWindow(static_cast<GLFWwindow*>(m_platform_data->native_window_handle));
 

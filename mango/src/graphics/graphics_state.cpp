@@ -9,11 +9,13 @@
 #include <graphics/vertex_array.hpp>
 #include <mango/assert.hpp>
 #include <map>
+#include <mango/profile.hpp>
 
 using namespace mango;
 
 graphics_state::graphics_state()
 {
+    PROFILE_ZONE;
     m_internal_state.shader_program        = nullptr;
     m_internal_state.framebuffer           = nullptr;
     m_internal_state.vertex_array          = nullptr;
@@ -34,6 +36,7 @@ graphics_state::graphics_state()
 
 bool graphics_state::set_viewport(int32 x, int32 y, int32 width, int32 height)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(x >= 0, "Viewport x position has to be positive!");
     MANGO_ASSERT(y >= 0, "Viewport y position has to be positive!");
     MANGO_ASSERT(width >= 0, "Viewport width has to be positive!");
@@ -52,6 +55,7 @@ bool graphics_state::set_viewport(int32 x, int32 y, int32 width, int32 height)
 
 bool graphics_state::set_depth_test(bool enabled)
 {
+    PROFILE_ZONE;
     if (m_internal_state.depth_test.enabled != enabled)
     {
         m_internal_state.depth_test.enabled = enabled;
@@ -62,6 +66,7 @@ bool graphics_state::set_depth_test(bool enabled)
 
 bool graphics_state::set_depth_func(compare_operation op)
 {
+    PROFILE_ZONE;
     if (m_internal_state.depth_test.depth_func != op)
     {
         m_internal_state.depth_test.depth_func = op;
@@ -72,6 +77,7 @@ bool graphics_state::set_depth_func(compare_operation op)
 
 bool graphics_state::set_polygon_mode(polygon_face face, polygon_mode mode)
 {
+    PROFILE_ZONE;
     if (m_internal_state.poly_mode.face != face || m_internal_state.poly_mode.mode != mode)
     {
         m_internal_state.poly_mode.face = face;
@@ -83,6 +89,7 @@ bool graphics_state::set_polygon_mode(polygon_face face, polygon_mode mode)
 
 bool graphics_state::bind_vertex_array(vertex_array_ptr vertex_array)
 {
+    PROFILE_ZONE;
     if (m_internal_state.vertex_array != vertex_array)
     {
         m_internal_state.vertex_array = vertex_array;
@@ -93,6 +100,7 @@ bool graphics_state::bind_vertex_array(vertex_array_ptr vertex_array)
 
 bool graphics_state::bind_shader_program(shader_program_ptr shader_program)
 {
+    PROFILE_ZONE;
     if (m_internal_state.shader_program != shader_program)
     {
         m_internal_state.shader_program = shader_program;
@@ -104,12 +112,14 @@ bool graphics_state::bind_shader_program(shader_program_ptr shader_program)
 
 bool graphics_state::bind_single_uniform()
 {
+    PROFILE_ZONE;
     // TODO Paul
     return true;
 }
 
 bool graphics_state::bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer)
 {
+    PROFILE_ZONE;
     MANGO_UNUSED(index);
     MANGO_UNUSED(uniform_buffer);
     // TODO Paul
@@ -118,6 +128,7 @@ bool graphics_state::bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer
 
 bool graphics_state::bind_texture(int32 binding, g_uint name)
 {
+    PROFILE_ZONE;
     MANGO_ASSERT(binding >= 0, "Texture binding has to be greater than 0!");
     if (binding > max_texture_bindings)
         return true;
@@ -132,6 +143,7 @@ bool graphics_state::bind_texture(int32 binding, g_uint name)
 
 bool graphics_state::bind_framebuffer(framebuffer_ptr framebuffer)
 {
+    PROFILE_ZONE;
     if (m_internal_state.framebuffer != framebuffer)
     {
         m_internal_state.framebuffer = framebuffer;
@@ -142,6 +154,7 @@ bool graphics_state::bind_framebuffer(framebuffer_ptr framebuffer)
 
 bool graphics_state::set_face_culling(bool enabled)
 {
+    PROFILE_ZONE;
     if (m_internal_state.face_culling.enabled != enabled)
     {
         m_internal_state.face_culling.enabled = enabled;
@@ -152,6 +165,7 @@ bool graphics_state::set_face_culling(bool enabled)
 
 bool graphics_state::set_cull_face(polygon_face face)
 {
+    PROFILE_ZONE;
     if (m_internal_state.face_culling.face != face)
     {
         m_internal_state.face_culling.face = face;
@@ -162,6 +176,7 @@ bool graphics_state::set_cull_face(polygon_face face)
 
 bool graphics_state::set_blending(bool enabled)
 {
+    PROFILE_ZONE;
     if (m_internal_state.blending.enabled != enabled)
     {
         m_internal_state.blending.enabled = enabled;
@@ -172,6 +187,7 @@ bool graphics_state::set_blending(bool enabled)
 
 bool graphics_state::set_blend_factors(blend_factor source, blend_factor destination)
 {
+    PROFILE_ZONE;
     if (m_internal_state.blending.src != source || m_internal_state.blending.dest != destination)
     {
         m_internal_state.blending.src  = source;
