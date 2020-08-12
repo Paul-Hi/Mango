@@ -11,7 +11,6 @@
 #include <glad/glad.h>
 #include <imgui.h>
 #include <mango/application.hpp>
-#include <mango/assert.hpp>
 #include <mango/profile.hpp>
 #include <ui/dear_imgui/imgui_glfw.hpp>
 #include <ui/dear_imgui/imgui_opengl3.hpp>
@@ -210,18 +209,20 @@ void ui_system_impl::update(float dt)
     static bool enabled    = true;
     auto application_scene = m_shared_context->get_current_scene();
     static entity selected = invalid_entity;
-    auto new_sel = scene_inspector_widget(application_scene, enabled);
-    selected = new_sel != invalid_entity ? new_sel : selected;
-    auto comp = application_scene->get_mesh_component(selected);
-    if (comp)
+    auto new_sel           = scene_inspector_widget(application_scene, enabled);
+    selected               = new_sel != invalid_entity ? new_sel : selected;
+    if (selected != invalid_entity)
     {
-        auto mat_c = comp->materials.at(0); // 0 is also a guess
-        auto mat   = mat_c.component_material;
-        material_inspector_widget(mat, enabled);
+        auto comp = application_scene->get_mesh_component(selected);
+        if (comp)
+        {
+            auto mat_c = comp->materials.at(0); // 0 is also a guess
+            auto mat   = mat_c.component_material;
+            material_inspector_widget(mat, enabled);
+        }
     }
     else
         material_inspector_widget(nullptr, enabled);
-
 
     ImGui::End(); // dock space end
 }

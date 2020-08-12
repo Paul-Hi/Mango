@@ -8,7 +8,6 @@
 #include <GLFW/glfw3.h>
 #include <core/input_system_impl.hpp>
 #include <core/win32_window_system.hpp>
-#include <mango/assert.hpp>
 #include <mango/profile.hpp>
 
 using namespace mango;

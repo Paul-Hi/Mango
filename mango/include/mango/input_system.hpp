@@ -7,13 +7,8 @@
 #ifndef MANGO_INPUT_SYSTEM_HPP
 #define MANGO_INPUT_SYSTEM_HPP
 
-//! \cond NO_COND
-#define GLM_FORCE_SILENT_WARNINGS 1
-//! \endcond
-#include <glm/glm.hpp>
 #include <mango/input_codes.hpp>
 #include <mango/system.hpp>
-#include <mango/types.hpp>
 
 namespace mango
 {

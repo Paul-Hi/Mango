@@ -12,7 +12,6 @@
 #include <graphics/texture.hpp>
 #include <imgui.h>
 #include <mango/scene.hpp>
-#include <mango/types.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <ui/dear_imgui/imgui_glfw.hpp>
 

@@ -7,11 +7,7 @@
 #ifndef MANGO_SCENE_ECS_HPP
 #define MANGO_SCENE_ECS_HPP
 
-//! \cond NO_COND
-#define GLM_FORCE_SILENT_WARNINGS 1
-//! \endcond
-#include <glm/glm.hpp>
-#include <vector>
+#include <mango/types.hpp>
 
 #define meta(name)
 

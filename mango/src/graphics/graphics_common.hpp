@@ -8,11 +8,6 @@
 #define MANGO_GRAPHICS_COMMON_HPP
 
 #include <glad/glad.h>
-//! \cond NO_COND
-#define GLM_FORCE_SILENT_WARNINGS 1
-//! \endcond
-#include <glm/glm.hpp>
-#include <mango/assert.hpp>
 #include <mango/types.hpp>
 
 namespace mango

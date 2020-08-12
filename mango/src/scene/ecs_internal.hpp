@@ -8,7 +8,6 @@
 #define MANGO_ECS_INTERNAL_HPP
 
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <mango/profile.hpp>

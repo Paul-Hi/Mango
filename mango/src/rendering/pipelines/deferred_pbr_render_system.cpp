@@ -6,7 +6,6 @@
 
 #include <core/window_system_impl.hpp>
 #include <glad/glad.h>
-#include <glm/glm.hpp>
 #include <graphics/buffer.hpp>
 #include <graphics/framebuffer.hpp>
 #include <graphics/shader.hpp>

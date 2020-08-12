@@ -6,19 +6,10 @@
 
 #include <core/context_impl.hpp>
 #include <glad/glad.h>
-//! \cond NO_COND
-#define GLM_FORCE_SILENT_WARNINGS 1
-//! \endcond
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/component_wise.hpp>
-#include <glm/gtx/matrix_decompose.hpp>
 #include <graphics/buffer.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
-#include <mango/profile.hpp>
 #include <mango/scene.hpp>
-#include <mango/scene_ecs.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
 #include <scene/ecs_internal.hpp>
@@ -678,10 +669,10 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             return;
 
         const tinygltf::Image& image     = m.images[static_cast<g_enum>(base_col.source)];
-        const tinygltf::Sampler& sampler = m.samplers[static_cast<g_enum>(base_col.sampler)];
 
         if (base_col.sampler >= 0)
         {
+            const tinygltf::Sampler& sampler = m.samplers[static_cast<g_enum>(base_col.sampler)];
             config.m_texture_min_filter = filter_parameter_from_gl(static_cast<g_enum>(sampler.minFilter));
             config.m_texture_mag_filter = filter_parameter_from_gl(static_cast<g_enum>(sampler.magFilter));
             config.m_texture_wrap_s     = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapS));
@@ -738,10 +729,10 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             return;
 
         const tinygltf::Image& image     = m.images[o_r_m_t.source];
-        const tinygltf::Sampler& sampler = m.samplers[o_r_m_t.sampler];
 
         if (o_r_m_t.sampler >= 0)
         {
+            const tinygltf::Sampler& sampler = m.samplers[o_r_m_t.sampler];
             config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
             config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
             config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
@@ -801,10 +792,10 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
                 return;
 
             const tinygltf::Image& image     = m.images[occ.source];
-            const tinygltf::Sampler& sampler = m.samplers[occ.sampler];
 
             if (occ.sampler >= 0)
             {
+                const tinygltf::Sampler& sampler = m.samplers[occ.sampler];
                 config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
                 config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
                 config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
@@ -857,10 +848,10 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             return;
 
         const tinygltf::Image& image     = m.images[norm.source];
-        const tinygltf::Sampler& sampler = m.samplers[norm.sampler];
 
         if (norm.sampler >= 0)
         {
+            const tinygltf::Sampler& sampler = m.samplers[norm.sampler];
             config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
             config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
             config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
@@ -917,10 +908,10 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             return;
 
         const tinygltf::Image& image     = m.images[emissive.source];
-        const tinygltf::Sampler& sampler = m.samplers[emissive.sampler];
 
         if (emissive.sampler >= 0)
         {
+            const tinygltf::Sampler& sampler = m.samplers[emissive.sampler];
             config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
             config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
             config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);

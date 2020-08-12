@@ -9,7 +9,6 @@
 
 #include <mango/assert.hpp>
 #include <mango/system.hpp>
-#include <mango/types.hpp>
 
 namespace mango
 {
