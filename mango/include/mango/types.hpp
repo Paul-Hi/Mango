@@ -9,7 +9,10 @@
 #define MANGO_TYPES_HPP
 
 #include <functional>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <limits>
+#include <mango/assert.hpp>
 #include <memory>
 #include <stdint.h>
 #include <string>
@@ -100,6 +103,124 @@ namespace mango
         UBYTE  = 0x1401,
         USHORT = 0x1403,
         UINT   = 0x1405
+    };
+
+    struct normalized_float
+    {
+        normalized_float(float v = 0.0f)
+        {
+            MANGO_ASSERT(v >= 0.0f && v <= 1.0f, "Value is not normalized (between 0.0f and 1.0f)!");
+            value = v;
+        }
+        operator float()
+        {
+            MANGO_ASSERT(value >= 0.0f && value <= 1.0f, "Value is not normalized (between 0.0f and 1.0f)!");
+            return value;
+        }
+        float* type_data()
+        {
+            return &value;
+        }
+        normalized_float& operator=(const normalized_float& other)
+        {
+            MANGO_ASSERT(other.value >= 0.0f && other.value <= 1.0f, "Value is not normalized (between 0.0f and 1.0f)!");
+            if (this != &other)
+                value = other.value;
+            return *this;
+        }
+        normalized_float& operator=(normalized_float&& other)
+        {
+            MANGO_ASSERT(other.value >= 0.0f && other.value <= 1.0f, "Value is not normalized (between 0.0f and 1.0f)!");
+            if (this != &other)
+                value = other.value;
+            return *this;
+        }
+
+      private:
+        float value;
+    };
+
+    struct color_rgb
+    {
+        color_rgb(glm::vec3 v = glm::vec3(0.0f))
+        {
+            MANGO_ASSERT(v.x >= 0.0f && v.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(v.y >= 0.0f && v.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(v.z >= 0.0f && v.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            values = v;
+        }
+        operator glm::vec3()
+        {
+            return values;
+        }
+        operator float*()
+        {
+            return glm::value_ptr(values);
+        }
+        color_rgb& operator=(const color_rgb& other)
+        {
+            MANGO_ASSERT(other.values.x >= 0.0f && other.values.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(other.values.y >= 0.0f && other.values.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            if (this != &other)
+                values = other.values;
+            return *this;
+        }
+        color_rgb& operator=(color_rgb&& other)
+        {
+            MANGO_ASSERT(other.values.x >= 0.0f && other.values.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(other.values.y >= 0.0f && other.values.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            if (this != &other)
+                values = other.values;
+            return *this;
+        }
+
+      private:
+        glm::vec3 values;
+    };
+
+    struct color_rgba
+    {
+        color_rgba(glm::vec4 v = glm::vec4(0.0f))
+        {
+            MANGO_ASSERT(v.x >= 0.0f && v.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(v.y >= 0.0f && v.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(v.z >= 0.0f && v.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(v.z >= 0.0f && v.z <= 1.0f, "a value is not normalized (between 0.0f and 1.0f)!");
+            values = v;
+        }
+        operator glm::vec4()
+        {
+            return values;
+        }
+        operator float*()
+        {
+            return glm::value_ptr(values);
+        }
+        color_rgba& operator=(const color_rgba& other)
+        {
+            MANGO_ASSERT(other.values.x >= 0.0f && other.values.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(other.values.y >= 0.0f && other.values.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "a value is not normalized (between 0.0f and 1.0f)!");
+            if (this != &other)
+                values = other.values;
+            return *this;
+        }
+        color_rgba& operator=(color_rgba&& other)
+        {
+            MANGO_ASSERT(other.values.x >= 0.0f && other.values.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(other.values.y >= 0.0f && other.values.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "a value is not normalized (between 0.0f and 1.0f)!");
+            if (this != &other)
+                values = other.values;
+            return *this;
+        }
+
+      private:
+        glm::vec4 values;
     };
 
     //! \brief Platform data holding the window handle.

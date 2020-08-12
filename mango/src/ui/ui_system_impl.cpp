@@ -206,6 +206,23 @@ void ui_system_impl::update(float dt)
     if (custom.function && custom_enabled)
         custom.function(custom_enabled);
 
+    // Test
+    static bool enabled    = true;
+    auto application_scene = m_shared_context->get_current_scene();
+    static entity selected = invalid_entity;
+    auto new_sel = scene_inspector_widget(application_scene, enabled);
+    selected = new_sel != invalid_entity ? new_sel : selected;
+    auto comp = application_scene->get_mesh_component(selected);
+    if (comp)
+    {
+        auto mat_c = comp->materials.at(0); // 0 is also a guess
+        auto mat   = mat_c.component_material;
+        material_inspector_widget(mat, enabled);
+    }
+    else
+        material_inspector_widget(nullptr, enabled);
+
+
     ImGui::End(); // dock space end
 }
 

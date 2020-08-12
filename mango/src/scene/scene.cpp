@@ -50,6 +50,8 @@ scene::scene(const string& name)
 
     for (uint32 i = 1; i <= max_entities; ++i)
         m_free_entities.push(i);
+
+    m_root_entity = create_empty();
 }
 
 scene::~scene() {}
@@ -69,7 +71,7 @@ void scene::remove_entity(entity e)
     PROFILE_ZONE;
     if (e == invalid_entity)
         return;
-    detach(e);
+    delete_node(e);
     m_transformations.remove_component_from(e);
     m_meshes.remove_component_from(e);
     m_cameras.remove_component_from(e);
@@ -81,7 +83,8 @@ void scene::remove_entity(entity e)
 entity scene::create_default_camera()
 {
     PROFILE_ZONE;
-    entity camera_entity      = create_empty();
+    entity camera_entity = create_empty();
+    attach(camera_entity, m_root_entity);
     auto& camera_component    = m_cameras.create_component_for(camera_entity);
     auto& transform_component = m_transformations.create_component_for(camera_entity);
 
@@ -112,9 +115,10 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
 {
     PROFILE_ZONE;
     std::vector<entity> scene_entities;
-    entity scene_root = create_empty();
-    auto& transform   = m_transformations.create_component_for(scene_root);
-    scene_entities.push_back(scene_root);
+    entity gltf_root = create_empty();
+    attach(gltf_root, m_root_entity);
+    auto& transform = m_transformations.create_component_for(gltf_root);
+    scene_entities.push_back(gltf_root);
     shared_ptr<resource_system> rs = m_shared_context->get_resource_system_internal().lock();
     MANGO_ASSERT(rs, "Resource System is invalid!");
     auto start                     = path.find_last_of("\\/") + 1;
@@ -162,7 +166,7 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
     {
         entity node = build_model_node(scene_entities, m, m.nodes.at(scene.nodes.at(i)), glm::mat4(1.0), index_to_buffer_data);
 
-        attach(node, scene_root);
+        attach(node, gltf_root);
     }
 
     // normalize scale
@@ -189,7 +193,8 @@ entity scene::create_environment_from_hdr(const string& path, float rendered_mip
 {
     PROFILE_ZONE;
     entity environment_entity = create_empty();
-    auto& environment         = m_environments.create_component_for(environment_entity);
+    attach(environment_entity, m_root_entity);
+    auto& environment = m_environments.create_component_for(environment_entity);
 
     // default rotation and scale
     environment.rotation_scale_matrix = glm::mat3(1.0f);
@@ -251,12 +256,39 @@ void scene::render()
 void scene::attach(entity child, entity parent)
 {
     PROFILE_ZONE;
-    if (m_nodes.contains(child))
+    MANGO_ASSERT(invalid_entity != child, "Child is invalid!");
+    MANGO_ASSERT(invalid_entity != parent, "Parent is invalid!");
+
+    node_component* parent_node = m_nodes.get_component_for_entity(parent);
+    if (nullptr == parent_node)
     {
-        detach(child);
+        m_nodes.create_component_for(parent);
+        parent_node = m_nodes.get_component_for_entity(parent);
+    }
+    node_component* child_node = m_nodes.get_component_for_entity(child);
+    if (nullptr == child_node)
+    {
+        m_nodes.create_component_for(child);
+        child_node = m_nodes.get_component_for_entity(child);
     }
 
-    m_nodes.create_component_for(child).parent_entity = parent;
+    child_node->parent_entity = parent;
+
+    auto sibling_entity = parent_node->child_entities;
+    if (invalid_entity == sibling_entity)
+        parent_node->child_entities = child;
+    else
+    {
+        node_component* sibling_node = nullptr;
+        for (int32 i = 0; i < parent_node->children_count; ++i)
+        {
+            sibling_node   = m_nodes.get_component_for_entity(sibling_entity);
+            sibling_entity = sibling_node->next_sibling;
+        }
+        sibling_node->next_sibling   = child;
+        child_node->previous_sibling = sibling_entity;
+    }
+    parent_node->children_count++;
 
     // reorder subtrees if necessary
     if (m_nodes.size() > 1)
@@ -282,40 +314,152 @@ void scene::attach(entity child, entity parent)
 
     transform_component* parent_transform = m_transformations.get_component_for_entity(parent);
     if (nullptr == parent_transform)
-    {
-        // create transform component for parent if non-existent
-        parent_transform = &m_transformations.create_component_for(parent);
-    }
+        m_transformations.create_component_for(parent); // create transform component for parent if non-existent
 
     transform_component* child_transform = m_transformations.get_component_for_entity(child);
     if (nullptr == child_transform)
-    {
-        // create transform component for child if non-existent
-        child_transform = &m_transformations.create_component_for(child);
-    }
+        m_transformations.create_component_for(child); // create transform component for child if non-existent
 }
 
-void scene::detach(entity child)
+void scene::detach(entity node)
 {
     PROFILE_ZONE;
-    node_component* parent_component = m_nodes.get_component_for_entity(child);
+    node_component* child_node = m_nodes.get_component_for_entity(node);
 
-    if (nullptr == parent_component)
+    if (nullptr == child_node || child_node->parent_entity == invalid_entity)
     {
         MANGO_LOG_DEBUG("Entity has no parent!");
         return;
     }
 
-    transform_component* child_transform = m_transformations.get_component_for_entity(child);
+    transform_component* child_transform = m_transformations.get_component_for_entity(node);
 
     if (nullptr != child_transform)
     {
-        // Add transformation from parent before removing the node hierarchy
+        // Add transformation from parent before removing the parent
         child_transform->local_transformation_matrix = child_transform->world_transformation_matrix;
     }
 
-    // We want to remove it without crashing the order. In that way, we don't need to sort it again.
-    m_nodes.sort_remove_component_from(child);
+    node_component* parent_node = m_nodes.get_component_for_entity(child_node->parent_entity);
+    MANGO_ASSERT(parent_node, "Node with parent has no parent. ... This should not happen!");
+
+    auto sibling_entity = parent_node->child_entities;
+    if (sibling_entity == node)
+    {
+        parent_node->child_entities = invalid_entity;
+        if(child_node->next_sibling != invalid_entity)
+        {
+            auto next_sibling = m_nodes.get_component_for_entity(child_node->next_sibling);
+            next_sibling->previous_sibling = invalid_entity;
+            parent_node->child_entities = child_node->next_sibling;
+        }
+    }
+    else
+    {
+        node_component* next_sibling = nullptr;
+        if (invalid_entity != child_node->next_sibling)
+            next_sibling = m_nodes.get_component_for_entity(child_node->next_sibling);
+        node_component* sibling_node = nullptr;
+        for (int32 i = 0; i < parent_node->children_count; ++i)
+        {
+            if (sibling_entity == node)
+            {
+                // sibling_node is still the previous one
+                if (next_sibling)
+                {
+                    sibling_node->next_sibling     = child_node->next_sibling;
+                    next_sibling->previous_sibling = child_node->previous_sibling;
+                }
+                else
+                    sibling_node->next_sibling = invalid_entity;
+                break;
+            }
+            sibling_node   = m_nodes.get_component_for_entity(sibling_entity);
+            sibling_entity = sibling_node->next_sibling;
+        }
+    }
+    parent_node->children_count--;
+
+    if (child_node->children_count == 0)
+        m_nodes.sort_remove_component_from(node); // Sorting necessarry?
+
+    if (parent_node->children_count == 0)
+        m_nodes.sort_remove_component_from(child_node->parent_entity); // Sorting necessarry?
+}
+
+void scene::delete_node(entity node)
+{
+    PROFILE_ZONE;
+    node_component* child_node = m_nodes.get_component_for_entity(node);
+
+    if (nullptr == child_node || child_node->parent_entity == invalid_entity)
+    {
+        MANGO_LOG_DEBUG("Entity has no parent!");
+        return;
+    }
+
+    transform_component* child_transform = m_transformations.get_component_for_entity(node);
+
+    if (nullptr != child_transform)
+    {
+        // Add transformation from parent before removing the parent
+        child_transform->local_transformation_matrix = child_transform->world_transformation_matrix;
+    }
+
+    auto children_entity = child_node->child_entities;
+    for (int32 i = 0; i < child_node->children_count; ++i)
+    {
+        auto children_node              = m_nodes.get_component_for_entity(children_entity);
+        children_entity                 = children_node->next_sibling;
+        children_node->parent_entity    = invalid_entity;
+        children_node->next_sibling     = invalid_entity;
+        children_node->previous_sibling = invalid_entity;
+    }
+
+    node_component* parent_node = m_nodes.get_component_for_entity(child_node->parent_entity);
+    MANGO_ASSERT(parent_node, "Node with parent has no parent. ... This should not happen!");
+
+    auto sibling_entity = parent_node->child_entities;
+    if (sibling_entity == node)
+    {
+        parent_node->child_entities = invalid_entity;
+        if(child_node->next_sibling != invalid_entity)
+        {
+            auto next_sibling = m_nodes.get_component_for_entity(child_node->next_sibling);
+            next_sibling->previous_sibling = invalid_entity;
+            parent_node->child_entities = child_node->next_sibling;
+        }
+    }
+    else
+    {
+        node_component* next_sibling = nullptr;
+        if (invalid_entity != child_node->next_sibling)
+            next_sibling = m_nodes.get_component_for_entity(child_node->next_sibling);
+        node_component* sibling_node = nullptr;
+        for (int32 i = 0; i < parent_node->children_count; ++i)
+        {
+            if (sibling_entity == node)
+            {
+                // sibling_node is still the previous one
+                if (next_sibling)
+                {
+                    sibling_node->next_sibling     = child_node->next_sibling;
+                    next_sibling->previous_sibling = child_node->previous_sibling;
+                }
+                else
+                    sibling_node->next_sibling = invalid_entity;
+                break;
+            }
+            sibling_node   = m_nodes.get_component_for_entity(sibling_entity);
+            sibling_entity = sibling_node->next_sibling;
+        }
+    }
+    parent_node->children_count--;
+
+    m_nodes.sort_remove_component_from(node); // Sorting necessary?
+
+    if (parent_node->children_count == 0 && parent_node->parent_entity == invalid_entity)
+        m_nodes.sort_remove_component_from(child_node->parent_entity); // Sorting necessary?
 }
 
 entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world, const std::map<int, buffer_ptr>& buffer_map)
@@ -500,6 +644,13 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
 
     material.component_material->double_sided = p_m.doubleSided;
 
+    material.component_material->use_base_color_texture         = false;
+    material.component_material->use_roughness_metallic_texture = false;
+    material.component_material->use_occlusion_texture          = false;
+    material.component_material->use_normal_texture             = false;
+    material.component_material->use_emissive_color_texture     = false;
+    material.component_material->use_packed_occlusion           = false;
+
     auto& pbr = p_m.pbrMetallicRoughness;
 
     // TODO Paul: Better structure?!
@@ -519,6 +670,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     }
     else
     {
+        material.component_material->use_base_color_texture = true;
         // base color
         const tinygltf::Texture& base_col = m.textures.at(pbr.baseColorTexture.index);
 
@@ -579,7 +731,8 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     }
     else
     {
-        const tinygltf::Texture& o_r_m_t = m.textures.at(pbr.metallicRoughnessTexture.index);
+        material.component_material->use_roughness_metallic_texture = true;
+        const tinygltf::Texture& o_r_m_t                            = m.textures.at(pbr.metallicRoughnessTexture.index);
 
         if (o_r_m_t.source < 0)
             return;
@@ -636,12 +789,14 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (pbr.metallicRoughnessTexture.index == p_m.occlusionTexture.index)
         {
             // occlusion packed into r channel of the roughness and metallic texture.
-            material.component_material->packed_occlusion = true;
+            material.component_material->use_packed_occlusion = true;
+            material.component_material->packed_occlusion     = true;
         }
         else
         {
-            material.component_material->packed_occlusion = false;
-            const tinygltf::Texture& occ                  = m.textures.at(p_m.occlusionTexture.index);
+            material.component_material->use_occlusion_texture = true;
+            material.component_material->packed_occlusion      = false;
+            const tinygltf::Texture& occ                       = m.textures.at(p_m.occlusionTexture.index);
             if (occ.source < 0)
                 return;
 
@@ -695,7 +850,8 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     // normal
     if (p_m.normalTexture.index >= 0)
     {
-        const tinygltf::Texture& norm = m.textures.at(p_m.normalTexture.index);
+        material.component_material->use_normal_texture = true;
+        const tinygltf::Texture& norm                   = m.textures.at(p_m.normalTexture.index);
 
         if (norm.source < 0)
             return;
@@ -754,7 +910,8 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     }
     else
     {
-        const tinygltf::Texture& emissive = m.textures.at(p_m.emissiveTexture.index);
+        material.component_material->use_emissive_color_texture = true;
+        const tinygltf::Texture& emissive                       = m.textures.at(p_m.emissiveTexture.index);
 
         if (emissive.source < 0)
             return;

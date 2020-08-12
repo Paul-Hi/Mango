@@ -47,6 +47,8 @@ namespace mango
             nodes.for_each(
                 [&nodes, &transformations](node_component& c, int32& index) {
                     node_component& parent_component = c;
+                    if(c.parent_entity == invalid_entity)
+                        return;
                     entity e                         = nodes.entity_at(index);
 
                     transform_component* child_transform  = transformations.get_component_for_entity(e);

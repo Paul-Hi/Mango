@@ -65,15 +65,15 @@ namespace mango
         entity create_environment_from_hdr(const string& path, float rendered_mip_level);
 
         //! \brief Attach an \a entity to another entity in a child <-> parent realationship.
-        //! \details Adds a \a node_component. This is mostly useful to describe child objects inheriting the parents transform.
+        //! \details Adds a \a node_component. Used for building hierarchies.
         //! \param[in] child The \a entity used as a child.
         //! \param[in] parent The \a entity used as a parent.
         void attach(entity child, entity parent);
 
-        //! \brief Detach an \a entity.
-        //! \details Removes the \a node_component. Parent relation is lost.
-        //! \param[in] child The \a entity to detach.
-        void detach(entity child);
+        //! \brief Detach an \a entity from the parent.
+        //! \details Removes the parent, the component may still exits, if the node has children.
+        //! \param[in] node The \a entity to detach.
+        void detach(entity node);
 
         //! \brief Retrieves the \a transform_component from a specific \a entity.
         //! \param[in] e The \a entity to get the \a transform_component for.
@@ -91,6 +91,14 @@ namespace mango
             return m_cameras.get_component_for_entity(e);
         }
 
+        //! \brief Retrieves the \a mesh_component from a specific \a entity.
+        //! \param[in] e The \a entity to get the \a mesh_component for.
+        //! \return The \a mesh_component or nullptr if non-existent.
+        inline mesh_component* get_mesh_component(entity e)
+        {
+            return m_meshes.get_component_for_entity(e);
+        }
+
         //! \brief Retrieves the \a camera_data for the currently active camera.
         //! \details Has to be checked if pointer are null. Also can only be used for a short time.
         //! \return The \a camera_data.
@@ -100,6 +108,25 @@ namespace mango
             result.camera_info = m_cameras.get_component_for_entity(m_active_camera);
             result.transform   = m_transformations.get_component_for_entity(m_active_camera);
             return result;
+        }
+
+        inline entity get_root()
+        {
+            return m_root_entity;
+        }
+
+        inline std::vector<entity> get_children(entity e)
+        {
+            std::vector<entity> children;
+            auto node         = m_nodes.get_component_for_entity(e);
+            auto child_entity = node->child_entities;
+            for (int32 i = 0; i < node->children_count; ++i)
+            {
+                children.push_back(child_entity);
+                auto child_node = m_nodes.get_component_for_entity(child_entity);
+                child_entity    = child_node->next_sibling;
+            }
+            return children;
         }
 
       private:
@@ -139,6 +166,11 @@ namespace mango
         //! \param[in] m The model loaded by tinygltf.
         void load_material(material_component& material, const tinygltf::Primitive& primitive, tinygltf::Model& m);
 
+        //! \brief Detach an \a entity from the parent and the children.
+        //! \details Removes the \a node_component.
+        //! \param[in] node The \a entity to delete the node from.
+        void delete_node(entity node);
+
         friend class context_impl; // TODO Paul: Could this be avoided?
         //! \brief Mangos internal context for shared usage in all \a render_systems.
         shared_ptr<context_impl> m_shared_context;
@@ -158,6 +190,8 @@ namespace mango
         scene_component_pool<environment_component> m_environments;
         //! \brief The currently active camera entity.
         entity m_active_camera;
+        //! \brief The current root entity of the scene.
+        entity m_root_entity;
 
         //! \brief Scene boundaries.
         struct scene_bounds

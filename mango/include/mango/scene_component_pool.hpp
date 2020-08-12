@@ -44,6 +44,12 @@ namespace mango
         {
             MANGO_ASSERT(e != invalid_entity, "Entity is not valid!");
             assert_state();
+            auto it = m_lookup.find(e);
+            if (it != m_lookup.end())
+            {
+                MANGO_LOG_DEBUG("Entity does already have a component of type {0}!", type_name<component>::get());
+                return m_components.at(it->second);
+            }
             m_lookup.insert({ e, end });
             m_components.at(end) = component(); // reset component
             m_entities.at(end)   = e;

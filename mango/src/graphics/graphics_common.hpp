@@ -52,11 +52,18 @@ namespace mango
     //! \brief Structure to store material properties, textures etc.
     struct material
     {
-        glm::vec4 base_color;     //!< The basic color of the material.
-        glm::vec3 emissive_color; //!< The emissive color of the material.
-        float metallic;           //!< The metallic value of the material. Between 0 and 1.
-        float roughness;          //!< The roughness value of the material. Between 0 and 1.
-        bool packed_occlusion;    //!< Specifies if the occlusion value is packed in the roughness_metallic_texture.
+        color_rgba base_color;      //!< The basic color of the material.
+        color_rgb emissive_color;   //!< The emissive color of the material.
+        normalized_float metallic;  //!< The metallic value of the material. Between 0 and 1.
+        normalized_float roughness; //!< The roughness value of the material. Between 0 and 1.
+        bool packed_occlusion;      //!< Specifies if the occlusion value is packed in the roughness_metallic_texture.
+
+        bool use_base_color_texture;         //!< Specifies, if the the base color texture is enabled.
+        bool use_roughness_metallic_texture; //!< Specifies, if the component texture is enabled for the metallic value and the roughness value.
+        bool use_occlusion_texture;          //!< Specifies, if the component texture is enabled for the occlusion value.
+        bool use_packed_occlusion;           //!< Specifies if the packed occlusion value is enabled.
+        bool use_normal_texture;             //!< Specifies, if the normal texture is enabled.
+        bool use_emissive_color_texture;     //!< Specifies, if the the emissive color texture is enabled.
 
         texture_ptr base_color_texture;         //!< The component texture for the basic color value.
         texture_ptr roughness_metallic_texture; //!< The component texture for the metallic value and the roughness value and eventually occlusion.
@@ -64,9 +71,9 @@ namespace mango
         texture_ptr normal_texture;             //!< The texture for normals.
         texture_ptr emissive_color_texture;     //!< The texture for the emissive color value.
 
-        bool double_sided;          //!< Specifies if the material is double sided.
-        alpha_mode alpha_rendering; //!< Specifies the materials alpha mode.
-        float alpha_cutoff;         //!< Specifies a cutoff value if alpha_rendering is MASK.
+        bool double_sided;             //!< Specifies if the material is double sided.
+        alpha_mode alpha_rendering;    //!< Specifies the materials alpha mode.
+        normalized_float alpha_cutoff; //!< Specifies a cutoff value if alpha_rendering is MASK.
     };
 
     //! \cond NO_COND

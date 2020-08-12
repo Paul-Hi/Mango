@@ -11,6 +11,9 @@
 #define GLM_FORCE_SILENT_WARNINGS 1
 //! \endcond
 #include <glm/glm.hpp>
+#include <vector>
+
+#define meta(name)
 
 namespace mango
 {
@@ -78,6 +81,11 @@ namespace mango
     struct node_component
     {
         entity parent_entity = invalid_entity; //!< The parents entity id.
+
+        int32 children_count    = 0;              //!< The number of childs.
+        entity child_entities   = invalid_entity; //!< The first child entity id. (Linked list)
+        entity next_sibling     = invalid_entity; //!< The next child entity id.
+        entity previous_sibling = invalid_entity; //!< The previous child entity id.
     };
 
     //! \brief Component used to describe a primitive draw call. Used by \a mesh_component.

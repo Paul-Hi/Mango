@@ -56,6 +56,7 @@ bool editor::create()
                 try_open_path(application_scene, queried);
             }
         }
+
         ImGui::End();
     });
 
@@ -70,6 +71,10 @@ bool editor::create()
     m_main_camera = application_scene->create_default_camera();
 
     mango_context->make_scene_current(application_scene);
+
+    // test load water bottle and environment
+    try_open_path(application_scene, "C:/Users/paulh/Documents/gltf_2_0_sample_models/WaterBottle.glb");
+    try_open_path(application_scene, "C:/Users/paulh/Documents/gltf_2_0_sample_models/birchwood_4k.hdr");
 
     shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
     MANGO_ASSERT(mango_is, "Input System is expired!");
