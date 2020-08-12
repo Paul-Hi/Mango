@@ -20,11 +20,7 @@ float inv_tex_size = 1.0 / out_size.x;
 float radical_inverse_VdC(in uint bits);
 vec2 sample_hammersley(uint i);
 void importance_sample_ggx_direction(in vec2 u, in vec3 view, in vec3 normal, in float roughness, out float n_dot_l, out vec3 halfway, out vec3 to_light);
-void importance_sample_cosinus_direction(in vec2 u, in vec3 normal, out vec3 to_light, out float n_dot_l, out float pdf);
-vec3 F_Schlick(in float dot, in vec3 f0, in float f90);
-float Fd_BurleyRenormalized(in float n_dot_v, in float n_dot_l, in float l_dot_h, in float roughness);
 float V_SmithGGXCorrelated(in float n_dot_v, in float n_dot_l, in float roughness);
-
 
 vec3 up;
 vec3 tangent_x;
@@ -51,7 +47,7 @@ void main()
 
     for(uint s = 0; s < sample_count; ++s)
     {
-        vec2 eta  = sample_hammersley(s);
+        vec2 eta = sample_hammersley(s);
         vec3 halfway;
         vec3 to_light;
         float n_dot_l;
@@ -59,32 +55,21 @@ void main()
         n_dot_l = saturate(n_dot_l);
         float G = V_SmithGGXCorrelated(n_dot_v, n_dot_l, roughness);
 
-        // specular preintegration
+        // specular preintegration with multiscattering
         if(n_dot_l > 0.0 && G > 0.0)
         {
             float v_dot_h = saturate(dot(view, halfway));
             float n_dot_h = saturate(halfway.z);
-            float G_vis = G * n_dot_l * (4.0 * v_dot_h / n_dot_h );
+            float G_vis = G * n_dot_l * (v_dot_h / n_dot_h );
             float Fc = pow(1.0 - v_dot_h, 5.0);
-            integration_lu.x += (1.0 - Fc) * G_vis;
-            integration_lu.y += Fc * G_vis;
-        }
-
-        // diffuse preintegration
-        eta = fract(eta + 0.5);
-        float pdf;
-        importance_sample_cosinus_direction(eta, normal, to_light, n_dot_l, pdf);
-        n_dot_l = saturate(n_dot_l);
-
-        if(n_dot_l > 0.0)
-        {
-            float l_dot_h = saturate(dot(to_light, normalize(view + to_light)));
-            float n_dot_v = saturate(dot(normal, view));
-            integration_lu.z += Fd_BurleyRenormalized(n_dot_v, n_dot_l, l_dot_h, sqrt(roughness));
+            // https://google.github.io/filament/Filament.html#listing_energycompensationimpl
+            // Assuming f90 = 1
+            integration_lu.x += Fc * G_vis;
+            integration_lu.y += G_vis;
         }
     }
 
-    integration_lu *= inverse_sample_count;
+    integration_lu *= 4.0 * inverse_sample_count;
 
     imageStore(integration_lut_out, coords, vec4(integration_lu, 1.0));
 }
@@ -120,8 +105,9 @@ void importance_sample_ggx_direction(in vec2 u, in vec3 view, in vec3 normal, in
     float a_q = a_sqr * a_sqr;
 
     float phi = u1 * TWO_PI;
-    float cos_theta = sqrt((1.0 - u2) / (1.0 + (a_q - 1.0) * u2));
-    float sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+    float cos_theta2 = (1.0 - u2) / (1.0 + (a_q - 1.0) * u2);
+    float cos_theta = sqrt(cos_theta2);
+    float sin_theta = sqrt(1.0 - cos_theta2);
 
     halfway = vec3(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
 
@@ -129,37 +115,6 @@ void importance_sample_ggx_direction(in vec2 u, in vec3 view, in vec3 normal, in
 
     to_light = normalize(2.0 * dot(view, halfway) * halfway - view);
     n_dot_l = to_light.z;
-}
-
-void importance_sample_cosinus_direction(in vec2 u, in vec3 normal, out vec3 to_light, out float n_dot_l, out float pdf)
-{
-    float u1 = u.x;
-    float u2 = u.y;
-
-    float r = sqrt(u1);
-    float phi = u2 * TWO_PI;
-
-    to_light = vec3(r * cos(phi), r * sin(phi), sqrt(max(0.0f, 1.0f - u1)));
-    to_light = normalize(tangent_x * to_light.x + tangent_y * to_light.y + normal * to_light.z);
-
-    n_dot_l = dot(normal, to_light);
-    pdf = n_dot_l * INV_PI;
-}
-
-vec3 F_Schlick(in float dot, in vec3 f0, in float f90) // can be optimized
-{
-    return f0 + (vec3(f90) - f0) * pow(saturate(1.0 - dot), 5.0);
-}
-
-float Fd_BurleyRenormalized(in float n_dot_v, in float n_dot_l, in float l_dot_h, in float roughness) // normalized Frostbyte version
-{
-    float energy_bias = mix(0.0, 0.5, roughness);
-    float energy_factor = mix(1.0, 1.0 / 1.51, roughness);
-    float f90 = energy_bias + 2.0 * l_dot_h * l_dot_h * roughness;
-    vec3 f0 = vec3(1.0);
-    float light_scatter = F_Schlick(n_dot_l, f0, f90).x;
-    float view_scatter = F_Schlick(n_dot_v, f0, f90).x;
-    return energy_factor * light_scatter * view_scatter;
 }
 
 float V_SmithGGXCorrelated(in float n_dot_v, in float n_dot_l, in float roughness) // can be optimized
