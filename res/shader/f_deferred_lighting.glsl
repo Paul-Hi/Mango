@@ -30,7 +30,7 @@ float Fd_BurleyRenormalized(in float n_dot_v, in float n_dot_l, in float l_dot_h
 
 vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection);
 vec3 calculateTestLight(in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in vec3 real_albedo, in vec3 position, in float occlusion_factor);
-vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float f90, in float occlusion_factor);
+vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor);
 vec4 tonemap_with_gamma_correction(in vec4 color);
 vec4 srgb_to_linear(in vec4 srgb);
 vec4 linear_to_srgb(in vec4 linear);
@@ -84,8 +84,7 @@ void main()
     vec3 lighting = vec3(0.0);
 
     // environment
-    float f90 = saturate(dot(f0, vec3(50.0 * 0.33)));
-    lighting += calculate_image_based_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, f90, occlusion_factor);
+    lighting += calculate_image_based_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
 
     vec3 emissive = get_emissive();
     lighting += emissive;
@@ -93,7 +92,7 @@ void main()
     frag_color = tonemap_with_gamma_correction(vec4(lighting, base_color.a)); // TODO Paul: Proper transparency.
 }
 
-vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float f90, in float occlusion_factor)
+vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor)
 {
     float roughness = sqrt(perceptual_roughness);
 
@@ -104,7 +103,7 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     // irradiance
     vec3 irradiance  = texture(irradiance_map, normal).rgb;
     vec3 diffuse     = irradiance * real_albedo;
-    vec3 diffuse_ibl = diffuse * dfg.z;
+    vec3 diffuse_ibl = diffuse;
 
     // specular
     const float MAX_REFLECTION_LOD = 10.0; // TODO Paul: Hardcoded -.-
@@ -113,7 +112,11 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     vec3 dominant_refl     = get_specular_dominant_direction(normal, refl, perceptual_roughness);
     float mip_index        = perceptual_roughness * MAX_REFLECTION_LOD;
     vec3 prefiltered_color = textureLod(prefiltered_specular, dominant_refl, mip_index).rgb;
-    vec3 specular_ibl      = prefiltered_color * (f0 * dfg.x + vec3(f90) * dfg.y);
+    vec3 specular_ibl      = prefiltered_color * mix(dfg.xxx, dfg.yyy, f0);
+
+    vec3 energy_compensation = 1.0 + f0 * (1.0 / dfg.y - 1.0);
+    specular_ibl *= energy_compensation;
+
 
     return diffuse_ibl * occlusion_factor + specular_ibl;
 }
