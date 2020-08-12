@@ -113,8 +113,9 @@ void importance_sample_ggx_direction(in vec2 u, in vec3 view, in vec3 normal, in
     float a_q = a_sqr * a_sqr;
 
     float phi = u1 * TWO_PI;
-    float cos_theta = sqrt((1.0 - u2) / (1.0 + (a_q - 1.0) * u2));
-    float sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+    float cos_theta2 = (1.0 - u2) / (1.0 + (a_q - 1.0) * u2);
+    float cos_theta = sqrt(cos_theta2);
+    float sin_theta = sqrt(1.0 - cos_theta2);
 
     halfway = vec3(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
 
