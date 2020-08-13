@@ -416,9 +416,10 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
 
     scene_material_uniforms u;
 
-    u.base_color = std140_vec4(mat->base_color);
-    u.metallic   = (g_float)mat->metallic;
-    u.roughness  = (g_float)mat->roughness;
+    u.base_color     = std140_vec4(mat->base_color);
+    u.emissive_color = std140_vec3(mat->emissive_color);
+    u.metallic       = (g_float)mat->metallic;
+    u.roughness      = (g_float)mat->roughness;
     if (mat->use_base_color_texture)
     {
         u.base_color_texture = std140_bool(true);

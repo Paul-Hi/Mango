@@ -42,7 +42,9 @@ scene::scene(const string& name)
     for (uint32 i = 1; i <= max_entities; ++i)
         m_free_entities.push(i);
 
-    m_root_entity = create_empty();
+    m_root_entity          = create_empty();
+    auto& tag_component    = m_tags.create_component_for(m_root_entity);
+    tag_component.tag_name = "Scene Root";
 }
 
 scene::~scene() {}
@@ -78,6 +80,8 @@ entity scene::create_default_camera()
     attach(camera_entity, m_root_entity);
     auto& camera_component    = m_cameras.create_component_for(camera_entity);
     auto& transform_component = m_transformations.create_component_for(camera_entity);
+    auto& tag_component       = m_tags.create_component_for(camera_entity);
+    tag_component.tag_name    = "Default Camera";
 
     // default parameters
     camera_component.cam_type               = camera_type::perspective_camera;
@@ -112,11 +116,12 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
     scene_entities.push_back(gltf_root);
     shared_ptr<resource_system> rs = m_shared_context->get_resource_system_internal().lock();
     MANGO_ASSERT(rs, "Resource System is invalid!");
-    auto start                     = path.find_last_of("\\/") + 1;
-    auto name                      = path.substr(start, path.find_last_of(".") - start);
-    model_configuration config     = { name };
-    const shared_ptr<model> loaded = rs->get_gltf_model(path, config);
-    tinygltf::Model& m             = loaded->gltf_model;
+    auto start                                      = path.find_last_of("\\/") + 1;
+    auto name                                       = path.substr(start, path.find_last_of(".") - start);
+    m_tags.create_component_for(gltf_root).tag_name = "GLTF Model " + name;
+    model_configuration config                      = { name };
+    const shared_ptr<model> loaded                  = rs->get_gltf_model(path, config);
+    tinygltf::Model& m                              = loaded->gltf_model;
 
     // load the default scene or the first one.
     glm::vec3 max_backup   = m_scene_boundaries.max;
@@ -195,9 +200,11 @@ entity scene::create_environment_from_hdr(const string& path, float rendered_mip
     MANGO_ASSERT(res, "Resource System is expired!");
 
     image_configuration img_config;
-    img_config.name                    = path.substr(path.find_last_of("/") + 1, path.find_last_of("."));
-    img_config.is_standard_color_space = false;
-    img_config.is_hdr                  = true;
+    auto start                                               = path.find_last_of("\\/") + 1;
+    img_config.name                                          = path.substr(start, path.find_last_of(".") - start);
+    img_config.is_standard_color_space                       = false;
+    img_config.is_hdr                                        = true;
+    m_tags.create_component_for(environment_entity).tag_name = "Environment " + img_config.name;
 
     auto hdr_image = res->get_image(path, img_config);
 
@@ -211,9 +218,15 @@ entity scene::create_environment_from_hdr(const string& path, float rendered_mip
 
     texture_ptr hdr_texture = texture::create(tex_config);
 
-    format f        = format::RGBA;
-    format internal = format::RGBA32F;
+    format f        = format::RGB;
+    format internal = format::RGB32F;
     format type     = format::FLOAT;
+
+    if (hdr_image->number_components == 4)
+    {
+        f        = format::RGBA;
+        internal = format::RGBA32F;
+    }
 
     hdr_texture->set_data(internal, hdr_image->width, hdr_image->height, f, type, hdr_image->data);
 
@@ -338,11 +351,11 @@ void scene::detach(entity node)
     if (sibling_entity == node)
     {
         parent_node->child_entities = invalid_entity;
-        if(child_node->next_sibling != invalid_entity)
+        if (child_node->next_sibling != invalid_entity)
         {
-            auto next_sibling = m_nodes.get_component_for_entity(child_node->next_sibling);
+            auto next_sibling              = m_nodes.get_component_for_entity(child_node->next_sibling);
             next_sibling->previous_sibling = invalid_entity;
-            parent_node->child_entities = child_node->next_sibling;
+            parent_node->child_entities    = child_node->next_sibling;
         }
     }
     else
@@ -414,11 +427,11 @@ void scene::delete_node(entity node)
     if (sibling_entity == node)
     {
         parent_node->child_entities = invalid_entity;
-        if(child_node->next_sibling != invalid_entity)
+        if (child_node->next_sibling != invalid_entity)
         {
-            auto next_sibling = m_nodes.get_component_for_entity(child_node->next_sibling);
+            auto next_sibling              = m_nodes.get_component_for_entity(child_node->next_sibling);
             next_sibling->previous_sibling = invalid_entity;
-            parent_node->child_entities = child_node->next_sibling;
+            parent_node->child_entities    = child_node->next_sibling;
         }
     }
     else
@@ -456,8 +469,9 @@ void scene::delete_node(entity node)
 entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world, const std::map<int, buffer_ptr>& buffer_map)
 {
     PROFILE_ZONE;
-    entity node     = create_empty();
-    auto& transform = m_transformations.create_component_for(node);
+    entity node                                = create_empty();
+    m_tags.create_component_for(node).tag_name = n.name;
+    auto& transform                            = m_transformations.create_component_for(node);
     if (n.matrix.size() == 16)
     {
         glm::mat4 input = glm::make_mat4(n.matrix.data());
@@ -633,6 +647,7 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         MANGO_LOG_DEBUG("Loading material: {0}", p_m.name.c_str());
     }
 
+    material.material_name                    = p_m.name;
     material.component_material->double_sided = p_m.doubleSided;
 
     material.component_material->use_base_color_texture         = false;
@@ -668,15 +683,15 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (base_col.source < 0)
             return;
 
-        const tinygltf::Image& image     = m.images[static_cast<g_enum>(base_col.source)];
+        const tinygltf::Image& image = m.images[static_cast<g_enum>(base_col.source)];
 
         if (base_col.sampler >= 0)
         {
             const tinygltf::Sampler& sampler = m.samplers[static_cast<g_enum>(base_col.sampler)];
-            config.m_texture_min_filter = filter_parameter_from_gl(static_cast<g_enum>(sampler.minFilter));
-            config.m_texture_mag_filter = filter_parameter_from_gl(static_cast<g_enum>(sampler.magFilter));
-            config.m_texture_wrap_s     = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapS));
-            config.m_texture_wrap_t     = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapT));
+            config.m_texture_min_filter      = filter_parameter_from_gl(static_cast<g_enum>(sampler.minFilter));
+            config.m_texture_mag_filter      = filter_parameter_from_gl(static_cast<g_enum>(sampler.magFilter));
+            config.m_texture_wrap_s          = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapS));
+            config.m_texture_wrap_t          = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapT));
         }
 
         config.m_is_standard_color_space = true;
@@ -728,15 +743,15 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (o_r_m_t.source < 0)
             return;
 
-        const tinygltf::Image& image     = m.images[o_r_m_t.source];
+        const tinygltf::Image& image = m.images[o_r_m_t.source];
 
         if (o_r_m_t.sampler >= 0)
         {
             const tinygltf::Sampler& sampler = m.samplers[o_r_m_t.sampler];
-            config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
-            config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
-            config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
-            config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
+            config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
+            config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
+            config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
+            config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
         }
 
         config.m_is_standard_color_space = false;
@@ -791,15 +806,15 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             if (occ.source < 0)
                 return;
 
-            const tinygltf::Image& image     = m.images[occ.source];
+            const tinygltf::Image& image = m.images[occ.source];
 
             if (occ.sampler >= 0)
             {
                 const tinygltf::Sampler& sampler = m.samplers[occ.sampler];
-                config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
-                config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
-                config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
-                config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
+                config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
+                config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
+                config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
+                config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
             }
 
             config.m_is_standard_color_space = false;
@@ -847,15 +862,15 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (norm.source < 0)
             return;
 
-        const tinygltf::Image& image     = m.images[norm.source];
+        const tinygltf::Image& image = m.images[norm.source];
 
         if (norm.sampler >= 0)
         {
             const tinygltf::Sampler& sampler = m.samplers[norm.sampler];
-            config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
-            config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
-            config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
-            config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
+            config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
+            config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
+            config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
+            config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
         }
 
         config.m_is_standard_color_space = false;
@@ -907,15 +922,15 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (emissive.source < 0)
             return;
 
-        const tinygltf::Image& image     = m.images[emissive.source];
+        const tinygltf::Image& image = m.images[emissive.source];
 
         if (emissive.sampler >= 0)
         {
             const tinygltf::Sampler& sampler = m.samplers[emissive.sampler];
-            config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
-            config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
-            config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
-            config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
+            config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
+            config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
+            config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
+            config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
         }
 
         config.m_is_standard_color_space = true;

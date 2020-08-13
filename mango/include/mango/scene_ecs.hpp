@@ -54,6 +54,12 @@ namespace mango
     struct material;
     class texture;
 
+    //! \brief Component used for to give an \a entity a name.
+    struct tag_component
+    {
+        string tag_name; //!< The name.
+    };
+
     //! \brief Camera types used in \a camera_components.
     enum class camera_type : uint8
     {
@@ -98,6 +104,7 @@ namespace mango
     //! \brief Component used for materials.
     struct material_component
     {
+        string material_name;                    //!< The name of the material.
         shared_ptr<material> component_material; //!< The material holding all properties, textures etc.
     };
 

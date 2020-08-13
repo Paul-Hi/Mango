@@ -99,6 +99,33 @@ namespace mango
             return m_meshes.get_component_for_entity(e);
         }
 
+        inline tag_component* get_tag(entity e)
+        {
+            return m_tags.get_component_for_entity(e);
+        }
+
+
+
+        inline transform_component* query_transform_component(entity e)
+        {
+            return m_transformations.get_component_for_entity(e, true);
+        }
+
+        inline camera_component* query_camera_component(entity e)
+        {
+            return m_cameras.get_component_for_entity(e, true);
+        }
+
+        inline mesh_component* query_mesh_component(entity e)
+        {
+            return m_meshes.get_component_for_entity(e, true);
+        }
+
+        inline tag_component* query_tag(entity e)
+        {
+            return m_tags.get_component_for_entity(e, true);
+        }
+
         //! \brief Retrieves the \a camera_data for the currently active camera.
         //! \details Has to be checked if pointer are null. Also can only be used for a short time.
         //! \return The \a camera_data.
@@ -114,6 +141,7 @@ namespace mango
         {
             return m_root_entity;
         }
+
 
         inline std::vector<entity> get_children(entity e)
         {
@@ -178,6 +206,8 @@ namespace mango
         //! \brief All free entity ids.
         std::queue<uint32> m_free_entities;
 
+        //! \brief All \a tag_components.
+        scene_component_pool<tag_component> m_tags;
         //! \brief All \a node_components.
         scene_component_pool<node_component> m_nodes;
         //! \brief All \a transform_components.

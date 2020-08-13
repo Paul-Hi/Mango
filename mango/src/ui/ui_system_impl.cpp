@@ -209,20 +209,15 @@ void ui_system_impl::update(float dt)
     static bool enabled    = true;
     auto application_scene = m_shared_context->get_current_scene();
     static entity selected = invalid_entity;
-    auto new_sel           = scene_inspector_widget(application_scene, enabled);
-    selected               = new_sel != invalid_entity ? new_sel : selected;
+    entity tmp = selected;
+    scene_inspector_widget(application_scene, enabled, selected);
     if (selected != invalid_entity)
     {
-        auto comp = application_scene->get_mesh_component(selected);
-        if (comp)
-        {
-            auto mat_c = comp->materials.at(0); // 0 is also a guess
-            auto mat   = mat_c.component_material;
-            material_inspector_widget(mat, enabled);
-        }
+        auto comp = application_scene->query_mesh_component(selected);
+        material_inspector_widget(comp, enabled, tmp != selected, selected, m_shared_context->get_resource_system_internal().lock());
     }
     else
-        material_inspector_widget(nullptr, enabled);
+        material_inspector_widget(nullptr, enabled, tmp != selected, selected, m_shared_context->get_resource_system_internal().lock());
 
     ImGui::End(); // dock space end
 }
