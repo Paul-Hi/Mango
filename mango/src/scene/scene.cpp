@@ -118,7 +118,7 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
     MANGO_ASSERT(rs, "Resource System is invalid!");
     auto start                                      = path.find_last_of("\\/") + 1;
     auto name                                       = path.substr(start, path.find_last_of(".") - start);
-    m_tags.create_component_for(gltf_root).tag_name = "GLTF Model " + name;
+    m_tags.create_component_for(gltf_root).tag_name = path.substr(start);
     model_configuration config                      = { name };
     const shared_ptr<model> loaded                  = rs->get_gltf_model(path, config);
     tinygltf::Model& m                              = loaded->gltf_model;
@@ -204,7 +204,7 @@ entity scene::create_environment_from_hdr(const string& path, float rendered_mip
     img_config.name                                          = path.substr(start, path.find_last_of(".") - start);
     img_config.is_standard_color_space                       = false;
     img_config.is_hdr                                        = true;
-    m_tags.create_component_for(environment_entity).tag_name = "Environment " + img_config.name;
+    m_tags.create_component_for(environment_entity).tag_name = path.substr(start);
 
     auto hdr_image = res->get_image(path, img_config);
 

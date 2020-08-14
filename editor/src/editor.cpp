@@ -30,35 +30,40 @@ bool editor::create()
     mango_rs->configure(render_config);
 
     ui_configuration ui_config;
-    ui_config.enable_dock_space(true).show_widget(mango::ui_widget::render_view).show_widget(mango::ui_widget::hardware_info).submit_custom("Editor File Load", [this](bool& enabled) {
-        ImGui::Begin("Editor File Load", &enabled);
-        ImGui::Text("Load a .gltf file or a .hdr environment.");
-        if (ImGui::Button("Open"))
-        {
-            char const* filter[3] = { "*.gltf", "*.glb", "*.hdr" };
-
-            shared_ptr<context> mango_context = get_context().lock();
-            MANGO_ASSERT(mango_context, "Context is expired!");
-            auto application_scene = mango_context->get_current_scene();
-            char* query_path       = tinyfd_openFileDialog("", "res/", 3, filter, NULL, 1);
-            if (query_path)
+    ui_config.enable_dock_space(true)
+        .show_widget(mango::ui_widget::render_view)
+        .show_widget(mango::ui_widget::hardware_info)
+        .show_widget(mango::ui_widget::scene_inspector)
+        .show_widget(mango::ui_widget::material_inspector)
+        .submit_custom("Editor File Load", [this](bool& enabled) {
+            ImGui::Begin("Editor File Load", &enabled);
+            ImGui::Text("Load a .gltf file or a .hdr environment.");
+            if (ImGui::Button("Open"))
             {
-                string queried = string(query_path);
+                char const* filter[3] = { "*.gltf", "*.glb", "*.hdr" };
 
-                ptr_size pos = 0;
-                string token;
-                while ((pos = queried.find('|')) != string::npos)
+                shared_ptr<context> mango_context = get_context().lock();
+                MANGO_ASSERT(mango_context, "Context is expired!");
+                auto application_scene = mango_context->get_current_scene();
+                char* query_path       = tinyfd_openFileDialog("", "res/", 3, filter, NULL, 1);
+                if (query_path)
                 {
-                    token = queried.substr(0, pos);
-                    try_open_path(application_scene, token);
-                    queried.erase(0, pos + 1);
-                }
-                try_open_path(application_scene, queried);
-            }
-        }
+                    string queried = string(query_path);
 
-        ImGui::End();
-    });
+                    ptr_size pos = 0;
+                    string token;
+                    while ((pos = queried.find('|')) != string::npos)
+                    {
+                        token = queried.substr(0, pos);
+                        try_open_path(application_scene, token);
+                        queried.erase(0, pos + 1);
+                    }
+                    try_open_path(application_scene, queried);
+                }
+            }
+
+            ImGui::End();
+        });
 
     shared_ptr<ui_system> mango_uis = mango_context->get_ui_system().lock();
     MANGO_ASSERT(mango_uis, "UI System is expired!");
@@ -72,24 +77,13 @@ bool editor::create()
 
     mango_context->make_scene_current(application_scene);
 
-    // test load water bottle and environment
-    try_open_path(application_scene, "res/models/shaderball/shaderball.glb");
-    try_open_path(application_scene, "res/textures/venice_sunset_4k.hdr");
+    // test load
+    // try_open_path(application_scene, "res/models/shaderball/shaderball.glb");
+    // try_open_path(application_scene, "res/textures/venice_sunset_4k.hdr");
 
     shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
     MANGO_ASSERT(mango_is, "Input System is expired!");
     // At the moment it is required to configure the window before setting any input related stuff.
-    // scene and environment drag'n'drop
-    mango_is->set_drag_and_drop_callback([this](int count, const char** paths) {
-        shared_ptr<context> mango_context = get_context().lock();
-        MANGO_ASSERT(mango_context, "Context is expired!");
-        auto application_scene = mango_context->get_current_scene();
-        for (int32 i = 0; i < count; i++)
-        {
-            string path = string(paths[i]);
-            try_open_path(application_scene, path);
-        }
-    });
 
     // temporary editor camera controls
     m_camera_rotation     = glm::vec2(0.0f, glm::radians(90.0f));

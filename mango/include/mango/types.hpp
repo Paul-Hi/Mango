@@ -160,6 +160,18 @@ namespace mango
         {
             return glm::value_ptr(values);
         }
+        inline float& r()
+        {
+            return values.r;
+        }
+        inline float& g()
+        {
+            return values.g;
+        }
+        inline float& b()
+        {
+            return values.b;
+        }
         color_rgb& operator=(const color_rgb& other)
         {
             MANGO_ASSERT(other.values.x >= 0.0f && other.values.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
@@ -200,6 +212,22 @@ namespace mango
         operator float*()
         {
             return glm::value_ptr(values);
+        }
+        inline float& r()
+        {
+            return values.r;
+        }
+        inline float& g()
+        {
+            return values.g;
+        }
+        inline float& b()
+        {
+            return values.b;
+        }
+        inline float& a()
+        {
+            return values.a;
         }
         color_rgba& operator=(const color_rgba& other)
         {

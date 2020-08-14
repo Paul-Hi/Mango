@@ -77,10 +77,10 @@ namespace mango
 
     namespace
     {
-        void get_formats_and_types_for_image(int32 components, int32 bits, format& f, format& internal, format& type)
+        void get_formats_and_types_for_image(bool srgb, int32 components, int32 bits, format& f, format& internal, format& type)
         {
             f        = format::RGBA;
-            internal = format::SRGB8_ALPHA8;
+            internal = srgb ? format::SRGB8_ALPHA8 : format::RGBA8;
 
             if (components == 1)
             {
@@ -93,7 +93,7 @@ namespace mango
             else if (components == 3)
             {
                 f        = format::RGB;
-                internal = format::SRGB8;
+                internal = srgb ? format::SRGB8 : format::RGB8;
             }
 
             type = format::UNSIGNED_BYTE;
@@ -133,6 +133,37 @@ namespace mango
             }
         }
 
+        texture_ptr load_texture(texture_configuration& config, const shared_ptr<resource_system>& rs)
+        {
+            char const* filter[4] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
+
+            char* query_path = tinyfd_openFileDialog("", "res/", 4, filter, NULL, 0);
+            if (query_path)
+            {
+                string queried = string(query_path);
+
+                mango::image_configuration img_config;
+                img_config.is_hdr                  = false;
+                img_config.is_standard_color_space = config.m_is_standard_color_space;
+                auto start                         = queried.find_last_of("\\/") + 1;
+                img_config.name                    = queried.substr(start, queried.find_last_of(".") - start);
+                auto img                           = rs->get_image(queried, img_config);
+
+                config.m_generate_mipmaps = calculate_mip_count(img->width, img->height);
+                texture_ptr text          = texture::create(config);
+
+                format f;
+                format internal;
+                format type;
+
+                get_formats_and_types_for_image(config.m_is_standard_color_space, img->number_components, img->bits, f, internal, type);
+
+                text->set_data(internal, img->width, img->height, f, type, img->data);
+                return text;
+            }
+            return nullptr;
+        }
+
         void draw_material(const shared_ptr<material>& material, const shared_ptr<resource_system>& rs, entity e)
         {
             if (material)
@@ -152,63 +183,49 @@ namespace mango
 
                 if (ImGui::TreeNode(("Base Color##" + std::to_string(e)).c_str()))
                 {
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
+                    canvas_p0 = ImGui::GetCursorScreenPos();
+                    draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
                     if (material->base_color_texture)
-                    {
-                        ImGui::Checkbox("Use Texture##base_color", &material->use_base_color_texture);
-                        ImGui::SameLine();
-                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                        canvas_p0 = ImGui::GetCursorScreenPos();
-                        draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(50, 50, 50, 255), 2.0f);
                         ImGui::Image(reinterpret_cast<void*>(material->base_color_texture->get_name()), ImVec2(64, 64));
-                        ImGui::PopStyleVar();
-                    }
                     else
-                    {
-                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                        canvas_p0 = ImGui::GetCursorScreenPos();
-                        draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(50, 50, 50, 255), 2.0f);
-                        ImGui::PopStyleVar();
-
                         ImGui::Dummy(ImVec2(64, 64));
-                    }
                     if (ImGui::IsItemHovered())
                     {
-                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(255, 255, 255, 255), 2.0f);
+                        if (material->base_color_texture)
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
+                            ImGui::BeginTooltip();
+                            ImGui::Image(reinterpret_cast<void*>(material->base_color_texture->get_name()), ImVec2(256, 256));
+                            ImGui::EndTooltip();
+                            ImGui::PopStyleColor();
+                        }
+                        else
+                            ImGui::SetTooltip("Load Texture");
+                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(200, 200, 200, 255), 2.0f);
                     }
+                    ImGui::PopStyleVar();
                     if (ImGui::IsItemClicked())
                     {
-                        char const* filter[4] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
-
-                        char* query_path = tinyfd_openFileDialog("", "res/", 4, filter, NULL, 0);
-                        if (query_path)
-                        {
-                            string queried = string(query_path);
-
-                            mango::image_configuration img_config;
-                            img_config.is_hdr                  = false;
-                            img_config.is_standard_color_space = true;
-                            auto start                         = queried.find_last_of("\\/") + 1;
-                            img_config.name                    = queried.substr(start, queried.find_last_of(".") - start);
-                            auto img                           = rs->get_image(queried, img_config);
-
-                            config.m_generate_mipmaps        = calculate_mip_count(img->width, img->height);
-                            config.m_is_standard_color_space = true;
-                            texture_ptr base_color           = texture::create(config);
-
-                            format f;
-                            format internal;
-                            format type;
-
-                            get_formats_and_types_for_image(img->number_components, img->bits, f, internal, type);
-
-                            base_color->set_data(internal, img->width, img->height, f, type, img->data);
-                            material->base_color_texture = base_color;
-                        }
+                        config.m_is_standard_color_space = true;
+                        material->base_color_texture     = load_texture(config, rs);
+                        material->use_base_color_texture = (material->base_color_texture != nullptr);
+                    }
+                    ImGui::SameLine();
+                    bool tmp = material->use_base_color_texture;
+                    ImGui::Checkbox("Use Texture##base_color", &material->use_base_color_texture);
+                    if (!tmp && material->use_base_color_texture && !material->base_color_texture)
+                    {
+                        config.m_is_standard_color_space = true;
+                        material->base_color_texture     = load_texture(config, rs);
+                        material->use_base_color_texture = (material->base_color_texture != nullptr);
                     }
                     if (!material->use_base_color_texture)
                     {
-                        ImGui::SliderFloat4("Base Color", material->base_color, 0.0f, 1.0f);
+                        ImGui::SameLine();
+                        ImGui::ColorEdit4("Color", material->base_color, ImGuiColorEditFlags_NoInputs);
                     }
+                    ImGui::Separator();
                     ImGui::TreePop();
                 }
 
@@ -216,67 +233,55 @@ namespace mango
 
                 if (ImGui::TreeNode(("Roughness and Metallic##" + std::to_string(e)).c_str()))
                 {
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
+                    canvas_p0 = ImGui::GetCursorScreenPos();
+                    draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
                     if (material->roughness_metallic_texture)
+                        ImGui::Image(reinterpret_cast<void*>(material->roughness_metallic_texture->get_name()), ImVec2(64, 64));
+                    else
+                        ImGui::Dummy(ImVec2(64, 64));
+                    if (ImGui::IsItemHovered())
                     {
-                        ImGui::Checkbox("Use Texture##roughness_metallic", &material->use_roughness_metallic_texture);
+                        if (material->roughness_metallic_texture)
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
+                            ImGui::BeginTooltip();
+                            ImGui::Image(reinterpret_cast<void*>(material->roughness_metallic_texture->get_name()), ImVec2(256, 256));
+                            ImGui::EndTooltip();
+                            ImGui::PopStyleColor();
+                        }
+                        else
+                            ImGui::SetTooltip("Load Texture");
+                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(200, 200, 200, 255), 2.0f);
+                    }
+                    ImGui::PopStyleVar();
+                    if (ImGui::IsItemClicked())
+                    {
+                        config.m_is_standard_color_space         = false;
+                        material->roughness_metallic_texture     = load_texture(config, rs);
+                        material->use_roughness_metallic_texture = (material->roughness_metallic_texture != nullptr);
+                    }
+                    ImGui::SameLine();
+                    bool tmp = material->use_roughness_metallic_texture;
+                    ImGui::Checkbox("Use Texture##roughness_metallic", &material->use_roughness_metallic_texture);
+                    if (!tmp && material->use_roughness_metallic_texture && !material->roughness_metallic_texture)
+                    {
+                        config.m_is_standard_color_space         = false;
+                        material->roughness_metallic_texture     = load_texture(config, rs);
+                        material->use_roughness_metallic_texture = (material->roughness_metallic_texture != nullptr);
+                    }
+                    if (material->roughness_metallic_texture && material->use_roughness_metallic_texture)
+                    {
                         ImGui::Checkbox("Has packed ambient occlusion", &material->packed_occlusion);
                         if (material->packed_occlusion)
                             ImGui::Checkbox("Use packed ambient occlusion", &material->use_packed_occlusion);
-                        ImGui::SameLine();
-                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                        canvas_p0 = ImGui::GetCursorScreenPos();
-                        draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(50, 50, 50, 255), 2.0f);
-                        ImGui::Image(reinterpret_cast<void*>(material->roughness_metallic_texture->get_name()), ImVec2(64, 64));
-                        ImGui::PopStyleVar();
-                    }
-                    else
-                    {
-                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                        canvas_p0 = ImGui::GetCursorScreenPos();
-                        draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(50, 50, 50, 255), 2.0f);
-                        ImGui::PopStyleVar();
-
-                        ImGui::Dummy(ImVec2(64, 64));
-                    }
-                    if (ImGui::IsItemHovered())
-                    {
-                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(255, 255, 255, 255), 2.0f);
-                    }
-                    if (ImGui::IsItemClicked())
-                    {
-                        char const* filter[4] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
-
-                        char* query_path = tinyfd_openFileDialog("", "res/", 4, filter, NULL, 0);
-                        if (query_path)
-                        {
-                            string queried = string(query_path);
-
-                            mango::image_configuration img_config;
-                            img_config.is_hdr                  = false;
-                            img_config.is_standard_color_space = false;
-                            auto start                         = queried.find_last_of("\\/") + 1;
-                            img_config.name                    = queried.substr(start, queried.find_last_of(".") - start);
-                            auto img                           = rs->get_image(queried, img_config);
-
-                            config.m_generate_mipmaps        = calculate_mip_count(img->width, img->height);
-                            config.m_is_standard_color_space = false;
-                            texture_ptr roughness_metallic   = texture::create(config);
-
-                            format f;
-                            format internal;
-                            format type;
-
-                            get_formats_and_types_for_image(img->number_components, img->bits, f, internal, type);
-
-                            roughness_metallic->set_data(internal, img->width, img->height, f, type, img->data);
-                            material->roughness_metallic_texture = roughness_metallic;
-                        }
                     }
                     if (!material->use_roughness_metallic_texture)
                     {
                         ImGui::SliderFloat("Roughness", material->roughness.type_data(), 0.0f, 1.0f);
                         ImGui::SliderFloat("Metallic", material->metallic.type_data(), 0.0f, 1.0f);
                     }
+                    ImGui::Separator();
                     ImGui::TreePop();
                 }
 
@@ -284,59 +289,44 @@ namespace mango
 
                 if (ImGui::TreeNode(("Normal Map##" + std::to_string(e)).c_str()))
                 {
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
+                    canvas_p0 = ImGui::GetCursorScreenPos();
+                    draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
                     if (material->normal_texture)
-                    {
-                        ImGui::Checkbox("Use Texture##normal", &material->use_normal_texture);
-                        ImGui::SameLine();
-                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                        canvas_p0 = ImGui::GetCursorScreenPos();
-                        draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(50, 50, 50, 255), 2.0f);
                         ImGui::Image(reinterpret_cast<void*>(material->normal_texture->get_name()), ImVec2(64, 64));
-                        ImGui::PopStyleVar();
-                    }
                     else
-                    {
-                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                        canvas_p0 = ImGui::GetCursorScreenPos();
-                        draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(50, 50, 50, 255), 2.0f);
-                        ImGui::PopStyleVar();
-
                         ImGui::Dummy(ImVec2(64, 64));
-                    }
                     if (ImGui::IsItemHovered())
                     {
-                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(255, 255, 255, 255), 2.0f);
+                        if (material->normal_texture)
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
+                            ImGui::BeginTooltip();
+                            ImGui::Image(reinterpret_cast<void*>(material->normal_texture->get_name()), ImVec2(256, 256));
+                            ImGui::EndTooltip();
+                            ImGui::PopStyleColor();
+                        }
+                        else
+                            ImGui::SetTooltip("Load Texture");
+                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(200, 200, 200, 255), 2.0f);
                     }
+                    ImGui::PopStyleVar();
                     if (ImGui::IsItemClicked())
                     {
-                        char const* filter[4] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
-
-                        char* query_path = tinyfd_openFileDialog("", "res/", 4, filter, NULL, 0);
-                        if (query_path)
-                        {
-                            string queried = string(query_path);
-
-                            mango::image_configuration img_config;
-                            img_config.is_hdr                  = false;
-                            img_config.is_standard_color_space = false;
-                            auto start                         = queried.find_last_of("\\/") + 1;
-                            img_config.name                    = queried.substr(start, queried.find_last_of(".") - start);
-                            auto img                           = rs->get_image(queried, img_config);
-
-                            config.m_generate_mipmaps        = calculate_mip_count(img->width, img->height);
-                            config.m_is_standard_color_space = false;
-                            texture_ptr normal               = texture::create(config);
-
-                            format f;
-                            format internal;
-                            format type;
-
-                            get_formats_and_types_for_image(img->number_components, img->bits, f, internal, type);
-
-                            normal->set_data(internal, img->width, img->height, f, type, img->data);
-                            material->normal_texture = normal;
-                        }
+                        config.m_is_standard_color_space = false;
+                        material->normal_texture         = load_texture(config, rs);
+                        material->use_normal_texture     = (material->normal_texture != nullptr);
                     }
+                    ImGui::SameLine();
+                    bool tmp = material->use_normal_texture;
+                    ImGui::Checkbox("Use Texture##normal", &material->use_normal_texture);
+                    if (!tmp && material->use_normal_texture && !material->normal_texture)
+                    {
+                        config.m_is_standard_color_space = false;
+                        material->normal_texture         = load_texture(config, rs);
+                        material->use_normal_texture     = (material->normal_texture != nullptr);
+                    }
+                    ImGui::Separator();
                     ImGui::TreePop();
                 }
 
@@ -344,59 +334,44 @@ namespace mango
 
                 if (ImGui::TreeNode(("Occlusion Map##" + std::to_string(e)).c_str()))
                 {
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
+                    canvas_p0 = ImGui::GetCursorScreenPos();
+                    draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
                     if (material->occlusion_texture)
-                    {
-                        ImGui::Checkbox("Use Texture##occlusion", &material->use_occlusion_texture);
-                        ImGui::SameLine();
-                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                        canvas_p0 = ImGui::GetCursorScreenPos();
-                        draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(50, 50, 50, 255), 2.0f);
                         ImGui::Image(reinterpret_cast<void*>(material->occlusion_texture->get_name()), ImVec2(64, 64));
-                        ImGui::PopStyleVar();
-                    }
                     else
-                    {
-                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                        canvas_p0 = ImGui::GetCursorScreenPos();
-                        draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(50, 50, 50, 255), 2.0f);
-                        ImGui::PopStyleVar();
-
                         ImGui::Dummy(ImVec2(64, 64));
-                    }
                     if (ImGui::IsItemHovered())
                     {
-                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(255, 255, 255, 255), 2.0f);
+                        if (material->occlusion_texture)
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
+                            ImGui::BeginTooltip();
+                            ImGui::Image(reinterpret_cast<void*>(material->occlusion_texture->get_name()), ImVec2(256, 256));
+                            ImGui::EndTooltip();
+                            ImGui::PopStyleColor();
+                        }
+                        else
+                            ImGui::SetTooltip("Load Texture");
+                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(200, 200, 200, 255), 2.0f);
                     }
+                    ImGui::PopStyleVar();
                     if (ImGui::IsItemClicked())
                     {
-                        char const* filter[4] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
-
-                        char* query_path = tinyfd_openFileDialog("", "res/", 4, filter, NULL, 0);
-                        if (query_path)
-                        {
-                            string queried = string(query_path);
-
-                            mango::image_configuration img_config;
-                            img_config.is_hdr                  = false;
-                            img_config.is_standard_color_space = false;
-                            auto start                         = queried.find_last_of("\\/") + 1;
-                            img_config.name                    = queried.substr(start, queried.find_last_of(".") - start);
-                            auto img                           = rs->get_image(queried, img_config);
-
-                            config.m_generate_mipmaps        = calculate_mip_count(img->width, img->height);
-                            config.m_is_standard_color_space = false;
-                            texture_ptr occlusion            = texture::create(config);
-
-                            format f;
-                            format internal;
-                            format type;
-
-                            get_formats_and_types_for_image(img->number_components, img->bits, f, internal, type);
-
-                            occlusion->set_data(internal, img->width, img->height, f, type, img->data);
-                            material->occlusion_texture = occlusion;
-                        }
+                        config.m_is_standard_color_space = false;
+                        material->occlusion_texture      = load_texture(config, rs);
+                        material->use_occlusion_texture  = (material->occlusion_texture != nullptr);
                     }
+                    ImGui::SameLine();
+                    bool tmp = material->use_occlusion_texture;
+                    ImGui::Checkbox("Use Texture##occlusion", &material->use_occlusion_texture);
+                    if (!tmp && material->use_occlusion_texture && !material->occlusion_texture)
+                    {
+                        config.m_is_standard_color_space = false;
+                        material->occlusion_texture      = load_texture(config, rs);
+                        material->use_occlusion_texture  = (material->occlusion_texture != nullptr);
+                    }
+                    ImGui::Separator();
                     ImGui::TreePop();
                 }
 
@@ -404,63 +379,49 @@ namespace mango
 
                 if (ImGui::TreeNode(("Emissive##" + std::to_string(e)).c_str()))
                 {
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
+                    canvas_p0 = ImGui::GetCursorScreenPos();
+                    draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
                     if (material->emissive_color_texture)
-                    {
-                        ImGui::Checkbox("Use Texture##emissive", &material->use_emissive_color_texture);
-                        ImGui::SameLine();
-                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                        canvas_p0 = ImGui::GetCursorScreenPos();
-                        draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(50, 50, 50, 255), 2.0f);
                         ImGui::Image(reinterpret_cast<void*>(material->emissive_color_texture->get_name()), ImVec2(64, 64));
-                        ImGui::PopStyleVar();
-                    }
                     else
-                    {
-                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                        canvas_p0 = ImGui::GetCursorScreenPos();
-                        draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(50, 50, 50, 255), 2.0f);
-                        ImGui::PopStyleVar();
-
                         ImGui::Dummy(ImVec2(64, 64));
-                    }
                     if (ImGui::IsItemHovered())
                     {
-                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(255, 255, 255, 255), 2.0f);
+                        if (material->emissive_color_texture)
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
+                            ImGui::BeginTooltip();
+                            ImGui::Image(reinterpret_cast<void*>(material->emissive_color_texture->get_name()), ImVec2(256, 256));
+                            ImGui::EndTooltip();
+                            ImGui::PopStyleColor();
+                        }
+                        else
+                            ImGui::SetTooltip("Load Texture");
+                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(200, 200, 200, 255), 2.0f);
                     }
+                    ImGui::PopStyleVar();
                     if (ImGui::IsItemClicked())
                     {
-                        char const* filter[4] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
-
-                        char* query_path = tinyfd_openFileDialog("", "res/", 4, filter, NULL, 0);
-                        if (query_path)
-                        {
-                            string queried = string(query_path);
-
-                            mango::image_configuration img_config;
-                            img_config.is_hdr                  = false;
-                            img_config.is_standard_color_space = true;
-                            auto start                         = queried.find_last_of("\\/") + 1;
-                            img_config.name                    = queried.substr(start, queried.find_last_of(".") - start);
-                            auto img                           = rs->get_image(queried, img_config);
-
-                            config.m_generate_mipmaps        = calculate_mip_count(img->width, img->height);
-                            config.m_is_standard_color_space = true;
-                            texture_ptr emissive             = texture::create(config);
-
-                            format f;
-                            format internal;
-                            format type;
-
-                            get_formats_and_types_for_image(img->number_components, img->bits, f, internal, type);
-
-                            emissive->set_data(internal, img->width, img->height, f, type, img->data);
-                            material->emissive_color_texture = emissive;
-                        }
+                        config.m_is_standard_color_space     = true;
+                        material->emissive_color_texture     = load_texture(config, rs);
+                        material->use_emissive_color_texture = (material->emissive_color_texture != nullptr);
+                    }
+                    ImGui::SameLine();
+                    bool tmp = material->use_emissive_color_texture;
+                    ImGui::Checkbox("Use Texture##emissive_color", &material->use_emissive_color_texture);
+                    if (!tmp && material->use_emissive_color_texture && !material->emissive_color_texture)
+                    {
+                        config.m_is_standard_color_space     = true;
+                        material->emissive_color_texture     = load_texture(config, rs);
+                        material->use_emissive_color_texture = (material->emissive_color_texture != nullptr);
                     }
                     if (!material->use_emissive_color_texture)
                     {
-                        ImGui::SliderFloat3("Emissive Color", material->emissive_color, 0.0f, 1.0f);
+                        ImGui::SameLine();
+                        ImGui::ColorEdit3("Color", material->emissive_color, ImGuiColorEditFlags_NoInputs);
                     }
+                    ImGui::Separator();
                     ImGui::TreePop();
                 }
             }
@@ -491,11 +452,11 @@ namespace mango
                 for (int32 n = 0; n < mesh->materials.size(); ++n)
                 {
                     bool is_selected = (current_material.material_name == mesh->materials[n].material_name);
-                    auto name = !mesh->materials[n].material_name.empty() ? mesh->materials[n].material_name : "Unnamed Material " + std::to_string(n);
+                    auto name        = !mesh->materials[n].material_name.empty() ? mesh->materials[n].material_name : "Unnamed Material " + std::to_string(n);
                     if (ImGui::Selectable(name.c_str(), is_selected))
                     {
                         current_material = mesh->materials[n];
-                        current_id = n;
+                        current_id       = n;
                     }
                     if (is_selected)
                         ImGui::SetItemDefaultFocus();

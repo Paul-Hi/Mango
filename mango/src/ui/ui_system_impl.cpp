@@ -163,11 +163,13 @@ void ui_system_impl::update(float dt)
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), d_flags);
     }
 
-    auto custom                       = m_configuration.get_custom_ui_data();
-    static bool custom_enabled        = true;
-    const bool* widgets               = m_configuration.get_ui_widgets();
-    static bool render_view_enabled   = true;
-    static bool hardware_info_enabled = true;
+    auto custom                            = m_configuration.get_custom_ui_data();
+    static bool custom_enabled             = true;
+    const bool* widgets                    = m_configuration.get_ui_widgets();
+    static bool render_view_enabled        = true;
+    static bool hardware_info_enabled      = true;
+    static bool scene_inspector_enabled    = true;
+    static bool material_inspector_enabled = true;
 
     // menu bar
     if (ImGui::BeginMenuBar())
@@ -182,8 +184,12 @@ void ui_system_impl::update(float dt)
         {
             if (widgets[ui_widget::render_view] && ImGui::MenuItem("Render View"))
                 render_view_enabled = true;
-            if (widgets[ui_widget::render_view] && ImGui::MenuItem("Hardware Info"))
+            if (widgets[ui_widget::hardware_info] && ImGui::MenuItem("Hardware Info"))
                 hardware_info_enabled = true;
+            if (widgets[ui_widget::scene_inspector] && ImGui::MenuItem("Scene Inspector"))
+                scene_inspector_enabled = true;
+            if (widgets[ui_widget::material_inspector] && ImGui::MenuItem("Material Inspector"))
+                material_inspector_enabled = true;
             if (custom.function && !custom.always_open && ImGui::MenuItem(custom.window_name.c_str()))
                 custom_enabled = true;
             ImGui::EndMenu();
@@ -205,19 +211,28 @@ void ui_system_impl::update(float dt)
     if (custom.function && custom_enabled)
         custom.function(custom_enabled);
 
-    // Test
-    static bool enabled    = true;
-    auto application_scene = m_shared_context->get_current_scene();
+    // Inspectors
+
+    // Scene Inspector
     static entity selected = invalid_entity;
-    entity tmp = selected;
-    scene_inspector_widget(application_scene, enabled, selected);
-    if (selected != invalid_entity)
+    entity tmp             = selected;
+    auto application_scene = m_shared_context->get_current_scene();
+    if (widgets[ui_widget::scene_inspector] && scene_inspector_enabled)
     {
-        auto comp = application_scene->query_mesh_component(selected);
-        material_inspector_widget(comp, enabled, tmp != selected, selected, m_shared_context->get_resource_system_internal().lock());
+        scene_inspector_widget(application_scene, scene_inspector_enabled, selected);
     }
-    else
-        material_inspector_widget(nullptr, enabled, tmp != selected, selected, m_shared_context->get_resource_system_internal().lock());
+
+    // Material Inspector
+    if (widgets[ui_widget::material_inspector] && material_inspector_enabled)
+    {
+        if (selected != invalid_entity)
+        {
+            auto comp = application_scene->query_mesh_component(selected);
+            material_inspector_widget(comp, material_inspector_enabled, tmp != selected, selected, m_shared_context->get_resource_system_internal().lock());
+        }
+        else
+            material_inspector_widget(nullptr, material_inspector_enabled, tmp != selected, selected, m_shared_context->get_resource_system_internal().lock());
+    }
 
     ImGui::End(); // dock space end
 }
