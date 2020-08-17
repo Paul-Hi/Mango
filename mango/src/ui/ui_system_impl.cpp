@@ -163,13 +163,14 @@ void ui_system_impl::update(float dt)
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), d_flags);
     }
 
-    auto custom                            = m_configuration.get_custom_ui_data();
-    static bool custom_enabled             = true;
-    const bool* widgets                    = m_configuration.get_ui_widgets();
-    static bool render_view_enabled        = true;
-    static bool hardware_info_enabled      = true;
-    static bool scene_inspector_enabled    = true;
-    static bool material_inspector_enabled = true;
+    auto custom                                    = m_configuration.get_custom_ui_data();
+    static bool custom_enabled                     = true;
+    const bool* widgets                            = m_configuration.get_ui_widgets();
+    static bool render_view_enabled                = true;
+    static bool hardware_info_enabled              = true;
+    static bool scene_inspector_enabled            = true;
+    static bool material_inspector_enabled         = true;
+    static bool entity_component_inspector_enabled = true;
 
     // menu bar
     if (ImGui::BeginMenuBar())
@@ -190,6 +191,8 @@ void ui_system_impl::update(float dt)
                 scene_inspector_enabled = true;
             if (widgets[ui_widget::material_inspector] && ImGui::MenuItem("Material Inspector"))
                 material_inspector_enabled = true;
+            if (widgets[ui_widget::entity_component_inspector] && ImGui::MenuItem("Entity Component Inspector"))
+                entity_component_inspector_enabled = true;
             if (custom.function && !custom.always_open && ImGui::MenuItem(custom.window_name.c_str()))
                 custom_enabled = true;
             ImGui::EndMenu();
@@ -199,8 +202,9 @@ void ui_system_impl::update(float dt)
     }
 
     // Render View
+    ImVec2 viewport_size = ImVec2(1080, 720);
     if (widgets[ui_widget::render_view] && render_view_enabled)
-        render_view_widget(m_shared_context, render_view_enabled);
+        viewport_size = render_view_widget(m_shared_context, render_view_enabled);
 
     // Hardware Info
     if (widgets[ui_widget::hardware_info] && hardware_info_enabled)
@@ -222,17 +226,23 @@ void ui_system_impl::update(float dt)
         scene_inspector_widget(application_scene, scene_inspector_enabled, selected);
     }
 
+    auto rs = m_shared_context->get_resource_system_internal().lock();
+    MANGO_ASSERT(rs, "Resource system is expired!");
     // Material Inspector
     if (widgets[ui_widget::material_inspector] && material_inspector_enabled)
     {
         if (selected != invalid_entity)
         {
             auto comp = application_scene->query_mesh_component(selected);
-            material_inspector_widget(comp, material_inspector_enabled, tmp != selected, selected, m_shared_context->get_resource_system_internal().lock());
+            material_inspector_widget(comp, material_inspector_enabled, tmp != selected, selected, rs);
         }
         else
-            material_inspector_widget(nullptr, material_inspector_enabled, tmp != selected, selected, m_shared_context->get_resource_system_internal().lock());
+            material_inspector_widget(nullptr, material_inspector_enabled, tmp != selected, selected, rs);
     }
+
+    // Test
+    if (widgets[ui_widget::entity_component_inspector] && entity_component_inspector_enabled)
+        entity_component_inspector_widget(application_scene, entity_component_inspector_enabled, selected, rs, viewport_size);
 
     ImGui::End(); // dock space end
 }

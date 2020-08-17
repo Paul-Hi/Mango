@@ -34,7 +34,7 @@ namespace mango
         void set_model_info(const glm::mat4& model_matrix, bool has_normals, bool has_tangents) override;
         void draw_mesh(const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
         void set_view_projection_matrix(const glm::mat4& view_projection) override;
-        void set_environment_texture(const texture_ptr& hdr_texture, float render_level) override;
+        void set_environment_texture(const texture_ptr& hdr_texture, float render_levelnew_texture, bool new_texture) override;
 
         framebuffer_ptr get_backbuffer() override
         {

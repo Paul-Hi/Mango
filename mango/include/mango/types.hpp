@@ -108,6 +108,11 @@ namespace mango
         UINT   = 0x1405
     };
 
+#define PI 3.1415926535897932384626433832795f
+#define GLOBAL_UP glm::vec3(0.0f, 1.0f, 0.0f)
+#define GLOBAL_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
+#define GLOBAL_FORWARD glm::vec3(0.0f, 0.0f, -1.0f)
+
     struct normalized_float
     {
         normalized_float(float v = 0.0f)

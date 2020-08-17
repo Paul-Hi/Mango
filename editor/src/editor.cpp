@@ -24,7 +24,7 @@ bool editor::create()
     mango_ws->configure(window_config);
 
     render_configuration render_config;
-    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(false).enable_render_step(mango::render_step::ibl);
+    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(true).enable_render_step(mango::render_step::ibl);
     shared_ptr<render_system> mango_rs = mango_context->get_render_system().lock();
     MANGO_ASSERT(mango_rs, "Render System is expired!");
     mango_rs->configure(render_config);
@@ -35,17 +35,18 @@ bool editor::create()
         .show_widget(mango::ui_widget::hardware_info)
         .show_widget(mango::ui_widget::scene_inspector)
         .show_widget(mango::ui_widget::material_inspector)
-        .submit_custom("Editor File Load", [this](bool& enabled) {
-            ImGui::Begin("Editor File Load", &enabled);
-            ImGui::Text("Load a .gltf file or a .hdr environment.");
+        .show_widget(mango::ui_widget::entity_component_inspector)
+        .submit_custom("Editor", [this](bool& enabled) {
+            ImGui::Begin("Editor", &enabled);
+            shared_ptr<context> mango_context = get_context().lock();
+            MANGO_ASSERT(mango_context, "Context is expired!");
+            auto application_scene = mango_context->get_current_scene();
+            ImGui::Text("Load a GLTF Model.");
             if (ImGui::Button("Open"))
             {
-                char const* filter[3] = { "*.gltf", "*.glb", "*.hdr" };
+                char const* filter[2] = { "*.gltf", "*.glb" };
 
-                shared_ptr<context> mango_context = get_context().lock();
-                MANGO_ASSERT(mango_context, "Context is expired!");
-                auto application_scene = mango_context->get_current_scene();
-                char* query_path       = tinyfd_openFileDialog("", "res/", 3, filter, NULL, 1);
+                char* query_path = tinyfd_openFileDialog("", "res/", 2, filter, NULL, 1);
                 if (query_path)
                 {
                     string queried = string(query_path);
@@ -60,6 +61,11 @@ bool editor::create()
                     }
                     try_open_path(application_scene, queried);
                 }
+            }
+            if (m_main_camera == invalid_entity || !application_scene->is_entity_alive(m_main_camera))
+            {
+                if(ImGui::Button("Create Editor Camera"))
+                    m_main_camera = application_scene->create_default_camera();
             }
 
             ImGui::End();
@@ -79,7 +85,6 @@ bool editor::create()
 
     // test load
     // try_open_path(application_scene, "res/models/shaderball/shaderball.glb");
-    // try_open_path(application_scene, "res/textures/venice_sunset_4k.hdr");
 
     shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
     MANGO_ASSERT(mango_is, "Input System is expired!");
@@ -92,6 +97,9 @@ bool editor::create()
     mango_is->set_mouse_position_callback([this](float x_position, float y_position) {
         shared_ptr<context> mango_context = get_context().lock();
         MANGO_ASSERT(mango_context, "Context is expired!");
+        auto application_scene = mango_context->get_current_scene();
+        if (application_scene->get_active_camera_data().active_camera_entity != m_main_camera)
+            return;
 
         shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
         MANGO_ASSERT(mango_is, "Input System is expired!");
@@ -129,6 +137,11 @@ bool editor::create()
 
     m_camera_radius = 1.0f;
     mango_is->set_mouse_scroll_callback([this](float, float y_offset) {
+        shared_ptr<context> mango_context = get_context().lock();
+        MANGO_ASSERT(mango_context, "Context is expired!");
+        auto application_scene = mango_context->get_current_scene();
+        if (application_scene->get_active_camera_data().active_camera_entity != m_main_camera)
+            return;
         if (y_offset < 0)
         {
             m_camera_radius *= 1.04f;
@@ -151,8 +164,10 @@ void editor::update(float dt)
 
     MANGO_ASSERT(mango_context, "Context is expired!");
     auto application_scene = mango_context->get_current_scene();
-    auto cam_transform     = application_scene->get_transform_component(m_main_camera);
-    auto cam_data          = application_scene->get_camera_component(m_main_camera);
+    if (!application_scene->is_entity_alive(m_main_camera))
+        return;
+    auto cam_transform = application_scene->get_transform_component(m_main_camera);
+    auto cam_data      = application_scene->get_camera_component(m_main_camera);
 
     if (glm::length(m_target_offset) > 0.0f)
     {
@@ -175,15 +190,9 @@ void editor::try_open_path(const shared_ptr<mango::scene>& application_scene, st
 {
     PROFILE_ZONE;
     auto ext = path.substr(path.find_last_of(".") + 1);
-    if (ext == "hdr")
+    if (ext == "glb" || ext == "gltf")
     {
-        application_scene->remove_entity(m_environment);
-        m_environment = application_scene->create_environment_from_hdr(path, 0.0f);
-    }
-    else if (ext == "glb" || ext == "gltf")
-    {
-        for (entity e : m_model)
-            application_scene->remove_entity(e);
+        application_scene->remove_entity(m_model);
 
         m_model = application_scene->create_entities_from_model(path);
     }

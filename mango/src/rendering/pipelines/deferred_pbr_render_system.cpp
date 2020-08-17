@@ -504,13 +504,14 @@ void deferred_pbr_render_system::set_view_projection_matrix(const glm::mat4& vie
     m_command_buffer->bind_single_uniform(0, &const_cast<glm::mat4&>(view_projection), sizeof(glm::mat4));
 }
 
-void deferred_pbr_render_system::set_environment_texture(const texture_ptr& hdr_texture, float render_level)
+void deferred_pbr_render_system::set_environment_texture(const texture_ptr& hdr_texture, float render_level, bool new_texture)
 {
     PROFILE_ZONE;
     if (m_pipeline_steps[mango::render_step::ibl])
     {
         auto ibl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
-        ibl->load_from_hdr(hdr_texture);
+        if(new_texture)
+            ibl->load_from_hdr(hdr_texture);
         ibl->set_render_level(render_level);
     }
 }

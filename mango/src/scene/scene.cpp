@@ -6,6 +6,7 @@
 
 #include <core/context_impl.hpp>
 #include <glad/glad.h>
+#include <glm/gtx/quaternion.hpp>
 #include <graphics/buffer.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
@@ -35,12 +36,13 @@ scene::scene(const string& name)
 {
     PROFILE_ZONE;
     MANGO_UNUSED(name);
-    m_active_camera        = invalid_entity;
+    m_active.camera        = invalid_entity;
+    m_active.environment   = invalid_entity;
     m_scene_boundaries.max = glm::vec3(-3.402823e+38f);
     m_scene_boundaries.min = glm::vec3(3.402823e+38f);
 
     for (uint32 i = 1; i <= max_entities; ++i)
-        m_free_entities.push(i);
+        m_free_entities.push_back(i);
 
     m_root_entity          = create_empty();
     auto& tag_component    = m_tags.create_component_for(m_root_entity);
@@ -54,7 +56,7 @@ entity scene::create_empty()
     PROFILE_ZONE;
     MANGO_ASSERT(!m_free_entities.empty(), "Reached maximum number of entities!");
     entity new_entity = m_free_entities.front();
-    m_free_entities.pop();
+    m_free_entities.pop_front();
     MANGO_LOG_DEBUG("Created entity {0}, {1} left", new_entity, m_free_entities.size());
     return new_entity;
 }
@@ -62,14 +64,36 @@ entity scene::create_empty()
 void scene::remove_entity(entity e)
 {
     PROFILE_ZONE;
-    if (e == invalid_entity)
+    if (e == invalid_entity || !is_entity_alive(e))
         return;
+
+    auto children = get_children(e);
+    for (auto child : children)
+    {
+        remove_entity(child);
+    }
     delete_node(e);
     m_transformations.remove_component_from(e);
     m_meshes.remove_component_from(e);
+    bool del_active = get_active_camera_data().active_camera_entity == e;
     m_cameras.remove_component_from(e);
+    if (del_active)
+    {
+        if (m_cameras.size() > 0)
+            set_active_camera(m_cameras.entity_at(0));
+        else
+            set_active_camera(invalid_entity);
+    }
+    del_active = get_active_environment_data().active_environment_entity == e;
     m_environments.remove_component_from(e);
-    m_free_entities.push(e);
+    if (del_active)
+    {
+        if (m_environments.size() > 0)
+            set_active_environment(m_environments.entity_at(0));
+        else
+            set_active_environment(invalid_entity);
+    }
+    m_free_entities.push_back(e);
     MANGO_LOG_DEBUG("Removed entity {0}, {1} left", e, m_free_entities.size());
 }
 
@@ -84,38 +108,35 @@ entity scene::create_default_camera()
     tag_component.tag_name    = "Default Camera";
 
     // default parameters
-    camera_component.cam_type               = camera_type::perspective_camera;
-    camera_component.aspect                 = 16.0f / 9.0f;
-    camera_component.z_near                 = 0.015f;
-    camera_component.z_far                  = 15.0f;
-    camera_component.vertical_field_of_view = glm::radians(45.0f);
-    camera_component.up                     = glm::vec3(0.0f, 1.0f, 0.0f);
-    camera_component.target                 = glm::vec3(0.0f, 0.0f, 0.0f);
+    camera_component.cam_type                           = camera_type::perspective_camera;
+    camera_component.perspective.aspect                 = 16.0f / 9.0f;
+    camera_component.z_near                             = 0.015f;
+    camera_component.z_far                              = 15.0f;
+    camera_component.perspective.vertical_field_of_view = glm::radians(45.0f);
+    camera_component.up                                 = glm::vec3(0.0f, 1.0f, 0.0f);
+    camera_component.target                             = glm::vec3(0.0f, 0.0f, 0.0f);
 
     glm::vec3 position = glm::vec3(0.0f, 0.0f, 1.5f);
 
     transform_component.position = position;
 
-    camera_component.view            = glm::lookAt(position, camera_component.target, camera_component.up);
-    camera_component.projection      = glm::perspective(camera_component.vertical_field_of_view, camera_component.aspect, camera_component.z_near, camera_component.z_far);
-    camera_component.view_projection = camera_component.projection * camera_component.view;
+    // camera_component.view            = glm::lookAt(position, camera_component.target, camera_component.up);
+    // camera_component.projection      = glm::perspective(camera_component.vertical_field_of_view, camera_component.aspect, camera_component.z_near, camera_component.z_far);
+    // camera_component.view_projection = camera_component.projection * camera_component.view;
 
-    // Currently the only camera is the active one.
-    m_active_camera = camera_entity;
+    set_active_camera(camera_entity);
 
     return camera_entity;
 }
 
-std::vector<entity> scene::create_entities_from_model(const string& path)
+entity scene::create_entities_from_model(const string& path)
 {
     PROFILE_ZONE;
-    std::vector<entity> scene_entities;
     entity gltf_root = create_empty();
     attach(gltf_root, m_root_entity);
-    auto& transform = m_transformations.create_component_for(gltf_root);
-    scene_entities.push_back(gltf_root);
+    auto& transform                = m_transformations.create_component_for(gltf_root);
     shared_ptr<resource_system> rs = m_shared_context->get_resource_system_internal().lock();
-    MANGO_ASSERT(rs, "Resource System is invalid!");
+    MANGO_ASSERT(rs, "Resource System is expired!");
     auto start                                      = path.find_last_of("\\/") + 1;
     auto name                                       = path.substr(start, path.find_last_of(".") - start);
     m_tags.create_component_for(gltf_root).tag_name = path.substr(start);
@@ -160,7 +181,7 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
     const tinygltf::Scene& scene = m.scenes[scene_id];
     for (int32 i = 0; i < static_cast<int32>(scene.nodes.size()); ++i)
     {
-        entity node = build_model_node(scene_entities, m, m.nodes.at(scene.nodes.at(i)), glm::mat4(1.0), index_to_buffer_data);
+        entity node = build_model_node(m, m.nodes.at(scene.nodes.at(i)), glm::mat4(1.0), index_to_buffer_data);
 
         attach(node, gltf_root);
     }
@@ -169,20 +190,20 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
     const glm::vec3 scale = glm::vec3(1.0f / (glm::compMax(m_scene_boundaries.max) - glm::compMin(m_scene_boundaries.min)));
     transform.scale       = scale;
 
-    if (m_active_camera == invalid_entity)
+    if (m_active.camera == invalid_entity)
     {
         // We have at least one default camera in each scene and at the moment the first camera is the active one everytime.
         create_default_camera();
     }
 
-    m_cameras.get_component_for_entity(m_active_camera)->target = (m_scene_boundaries.max + m_scene_boundaries.min) * 0.5f * scale;
+    m_cameras.get_component_for_entity(m_active.camera)->target = (m_scene_boundaries.max + m_scene_boundaries.min) * 0.5f * scale;
 
     m_scene_boundaries.max =
         glm::max(m_scene_boundaries.max, max_backup); // TODO Paul: This is just in case all other assets are still here, we need to do the calculation with all still existing entities.
     m_scene_boundaries.min =
         glm::min(m_scene_boundaries.min, min_backup); // TODO Paul: This is just in case all other assets are still here, we need to do the calculation with all still existing entities.
 
-    return scene_entities;
+    return gltf_root;
 }
 
 entity scene::create_environment_from_hdr(const string& path, float rendered_mip_level)
@@ -232,11 +253,40 @@ entity scene::create_environment_from_hdr(const string& path, float rendered_mip
 
     environment.hdr_texture = hdr_texture;
 
-    shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
-    MANGO_ASSERT(rs, "Render System is expired!");
-    rs->set_environment_texture(environment.hdr_texture, rendered_mip_level); // TODO Paul: Transformation?
+    environment.render_level = rendered_mip_level;
+    set_active_environment(environment_entity); // TODO Paul: Transformation?
 
     return environment_entity;
+}
+
+void scene::set_active_environment(entity e)
+{
+    shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
+    MANGO_ASSERT(rs, "Render System is expired!");
+    if (e == invalid_entity)
+    {
+        m_active.environment = e;
+        rs->set_environment_texture(nullptr, -1.0f);
+        return;
+    }
+    auto next_comp = m_environments.get_component_for_entity(e);
+    if (!next_comp)
+        return;
+
+    m_active.environment = e;
+    rs->set_environment_texture(next_comp->hdr_texture, next_comp->render_level);
+}
+
+void scene::update_environment_parameters(entity e)
+{
+    shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
+    MANGO_ASSERT(rs, "Render System is expired!");
+    if (e == invalid_entity)
+        return;
+    auto comp = m_environments.get_component_for_entity(e);
+    if (!comp)
+        return;
+    rs->set_environment_texture(comp->hdr_texture, comp->render_level, false);
 }
 
 void scene::update(float dt)
@@ -466,7 +516,7 @@ void scene::delete_node(entity node)
         m_nodes.sort_remove_component_from(child_node->parent_entity); // Sorting necessary?
 }
 
-entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world, const std::map<int, buffer_ptr>& buffer_map)
+entity scene::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world, const std::map<int, buffer_ptr>& buffer_map)
 {
     PROFILE_ZONE;
     entity node                                = create_empty();
@@ -475,11 +525,9 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
     if (n.matrix.size() == 16)
     {
         glm::mat4 input = glm::make_mat4(n.matrix.data());
-        glm::quat orient;
         glm::vec3 s;
         glm::vec4 p;
-        glm::decompose(input, transform.scale, orient, transform.position, s, p); // TODO Paul: Use quaternions.
-        transform.rotation = glm::vec4(glm::angle(orient), glm::axis(orient));
+        glm::decompose(input, transform.scale, transform.rotation, transform.position, s, p);
     }
     else
     {
@@ -489,9 +537,7 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
         }
         if (n.rotation.size() == 4)
         {
-            glm::quat orient =
-                glm::quat(static_cast<float>(n.rotation[3]), static_cast<float>(n.rotation[0]), static_cast<float>(n.rotation[1]), static_cast<float>(n.rotation[2])); // TODO Paul: Use quaternions.
-            transform.rotation = glm::vec4(glm::angle(orient), glm::axis(orient));
+            transform.rotation = glm::quat(static_cast<float>(n.rotation[3]), static_cast<float>(n.rotation[0]), static_cast<float>(n.rotation[1]), static_cast<float>(n.rotation[2]));
         }
         if (n.scale.size() == 3)
         {
@@ -500,7 +546,7 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
     }
 
     glm::mat4 trafo = glm::translate(glm::mat4(1.0), transform.position);
-    trafo           = glm::rotate(trafo, transform.rotation.x, glm::vec3(transform.rotation.y, transform.rotation.z, transform.rotation.w));
+    trafo           = trafo * glm::toMat4(transform.rotation);
     trafo           = glm::scale(trafo, transform.scale);
 
     trafo = parent_world * trafo;
@@ -512,14 +558,18 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
         update_scene_boundaries(trafo, m, m.meshes.at(n.mesh), m_scene_boundaries.min, m_scene_boundaries.max);
     }
 
-    entities.push_back(node);
+    if (n.camera > -1)
+    {
+        MANGO_ASSERT(n.camera < static_cast<int32>(m.cameras.size()), "Invalid gltf camera!");
+        build_model_camera(node, m, m.cameras.at(n.camera));
+    }
 
     // build child nodes.
     for (int32 i = 0; i < static_cast<int32>(n.children.size()); ++i)
     {
         MANGO_ASSERT(n.children[i] < static_cast<int32>(m.nodes.size()), "Invalid gltf node!");
 
-        entity child = build_model_node(entities, m, m.nodes.at(n.children.at(i)), trafo, buffer_map);
+        entity child = build_model_node(m, m.nodes.at(n.children.at(i)), trafo, buffer_map);
         attach(child, node);
     }
 
@@ -632,6 +682,27 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
         }
 
         component_mesh.primitives.push_back(p);
+    }
+}
+
+void scene::build_model_camera(entity node, tinygltf::Model& m, tinygltf::Camera& camera)
+{
+    PROFILE_ZONE;
+    auto& component_camera    = m_cameras.create_component_for(node);
+    component_camera.cam_type = camera.type == "perspective" ? camera_type::perspective_camera : camera_type::orthographic_camera;
+    if (component_camera.cam_type == camera_type::perspective_camera)
+    {
+        component_camera.z_near                             = camera.perspective.znear;
+        component_camera.z_far                              = camera.perspective.zfar > 0.0f ? camera.perspective.zfar : 10000; // Infinite?
+        component_camera.perspective.vertical_field_of_view = camera.perspective.yfov;
+        component_camera.perspective.aspect                 = camera.perspective.aspectRatio > 0.0f ? camera.perspective.aspectRatio : 16.0f / 9.0f;
+    }
+    else // orthographic
+    {
+        component_camera.z_near             = camera.orthographic.znear;
+        component_camera.z_far              = camera.perspective.zfar > 0.0f ? camera.perspective.zfar : 10000; // Infinite?
+        component_camera.orthographic.x_mag = camera.orthographic.xmag;
+        component_camera.orthographic.y_mag = camera.orthographic.ymag;
     }
 }
 
