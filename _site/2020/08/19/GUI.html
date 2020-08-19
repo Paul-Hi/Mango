@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>GUI | Mango</title>
+    <meta name="description" content="Mango">
+    <meta name="author" content="Paul Himmler">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- jquery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <!-- bootstrap -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
+    <!-- font-awesome -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- mine -->
+    <link rel="stylesheet" type="text/css" href="/Mango/assets/style.css">
+    <link rel="shortcut icon" type="image/png" href="/Mango/assets/logo.svg">
+</head>
+
+<body>
+    <header role="banner" class="absolute-top navbar-mango">
+    <div class="container-fluid max-content-width">
+        <nav class="navbar navbar-expand-lg navbar-dark d-flex justify-content-start align-items-center">
+            <button class="navbar-toggler mr-3" type="button" data-toggle="collapse" data-target="#navbar"
+                aria-controls="navbar" aria-expanded="false">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <a class="navbar-brand" href="/Mango/">
+                <span class="d-inline-flex">Mango</span>
+            </a>
+
+            <div class="collapse navbar-collapse" id="navbar">
+                <ul class="navbar-nav mr-auto pl-3">
+                    
+                    <li class="nav-item">
+                        <a class="nav-link "
+                            href="/Mango/index.html">Home</a>
+
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link "
+                            href="/Mango/about.html">About</a>
+
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link "
+                            href="/Mango/blog.html">Blog</a>
+
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link "
+                            href="/Mango/contact.html">Contact</a>
+
+                    </li>
+                    
+                </ul>
+            </div>
+            <a class="mango-link ml-auto m-3" href="/Mango/">
+                <img src="/Mango/assets/logo.svg" width="64" height="64" class="d-inline-flex">
+            </a>
+        </nav>
+    </div>
+</header>
+
+    <div class="container-fluid max-content-width page-content">
+        <div class="d-flex flex-row flex-lg-nowrap flex-wrap-reverse">
+    <div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body">
+            <h1 class="card-title">Other Posts</h1>
+            <div class="card-text">
+                
+                
+                
+                
+                <h4 id="y2020">2020</h4>
+                
+                
+                <a class="mango-card-link d-flex p-2" href="/Mango/2020/08/19/GUI.html">
+                    <span class="pl-2"> GUI </span>
+                    <span class="post-date ml-auto pl-2"> Aug 19, 2020</span>
+                </a>
+                
+                
+                
+                <a class="mango-card-link d-flex p-2" href="/Mango/2020/06/09/From-0.html">
+                    <span class="pl-2"> From 0 to 0.5 </span>
+                    <span class="post-date ml-auto pl-2"> Jun 9, 2020</span>
+                </a>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex flex-column justify-content-between col">
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body post-card" style="background-image:url(/Mango/assets/GUI.png);">
+            <h1 class="card-title">GUI</h1>
+            <h2 class="card-text">Displaying the impossible</h2>
+            <span class="post-date"> Aug 19, 2020</span>
+        </div>
+    </div>
+    <div class="card mt-3 flex-grow-1">
+        <div class="card-body">
+            <div class="post-content card-text text-justify">
+                <p>Is there anyone who does not want a good graphical user interface?
+No? Me neither!</p>
+
+<p>But then why isn’t this easier?</p>
+
+<!--more-->
+
+<hr />
+
+<h2 id="imgui-for-the-win">ImGUI for the win</h2>
+
+<p>It was easy at first. Immediate graphical user interfaces are nice to look at, do not need some big clunky software behind them and are easy to integrate as well.
+For me, my goto ImGui library, which I use for my private projects is <a href="https://github.com/ocornut/imgui">Dear ImGui</a>. Why? I’m used to it by now, and it is one of the best in this category. Maybe I will try to write one myself some day, but until then this will be the one <strong>Mango</strong> uses.</p>
+
+<p>For the people who don’t know what an immediate graphical user interface is, I’d like to link to this <a href="https://www.youtube.com/watch?v=Z1qyvQsjK5Y">video</a> here. I think it describes the basics really well… and much better than I could do it.</p>
+
+<p>So in theory we are set, we’ve integrated the library and now?</p>
+
+<h2 id="the-long-road-to-the-property-slider">The long road to the property slider</h2>
+
+<p>Did I mention that ImGUIs typically are easy to use? So yes, it is true. You could just add a static floating point variable, put it in a function and … You have a slider and you can change the float to any value you want. Thats very simple and for a small, maybe ‘one-file-only’ renderer this would be fine. For <strong>Mango</strong> the first small issue I had was: How could I possibly access data in an user interface, without exposing all that data to everyone else, too? And how would I determine the type and the sufficient range of the value, while building the GUI? At first I thought if building some more complex (or at least in c++ it is not to straight forward) introspection system which generates type information for structures at compile time. In the end I choose to drop that, it became way too complex really fast and I realized, that it’s definitely not needed at the moment.</p>
+
+<p>For now I settled for something much simpler:
+We have an <em>ui_system</em> that initializes Dear ImGui, needs some information from the framework and then is responsible for updating and drawing the GUI each frame. The GUI consists of a dock space (when enabled) and prebuild widgets like a material inspector or a scene view. A custom function, rendering a widget can also be submitted at application startup.</p>
+
+<p>On update all these widgets are traversed. They could get access to the application context, so that the widgets can query and modify pretty much everything they need to work. So our property slider for the floating point variable can access the value needed, pass it to the function and it can be changed by it. The only thing missing would be the definition for value ranges. These are generated in advance … by myself ;). Writing rules for them would be a complete overkill, so I simply define the ranges on a value bases. In the end the result counts.</p>
+
+<p><br /></p>
+
+<figure class="highlight"><pre><code class="language-cpp" data-lang="cpp"><span class="c1">// Material Inspector Traversal in the ui_system.</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">widgets</span><span class="p">[</span><span class="n">ui_widget</span><span class="o">::</span><span class="n">material_inspector</span><span class="p">]</span> <span class="o">&amp;&amp;</span> <span class="n">material_inspector_enabled</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="n">cinema_view</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">selected</span> <span class="o">!=</span> <span class="n">invalid_entity</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">auto</span> <span class="n">comp</span> <span class="o">=</span> <span class="n">application_scene</span><span class="o">-&gt;</span><span class="n">query_mesh_component</span><span class="p">(</span><span class="n">selected</span><span class="p">);</span>
+        <span class="n">material_inspector_widget</span><span class="p">(</span><span class="n">comp</span><span class="p">,</span> <span class="n">material_inspector_enabled</span><span class="p">,</span> <span class="n">tmp</span> <span class="o">!=</span> <span class="n">selected</span><span class="p">,</span> <span class="n">selected</span><span class="p">,</span> <span class="n">rs</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">else</span>
+        <span class="n">material_inspector_widget</span><span class="p">(</span><span class="nb">nullptr</span><span class="p">,</span> <span class="n">material_inspector_enabled</span><span class="p">,</span> <span class="n">tmp</span> <span class="o">!=</span> <span class="n">selected</span><span class="p">,</span> <span class="n">selected</span><span class="p">,</span> <span class="n">rs</span><span class="p">);</span>
+<span class="p">}</span></code></pre></figure>
+
+<p><br /></p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left"><img src="/Mango/assets/GUI_material_widget.png" alt="image" /></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><em>The material inspector with some supported property-textures.</em></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="a-complex-situation">A complex situation</h2>
+
+<p>After planning and implementing most of the widgets, another problem arose. Quaternions! I mean rotations and orientations are easy, right? … Sort of. I actually used to use both quaternions and Euler angles (of course) and spent some time trying to figure out how they work. But most people who are not into programming or math have never heard of them. And to be honest, I don’t think that quaternions belong in a graphical user interface.</p>
+
+<p>Just a quick reminder:</p>
+
+<p>Euler angles have a few problems, for example:</p>
+<ul>
+  <li>Rotation order: XYZ or ZYX or … And each order has a different end result.</li>
+  <li>Singularity problems and the so-called ‘gimbal lock’ problem, which not only leads to possible blockages, but also looks strange when interpolated.</li>
+</ul>
+
+<p>Finally, we do NOT want to use them to represent rotations internally. So we do not do it either!</p>
+
+<p>Quaternions ‘fix’ these issues. But they come with a caveat, they are a number system extending the complex numbers.
+A quaternion can describe any 3D rotation, whereas it is 4D itself. If you want to know how exactly these work I’d like to mention this <a href="https://www.youtube.com/watch?v=zjMuIxRvygQ">video</a>.</p>
+
+<p>Long story short, <strong>Mango</strong> uses quaternions to describe pretty much everything that involves rotations internally. Additionally, we don’t want to scare people with complex numbers in the GUI, so we use Euler angles to display them and simple to convert into quaternions for internal use. At least until we have some nice rotation interface or gizmos, the current implementation should be fine, even though the reverse operation from internal quaternions to euler angles is a lot harder, so some tricks have to be used.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center"><img src="/Mango/assets/GUI_transform_rotation.png" alt="image" /></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center"><em>The rotation properties in a transform component.</em></td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><em>Values in degrees follow the drag and get reset on release.</em></td>
+    </tr>
+  </tbody>
+</table>
+
+<p><br /></p>
+
+<figure class="highlight"><pre><code class="language-cpp" data-lang="cpp"><span class="cm">/*
+ * t_x, t_y and t_z are the previous values so we get the difference in degrees,
+ * convert it to radians, produce a quaternion from axis-angle representation
+ * and multiply them in the end to our transform rotation, which is also a quaternion.
+ */</span>
+<span class="n">glm</span><span class="o">::</span><span class="n">quat</span> <span class="n">x_quat</span> <span class="o">=</span> <span class="n">glm</span><span class="o">::</span><span class="n">angleAxis</span><span class="p">(</span><span class="n">glm</span><span class="o">::</span><span class="n">radians</span><span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">t_x</span><span class="p">),</span> <span class="n">glm</span><span class="o">::</span><span class="n">vec3</span><span class="p">(</span><span class="mf">1.0</span><span class="n">f</span><span class="p">,</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">,</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">));</span>
+<span class="n">glm</span><span class="o">::</span><span class="n">quat</span> <span class="n">y_quat</span> <span class="o">=</span> <span class="n">glm</span><span class="o">::</span><span class="n">angleAxis</span><span class="p">(</span><span class="n">glm</span><span class="o">::</span><span class="n">radians</span><span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">t_y</span><span class="p">),</span> <span class="n">glm</span><span class="o">::</span><span class="n">vec3</span><span class="p">(</span><span class="mf">0.0</span><span class="n">f</span><span class="p">,</span> <span class="mf">1.0</span><span class="n">f</span><span class="p">,</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">));</span>
+<span class="n">glm</span><span class="o">::</span><span class="n">quat</span> <span class="n">z_quat</span> <span class="o">=</span> <span class="n">glm</span><span class="o">::</span><span class="n">angleAxis</span><span class="p">(</span><span class="n">glm</span><span class="o">::</span><span class="n">radians</span><span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="n">t_z</span><span class="p">),</span> <span class="n">glm</span><span class="o">::</span><span class="n">vec3</span><span class="p">(</span><span class="mf">0.0</span><span class="n">f</span><span class="p">,</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">,</span> <span class="mf">1.0</span><span class="n">f</span><span class="p">));</span>
+
+<span class="n">transform_comp</span><span class="o">-&gt;</span><span class="n">rotation</span> <span class="o">=</span> <span class="n">x_quat</span> <span class="o">*</span> <span class="n">y_quat</span> <span class="o">*</span> <span class="n">z_quat</span> <span class="o">*</span> <span class="n">transform_comp</span><span class="o">-&gt;</span><span class="n">rotation</span><span class="p">;</span></code></pre></figure>
+
+<h2 id="happy-end">Happy end?</h2>
+
+<p>Where does this leave us then? The GUI looks good, objects can be loaded, images created, entities added, transforms can be moved…
+But we are not finished yet. Lets call it sufficient for now. New features have to be integrated into the GUI, new widgets should be added, the ECS will not be in the current state forever. The next step, at least for the editor interface, would be to enable loading/saving  of scenes (and what about gltf export :)), but these changes will of course lead to internal changes again. Well, I’m happy for the moment, but at the same time still far from the end.</p>
+
+<p><br /></p>
+
+<hr />
+
+<p>And that concludes this article. You may have found out some interesting things. Images showing the new GUI can be found on GitHub and on the main page.</p>
+
+<p>Hopefully I’ll find some time in the near future to write articles on other topics, including more technical ones. Until then.</p>
+
+<p><img src="/Mango/assets/logo.svg#inline-left" alt="image" />
+<br />
+<br />
+Paul</p>
+
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+    </div>
+
+    <footer class="page-footer font-small">
+    <ul class="list-unstyled list-inline text-center py-3">
+        <li class="list-inline-item">
+            <a class="btn-floating btn-dribbble mx-1" href="https://github.com/Paul-Hi/Mango">
+                <i class="mango-link fa fa-github fa-2x"></i>
+            </a>
+        </li>
+    </ul>
+    <div class="footer-copyright text-center pb-3">
+        © 2020 Copyright: Paul Himmler
+        <br>
+        Powered by <a class="mango-link" href="https://jekyllrb.com/">Jekyll</a>.
+        Hosted at  <a class="mango-link" href="https://pages.github.com">Github</a>.
+    </div>
+</footer>
+
+</body>
+
+</html>

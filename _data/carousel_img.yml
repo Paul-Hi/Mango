@@ -1,10 +1,19 @@
 images:
 
+- src: /assets/material_playground.png
+  caption: "Material Playground"
+
+- src: /assets/sponza.png
+  caption: "Sponza"
+
 - src: /assets/boom_box.png
   caption: "Boom Box"
+
+- src: /assets/metal_rough_spheres.png
+  caption: "Metal Rough Spheres"
 
 - src: /assets/water_bottle.png
   caption: "Water Bottle"
 
-- src: /assets/metal_rough_spheres.png
-  caption: "Metal Rough Spheres"
+- src: /assets/shaderball.png
+  caption: "Shaderball"

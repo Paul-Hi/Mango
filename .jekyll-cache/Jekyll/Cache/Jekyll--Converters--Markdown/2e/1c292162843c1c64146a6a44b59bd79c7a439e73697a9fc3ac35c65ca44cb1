@@ -1,5 +1,4 @@
-I"é
-<div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
+I""<div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
     <div class="card mt-3 flex-grow-1">
         <div class="card-body">
             <h1 class="card-title">Blog</h1>
@@ -11,14 +10,10 @@
             <h1 class="card-title">In Progress</h1>
             <p class="card-text">
                 <div>
-    After implementing some core functionalities, I now spend most of my time cleaning up. Tests have to be
-    written. Improvements have to be made.<br /><br />
-
-    Regarding new features:
-    I recently added some basic editor UI.
-    <br />
-    I also want more lights, not just the image-based environment, but before adding this there is a lot of work to do.
-    The ECS and the scenes as a whole need to be improved.
+    I recently added some features to the user interface like widgets and more.<br />
+    While trying to clean up a little bit more the plan is to add more lights, for now maybe directional ones.<br />
+    Shadow Mapping would also be a feature I would really like to implement soon.<br /><br />
+    Loading and saving scenes is also a priority.
 </div>
             </p>
         </div>
@@ -33,6 +28,13 @@
                         
                         <h4 id="y2020">2020</h4>
                         
+                    
+                    <a class="mango-card-link d-flex p-2" href="/Mango/2020/08/19/GUI.html">
+                        <span class="pl-2"> GUI </span>
+                        <span class="post-date ml-auto pl-2"> Aug 19, 2020</span>
+                    </a>
+                
+                    
                     
                     <a class="mango-card-link d-flex p-2" href="/Mango/2020/06/09/From-0.html">
                         <span class="pl-2"> From 0 to 0.5 </span>
@@ -51,7 +53,25 @@
             <p class="card-text">
                 
                     <div class="card mt-3 flex-grow-1">
-                        <div class="card-body post-card" style="background-image:url(/Mango/assets/metal_rough_spheres.png);">
+                        <div class="card-body post-card" style="background-image:url(/Mango/assets/GUI.png);">
+                            <a class="card-title mango-link" href="/Mango/2020/08/19/GUI.html">
+                                <h2 class="mt-0">GUI</h2>
+                            </a>
+                            <p class="card-text">
+                                <h3>Displaying the impossible</h3>
+                                <p><p>Is there anyone who does not want a good graphical user interface?
+No? Me neither!</p>
+
+<p>But then why isnâ€™t this easier?</p>
+
+</p>
+                                <a class="mango-link" href="/Mango/2020/08/19/GUI.html">Read more...</a>
+                            </p>
+                        </div>
+                    </div>
+                
+                    <div class="card mt-3 flex-grow-1">
+                        <div class="card-body post-card" style="background-image:url(/Mango/assets/From-0.png);">
                             <a class="card-title mango-link" href="/Mango/2020/06/09/From-0.html">
                                 <h2 class="mt-0">From 0 to 0.5</h2>
                             </a>

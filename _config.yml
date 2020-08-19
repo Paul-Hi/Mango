@@ -3,6 +3,19 @@ title: Mango
 
 baseurl: "/Mango"
 
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  input: GFM
+  syntax_highlighter_opts:
+    default_lang: html
+    css_class   : 'syntax'
+
+kramdown:
+  input: GFM
+  auto_ids: true
+  syntax_highlighter: rouge
+
 excerpt_separator: <!--more-->
 defaults:
  -

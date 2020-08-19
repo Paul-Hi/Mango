@@ -1,4 +1,4 @@
-I"�<p>A lot has happened since <strong>Mango</strong> saw the light of day.</p>
+I"�<p>A lot has happened since <strong>Mango</strong> saw the light of day.</p>
 
 <p>A short summary.</p>
 
@@ -26,7 +26,7 @@ Well, actually quite simple: I like mango! No other deeper meaning, but let me k
 
 <p>At the moment <strong>Mango</strong> is still in the early stages. There is a functional basis to work with. When the editor, which is not a real editor at the moment, is started and some files are dragged onto it, something is visible and it looks fine. “Behind the scenes” there are some systems available (for example ECS, Deferred Renderer, Input). So let’s call it ‘work in progress’.</p>
 
-<h2 id="the-vision-and-mission--">The Vision (and Mission ; ))</h2>
+<h2 id="the-vision-and-mission-">The Vision (and Mission ;))</h2>
 
 <p><strong>Mango</strong> is an Open Source Framework.
 Or at least it should be in the future. The idea is to create a playground for people like me. There are planned features I already know about and some I probably haven’t thought about yet.</p>
@@ -46,10 +46,10 @@ If you have suggestions for improvement or find a bug just open an issue on <a h
 
 <hr />
 
-<p>And that’s it for now. Hope you’ve found this short article useful. Comments and suggestions are welcome.</p>
+<p>And that’s it for now. Hope you’ve found this short article useful.</p>
 
-<p><img src="/Mango/assets/logo.svg#inline-left" alt="image" /></p>
-
-<p><br />
-  Paul</p>
+<p><img src="/Mango/assets/logo.svg#inline-left" alt="image" />
+<br />
+<br />
+Paul</p>
 :ET

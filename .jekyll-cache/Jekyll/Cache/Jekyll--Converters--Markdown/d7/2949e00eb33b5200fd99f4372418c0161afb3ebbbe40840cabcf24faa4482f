@@ -1,4 +1,4 @@
-I"þ<div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
+I"c<div class="d-flex flex-column justify-content-between sidebar-mango col-lg-1">
     <div class="card mt-3 flex-grow-1">
         <div class="card-body">
             <h1 class="card-title">About</h1>
@@ -14,6 +14,9 @@
                 <ul class="pl-2">
     <li>
         Implementing the compilation and saving of scenes (own format and gltf export)
+    </li>
+    <li>
+        More lights.
     </li>
     <li>
         Support for GLTF animations
@@ -79,7 +82,7 @@
         HDR support and image based lighting
     </li>
     <li>
-        Basic GUI with DearImGui
+        Basic GUI with DearImGui with widgets
     </li>
     <li>
         Many physically based rendering features
@@ -95,6 +98,9 @@
     </li>
     <li>
         Editor featuring .gltf and .hdr file loading and a simple camera controller
+    </li>
+    <li>
+        Profiling with Tracy
     </li>
 </ul>
             </p>
