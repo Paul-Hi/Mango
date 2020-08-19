@@ -17,12 +17,13 @@ Keep in mind that I do this in my spare time, besides studying and working.
 * Building and running on Linux and Windows.
 * Basic support of GLTF models (No animations yet, some features missing, no draco encoding)
 * HDR support and image based lighting
-* Basic GUI with DearImGui
+* Basic GUI with DearImGui with widgets
 * Many physically based rendering features
 * Deferred rendering with OpenGL backend
 * Entity Component System
 * Basic framework architecture
 * Editor featuring .gltf and .hdr file loading and a simple camera controller
+* Profiling with [Tracy](https://github.com/wolfpld/tracy)
 
 ## Requirements
 
@@ -66,12 +67,13 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 ## Roadmap (unordered and incomplete)
 
 * Implementing the compilation and saving of scenes (own format and gltf export)
+* More lights
 * Support for GLTF animations
 * Support for translucent materials
 * Rendering improvements (performance and appearance)
 * Scene management improvements
-* Performance measurement tools
-* Editor improvements and some better examples for the use of Mango
+* More performance measurement tools
+* Some better examples for the use of Mango
 * Many features like shadows, global light effects (GI, AO, reflections), live editing, hot swapable resources, and more
 
 ## Dependencies
@@ -90,9 +92,15 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 * Doxygen (Documentation)
 
 ## Images
-### Water Bottle
-<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/master/show/water_bottle.png" alt="alt text" width="75%"/>
+### Material Playground
+<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/blob/master/show/material_playground.png" alt="Material Playground" width="75%"/>
+### Sponza
+<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/blob/master/show/sponza.png" alt="Sponza" width="75%"/>
 ### Boom Box
-<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/master/show/boom_box.png" alt="alt text" width="75%"/>
+<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/blob/master/show/boom_box.png" alt="Boom Box" width="75%"/>
 ### Metal Rough Spheres
-<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/master/show/metal_rough_spheres.png" alt="alt text" width="75%"/>
+<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/blob/master/show/metal_rough_spheres.png" alt="Metal Rough Spheres" width="75%"/>
+### Water Bottle
+<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/blob/master/show/water_bottle.png" alt="Water Bottle" width="75%"/>
+### Shaderball
+<img src="https://raw.githubusercontent.com/Paul-Hi/Mango/blob/master/show/shaderball.png" alt="Shaderball" width="75%"/>

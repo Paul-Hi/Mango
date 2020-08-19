@@ -10,8 +10,6 @@
 #include <core/context_impl.hpp>
 #include <mango/ui_system.hpp>
 
-#define meta(name)
-
 namespace mango
 {
     //! \brief The implementation of the \a ui_system.

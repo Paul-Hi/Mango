@@ -84,7 +84,7 @@ bool editor::create()
     mango_context->make_scene_current(application_scene);
 
     // test load
-    // try_open_path(application_scene, "res/models/shaderball/shaderball.glb");
+    //try_open_path(application_scene, "res/models/shaderball/shaderball.glb");
 
     shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
     MANGO_ASSERT(mango_is, "Input System is expired!");
@@ -135,7 +135,7 @@ bool editor::create()
         }
     });
 
-    m_camera_radius = 1.0f;
+    m_camera_radius = 10.0f;
     mango_is->set_mouse_scroll_callback([this](float, float y_offset) {
         shared_ptr<context> mango_context = get_context().lock();
         MANGO_ASSERT(mango_context, "Context is expired!");
@@ -150,7 +150,7 @@ bool editor::create()
         {
             m_camera_radius /= 1.04f;
         }
-        m_camera_radius = glm::clamp(m_camera_radius, 0.01f, 10.0f);
+        m_camera_radius = glm::clamp(m_camera_radius, 0.01f, 100.0f);
     });
 
     return true;
@@ -174,8 +174,8 @@ void editor::update(float dt)
         glm::vec3 front = glm::normalize(cam_data->target - cam_transform->position);
         auto up         = cam_data->up;
         auto right      = glm::normalize(glm::cross(up, front));
-        cam_data->target += right * m_target_offset.x * glm::min(m_camera_radius, 1.0f);
-        cam_data->target += up * m_target_offset.y * glm::min(m_camera_radius, 1.0f);
+        cam_data->target += right * m_target_offset.x * glm::min(m_camera_radius, 10.0f);
+        cam_data->target += up * m_target_offset.y * glm::min(m_camera_radius, 10.0f);
         m_target_offset = glm::vec3(0.0f);
     }
 

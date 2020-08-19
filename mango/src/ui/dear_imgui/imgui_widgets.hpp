@@ -40,7 +40,7 @@ namespace mango
         static ImVec2 last_size = ImVec2(0.0f, 0.0f);
 
         ImGui::GetWindowDrawList()->AddImage(
-            reinterpret_cast<void*>(shared_context->get_render_system_internal().lock()->get_backbuffer()->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0)->get_name()), position,
+            (void*)(intptr_t)shared_context->get_render_system_internal().lock()->get_backbuffer()->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0)->get_name(), position,
             ImVec2(position.x + size.x, position.y + size.y), ImVec2(0, 1), ImVec2(1, 0));
         ImGui::PopStyleVar();
         ImGui::End();
@@ -86,6 +86,14 @@ namespace mango
 
     namespace
     {
+        //! \brief Returns internal format, format and type for an image depending on a few infos.
+        //! \param[in] srgb True if image is in standard color space, else False.
+        //! \param[in] components The number of components in the image.
+        //! \param[in] bits The number of bits in the image.
+        //! \param[out] f The format to choose.
+        //! \param[out] internal The internal format to choose.
+        //! \param[out] type The type to choose.
+        //! \param[in] is_hdr True if image is hdr, else False.
         void get_formats_and_types_for_image(bool srgb, int32 components, int32 bits, format& f, format& internal, format& type, bool is_hdr)
         {
             if (is_hdr)
@@ -130,6 +138,10 @@ namespace mango
             }
         }
 
+        //! \brief Draws the subtree for a given entity in the user interface.
+        //! \param[in] application_scene The current \a scene of the \a application.
+        //! \param[in] e The entity to draw the subtree for.
+        //! \param[in,out] selected The currently selected entity, can be updated by this function.
         void draw_entity_tree(const shared_ptr<scene>& application_scene, entity e, entity& selected)
         {
             auto tag      = application_scene->query_tag(e);
@@ -172,6 +184,12 @@ namespace mango
             }
         }
 
+        //! \brief Opens a file dialog to load any kind of image and returns a texture_ptr after loading it to a \a texture.
+        //! \param[in] config The \a texture_configuration used for creating the \a texture.
+        //! \param[in] rs A pointer to the \a resource_system.
+        //! \param[in] filter A list of file extensions to filter them.
+        //! \param[in] num_filters The number of elements in filter.
+        //! \return The texture_ptr to the created \a texture
         texture_ptr load_texture(texture_configuration& config, const shared_ptr<resource_system>& rs, const char* const* filter, int32 num_filters)
         {
             char* query_path = tinyfd_openFileDialog("", "res/", num_filters, filter, NULL, 0);
@@ -201,6 +219,10 @@ namespace mango
             return nullptr;
         }
 
+        //! \brief Draws a \a material in the user interface.
+        //! \param[in] material A shared_ptr to the \a material that should be represented in th UI.
+        //! \param[in] rs A pointer to the \a resource_system.
+        //! \param[in] e The entity the \a material belongs to.
         void draw_material(const shared_ptr<material>& material, const shared_ptr<resource_system>& rs, entity e)
         {
             if (material)
@@ -225,7 +247,7 @@ namespace mango
                     canvas_p0 = ImGui::GetCursorScreenPos();
                     draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
                     if (material->base_color_texture)
-                        ImGui::Image(reinterpret_cast<void*>(material->base_color_texture->get_name()), ImVec2(64, 64));
+                        ImGui::Image((void*)(intptr_t)material->base_color_texture->get_name(), ImVec2(64, 64));
                     else
                         ImGui::Dummy(ImVec2(64, 64));
                     if (ImGui::IsItemHovered())
@@ -234,7 +256,7 @@ namespace mango
                         {
                             ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
                             ImGui::BeginTooltip();
-                            ImGui::Image(reinterpret_cast<void*>(material->base_color_texture->get_name()), ImVec2(256, 256));
+                            ImGui::Image((void*)(intptr_t)material->base_color_texture->get_name(), ImVec2(256, 256));
                             ImGui::EndTooltip();
                             ImGui::PopStyleColor();
                         }
@@ -275,7 +297,7 @@ namespace mango
                     canvas_p0 = ImGui::GetCursorScreenPos();
                     draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
                     if (material->roughness_metallic_texture)
-                        ImGui::Image(reinterpret_cast<void*>(material->roughness_metallic_texture->get_name()), ImVec2(64, 64));
+                        ImGui::Image((void*)(intptr_t)material->roughness_metallic_texture->get_name(), ImVec2(64, 64));
                     else
                         ImGui::Dummy(ImVec2(64, 64));
                     if (ImGui::IsItemHovered())
@@ -284,7 +306,7 @@ namespace mango
                         {
                             ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
                             ImGui::BeginTooltip();
-                            ImGui::Image(reinterpret_cast<void*>(material->roughness_metallic_texture->get_name()), ImVec2(256, 256));
+                            ImGui::Image((void*)(intptr_t)material->roughness_metallic_texture->get_name(), ImVec2(256, 256));
                             ImGui::EndTooltip();
                             ImGui::PopStyleColor();
                         }
@@ -331,7 +353,7 @@ namespace mango
                     canvas_p0 = ImGui::GetCursorScreenPos();
                     draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
                     if (material->normal_texture)
-                        ImGui::Image(reinterpret_cast<void*>(material->normal_texture->get_name()), ImVec2(64, 64));
+                        ImGui::Image((void*)(intptr_t)material->normal_texture->get_name(), ImVec2(64, 64));
                     else
                         ImGui::Dummy(ImVec2(64, 64));
                     if (ImGui::IsItemHovered())
@@ -340,7 +362,7 @@ namespace mango
                         {
                             ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
                             ImGui::BeginTooltip();
-                            ImGui::Image(reinterpret_cast<void*>(material->normal_texture->get_name()), ImVec2(256, 256));
+                            ImGui::Image((void*)(intptr_t)material->normal_texture->get_name(), ImVec2(256, 256));
                             ImGui::EndTooltip();
                             ImGui::PopStyleColor();
                         }
@@ -376,7 +398,7 @@ namespace mango
                     canvas_p0 = ImGui::GetCursorScreenPos();
                     draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
                     if (material->occlusion_texture)
-                        ImGui::Image(reinterpret_cast<void*>(material->occlusion_texture->get_name()), ImVec2(64, 64));
+                        ImGui::Image((void*)(intptr_t)material->occlusion_texture->get_name(), ImVec2(64, 64));
                     else
                         ImGui::Dummy(ImVec2(64, 64));
                     if (ImGui::IsItemHovered())
@@ -385,7 +407,7 @@ namespace mango
                         {
                             ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
                             ImGui::BeginTooltip();
-                            ImGui::Image(reinterpret_cast<void*>(material->occlusion_texture->get_name()), ImVec2(256, 256));
+                            ImGui::Image((void*)(intptr_t)material->occlusion_texture->get_name(), ImVec2(256, 256));
                             ImGui::EndTooltip();
                             ImGui::PopStyleColor();
                         }
@@ -421,7 +443,7 @@ namespace mango
                     canvas_p0 = ImGui::GetCursorScreenPos();
                     draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
                     if (material->emissive_color_texture)
-                        ImGui::Image(reinterpret_cast<void*>(material->emissive_color_texture->get_name()), ImVec2(64, 64));
+                        ImGui::Image((void*)(intptr_t)material->emissive_color_texture->get_name(), ImVec2(64, 64));
                     else
                         ImGui::Dummy(ImVec2(64, 64));
                     if (ImGui::IsItemHovered())
@@ -430,7 +452,7 @@ namespace mango
                         {
                             ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
                             ImGui::BeginTooltip();
-                            ImGui::Image(reinterpret_cast<void*>(material->emissive_color_texture->get_name()), ImVec2(256, 256));
+                            ImGui::Image((void*)(intptr_t)material->emissive_color_texture->get_name(), ImVec2(256, 256));
                             ImGui::EndTooltip();
                             ImGui::PopStyleColor();
                         }
@@ -467,6 +489,10 @@ namespace mango
 
     } // namespace
 
+    //! \brief Draws a scene graph in the user interface.
+    //! \param[in] application_scene The current \a scene of the \a application.
+    //! \param[in,out] enabled True if the window is open, else False.
+    //! \param[in,out] selected The currently selected entity, can be updated by this function.
     void scene_inspector_widget(const shared_ptr<scene>& application_scene, bool& enabled, entity& selected)
     {
         ImGui::Begin("Scene Inspector", &enabled);
@@ -490,6 +516,13 @@ namespace mango
         selected = selection;
     }
 
+    //! \brief Draws the material inspector for a given entity and it's \a mesh_component in the user interface.
+    //! \details An entity and it's \a mesh_component could have multiple materials.
+    //! \param[in] mesh The \a mesh_component with all materials.
+    //! \param[in,out] enabled True if the window is open, else False.
+    //! \param[in] entity_changed True if the entity changed since last call, else False.
+    //! \param[in] e The entity the \a materials belongs to.
+    //! \param[in] rs A pointer to the \a resource_system.
     void material_inspector_widget(const mesh_component* mesh, bool& enabled, bool entity_changed, entity e, const shared_ptr<resource_system>& rs)
     {
         ImGui::Begin("Material Inspector", &enabled);
@@ -521,6 +554,12 @@ namespace mango
         ImGui::End();
     }
 
+    //! \brief Draws the entity component inspector for a given entity in the user interface.
+    //! \param[in] application_scene The current \a scene of the \a application.
+    //! \param[in,out] enabled True if the window is open, else False.
+    //! \param[in] e The entity the components should be inspected.
+    //! \param[in] rs A pointer to the \a resource_system.
+    //! \param[in] viewport_size The size of the render_view, when enabled, else some base size.
     void entity_component_inspector_widget(const shared_ptr<scene>& application_scene, bool& enabled, entity e, const shared_ptr<resource_system>& rs, const ImVec2& viewport_size)
     {
         ImGui::Begin("Entity Component Inspector", &enabled);
@@ -536,8 +575,8 @@ namespace mango
             ImGui::Text("Tag");
             if (tag_comp)
             {
-                std::array<char, 32> tmp_string; // TODO Paul: Max length? 32 enough for now?
-                strcpy(tmp_string.data(), tag_comp->tag_name.c_str());
+                std::array<char, 32> tmp_string;                             // TODO Paul: Max length? 32 enough for now?
+                strcpy_s(tmp_string.data(), 32, tag_comp->tag_name.c_str()); // TODO Paul: Kind of fishy.
                 ImGui::InputTextWithHint(("##tag" + std::to_string(e)).c_str(), "Enter Entity Tag", tmp_string.data(), 32);
                 tag_comp->tag_name = tmp_string.data();
                 ImGui::Spacing();
@@ -653,9 +692,9 @@ namespace mango
                         ImGui::BeginGroup();
                     }
 
-                    ImGui::DragFloat(("X##s_delta_x" + std::to_string(e)).c_str(), &transform_comp->scale.x, 0.1f, 0.0f, 0.0f, "%.1f");
-                    ImGui::DragFloat(("Y##s_delta_y" + std::to_string(e)).c_str(), &transform_comp->scale.y, 0.1f, 0.0f, 0.0f, "%.1f");
-                    ImGui::DragFloat(("Z##s_delta_z" + std::to_string(e)).c_str(), &transform_comp->scale.z, 0.1f, 0.0f, 0.0f, "%.1f");
+                    ImGui::DragFloat(("X##s_delta_x" + std::to_string(e)).c_str(), &transform_comp->scale.x, 0.01f, 0.0f, 0.0f, "%.2f");
+                    ImGui::DragFloat(("Y##s_delta_y" + std::to_string(e)).c_str(), &transform_comp->scale.y, 0.01f, 0.0f, 0.0f, "%.2f");
+                    ImGui::DragFloat(("Z##s_delta_z" + std::to_string(e)).c_str(), &transform_comp->scale.z, 0.01f, 0.0f, 0.0f, "%.2f");
 
                     ImGui::Spacing();
                     if (ImGui::Button(("Clear##scale" + std::to_string(e)).c_str()))
@@ -770,7 +809,7 @@ namespace mango
                 canvas_p0 = ImGui::GetCursorScreenPos();
                 draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 128, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
                 if (environment_comp->hdr_texture)
-                    ImGui::Image(reinterpret_cast<void*>(environment_comp->hdr_texture->get_name()), ImVec2(128, 64));
+                    ImGui::Image((void*)(intptr_t)environment_comp->hdr_texture->get_name(), ImVec2(128, 64));
                 else
                     ImGui::Dummy(ImVec2(128, 64));
                 if (ImGui::IsItemHovered())
@@ -779,7 +818,7 @@ namespace mango
                     {
                         ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
                         ImGui::BeginTooltip();
-                        ImGui::Image(reinterpret_cast<void*>(environment_comp->hdr_texture->get_name()), ImVec2(512, 256));
+                        ImGui::Image((void*)(intptr_t)environment_comp->hdr_texture->get_name(), ImVec2(512, 256));
                         ImGui::EndTooltip();
                         ImGui::PopStyleColor();
                     }
@@ -810,12 +849,12 @@ namespace mango
                 if (should_render)
                 {
                     environment_comp->render_level = glm::max(environment_comp->render_level, 0.0f);
-                    changed = changed || ImGui::SliderFloat(("Blur Level##environment_blur" + std::to_string(e)).c_str(), &environment_comp->render_level, 0.0f, 4.0f);
+                    changed                        = changed || ImGui::SliderFloat(("Blur Level##environment_blur" + std::to_string(e)).c_str(), &environment_comp->render_level, 0.0f, 4.0f);
                 }
                 else
                     environment_comp->render_level = -1.0f;
 
-                if(changed)
+                if (changed)
                     application_scene->update_environment_parameters(e);
 
                 ImGui::Spacing();

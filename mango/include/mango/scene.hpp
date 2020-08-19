@@ -356,9 +356,8 @@ namespace mango
         //! \brief Attaches a \a camera_component to an \a entity with data loaded by tinygltf.
         //! \details Internally called by create_entities_from_model(...).
         //! \param[in] node The entity that the \a mesh_component should be attached to.
-        //! \param[in] m The model loaded by tinygltf.
         //! \param[in] camera The camera loaded by tinygltf.
-        void build_model_camera(entity node, tinygltf::Model& m, tinygltf::Camera& camera);
+        void build_model_camera(entity node, tinygltf::Camera& camera);
 
         //! \brief Loads a \a material and stores it in the component.
         //! \details Loads all supported component values and textures if they exist.

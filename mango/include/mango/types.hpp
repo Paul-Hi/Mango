@@ -108,13 +108,19 @@ namespace mango
         UINT   = 0x1405
     };
 
+//! \brief Pi.
 #define PI 3.1415926535897932384626433832795f
+//! \brief Define for the global up vector.
 #define GLOBAL_UP glm::vec3(0.0f, 1.0f, 0.0f)
+//! \brief Define for the global right vector.
 #define GLOBAL_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
+//! \brief Define for the global forward vector.
 #define GLOBAL_FORWARD glm::vec3(0.0f, 0.0f, -1.0f)
 
+    //! \brief A floating point type used to describe properties with a 0 to 1 range.
     struct normalized_float
     {
+        //! \cond NO_COND
         normalized_float(float v = 0.0f)
         {
             MANGO_ASSERT(v >= 0.0f && v <= 1.0f, "Value is not normalized (between 0.0f and 1.0f)!");
@@ -146,10 +152,13 @@ namespace mango
 
       private:
         float value;
+        //! \endcond
     };
 
+    //! \brief A 3d vector type used to describe rgb color properties.
     struct color_rgb
     {
+        //! \cond NO_COND
         color_rgb(glm::vec3 v = glm::vec3(0.0f))
         {
             MANGO_ASSERT(v.x >= 0.0f && v.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
@@ -198,10 +207,13 @@ namespace mango
 
       private:
         glm::vec3 values;
+        //! \endcond
     };
 
+    //! \brief A 4d vector type used to describe rgba color properties.
     struct color_rgba
     {
+        //! \cond NO_COND
         color_rgba(glm::vec4 v = glm::vec4(0.0f))
         {
             MANGO_ASSERT(v.x >= 0.0f && v.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
@@ -257,6 +269,7 @@ namespace mango
 
       private:
         glm::vec4 values;
+        //! \endcond
     };
 
     //! \brief Platform data holding the window handle.

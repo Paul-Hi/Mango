@@ -111,7 +111,7 @@ entity scene::create_default_camera()
     camera_component.cam_type                           = camera_type::perspective_camera;
     camera_component.perspective.aspect                 = 16.0f / 9.0f;
     camera_component.z_near                             = 0.015f;
-    camera_component.z_far                              = 15.0f;
+    camera_component.z_far                              = 150.0f;
     camera_component.perspective.vertical_field_of_view = glm::radians(45.0f);
     camera_component.up                                 = glm::vec3(0.0f, 1.0f, 0.0f);
     camera_component.target                             = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -187,12 +187,11 @@ entity scene::create_entities_from_model(const string& path)
     }
 
     // normalize scale
-    const glm::vec3 scale = glm::vec3(1.0f / (glm::compMax(m_scene_boundaries.max) - glm::compMin(m_scene_boundaries.min)));
+    const glm::vec3 scale = glm::vec3(10.0f / (glm::compMax(m_scene_boundaries.max - m_scene_boundaries.min)));
     transform.scale       = scale;
 
     if (m_active.camera == invalid_entity)
     {
-        // We have at least one default camera in each scene and at the moment the first camera is the active one everytime.
         create_default_camera();
     }
 
@@ -437,7 +436,7 @@ void scene::detach(entity node)
     if (child_node->children_count == 0)
         m_nodes.sort_remove_component_from(node); // Sorting necessarry?
 
-    if (parent_node->children_count == 0)
+    if (parent_node->children_count == 0 && parent_node->parent_entity == invalid_entity)
         m_nodes.sort_remove_component_from(child_node->parent_entity); // Sorting necessarry?
 }
 
@@ -561,7 +560,7 @@ entity scene::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const glm:
     if (n.camera > -1)
     {
         MANGO_ASSERT(n.camera < static_cast<int32>(m.cameras.size()), "Invalid gltf camera!");
-        build_model_camera(node, m, m.cameras.at(n.camera));
+        build_model_camera(node, m.cameras.at(n.camera));
     }
 
     // build child nodes.
@@ -685,24 +684,24 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
     }
 }
 
-void scene::build_model_camera(entity node, tinygltf::Model& m, tinygltf::Camera& camera)
+void scene::build_model_camera(entity node, tinygltf::Camera& camera)
 {
     PROFILE_ZONE;
     auto& component_camera    = m_cameras.create_component_for(node);
     component_camera.cam_type = camera.type == "perspective" ? camera_type::perspective_camera : camera_type::orthographic_camera;
     if (component_camera.cam_type == camera_type::perspective_camera)
     {
-        component_camera.z_near                             = camera.perspective.znear;
-        component_camera.z_far                              = camera.perspective.zfar > 0.0f ? camera.perspective.zfar : 10000; // Infinite?
-        component_camera.perspective.vertical_field_of_view = camera.perspective.yfov;
-        component_camera.perspective.aspect                 = camera.perspective.aspectRatio > 0.0f ? camera.perspective.aspectRatio : 16.0f / 9.0f;
+        component_camera.z_near                             = static_cast<float>(camera.perspective.znear);
+        component_camera.z_far                              = camera.perspective.zfar > 0.0 ? static_cast<float>(camera.perspective.zfar) : 10000.0f; // Infinite?
+        component_camera.perspective.vertical_field_of_view = static_cast<float>(camera.perspective.yfov);
+        component_camera.perspective.aspect                 = camera.perspective.aspectRatio > 0.0 ? static_cast<float>(camera.perspective.aspectRatio) : 16.0f / 9.0f;
     }
     else // orthographic
     {
-        component_camera.z_near             = camera.orthographic.znear;
-        component_camera.z_far              = camera.perspective.zfar > 0.0f ? camera.perspective.zfar : 10000; // Infinite?
-        component_camera.orthographic.x_mag = camera.orthographic.xmag;
-        component_camera.orthographic.y_mag = camera.orthographic.ymag;
+        component_camera.z_near             = static_cast<float>(camera.orthographic.znear);
+        component_camera.z_far              = camera.perspective.zfar > 0.0 ? static_cast<float>(camera.perspective.zfar) : 10000.0f; // Infinite?
+        component_camera.orthographic.x_mag = static_cast<float>(camera.orthographic.xmag);
+        component_camera.orthographic.y_mag = static_cast<float>(camera.orthographic.ymag);
     }
 }
 

@@ -163,6 +163,7 @@ void ui_system_impl::update(float dt)
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), d_flags);
     }
 
+    static bool cinema_view                        = false;
     auto custom                                    = m_configuration.get_custom_ui_data();
     static bool custom_enabled                     = true;
     const bool* widgets                            = m_configuration.get_ui_widgets();
@@ -197,6 +198,10 @@ void ui_system_impl::update(float dt)
                 custom_enabled = true;
             ImGui::EndMenu();
         }
+        if (ImGui::MenuItem("Toggle Cinema View"))
+        {
+            cinema_view = !cinema_view;
+        }
 
         ImGui::EndMenuBar();
     }
@@ -207,12 +212,12 @@ void ui_system_impl::update(float dt)
         viewport_size = render_view_widget(m_shared_context, render_view_enabled);
 
     // Hardware Info
-    if (widgets[ui_widget::hardware_info] && hardware_info_enabled)
+    if (widgets[ui_widget::hardware_info] && hardware_info_enabled && !cinema_view)
         hardware_info_widget(m_shared_context, hardware_info_enabled, dt);
 
     // Custom
     custom_enabled |= custom.always_open;
-    if (custom.function && custom_enabled)
+    if (custom.function && custom_enabled && !cinema_view)
         custom.function(custom_enabled);
 
     // Inspectors
@@ -221,7 +226,7 @@ void ui_system_impl::update(float dt)
     static entity selected = invalid_entity;
     entity tmp             = selected;
     auto application_scene = m_shared_context->get_current_scene();
-    if (widgets[ui_widget::scene_inspector] && scene_inspector_enabled)
+    if (widgets[ui_widget::scene_inspector] && scene_inspector_enabled && !cinema_view)
     {
         scene_inspector_widget(application_scene, scene_inspector_enabled, selected);
     }
@@ -229,7 +234,7 @@ void ui_system_impl::update(float dt)
     auto rs = m_shared_context->get_resource_system_internal().lock();
     MANGO_ASSERT(rs, "Resource system is expired!");
     // Material Inspector
-    if (widgets[ui_widget::material_inspector] && material_inspector_enabled)
+    if (widgets[ui_widget::material_inspector] && material_inspector_enabled && !cinema_view)
     {
         if (selected != invalid_entity)
         {
@@ -241,7 +246,7 @@ void ui_system_impl::update(float dt)
     }
 
     // Test
-    if (widgets[ui_widget::entity_component_inspector] && entity_component_inspector_enabled)
+    if (widgets[ui_widget::entity_component_inspector] && entity_component_inspector_enabled && !cinema_view)
         entity_component_inspector_widget(application_scene, entity_component_inspector_enabled, selected, rs, viewport_size);
 
     ImGui::End(); // dock space end
