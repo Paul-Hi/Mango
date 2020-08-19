@@ -93,7 +93,19 @@ static image load_image_from_file(const string& path, const image_configuration&
     int width = 0, height = 0, components = 0;
     if (!configuration.is_hdr)
     {
-        unsigned char* data = stbi_load(path.c_str(), &width, &height, &components, STBI_rgb_alpha);
+        img.bits            = 8;
+        unsigned char* data = nullptr;
+
+        if (stbi_is_16_bit(path.c_str()))
+        {
+            data = reinterpret_cast<unsigned char *>(stbi_load_16(path.c_str(), &width, &height, &components, 0));
+            if (data)
+            {
+                img.bits = 16;
+            }
+        }
+        if (!data)
+            data = stbi_load(path.c_str(), &width, &height, &components, 0);
 
         if (!data)
         {
@@ -104,7 +116,7 @@ static image load_image_from_file(const string& path, const image_configuration&
     }
     else
     {
-        float* data = stbi_loadf(path.c_str(), &width, &height, &components, STBI_rgb_alpha);
+        float* data = stbi_loadf(path.c_str(), &width, &height, &components, 0);
 
         if (!data)
         {

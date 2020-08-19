@@ -188,8 +188,8 @@ bool ibl_step::create()
         MANGO_LOG_ERROR("Creation of default texture failed! Render system not available!");
         return false;
     }
-    g_ubyte dark_blue = 0;
-    default_ibl_texture->set_data(format::R8, 1, 1, format::RED, format::UNSIGNED_BYTE, &dark_blue);
+    g_ubyte albedo[3] = { 127, 127, 127 };
+    default_ibl_texture->set_data(format::RGB8, 1, 1, format::RGB, format::UNSIGNED_BYTE, albedo);
 
     return true;
 }
@@ -225,6 +225,13 @@ void ibl_step::destroy() {}
 void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
 {
     PROFILE_ZONE;
+    if (!hdr_texture)
+    {
+        m_cubemap              = nullptr;
+        m_irradiance_map       = nullptr;
+        m_prefiltered_specular = nullptr;
+        return;
+    }
     texture_configuration texture_config;
     texture_config.m_generate_mipmaps        = calculate_mip_count(m_cube_width, m_cube_height);
     texture_config.m_is_standard_color_space = false;

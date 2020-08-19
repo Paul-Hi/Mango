@@ -30,6 +30,11 @@ target_link_libraries(editor
         mango::mango
 )
 
+target_compile_definitions(editor
+    PRIVATE
+        $<$<CXX_COMPILER_ID:MSVC>: _CRT_SECURE_NO_WARNINGS>
+    )
+
 target_compile_options(editor
     PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>: /W4>

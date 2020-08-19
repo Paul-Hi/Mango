@@ -6,19 +6,11 @@
 
 #include <core/context_impl.hpp>
 #include <glad/glad.h>
-//! \cond NO_COND
-#define GLM_FORCE_SILENT_WARNINGS 1
-//! \endcond
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/component_wise.hpp>
-#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <graphics/buffer.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
-#include <mango/profile.hpp>
 #include <mango/scene.hpp>
-#include <mango/scene_ecs.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
 #include <scene/ecs_internal.hpp>
@@ -44,12 +36,17 @@ scene::scene(const string& name)
 {
     PROFILE_ZONE;
     MANGO_UNUSED(name);
-    m_active_camera        = invalid_entity;
+    m_active.camera        = invalid_entity;
+    m_active.environment   = invalid_entity;
     m_scene_boundaries.max = glm::vec3(-3.402823e+38f);
     m_scene_boundaries.min = glm::vec3(3.402823e+38f);
 
     for (uint32 i = 1; i <= max_entities; ++i)
-        m_free_entities.push(i);
+        m_free_entities.push_back(i);
+
+    m_root_entity          = create_empty();
+    auto& tag_component    = m_tags.create_component_for(m_root_entity);
+    tag_component.tag_name = "Scene Root";
 }
 
 scene::~scene() {}
@@ -59,7 +56,7 @@ entity scene::create_empty()
     PROFILE_ZONE;
     MANGO_ASSERT(!m_free_entities.empty(), "Reached maximum number of entities!");
     entity new_entity = m_free_entities.front();
-    m_free_entities.pop();
+    m_free_entities.pop_front();
     MANGO_LOG_DEBUG("Created entity {0}, {1} left", new_entity, m_free_entities.size());
     return new_entity;
 }
@@ -67,61 +64,85 @@ entity scene::create_empty()
 void scene::remove_entity(entity e)
 {
     PROFILE_ZONE;
-    if (e == invalid_entity)
+    if (e == invalid_entity || !is_entity_alive(e))
         return;
-    detach(e);
+
+    auto children = get_children(e);
+    for (auto child : children)
+    {
+        remove_entity(child);
+    }
+    delete_node(e);
     m_transformations.remove_component_from(e);
     m_meshes.remove_component_from(e);
+    bool del_active = get_active_camera_data().active_camera_entity == e;
     m_cameras.remove_component_from(e);
+    if (del_active)
+    {
+        if (m_cameras.size() > 0)
+            set_active_camera(m_cameras.entity_at(0));
+        else
+            set_active_camera(invalid_entity);
+    }
+    del_active = get_active_environment_data().active_environment_entity == e;
     m_environments.remove_component_from(e);
-    m_free_entities.push(e);
+    if (del_active)
+    {
+        if (m_environments.size() > 0)
+            set_active_environment(m_environments.entity_at(0));
+        else
+            set_active_environment(invalid_entity);
+    }
+    m_free_entities.push_back(e);
     MANGO_LOG_DEBUG("Removed entity {0}, {1} left", e, m_free_entities.size());
 }
 
 entity scene::create_default_camera()
 {
     PROFILE_ZONE;
-    entity camera_entity      = create_empty();
+    entity camera_entity = create_empty();
+    attach(camera_entity, m_root_entity);
     auto& camera_component    = m_cameras.create_component_for(camera_entity);
     auto& transform_component = m_transformations.create_component_for(camera_entity);
+    auto& tag_component       = m_tags.create_component_for(camera_entity);
+    tag_component.tag_name    = "Default Camera";
 
     // default parameters
-    camera_component.cam_type               = camera_type::perspective_camera;
-    camera_component.aspect                 = 16.0f / 9.0f;
-    camera_component.z_near                 = 0.015f;
-    camera_component.z_far                  = 15.0f;
-    camera_component.vertical_field_of_view = glm::radians(45.0f);
-    camera_component.up                     = glm::vec3(0.0f, 1.0f, 0.0f);
-    camera_component.target                 = glm::vec3(0.0f, 0.0f, 0.0f);
+    camera_component.cam_type                           = camera_type::perspective_camera;
+    camera_component.perspective.aspect                 = 16.0f / 9.0f;
+    camera_component.z_near                             = 0.015f;
+    camera_component.z_far                              = 150.0f;
+    camera_component.perspective.vertical_field_of_view = glm::radians(45.0f);
+    camera_component.up                                 = glm::vec3(0.0f, 1.0f, 0.0f);
+    camera_component.target                             = glm::vec3(0.0f, 0.0f, 0.0f);
 
     glm::vec3 position = glm::vec3(0.0f, 0.0f, 1.5f);
 
     transform_component.position = position;
 
-    camera_component.view            = glm::lookAt(position, camera_component.target, camera_component.up);
-    camera_component.projection      = glm::perspective(camera_component.vertical_field_of_view, camera_component.aspect, camera_component.z_near, camera_component.z_far);
-    camera_component.view_projection = camera_component.projection * camera_component.view;
+    // camera_component.view            = glm::lookAt(position, camera_component.target, camera_component.up);
+    // camera_component.projection      = glm::perspective(camera_component.vertical_field_of_view, camera_component.aspect, camera_component.z_near, camera_component.z_far);
+    // camera_component.view_projection = camera_component.projection * camera_component.view;
 
-    // Currently the only camera is the active one.
-    m_active_camera = camera_entity;
+    set_active_camera(camera_entity);
 
     return camera_entity;
 }
 
-std::vector<entity> scene::create_entities_from_model(const string& path)
+entity scene::create_entities_from_model(const string& path)
 {
     PROFILE_ZONE;
-    std::vector<entity> scene_entities;
-    entity scene_root = create_empty();
-    auto& transform   = m_transformations.create_component_for(scene_root);
-    scene_entities.push_back(scene_root);
+    entity gltf_root = create_empty();
+    attach(gltf_root, m_root_entity);
+    auto& transform                = m_transformations.create_component_for(gltf_root);
     shared_ptr<resource_system> rs = m_shared_context->get_resource_system_internal().lock();
-    MANGO_ASSERT(rs, "Resource System is invalid!");
-    auto start                     = path.find_last_of("\\/") + 1;
-    auto name                      = path.substr(start, path.find_last_of(".") - start);
-    model_configuration config     = { name };
-    const shared_ptr<model> loaded = rs->get_gltf_model(path, config);
-    tinygltf::Model& m             = loaded->gltf_model;
+    MANGO_ASSERT(rs, "Resource System is expired!");
+    auto start                                      = path.find_last_of("\\/") + 1;
+    auto name                                       = path.substr(start, path.find_last_of(".") - start);
+    m_tags.create_component_for(gltf_root).tag_name = path.substr(start);
+    model_configuration config                      = { name };
+    const shared_ptr<model> loaded                  = rs->get_gltf_model(path, config);
+    tinygltf::Model& m                              = loaded->gltf_model;
 
     // load the default scene or the first one.
     glm::vec3 max_backup   = m_scene_boundaries.max;
@@ -160,36 +181,36 @@ std::vector<entity> scene::create_entities_from_model(const string& path)
     const tinygltf::Scene& scene = m.scenes[scene_id];
     for (int32 i = 0; i < static_cast<int32>(scene.nodes.size()); ++i)
     {
-        entity node = build_model_node(scene_entities, m, m.nodes.at(scene.nodes.at(i)), glm::mat4(1.0), index_to_buffer_data);
+        entity node = build_model_node(m, m.nodes.at(scene.nodes.at(i)), glm::mat4(1.0), index_to_buffer_data);
 
-        attach(node, scene_root);
+        attach(node, gltf_root);
     }
 
     // normalize scale
-    const glm::vec3 scale = glm::vec3(1.0f / (glm::compMax(m_scene_boundaries.max) - glm::compMin(m_scene_boundaries.min)));
+    const glm::vec3 scale = glm::vec3(10.0f / (glm::compMax(m_scene_boundaries.max - m_scene_boundaries.min)));
     transform.scale       = scale;
 
-    if (m_active_camera == invalid_entity)
+    if (m_active.camera == invalid_entity)
     {
-        // We have at least one default camera in each scene and at the moment the first camera is the active one everytime.
         create_default_camera();
     }
 
-    m_cameras.get_component_for_entity(m_active_camera)->target = (m_scene_boundaries.max + m_scene_boundaries.min) * 0.5f * scale;
+    m_cameras.get_component_for_entity(m_active.camera)->target = (m_scene_boundaries.max + m_scene_boundaries.min) * 0.5f * scale;
 
     m_scene_boundaries.max =
         glm::max(m_scene_boundaries.max, max_backup); // TODO Paul: This is just in case all other assets are still here, we need to do the calculation with all still existing entities.
     m_scene_boundaries.min =
         glm::min(m_scene_boundaries.min, min_backup); // TODO Paul: This is just in case all other assets are still here, we need to do the calculation with all still existing entities.
 
-    return scene_entities;
+    return gltf_root;
 }
 
 entity scene::create_environment_from_hdr(const string& path, float rendered_mip_level)
 {
     PROFILE_ZONE;
     entity environment_entity = create_empty();
-    auto& environment         = m_environments.create_component_for(environment_entity);
+    attach(environment_entity, m_root_entity);
+    auto& environment = m_environments.create_component_for(environment_entity);
 
     // default rotation and scale
     environment.rotation_scale_matrix = glm::mat3(1.0f);
@@ -199,9 +220,11 @@ entity scene::create_environment_from_hdr(const string& path, float rendered_mip
     MANGO_ASSERT(res, "Resource System is expired!");
 
     image_configuration img_config;
-    img_config.name                    = path.substr(path.find_last_of("/") + 1, path.find_last_of("."));
-    img_config.is_standard_color_space = false;
-    img_config.is_hdr                  = true;
+    auto start                                               = path.find_last_of("\\/") + 1;
+    img_config.name                                          = path.substr(start, path.find_last_of(".") - start);
+    img_config.is_standard_color_space                       = false;
+    img_config.is_hdr                                        = true;
+    m_tags.create_component_for(environment_entity).tag_name = path.substr(start);
 
     auto hdr_image = res->get_image(path, img_config);
 
@@ -215,19 +238,54 @@ entity scene::create_environment_from_hdr(const string& path, float rendered_mip
 
     texture_ptr hdr_texture = texture::create(tex_config);
 
-    format f        = format::RGBA;
-    format internal = format::RGBA32F;
+    format f        = format::RGB;
+    format internal = format::RGB32F;
     format type     = format::FLOAT;
+
+    if (hdr_image->number_components == 4)
+    {
+        f        = format::RGBA;
+        internal = format::RGBA32F;
+    }
 
     hdr_texture->set_data(internal, hdr_image->width, hdr_image->height, f, type, hdr_image->data);
 
     environment.hdr_texture = hdr_texture;
 
-    shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
-    MANGO_ASSERT(rs, "Render System is expired!");
-    rs->set_environment_texture(environment.hdr_texture, rendered_mip_level); // TODO Paul: Transformation?
+    environment.render_level = rendered_mip_level;
+    set_active_environment(environment_entity); // TODO Paul: Transformation?
 
     return environment_entity;
+}
+
+void scene::set_active_environment(entity e)
+{
+    shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
+    MANGO_ASSERT(rs, "Render System is expired!");
+    if (e == invalid_entity)
+    {
+        m_active.environment = e;
+        rs->set_environment_texture(nullptr, -1.0f);
+        return;
+    }
+    auto next_comp = m_environments.get_component_for_entity(e);
+    if (!next_comp)
+        return;
+
+    m_active.environment = e;
+    rs->set_environment_texture(next_comp->hdr_texture, next_comp->render_level);
+}
+
+void scene::update_environment_parameters(entity e)
+{
+    shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
+    MANGO_ASSERT(rs, "Render System is expired!");
+    if (e == invalid_entity)
+        return;
+    auto comp = m_environments.get_component_for_entity(e);
+    if (!comp)
+        return;
+    rs->set_environment_texture(comp->hdr_texture, comp->render_level, false);
 }
 
 void scene::update(float dt)
@@ -251,12 +309,39 @@ void scene::render()
 void scene::attach(entity child, entity parent)
 {
     PROFILE_ZONE;
-    if (m_nodes.contains(child))
+    MANGO_ASSERT(invalid_entity != child, "Child is invalid!");
+    MANGO_ASSERT(invalid_entity != parent, "Parent is invalid!");
+
+    node_component* parent_node = m_nodes.get_component_for_entity(parent);
+    if (nullptr == parent_node)
     {
-        detach(child);
+        m_nodes.create_component_for(parent);
+        parent_node = m_nodes.get_component_for_entity(parent);
+    }
+    node_component* child_node = m_nodes.get_component_for_entity(child);
+    if (nullptr == child_node)
+    {
+        m_nodes.create_component_for(child);
+        child_node = m_nodes.get_component_for_entity(child);
     }
 
-    m_nodes.create_component_for(child).parent_entity = parent;
+    child_node->parent_entity = parent;
+
+    auto sibling_entity = parent_node->child_entities;
+    if (invalid_entity == sibling_entity)
+        parent_node->child_entities = child;
+    else
+    {
+        node_component* sibling_node = nullptr;
+        for (int32 i = 0; i < parent_node->children_count; ++i)
+        {
+            sibling_node   = m_nodes.get_component_for_entity(sibling_entity);
+            sibling_entity = sibling_node->next_sibling;
+        }
+        sibling_node->next_sibling   = child;
+        child_node->previous_sibling = sibling_entity;
+    }
+    parent_node->children_count++;
 
     // reorder subtrees if necessary
     if (m_nodes.size() > 1)
@@ -282,55 +367,166 @@ void scene::attach(entity child, entity parent)
 
     transform_component* parent_transform = m_transformations.get_component_for_entity(parent);
     if (nullptr == parent_transform)
-    {
-        // create transform component for parent if non-existent
-        parent_transform = &m_transformations.create_component_for(parent);
-    }
+        m_transformations.create_component_for(parent); // create transform component for parent if non-existent
 
     transform_component* child_transform = m_transformations.get_component_for_entity(child);
     if (nullptr == child_transform)
-    {
-        // create transform component for child if non-existent
-        child_transform = &m_transformations.create_component_for(child);
-    }
+        m_transformations.create_component_for(child); // create transform component for child if non-existent
 }
 
-void scene::detach(entity child)
+void scene::detach(entity node)
 {
     PROFILE_ZONE;
-    node_component* parent_component = m_nodes.get_component_for_entity(child);
+    node_component* child_node = m_nodes.get_component_for_entity(node);
 
-    if (nullptr == parent_component)
+    if (nullptr == child_node || child_node->parent_entity == invalid_entity)
     {
         MANGO_LOG_DEBUG("Entity has no parent!");
         return;
     }
 
-    transform_component* child_transform = m_transformations.get_component_for_entity(child);
+    transform_component* child_transform = m_transformations.get_component_for_entity(node);
 
     if (nullptr != child_transform)
     {
-        // Add transformation from parent before removing the node hierarchy
+        // Add transformation from parent before removing the parent
         child_transform->local_transformation_matrix = child_transform->world_transformation_matrix;
     }
 
-    // We want to remove it without crashing the order. In that way, we don't need to sort it again.
-    m_nodes.sort_remove_component_from(child);
+    node_component* parent_node = m_nodes.get_component_for_entity(child_node->parent_entity);
+    MANGO_ASSERT(parent_node, "Node with parent has no parent. ... This should not happen!");
+
+    auto sibling_entity = parent_node->child_entities;
+    if (sibling_entity == node)
+    {
+        parent_node->child_entities = invalid_entity;
+        if (child_node->next_sibling != invalid_entity)
+        {
+            auto next_sibling              = m_nodes.get_component_for_entity(child_node->next_sibling);
+            next_sibling->previous_sibling = invalid_entity;
+            parent_node->child_entities    = child_node->next_sibling;
+        }
+    }
+    else
+    {
+        node_component* next_sibling = nullptr;
+        if (invalid_entity != child_node->next_sibling)
+            next_sibling = m_nodes.get_component_for_entity(child_node->next_sibling);
+        node_component* sibling_node = nullptr;
+        for (int32 i = 0; i < parent_node->children_count; ++i)
+        {
+            if (sibling_entity == node)
+            {
+                // sibling_node is still the previous one
+                if (next_sibling)
+                {
+                    sibling_node->next_sibling     = child_node->next_sibling;
+                    next_sibling->previous_sibling = child_node->previous_sibling;
+                }
+                else
+                    sibling_node->next_sibling = invalid_entity;
+                break;
+            }
+            sibling_node   = m_nodes.get_component_for_entity(sibling_entity);
+            sibling_entity = sibling_node->next_sibling;
+        }
+    }
+    parent_node->children_count--;
+
+    if (child_node->children_count == 0)
+        m_nodes.sort_remove_component_from(node); // Sorting necessarry?
+
+    if (parent_node->children_count == 0 && parent_node->parent_entity == invalid_entity)
+        m_nodes.sort_remove_component_from(child_node->parent_entity); // Sorting necessarry?
 }
 
-entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world, const std::map<int, buffer_ptr>& buffer_map)
+void scene::delete_node(entity node)
 {
     PROFILE_ZONE;
-    entity node     = create_empty();
-    auto& transform = m_transformations.create_component_for(node);
+    node_component* child_node = m_nodes.get_component_for_entity(node);
+
+    if (nullptr == child_node || child_node->parent_entity == invalid_entity)
+    {
+        MANGO_LOG_DEBUG("Entity has no parent!");
+        return;
+    }
+
+    transform_component* child_transform = m_transformations.get_component_for_entity(node);
+
+    if (nullptr != child_transform)
+    {
+        // Add transformation from parent before removing the parent
+        child_transform->local_transformation_matrix = child_transform->world_transformation_matrix;
+    }
+
+    auto children_entity = child_node->child_entities;
+    for (int32 i = 0; i < child_node->children_count; ++i)
+    {
+        auto children_node              = m_nodes.get_component_for_entity(children_entity);
+        children_entity                 = children_node->next_sibling;
+        children_node->parent_entity    = invalid_entity;
+        children_node->next_sibling     = invalid_entity;
+        children_node->previous_sibling = invalid_entity;
+    }
+
+    node_component* parent_node = m_nodes.get_component_for_entity(child_node->parent_entity);
+    MANGO_ASSERT(parent_node, "Node with parent has no parent. ... This should not happen!");
+
+    auto sibling_entity = parent_node->child_entities;
+    if (sibling_entity == node)
+    {
+        parent_node->child_entities = invalid_entity;
+        if (child_node->next_sibling != invalid_entity)
+        {
+            auto next_sibling              = m_nodes.get_component_for_entity(child_node->next_sibling);
+            next_sibling->previous_sibling = invalid_entity;
+            parent_node->child_entities    = child_node->next_sibling;
+        }
+    }
+    else
+    {
+        node_component* next_sibling = nullptr;
+        if (invalid_entity != child_node->next_sibling)
+            next_sibling = m_nodes.get_component_for_entity(child_node->next_sibling);
+        node_component* sibling_node = nullptr;
+        for (int32 i = 0; i < parent_node->children_count; ++i)
+        {
+            if (sibling_entity == node)
+            {
+                // sibling_node is still the previous one
+                if (next_sibling)
+                {
+                    sibling_node->next_sibling     = child_node->next_sibling;
+                    next_sibling->previous_sibling = child_node->previous_sibling;
+                }
+                else
+                    sibling_node->next_sibling = invalid_entity;
+                break;
+            }
+            sibling_node   = m_nodes.get_component_for_entity(sibling_entity);
+            sibling_entity = sibling_node->next_sibling;
+        }
+    }
+    parent_node->children_count--;
+
+    m_nodes.sort_remove_component_from(node); // Sorting necessary?
+
+    if (parent_node->children_count == 0 && parent_node->parent_entity == invalid_entity)
+        m_nodes.sort_remove_component_from(child_node->parent_entity); // Sorting necessary?
+}
+
+entity scene::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world, const std::map<int, buffer_ptr>& buffer_map)
+{
+    PROFILE_ZONE;
+    entity node                                = create_empty();
+    m_tags.create_component_for(node).tag_name = n.name;
+    auto& transform                            = m_transformations.create_component_for(node);
     if (n.matrix.size() == 16)
     {
         glm::mat4 input = glm::make_mat4(n.matrix.data());
-        glm::quat orient;
         glm::vec3 s;
         glm::vec4 p;
-        glm::decompose(input, transform.scale, orient, transform.position, s, p); // TODO Paul: Use quaternions.
-        transform.rotation = glm::vec4(glm::angle(orient), glm::axis(orient));
+        glm::decompose(input, transform.scale, transform.rotation, transform.position, s, p);
     }
     else
     {
@@ -340,9 +536,7 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
         }
         if (n.rotation.size() == 4)
         {
-            glm::quat orient =
-                glm::quat(static_cast<float>(n.rotation[3]), static_cast<float>(n.rotation[0]), static_cast<float>(n.rotation[1]), static_cast<float>(n.rotation[2])); // TODO Paul: Use quaternions.
-            transform.rotation = glm::vec4(glm::angle(orient), glm::axis(orient));
+            transform.rotation = glm::quat(static_cast<float>(n.rotation[3]), static_cast<float>(n.rotation[0]), static_cast<float>(n.rotation[1]), static_cast<float>(n.rotation[2]));
         }
         if (n.scale.size() == 3)
         {
@@ -351,7 +545,7 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
     }
 
     glm::mat4 trafo = glm::translate(glm::mat4(1.0), transform.position);
-    trafo           = glm::rotate(trafo, transform.rotation.x, glm::vec3(transform.rotation.y, transform.rotation.z, transform.rotation.w));
+    trafo           = trafo * glm::toMat4(transform.rotation);
     trafo           = glm::scale(trafo, transform.scale);
 
     trafo = parent_world * trafo;
@@ -363,14 +557,18 @@ entity scene::build_model_node(std::vector<entity>& entities, tinygltf::Model& m
         update_scene_boundaries(trafo, m, m.meshes.at(n.mesh), m_scene_boundaries.min, m_scene_boundaries.max);
     }
 
-    entities.push_back(node);
+    if (n.camera > -1)
+    {
+        MANGO_ASSERT(n.camera < static_cast<int32>(m.cameras.size()), "Invalid gltf camera!");
+        build_model_camera(node, m.cameras.at(n.camera));
+    }
 
     // build child nodes.
     for (int32 i = 0; i < static_cast<int32>(n.children.size()); ++i)
     {
         MANGO_ASSERT(n.children[i] < static_cast<int32>(m.nodes.size()), "Invalid gltf node!");
 
-        entity child = build_model_node(entities, m, m.nodes.at(n.children.at(i)), trafo, buffer_map);
+        entity child = build_model_node(m, m.nodes.at(n.children.at(i)), trafo, buffer_map);
         attach(child, node);
     }
 
@@ -486,6 +684,27 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
     }
 }
 
+void scene::build_model_camera(entity node, tinygltf::Camera& camera)
+{
+    PROFILE_ZONE;
+    auto& component_camera    = m_cameras.create_component_for(node);
+    component_camera.cam_type = camera.type == "perspective" ? camera_type::perspective_camera : camera_type::orthographic_camera;
+    if (component_camera.cam_type == camera_type::perspective_camera)
+    {
+        component_camera.z_near                             = static_cast<float>(camera.perspective.znear);
+        component_camera.z_far                              = camera.perspective.zfar > 0.0 ? static_cast<float>(camera.perspective.zfar) : 10000.0f; // Infinite?
+        component_camera.perspective.vertical_field_of_view = static_cast<float>(camera.perspective.yfov);
+        component_camera.perspective.aspect                 = camera.perspective.aspectRatio > 0.0 ? static_cast<float>(camera.perspective.aspectRatio) : 16.0f / 9.0f;
+    }
+    else // orthographic
+    {
+        component_camera.z_near             = static_cast<float>(camera.orthographic.znear);
+        component_camera.z_far              = camera.perspective.zfar > 0.0 ? static_cast<float>(camera.perspective.zfar) : 10000.0f; // Infinite?
+        component_camera.orthographic.x_mag = static_cast<float>(camera.orthographic.xmag);
+        component_camera.orthographic.y_mag = static_cast<float>(camera.orthographic.ymag);
+    }
+}
+
 void scene::load_material(material_component& material, const tinygltf::Primitive& primitive, tinygltf::Model& m)
 {
     PROFILE_ZONE;
@@ -498,7 +717,15 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         MANGO_LOG_DEBUG("Loading material: {0}", p_m.name.c_str());
     }
 
+    material.material_name                    = p_m.name;
     material.component_material->double_sided = p_m.doubleSided;
+
+    material.component_material->use_base_color_texture         = false;
+    material.component_material->use_roughness_metallic_texture = false;
+    material.component_material->use_occlusion_texture          = false;
+    material.component_material->use_normal_texture             = false;
+    material.component_material->use_emissive_color_texture     = false;
+    material.component_material->use_packed_occlusion           = false;
 
     auto& pbr = p_m.pbrMetallicRoughness;
 
@@ -519,21 +746,22 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     }
     else
     {
+        material.component_material->use_base_color_texture = true;
         // base color
         const tinygltf::Texture& base_col = m.textures.at(pbr.baseColorTexture.index);
 
         if (base_col.source < 0)
             return;
 
-        const tinygltf::Image& image     = m.images[static_cast<g_enum>(base_col.source)];
-        const tinygltf::Sampler& sampler = m.samplers[static_cast<g_enum>(base_col.sampler)];
+        const tinygltf::Image& image = m.images[static_cast<g_enum>(base_col.source)];
 
         if (base_col.sampler >= 0)
         {
-            config.m_texture_min_filter = filter_parameter_from_gl(static_cast<g_enum>(sampler.minFilter));
-            config.m_texture_mag_filter = filter_parameter_from_gl(static_cast<g_enum>(sampler.magFilter));
-            config.m_texture_wrap_s     = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapS));
-            config.m_texture_wrap_t     = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapT));
+            const tinygltf::Sampler& sampler = m.samplers[static_cast<g_enum>(base_col.sampler)];
+            config.m_texture_min_filter      = filter_parameter_from_gl(static_cast<g_enum>(sampler.minFilter));
+            config.m_texture_mag_filter      = filter_parameter_from_gl(static_cast<g_enum>(sampler.magFilter));
+            config.m_texture_wrap_s          = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapS));
+            config.m_texture_wrap_t          = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapT));
         }
 
         config.m_is_standard_color_space = true;
@@ -579,20 +807,21 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     }
     else
     {
-        const tinygltf::Texture& o_r_m_t = m.textures.at(pbr.metallicRoughnessTexture.index);
+        material.component_material->use_roughness_metallic_texture = true;
+        const tinygltf::Texture& o_r_m_t                            = m.textures.at(pbr.metallicRoughnessTexture.index);
 
         if (o_r_m_t.source < 0)
             return;
 
-        const tinygltf::Image& image     = m.images[o_r_m_t.source];
-        const tinygltf::Sampler& sampler = m.samplers[o_r_m_t.sampler];
+        const tinygltf::Image& image = m.images[o_r_m_t.source];
 
         if (o_r_m_t.sampler >= 0)
         {
-            config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
-            config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
-            config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
-            config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
+            const tinygltf::Sampler& sampler = m.samplers[o_r_m_t.sampler];
+            config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
+            config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
+            config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
+            config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
         }
 
         config.m_is_standard_color_space = false;
@@ -636,24 +865,26 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (pbr.metallicRoughnessTexture.index == p_m.occlusionTexture.index)
         {
             // occlusion packed into r channel of the roughness and metallic texture.
-            material.component_material->packed_occlusion = true;
+            material.component_material->use_packed_occlusion = true;
+            material.component_material->packed_occlusion     = true;
         }
         else
         {
-            material.component_material->packed_occlusion = false;
-            const tinygltf::Texture& occ                  = m.textures.at(p_m.occlusionTexture.index);
+            material.component_material->use_occlusion_texture = true;
+            material.component_material->packed_occlusion      = false;
+            const tinygltf::Texture& occ                       = m.textures.at(p_m.occlusionTexture.index);
             if (occ.source < 0)
                 return;
 
-            const tinygltf::Image& image     = m.images[occ.source];
-            const tinygltf::Sampler& sampler = m.samplers[occ.sampler];
+            const tinygltf::Image& image = m.images[occ.source];
 
             if (occ.sampler >= 0)
             {
-                config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
-                config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
-                config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
-                config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
+                const tinygltf::Sampler& sampler = m.samplers[occ.sampler];
+                config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
+                config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
+                config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
+                config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
             }
 
             config.m_is_standard_color_space = false;
@@ -695,20 +926,21 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     // normal
     if (p_m.normalTexture.index >= 0)
     {
-        const tinygltf::Texture& norm = m.textures.at(p_m.normalTexture.index);
+        material.component_material->use_normal_texture = true;
+        const tinygltf::Texture& norm                   = m.textures.at(p_m.normalTexture.index);
 
         if (norm.source < 0)
             return;
 
-        const tinygltf::Image& image     = m.images[norm.source];
-        const tinygltf::Sampler& sampler = m.samplers[norm.sampler];
+        const tinygltf::Image& image = m.images[norm.source];
 
         if (norm.sampler >= 0)
         {
-            config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
-            config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
-            config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
-            config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
+            const tinygltf::Sampler& sampler = m.samplers[norm.sampler];
+            config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
+            config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
+            config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
+            config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
         }
 
         config.m_is_standard_color_space = false;
@@ -754,20 +986,21 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     }
     else
     {
-        const tinygltf::Texture& emissive = m.textures.at(p_m.emissiveTexture.index);
+        material.component_material->use_emissive_color_texture = true;
+        const tinygltf::Texture& emissive                       = m.textures.at(p_m.emissiveTexture.index);
 
         if (emissive.source < 0)
             return;
 
-        const tinygltf::Image& image     = m.images[emissive.source];
-        const tinygltf::Sampler& sampler = m.samplers[emissive.sampler];
+        const tinygltf::Image& image = m.images[emissive.source];
 
         if (emissive.sampler >= 0)
         {
-            config.m_texture_min_filter = filter_parameter_from_gl(sampler.minFilter);
-            config.m_texture_mag_filter = filter_parameter_from_gl(sampler.magFilter);
-            config.m_texture_wrap_s     = wrap_parameter_from_gl(sampler.wrapS);
-            config.m_texture_wrap_t     = wrap_parameter_from_gl(sampler.wrapT);
+            const tinygltf::Sampler& sampler = m.samplers[emissive.sampler];
+            config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
+            config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
+            config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
+            config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
         }
 
         config.m_is_standard_color_space = true;

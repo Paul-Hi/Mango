@@ -31,6 +31,8 @@ namespace mango
         int32 height;
         //! \brief The loaded number of components of this \a image.
         int32 number_components;
+        //! \brief The number of bits.
+        int32 bits;
 
         //! \brief The \a image_configuration of this \a image.
         image_configuration configuration;

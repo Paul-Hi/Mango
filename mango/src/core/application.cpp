@@ -13,12 +13,8 @@
 #include <mango/assert.hpp>
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
-#include <resources/resource_system.hpp>
 #include <ui/ui_system_impl.hpp>
 #include <mango/profile.hpp>
-
-// test
-#include <graphics/texture.hpp>
 
 using namespace mango;
 

@@ -44,6 +44,12 @@ namespace mango
         {
             MANGO_ASSERT(e != invalid_entity, "Entity is not valid!");
             assert_state();
+            auto it = m_lookup.find(e);
+            if (it != m_lookup.end())
+            {
+                MANGO_LOG_DEBUG("Entity does already have a component of type {0}!", type_name<component>::get());
+                return m_components.at(it->second);
+            }
             m_lookup.insert({ e, end });
             m_components.at(end) = component(); // reset component
             m_entities.at(end)   = e;
@@ -74,7 +80,7 @@ namespace mango
             }
 
             m_components.at(end - 1) = component(); // reinitialize default
-            m_entities.at(end--) = invalid_entity;
+            m_entities.at(end--)     = invalid_entity;
             m_lookup.erase(indexed);
         }
 
@@ -111,14 +117,18 @@ namespace mango
 
         //! \brief Retrieves the \a component of a specific \a entity.
         //! \param[in] e The \a entity to get the \a component from.
+        //! \param[in] query True if the caller is not sure, if copmonent exists.
         //! \return A pointer to the \a component.
-        component* get_component_for_entity(entity e)
+        component* get_component_for_entity(entity e, bool query = false)
         {
             assert_state();
             auto it = m_lookup.find(e);
             if (it == m_lookup.end())
             {
-                MANGO_LOG_DEBUG("Entity does not have a component of type {0}!", type_name<component>::get());
+                if (!query)
+                {
+                    MANGO_LOG_DEBUG("Entity does not have a component of type {0}!", type_name<component>::get());
+                }
                 return nullptr;
             }
 

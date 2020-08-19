@@ -9,16 +9,18 @@
 
 #include <mango/assert.hpp>
 #include <mango/system.hpp>
-#include <mango/types.hpp>
 
 namespace mango
 {
     //! \brief Available widgets for the ui.
     enum ui_widget
     {
-        render_view,         //!< Widget displaying the rendered scene.
-        hardware_info,       //!< Widget giving some hardware info.
-        number_of_ui_widgets //!< Number of widgets.
+        render_view,                //!< Widget displaying the rendered scene.
+        hardware_info,              //!< Widget giving some hardware info.
+        scene_inspector,            //!< Widget displaying the scene hierachy.
+        material_inspector,         //!< Widget displaying material properties for the selected entity.
+        entity_component_inspector, //! Widget displaying component properties for the selected entity.
+        number_of_ui_widgets        //!< Number of widgets.
     };
 
     //! \brief The custom ui data.

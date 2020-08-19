@@ -25,10 +25,8 @@ class editor : public mango::application
   private:
     //! \brief Main camera. Testing.
     mango::entity m_main_camera;
-    //! \brief Current scene entities.
-    std::vector<mango::entity> m_model;
-    //! \brief Current environment.
-    mango::entity m_environment;
+    //! \brief Current model root.
+    mango::entity m_model;
 
     //! \brief Last mouse position.
     glm::vec2 m_last_mouse_position;

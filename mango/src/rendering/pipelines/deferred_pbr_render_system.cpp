@@ -6,7 +6,6 @@
 
 #include <core/window_system_impl.hpp>
 #include <glad/glad.h>
-#include <glm/glm.hpp>
 #include <graphics/buffer.hpp>
 #include <graphics/framebuffer.hpp>
 #include <graphics/shader.hpp>
@@ -417,10 +416,11 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
 
     scene_material_uniforms u;
 
-    u.base_color = std140_vec4(mat->base_color);
-    u.metallic   = (g_float)mat->metallic;
-    u.roughness  = (g_float)mat->roughness;
-    if (mat->base_color_texture)
+    u.base_color     = std140_vec4(mat->base_color);
+    u.emissive_color = std140_vec3(mat->emissive_color);
+    u.metallic       = (g_float)mat->metallic;
+    u.roughness      = (g_float)mat->roughness;
+    if (mat->use_base_color_texture)
     {
         u.base_color_texture = std140_bool(true);
         m_command_buffer->bind_texture(0, mat->base_color_texture, 1);
@@ -430,7 +430,7 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
         u.base_color_texture = std140_bool(false);
         m_command_buffer->bind_texture(0, default_texture, 1);
     }
-    if (mat->roughness_metallic_texture)
+    if (mat->use_roughness_metallic_texture)
     {
         u.roughness_metallic_texture = std140_bool(true);
         m_command_buffer->bind_texture(1, mat->roughness_metallic_texture, 2);
@@ -440,7 +440,7 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
         u.roughness_metallic_texture = std140_bool(false);
         m_command_buffer->bind_texture(1, default_texture, 2);
     }
-    if (mat->occlusion_texture)
+    if (mat->use_occlusion_texture)
     {
         u.occlusion_texture = std140_bool(true);
         m_command_buffer->bind_texture(2, mat->occlusion_texture, 3);
@@ -451,9 +451,9 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
         u.occlusion_texture = std140_bool(false);
         m_command_buffer->bind_texture(2, default_texture, 3);
         // eventually it is packed
-        u.packed_occlusion = std140_bool(mat->packed_occlusion);
+        u.packed_occlusion = std140_bool(mat->packed_occlusion && mat->use_packed_occlusion);
     }
-    if (mat->normal_texture)
+    if (mat->use_normal_texture)
     {
         u.normal_texture = std140_bool(true);
         m_command_buffer->bind_texture(3, mat->normal_texture, 4);
@@ -463,7 +463,7 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
         u.normal_texture = std140_bool(false);
         m_command_buffer->bind_texture(3, default_texture, 4);
     }
-    if (mat->emissive_color_texture)
+    if (mat->use_emissive_color_texture)
     {
         u.emissive_color_texture = std140_bool(true);
         m_command_buffer->bind_texture(4, mat->emissive_color_texture, 5);
@@ -504,13 +504,14 @@ void deferred_pbr_render_system::set_view_projection_matrix(const glm::mat4& vie
     m_command_buffer->bind_single_uniform(0, &const_cast<glm::mat4&>(view_projection), sizeof(glm::mat4));
 }
 
-void deferred_pbr_render_system::set_environment_texture(const texture_ptr& hdr_texture, float render_level)
+void deferred_pbr_render_system::set_environment_texture(const texture_ptr& hdr_texture, float render_level, bool new_texture)
 {
     PROFILE_ZONE;
     if (m_pipeline_steps[mango::render_step::ibl])
     {
         auto ibl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
-        ibl->load_from_hdr(hdr_texture);
+        if(new_texture)
+            ibl->load_from_hdr(hdr_texture);
         ibl->set_render_level(render_level);
     }
 }

@@ -7,10 +7,7 @@
 #ifndef MANGO_SCENE_ECS_HPP
 #define MANGO_SCENE_ECS_HPP
 
-//! \cond NO_COND
-#define GLM_FORCE_SILENT_WARNINGS 1
-//! \endcond
-#include <glm/glm.hpp>
+#include <mango/types.hpp>
 
 namespace mango
 {
@@ -55,6 +52,12 @@ namespace mango
     struct material;
     class texture;
 
+    //! \brief Component used for to give an \a entity a name.
+    struct tag_component
+    {
+        string tag_name; //!< The name.
+    };
+
     //! \brief Camera types used in \a camera_components.
     enum class camera_type : uint8
     {
@@ -65,10 +68,9 @@ namespace mango
     //! \brief Component used to transform anything in the scene.
     struct transform_component
     {
-        glm::vec3 position = glm::vec3(0.0f); //!< The local position.
-        // TODO Paul: We should really use quaternions.
-        glm::vec4 rotation = glm::vec4(0.0f, glm::vec3(0.1f)); //!< The local rotation angle (x) axis (yzw).
-        glm::vec3 scale    = glm::vec3(1.0f);                  //!< The local scale.
+        glm::vec3 position = glm::vec3(0.0f);                     //!< The local position.
+        glm::quat rotation = glm::quat(glm::vec3(0.0, 0.0, 0.0)); //!< The local rotation quaternion.
+        glm::vec3 scale    = glm::vec3(1.0f);                     //!< The local scale.
 
         glm::mat4 local_transformation_matrix = glm::mat4(1.0f); //!< The local transformation.
         glm::mat4 world_transformation_matrix = glm::mat4(1.0f); //!< The world transformation. If there is no parent this is also the local transformation.
@@ -78,6 +80,11 @@ namespace mango
     struct node_component
     {
         entity parent_entity = invalid_entity; //!< The parents entity id.
+
+        int32 children_count    = 0;              //!< The number of childs.
+        entity child_entities   = invalid_entity; //!< The first child entity id. (Linked list)
+        entity next_sibling     = invalid_entity; //!< The next child entity id.
+        entity previous_sibling = invalid_entity; //!< The previous child entity id.
     };
 
     //! \brief Component used to describe a primitive draw call. Used by \a mesh_component.
@@ -94,6 +101,7 @@ namespace mango
     //! \brief Component used for materials.
     struct material_component
     {
+        string material_name;                    //!< The name of the material.
         shared_ptr<material> component_material; //!< The material holding all properties, textures etc.
     };
 
@@ -116,12 +124,20 @@ namespace mango
     {
         camera_type cam_type; //!< The type of camera projection.
 
-        float z_near;                 //!< Distance of the near plane.
-        float z_far;                  //!< Distance of the far plane.
-        float vertical_field_of_view; //!< Vertical field of view in radians.
-        float aspect;                 //!< Aspect ratio. Width divided by height.
-        glm::vec3 up;                 //!< The cameras up vector.
-        glm::vec3 target;             //!< The target to look at.
+        float z_near; //!< Distance of the near plane.
+        float z_far;  //!< Distance of the far plane.
+        struct
+        {
+            float vertical_field_of_view; //!< Vertical field of view in radians.
+            float aspect;                 //!< Aspect ratio. Width divided by height.
+        } perspective; //!< Parameters for perspective projection.
+        struct
+        {
+            float x_mag; //!< Magnification in x direction.
+            float y_mag; //!< Magnification in y direction.
+        } orthographic; //!< Parameters for orthographic projection.
+        glm::vec3 up;     //!< The cameras up vector.
+        glm::vec3 target; //!< The target to look at.
         //! \brief The view matrix of the \a camera_component.
         glm::mat4 view;
         //! \brief The projection matrix of the \a camera_component.
@@ -136,13 +152,22 @@ namespace mango
     {
         glm::mat3 rotation_scale_matrix = glm::mat3(1.0f); //!< The rotation and scale of the environment.
         shared_ptr<texture> hdr_texture;                   //!< The hdr texture used to build the environment.
+        float render_level;                                //!< The render level to render or -1 if the environment should not be rendered.
     };
 
     //! \brief Structure used for collecting all the camera data of the current active camera.
     struct camera_data
     {
+        entity active_camera_entity;    //!< The entity.
         camera_component* camera_info;  //!< The camera info.
         transform_component* transform; //!< The cameras transform.
+    };
+
+    //! \brief Structure used for collecting all the environment data of the current active environment.
+    struct environment_data
+    {
+        entity active_environment_entity;        //!< The entity.
+        environment_component* environment_info; //!< The environment info.
     };
 
     // TODO Paul: This will be reworked when we need the reflection for the components.

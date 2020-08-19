@@ -49,7 +49,11 @@ void win32_input_system::set_platform_data(const shared_ptr<platform_data>& data
         {
             auto cam_info = c->get_current_scene()->get_active_camera_data().camera_info;
             if (cam_info)
-                cam_info->aspect = (float)w / (float)h;
+            {
+                cam_info->perspective.aspect = (float)w / (float)h;
+                cam_info->orthographic.x_mag = (float)w / (float)h;
+                cam_info->orthographic.y_mag = 1.0f;
+            }
             c->get_render_system_internal().lock()->set_viewport(0, 0, w, h);
         }
     });

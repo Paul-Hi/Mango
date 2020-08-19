@@ -7,11 +7,8 @@
 #ifndef MANGO_RENDER_SYSTEM_HPP
 #define MANGO_RENDER_SYSTEM_HPP
 
-#include <cstring>
 #include <mango/assert.hpp>
-#include <mango/context.hpp>
 #include <mango/system.hpp>
-#include <mango/types.hpp>
 
 namespace mango
 {
