@@ -150,6 +150,7 @@ target_compile_definitions(mango
         $<$<CXX_COMPILER_ID:MSVC>:MANGO_WINMAIN>
         $<$<BOOL:${MANGO_BUILD_TESTS}>:MANGO_TEST>
         $<$<BOOL:${MANGO_PROFILE}>:MANGO_PROFILE>
+        $<$<CXX_COMPILER_ID:MSVC>: _CRT_SECURE_NO_WARNINGS>
     PRIVATE
         $<$<BOOL:${WIN32}>:WIN32>
         $<$<BOOL:${LINUX}>:LINUX>

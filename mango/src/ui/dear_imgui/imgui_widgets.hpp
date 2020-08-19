@@ -134,7 +134,7 @@ namespace mango
             }
             else if (bits == 32)
             {
-                format::UNSIGNED_INT;
+                type = format::UNSIGNED_INT;
             }
         }
 
@@ -533,7 +533,7 @@ namespace mango
             auto current_name = !current_material.material_name.empty() ? current_material.material_name : "Unnamed Material " + std::to_string(current_id);
             if (ImGui::BeginCombo("Materials", current_name.c_str()))
             {
-                for (int32 n = 0; n < mesh->materials.size(); ++n)
+                for (int32 n = 0; n < static_cast<int32>(mesh->materials.size()); ++n)
                 {
                     bool is_selected = (current_material.material_name == mesh->materials[n].material_name);
                     auto name        = !mesh->materials[n].material_name.empty() ? mesh->materials[n].material_name : "Unnamed Material " + std::to_string(n);
@@ -575,8 +575,8 @@ namespace mango
             ImGui::Text("Tag");
             if (tag_comp)
             {
-                std::array<char, 32> tmp_string;                             // TODO Paul: Max length? 32 enough for now?
-                strcpy_s(tmp_string.data(), 32, tag_comp->tag_name.c_str()); // TODO Paul: Kind of fishy.
+                std::array<char, 32> tmp_string;                       // TODO Paul: Max length? 32 enough for now?
+                strcpy(tmp_string.data(), tag_comp->tag_name.c_str()); // TODO Paul: Kind of fishy.
                 ImGui::InputTextWithHint(("##tag" + std::to_string(e)).c_str(), "Enter Entity Tag", tmp_string.data(), 32);
                 tag_comp->tag_name = tmp_string.data();
                 ImGui::Spacing();
@@ -757,8 +757,10 @@ namespace mango
                 ImGui::Checkbox(("Make Scene Camera##camera" + std::to_string(e)).c_str(), &active);
                 if (active)
                     application_scene->set_active_camera(e);
-                const char* types = "perspective\0orthographic\0\0";
-                ImGui::Combo(("Camera Type##camera" + std::to_string(e)).c_str(), &(static_cast<int>(camera_comp->cam_type)), types);
+                const char* types  = "perspective\0orthographic\0\0";
+                int32 cam_type_int = static_cast<int32>(camera_comp->cam_type);
+                ImGui::Combo(("Camera Type##camera" + std::to_string(e)).c_str(), &cam_type_int, types);
+                camera_comp->cam_type = static_cast<camera_type>(cam_type_int);
                 ImGui::SliderFloat(("Near Plane##camera" + std::to_string(e)).c_str(), &camera_comp->z_near, 0.0f, camera_comp->z_far);
                 ImGui::SliderFloat(("Far Plane##camera" + std::to_string(e)).c_str(), &camera_comp->z_far, camera_comp->z_near, 1000.0f);
                 if (camera_comp->cam_type == camera_type::perspective_camera)
