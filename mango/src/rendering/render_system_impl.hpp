@@ -35,11 +35,19 @@ namespace mango
         } last_frame;            //!< Measured stats from the last rendered frame.
     };
 
+    //! \brief Structure to store debug data.
     struct debug_views
     {
-        framebuffer_ptr fb_port0;
-        framebuffer_ptr fb_port1;
-        framebuffer_ptr fb_port2;
+        framebuffer_ptr fb_port0; //!< Port to attach a framebuffer to debug.
+        framebuffer_ptr fb_port1; //!< Port to attach a framebuffer to debug.
+        framebuffer_ptr fb_port2; //!< Port to attach a framebuffer to debug.
+    };
+
+    //! \brief Structure to store data for adaptive exposure.
+    struct luminance_data
+    {
+        uint32 histogram[256]; //!< The histogram data
+        float luminance;       //!< Smoothed out average luminance.
     };
 
     //! \brief The implementation of the \a render_system.
@@ -117,7 +125,7 @@ namespace mango
 
         //! \brief Sets data for environment rendering.
         //! \param[in] render_level The level from the hdr \a texture to render. -1 means no rendering.
-        //! \param[in] intensitz The intensity of the environment in cd/m^2.
+        //! \param[in] intensity The intensity of the environment in cd/m^2.
         virtual void set_environment_settings(float render_level, float intensity);
 
         //! \brief Returns the backbuffer of the a render_system.
@@ -125,13 +133,15 @@ namespace mango
         virtual framebuffer_ptr get_backbuffer();
 
         //! \brief Returns some stats regarding hardware.
-        //! \return some stats regarding hardware.
+        //! \return Some stats regarding hardware.
         inline const hardware_stats& get_hardware_stats()
         {
             MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
             return m_current_render_system->m_hardware_stats;
         }
 
+        //! \brief Returns the debug views set by the \a render_system.
+        //! \return The debug view structure.
         inline const debug_views& get_debug_views()
         {
             MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
@@ -148,6 +158,7 @@ namespace mango
         //! \brief The hardware stats.
         hardware_stats m_hardware_stats;
 
+        //! \brief The debug views.
         debug_views m_debug_views;
 
       private:

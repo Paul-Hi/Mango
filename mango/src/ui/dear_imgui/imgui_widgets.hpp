@@ -60,11 +60,6 @@ namespace mango
         return size;
     }
 
-    float uint_as_float(void* uints, int32 index)
-    {
-        return (float)(((uint32*)uints)[index]);
-    };
-
     //! \brief This is an imgui widget drawing some stats of the framework.
     //! \param[in] shared_context The shared context.
     //! \param[in] enabled Specifies if window is rendered or not and can be set by imgui.
@@ -86,7 +81,7 @@ namespace mango
             ImGui::Text("Rendered Materials: %d", stats.last_frame.materials);
             ImGui::Text("Canvas Size: (%d x %d) px", stats.last_frame.canvas_width, stats.last_frame.canvas_height);
         }
-        if (ImGui::CollapsingHeader("Renderer Debug View"))
+        if (ImGui::CollapsingHeader("Renderer Debug Views"))
         {
             auto debug   = shared_context->get_render_system_internal().lock()->get_debug_views();
             int32 line   = 1;

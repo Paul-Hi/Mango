@@ -70,12 +70,8 @@ namespace mango
 
         //! \brief The shader storage buffer mapping for the luminance histogram
         buffer_ptr m_luminance_histogram_buffer;
-        //! \brief The mapped luminance data from the histogram calculation. Smoothed out luminance.
-        struct luminance_data
-        {
-            uint32 histogram[256];
-            float luminance;
-        };
+
+        //! \brief The mapped luminance data from the histogram calculation.
         luminance_data* m_luminance_data_mapping;
 
         //! \brief The \a shader_program for the composing pass.
@@ -128,14 +124,18 @@ namespace mango
             g_float padding1; //!< Padding needed for st140 layout.
         };
 
+        //! \brief Uniform buffer structure for the lighting pass of the deferred pipeline.
         struct lighting_pass_uniforms
         {
-            std140_mat4 inverse_view_projection;
-            std140_vec3 camera_position;
+            std140_mat4 inverse_view_projection; //!< Inverse camera view projection matrix.
+            std140_vec3 camera_position;         //!< Camera position.
         };
 
+        //! \brief Binds the uniform buffer of the lighting pass.
         void bind_lighting_pass_uniform_buffer();
 
+        //! \brief Calculates automatic exposure and adapts physicall camera parameters.
+        //! \param[in,out] camera The \a camera_data of the current camera.
         void apply_auto_exposure(camera_data& camera);
 
         //! \brief Optional additional steps of the deferred pipeline.

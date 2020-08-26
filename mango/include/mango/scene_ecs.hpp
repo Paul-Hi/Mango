@@ -112,15 +112,24 @@ namespace mango
         bool has_tangents;
     };
 
-    const float min_aperture          = 0.5f;
-    const float default_aperture      = 16.0f;
-    const float max_aperture          = 64.0f;
-    const float min_shutter_speed     = 1.0f / 25000.0f;
+    //! \brief The minimum valid value for the camera aperture.
+    const float min_aperture = 0.5f;
+    //! \brief The default value for the camera aperture.
+    const float default_aperture = 16.0f;
+    //! \brief The maximum valid value for the camera aperture.
+    const float max_aperture = 64.0f;
+    //! \brief The minimum valid value for the camera shutter speed.
+    const float min_shutter_speed = 1.0f / 25000.0f;
+    //! \brief The default value for the camera shutter speed.
     const float default_shutter_speed = 1.0f / 125.0f;
-    const float max_shutter_speed     = 60.0f;
-    const float min_iso               = 10.0f;
-    const float default_iso           = 100.0f;
-    const float max_iso               = 204800.0f;
+    //! \brief The maximum valid value for the camera shutter speed.
+    const float max_shutter_speed = 60.0f;
+    //! \brief The minimum valid value for the camera iso.
+    const float min_iso = 10.0f;
+    //! \brief The default value for the camera iso.
+    const float default_iso = 100.0f;
+    //! \brief The maximum valid value for the camera iso.
+    const float max_iso = 204800.0f;
 
     //! \brief Camera types used in \a camera_components.
     enum class camera_type : uint8
@@ -148,12 +157,12 @@ namespace mango
         } orthographic;  //!< Parameters for orthographic projection.
         struct
         {
-            float aperture         = default_aperture;
-            float shutter_speed    = default_shutter_speed;
-            float iso              = default_iso;
-            bool adaptive_exposure = true;
+            float aperture         = default_aperture;      //!< The aperture.
+            float shutter_speed    = default_shutter_speed; //!< The shutter speed.
+            float iso              = default_iso;           //!< The iso.
+            bool adaptive_exposure = true;                  //!< True if the exposure and all corresponding parameters should be adapted automatically, else false.
 
-        } physical;
+        } physical;       //!< Physical parameters.
         glm::vec3 up;     //!< The cameras up vector.
         glm::vec3 target; //!< The target to look at.
         //! \brief The view matrix of the \a camera_component.
@@ -168,7 +177,6 @@ namespace mango
     const float default_environment_intensity = 30000.0f;
 
     //! \brief Component used for the scene environment.
-    //! \details This could be extended from the entities, because there will be only one active environment in the scene normally.
     struct environment_component
     {
         glm::mat3 rotation_scale_matrix = glm::mat3(1.0f); //!< The rotation and scale of the environment.
@@ -183,21 +191,24 @@ namespace mango
         directional //!< Simple directional light.
     };
 
+    //! \brief Base light data for every light.
     struct light_data
     {
     };
 
+    //! \brief Llight data for directional lights.
     struct directional_light_data : public light_data
     {
-        glm::vec3 direction;
-        color_rgb light_color;
-        float intensity;
+        glm::vec3 direction;   //!< The light direction.
+        color_rgb light_color; //!< The light color. Will get multiplied by the intensity.
+        float intensity;       //!< The instensity of the light in lumen (111000 would f.e. be a basic sun)
     };
 
+    //! \brief Component used for all lights excluding image based lights.
     struct light_component
     {
-        light_type type_of_light;
-        light_data data;
+        light_type type_of_light; //!< The type of the light.
+        light_data data;          //!< Light specific data.
     };
 
     //! \brief Structure used for collecting all the camera data of the current active camera.
