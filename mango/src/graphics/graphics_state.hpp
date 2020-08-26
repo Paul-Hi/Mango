@@ -62,11 +62,12 @@ namespace mango
         //! \return True if state changed, else false.
         bool bind_single_uniform();
 
-        //! \brief Binds an \a uniform \a buffer for drawing.
-        //! \param[in] index The \a uniform \a buffer index to bind the \a buffer to.
-        //! \param[in] uniform_buffer The \a uniform \a buffer to bind.
+        //! \brief Binds an \a buffer for drawing.
+        //! \param[in] index The \a buffer index to bind the \a buffer to.
+        //! \param[in] buffer The \a buffer to bind.
+        //! \param[in] target The target of the \a buffer to bind.
         //! \return True if state changed, else false.
-        bool bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer);
+        bool bind_buffer(g_uint index, buffer_ptr buffer, buffer_target target);
 
         //! \brief Binds a \a texture for drawing.
         //! \param[in] binding The binding location to bind the \a texture too. Has to be a positive value.

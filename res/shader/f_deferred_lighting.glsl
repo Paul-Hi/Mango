@@ -9,18 +9,23 @@ out vec4 frag_color;
 
 in vec2 texcoord;
 
-layout (location = 0) uniform mat4 u_inverse_view_projection;
-layout (location = 1) uniform vec3 u_camera_position;
+layout(location = 0, binding = 0) uniform sampler2D gbuffer_c0;
+layout(location = 1, binding = 1) uniform sampler2D gbuffer_c1;
+layout(location = 2, binding = 2) uniform sampler2D gbuffer_c2;
+layout(location = 3, binding = 3) uniform sampler2D gbuffer_c3;
+layout(location = 4, binding = 4) uniform sampler2D gbuffer_depth;
 
-layout(location = 2, binding = 0) uniform sampler2D gbuffer_c0;
-layout(location = 3, binding = 1) uniform sampler2D gbuffer_c1;
-layout(location = 4, binding = 2) uniform sampler2D gbuffer_c2;
-layout(location = 5, binding = 3) uniform sampler2D gbuffer_c3;
-layout(location = 6, binding = 4) uniform sampler2D gbuffer_depth;
+layout(location = 5, binding = 5) uniform samplerCube irradiance_map;
+layout(location = 6, binding = 6) uniform samplerCube prefiltered_specular;
+layout(location = 7, binding = 7) uniform sampler2D brdf_integration_lut;
 
-layout(location = 7, binding = 5) uniform samplerCube irradiance_map;
-layout(location = 8, binding = 6) uniform samplerCube prefiltered_specular;
-layout(location = 9, binding = 7) uniform sampler2D brdf_integration_lut;
+layout(binding = 0, std140) uniform lighting_pass_uniforms
+{
+    mat4 inverse_view_projection;
+    vec4 camera_position;  // this is a vec3, but there are annoying bugs with some drivers.
+};
+
+layout (location = 8) uniform float ibl_intensity; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
 
 float D_GGX(in float n_dot_h, in float roughness);
 float V_SmithGGXCorrelated(in float n_dot_v, in float n_dot_l, in float roughness);
@@ -29,11 +34,8 @@ vec3 F_Schlick_roughness(in float dot, in vec3 f0, in float roughness);
 float Fd_BurleyRenormalized(in float n_dot_v, in float n_dot_l, in float l_dot_h, in float roughness);
 
 vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection);
-vec3 calculateTestLight(in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in vec3 real_albedo, in vec3 position, in float occlusion_factor);
 vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor);
-vec4 tonemap_with_gamma_correction(in vec4 color);
-vec4 srgb_to_linear(in vec4 srgb);
-vec4 linear_to_srgb(in vec4 linear);
+vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor);
 
 vec3 get_specular_dominant_direction(in vec3 normal, in vec3 reflection, in float roughness);
 
@@ -66,7 +68,7 @@ void main()
     gl_FragDepth = depth; // This is for the potential cubemap.
     if(depth >= 1.0) discard;
 
-    vec3 position                        = world_space_from_depth(depth, texcoord, u_inverse_view_projection);
+    vec3 position                        = world_space_from_depth(depth, texcoord, inverse_view_projection);
     vec4 base_color                      = get_base_color();
     vec3 normal                          = get_normal();
     vec3 occlusion_roughness_metallic    = get_occlusion_roughness_metallic();
@@ -78,7 +80,7 @@ void main()
     vec3 f0          = 0.16 * reflectance * reflectance * (1.0 - metallic) + base_color.rgb * metallic;
     vec3 real_albedo = base_color.rgb * (1.0 - metallic);
 
-    vec3 view_dir = normalize(u_camera_position - position);
+    vec3 view_dir = normalize(camera_position.xyz - position);
     float n_dot_v = clamp(dot(normal, view_dir), 1e-5, 1.0 - 1e-5);
 
     vec3 lighting = vec3(0.0);
@@ -86,10 +88,13 @@ void main()
     // environment
     lighting += calculate_image_based_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
 
-    vec3 emissive = get_emissive();
-    lighting += emissive;
+    // lights
+    // lighting += calculate_directional_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
 
-    frag_color = tonemap_with_gamma_correction(vec4(lighting, base_color.a)); // TODO Paul: Proper transparency.
+    vec3 emissive = get_emissive();
+    lighting += emissive * 50000; // TODO Paul: Remove hardcoded intensity for all emissive values -.-
+
+    frag_color = vec4(lighting, base_color.a); // TODO Paul: Proper transparency.
 }
 
 vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor)
@@ -117,38 +122,38 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     vec3 energy_compensation = 1.0 + f0 * (1.0 / dfg.y - 1.0);
     specular_ibl *= energy_compensation;
 
-
-    return diffuse_ibl * occlusion_factor + specular_ibl;
+    return (diffuse_ibl * occlusion_factor + specular_ibl) * ibl_intensity;
 }
 
-vec3 uncharted2_tonemap(in vec3 color)
+vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor)
 {
-    const float A = 0.15;
-    const float B = 0.50;
-    const float C = 0.10;
-    const float D = 0.20;
-    const float E = 0.02;
-    const float F = 0.30;
-    return ((color * (A * color + C * B) + D * E)/(color * (A * color + B) + D * F)) - E / F;
-}
+    vec3 light_dir        = vec3(1.0); // hardcoded
+    float light_intensity = 111000.0; // hardcoded
+    vec3 light_col        = vec3(1.0) * light_intensity; // hardcoded
+    float roughness       = (perceptual_roughness * perceptual_roughness);
 
-vec4 tonemap_with_gamma_correction(in vec4 color)
-{
-    // tonemapping // TODO Paul: There is room for improvement. Exposure and gamma parameters.
-    const float W = 11.2;
-    vec3 outcol = uncharted2_tonemap(color.rgb * 2.0);
-    outcol /= uncharted2_tonemap(vec3(W));
-    return linear_to_srgb(vec4(outcol, color.a)); // gamma correction.
-}
+    vec3 lighting = vec3(0.0);
 
-vec4 srgb_to_linear(in vec4 srgb)
-{
-    return vec4(pow(srgb.rgb, vec3(2.2)), srgb.a);
-}
+    vec3 halfway  = normalize(light_dir + view_dir);
+    float n_dot_l = saturate(dot(normal, light_dir));
+    float n_dot_h = saturate(dot(normal, halfway));
+    float l_dot_h = saturate(dot(light_dir, halfway));
 
-vec4 linear_to_srgb(in vec4 linear)
-{
-    return vec4(pow(linear.rgb, vec3(1.0 / 2.2)), linear.a);
+    float D = D_GGX(n_dot_h, roughness);
+    vec3 F  = F_Schlick(l_dot_h, f0, 1.0);
+    float V = V_SmithGGXCorrelated(n_dot_v, n_dot_l, roughness);
+
+    // Fr energy compensation
+    vec3 Fr = D * V * F * (1.0 / PI);
+
+    vec3 Fd = real_albedo * Fd_BurleyRenormalized(n_dot_v, n_dot_l, l_dot_h, perceptual_roughness) * (1.0 / PI);
+
+    vec3 diffuse = n_dot_l * Fd;
+    vec3 specular = n_dot_l * Fr;
+
+    lighting += (diffuse * occlusion_factor + specular) * light_col;
+
+    return lighting;
 }
 
 //

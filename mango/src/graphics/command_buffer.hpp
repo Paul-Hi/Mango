@@ -91,10 +91,11 @@ namespace mango
         //! \param[in] data_size Size of the value in bytes. Has to be a positive value.
         void bind_single_uniform(int32 location, void* uniform_value, int64 data_size);
 
-        //! \brief Binds an \a uniform \a buffer for drawing.
-        //! \param[in] index The \a uniform \a buffer index to bind the \a buffer to. Has to be a positive value.
-        //! \param[in] uniform_buffer The \a uniform \a buffer to bind.
-        void bind_uniform_buffer(int32 index, buffer_ptr uniform_buffer);
+        //! \brief Binds an \a buffer for drawing.
+        //! \param[in] index The \a buffer index to bind the \a buffer to.
+        //! \param[in] buffer The \a buffer to bind.
+        //! \param[in] target The target of the \a buffer to bind.
+        void bind_buffer(int32 index, buffer_ptr buffer, buffer_target target);
 
         //! \brief Binds a \a texture for drawing.
         //! \param[in] binding The binding location to bind the \a texture to. Has to be a positive value.

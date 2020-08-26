@@ -25,6 +25,10 @@ buffer_impl::buffer_impl(const buffer_configuration& configuration)
     {
         m_target = GL_UNIFORM_BUFFER;
     }
+    else if (configuration.m_target == buffer_target::SHADER_STORAGE_BUFFER)
+    {
+        m_target = GL_SHADER_STORAGE_BUFFER;
+    }
     else if (configuration.m_target == buffer_target::TEXTURE_BUFFER)
     {
         m_target = GL_TEXTURE_BUFFER;
@@ -32,18 +36,18 @@ buffer_impl::buffer_impl(const buffer_configuration& configuration)
 
     bool persistent = false;
 
-    if ((configuration.m_access & buffer_access::DYNAMIC_STORAGE) == configuration.m_access) // Used if glBufferSubData() etc. should be possible.
+    if ((configuration.m_access & buffer_access::DYNAMIC_STORAGE) != buffer_access::NONE) // Used if glBufferSubData() etc. should be possible.
     {
         m_access_flags |= GL_DYNAMIC_STORAGE_BIT;
     }
-    if ((configuration.m_access & buffer_access::MAPPED_ACCESS_READ) == configuration.m_access) // Used for glMapNamedBufferRange().
+    if ((configuration.m_access & buffer_access::MAPPED_ACCESS_READ) != buffer_access::NONE) // Used for glMapNamedBufferRange().
     {
         m_access_flags |= GL_MAP_READ_BIT;
         m_access_flags |= GL_MAP_PERSISTENT_BIT;
         m_access_flags |= GL_MAP_COHERENT_BIT;
         persistent = true;
     }
-    if ((configuration.m_access & buffer_access::MAPPED_ACCESS_WRITE) == configuration.m_access) // Used for glMapNamedBufferRange().
+    if ((configuration.m_access & buffer_access::MAPPED_ACCESS_WRITE) != buffer_access::NONE) // Used for glMapNamedBufferRange().
     {
         m_access_flags |= GL_MAP_WRITE_BIT;
         m_access_flags |= GL_MAP_PERSISTENT_BIT;
@@ -103,6 +107,10 @@ void buffer_impl::bind(buffer_target target, int32 index, int64 offset, int64 si
     else if (target == buffer_target::UNIFORM_BUFFER)
     {
         gl_target = GL_UNIFORM_BUFFER;
+    }
+    else if (target == buffer_target::SHADER_STORAGE_BUFFER)
+    {
+        gl_target = GL_SHADER_STORAGE_BUFFER;
     }
     else if (target == buffer_target::TEXTURE_BUFFER)
     {

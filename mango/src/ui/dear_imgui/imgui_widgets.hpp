@@ -60,6 +60,11 @@ namespace mango
         return size;
     }
 
+    float uint_as_float(void* uints, int32 index)
+    {
+        return (float)(((uint32*)uints)[index]);
+    };
+
     //! \brief This is an imgui widget drawing some stats of the framework.
     //! \param[in] shared_context The shared context.
     //! \param[in] enabled Specifies if window is rendered or not and can be set by imgui.
@@ -71,15 +76,70 @@ namespace mango
         {
             ImGui::Text("Approx. Frame Time: %.2f ms", dt * 1000.0f);
         }
+        auto stats = shared_context->get_render_system_internal().lock()->get_hardware_stats();
         if (ImGui::CollapsingHeader("Renderer Stats"))
         {
-            auto stats = shared_context->get_render_system_internal().lock()->get_hardware_stats();
             ImGui::Text("API Version: %s", stats.api_version.c_str());
             ImGui::Text("Draw Calls: %d", stats.last_frame.draw_calls);
             ImGui::Text("Rendered Meshes: %d", stats.last_frame.meshes);
             ImGui::Text("Rendered Primitives: %d", stats.last_frame.primitives);
             ImGui::Text("Rendered Materials: %d", stats.last_frame.materials);
             ImGui::Text("Canvas Size: (%d x %d) px", stats.last_frame.canvas_width, stats.last_frame.canvas_height);
+        }
+        if (ImGui::CollapsingHeader("Renderer Debug View"))
+        {
+            auto debug   = shared_context->get_render_system_internal().lock()->get_debug_views();
+            int32 line   = 1;
+            float aspect = static_cast<float>(stats.last_frame.canvas_height) / stats.last_frame.canvas_width;
+            if (debug.fb_port0)
+            {
+                ImGui::Text("Framebuffer Debug Port 0");
+                for (int32 i = 0; i < 7; ++i) // Current max. 7
+                {
+                    auto attachment = debug.fb_port0->get_attachment(static_cast<framebuffer_attachment>(i));
+                    if (attachment)
+                    {
+                        ImGui::Image((void*)(intptr_t)attachment->get_name(), ImVec2(256, 256 * aspect), ImVec2(0, 1), ImVec2(1, 0));
+                        if (line)
+                            ImGui::SameLine();
+                        line = (line + 1) % 4;
+                    }
+                }
+            }
+            ImGui::NewLine();
+            line = 1;
+            if (debug.fb_port1)
+            {
+                ImGui::Text("Framebuffer Debug Port 1");
+                for (int32 i = 0; i < 7; ++i) // Current max. 7
+                {
+                    auto attachment = debug.fb_port1->get_attachment(static_cast<framebuffer_attachment>(i));
+                    if (attachment)
+                    {
+                        ImGui::Image((void*)(intptr_t)attachment->get_name(), ImVec2(256, 256 * aspect), ImVec2(0, 1), ImVec2(1, 0));
+                        if (line)
+                            ImGui::SameLine();
+                        line = (line + 1) % 4;
+                    }
+                }
+            }
+            ImGui::NewLine();
+            line = 1;
+            if (debug.fb_port2)
+            {
+                ImGui::Text("Framebuffer Debug Port 2");
+                for (int32 i = 0; i < 7; ++i) // Current max. 7
+                {
+                    auto attachment = debug.fb_port2->get_attachment(static_cast<framebuffer_attachment>(i));
+                    if (attachment)
+                    {
+                        ImGui::Image((void*)(intptr_t)attachment->get_name(), ImVec2(256, 256 * aspect), ImVec2(0, 1), ImVec2(1, 0));
+                        if (line)
+                            ImGui::SameLine();
+                        line = (line + 1) % 4;
+                    }
+                }
+            }
         }
         ImGui::End();
     }
@@ -783,6 +843,29 @@ namespace mango
                     }
                 }
                 ImGui::DragFloat3(("Target##camera" + std::to_string(e)).c_str(), &camera_comp->target.x, 0.1f, 0.0f, 0.0f, "%.1f");
+
+                ImGui::Checkbox(("Adaptive Exposure##camera" + std::to_string(e)).c_str(), &camera_comp->physical.adaptive_exposure);
+
+                if (camera_comp->physical.adaptive_exposure)
+                {
+                    ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+                    ImGui::BeginGroup();
+                }
+
+                ImGui::InputFloat(("Aperture##camera" + std::to_string(e)).c_str(), &camera_comp->physical.aperture, 0.1f, 1.0f, "%.1f");
+                ImGui::InputFloat(("Shutter Speed##camera" + std::to_string(e)).c_str(), &camera_comp->physical.shutter_speed, 0.0001f, 0.1f, "%.5f");
+                ImGui::InputFloat(("Iso##camera" + std::to_string(e)).c_str(), &camera_comp->physical.iso, 10.0f, 100.0f, "%.1f");
+
+                if (camera_comp->physical.adaptive_exposure)
+                {
+                    ImGui::EndGroup();
+                    ImGui::PopItemFlag();
+                    ImGui::PopStyleVar();
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("Adaptive Exposure is activated");
+                }
+
                 ImGui::Spacing();
                 if (ImGui::Button(("Remove##camera" + std::to_string(e)).c_str()))
                     application_scene->remove_camera_component(e);
@@ -844,20 +927,24 @@ namespace mango
                     environment_comp->hdr_texture = load_texture(tex_config, rs, filter, 1);
                     application_scene->set_active_environment(e);
                 }
-                bool should_render = environment_comp->render_level >= 0.0f;
-                bool changed       = should_render;
-                ImGui::Checkbox(("Render Environment##render_environment" + std::to_string(e)).c_str(), &should_render);
-                changed = should_render != changed;
-                if (should_render)
+                if (environment_comp->hdr_texture)
                 {
-                    environment_comp->render_level = glm::max(environment_comp->render_level, 0.0f);
-                    changed                        = changed || ImGui::SliderFloat(("Blur Level##environment_blur" + std::to_string(e)).c_str(), &environment_comp->render_level, 0.0f, 4.0f);
-                }
-                else
-                    environment_comp->render_level = -1.0f;
+                    bool should_render = environment_comp->render_level >= 0.0f;
+                    bool changed       = ImGui::SliderFloat(("Intensity##environment_intensity" + std::to_string(e)).c_str(), &environment_comp->intensity, 0.0f, 50000.0f);
+                    bool tmp           = should_render;
+                    ImGui::Checkbox(("Render Environment##render_environment" + std::to_string(e)).c_str(), &should_render);
+                    changed = changed || (should_render != tmp);
+                    if (should_render)
+                    {
+                        environment_comp->render_level = glm::max(environment_comp->render_level, 0.0f);
+                        changed                        = ImGui::SliderFloat(("Blur Level##environment_blur" + std::to_string(e)).c_str(), &environment_comp->render_level, 0.0f, 4.0f) || changed;
+                    }
+                    else
+                        environment_comp->render_level = -1.0f;
 
-                if (changed)
-                    application_scene->update_environment_parameters(e);
+                    if (changed)
+                        application_scene->update_environment_parameters(e);
+                }
 
                 ImGui::Spacing();
                 if (ImGui::Button(("Remove##environment" + std::to_string(e)).c_str()))

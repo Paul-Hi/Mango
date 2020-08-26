@@ -74,7 +74,7 @@ int32 application::run(int32 t_argc, char** t_argv)
         //
         scene->render();
         //
-        rs->finish_render();
+        rs->finish_render(frame_time); // needs frame time for auto exposure.
         //
         uis->draw_ui();
 
