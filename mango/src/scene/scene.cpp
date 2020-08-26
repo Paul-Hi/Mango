@@ -115,15 +115,13 @@ entity scene::create_default_camera()
     camera_component.perspective.vertical_field_of_view = glm::radians(45.0f);
     camera_component.up                                 = glm::vec3(0.0f, 1.0f, 0.0f);
     camera_component.target                             = glm::vec3(0.0f, 0.0f, 0.0f);
+    camera_component.physical.aperture                 = 16.0f;
+    camera_component.physical.shutter_speed            = 1.0f / 125.0f;
+    camera_component.physical.iso                      = 100.0f;
 
     glm::vec3 position = glm::vec3(0.0f, 0.0f, 1.5f);
 
     transform_component.position = position;
-
-    // camera_component.view            = glm::lookAt(position, camera_component.target, camera_component.up);
-    // camera_component.projection      = glm::perspective(camera_component.vertical_field_of_view, camera_component.aspect, camera_component.z_near, camera_component.z_far);
-    // camera_component.view_projection = camera_component.projection * camera_component.view;
-
     set_active_camera(camera_entity);
 
     return camera_entity;
@@ -265,7 +263,8 @@ void scene::set_active_environment(entity e)
     if (e == invalid_entity)
     {
         m_active.environment = e;
-        rs->set_environment_texture(nullptr, -1.0f);
+        rs->set_environment_texture(nullptr);
+        rs->set_environment_settings(0.0f, mango::default_environment_intensity);
         return;
     }
     auto next_comp = m_environments.get_component_for_entity(e);
@@ -273,7 +272,8 @@ void scene::set_active_environment(entity e)
         return;
 
     m_active.environment = e;
-    rs->set_environment_texture(next_comp->hdr_texture, next_comp->render_level);
+    rs->set_environment_texture(next_comp->hdr_texture);
+    rs->set_environment_settings(next_comp->render_level, next_comp->intensity);
 }
 
 void scene::update_environment_parameters(entity e)
@@ -285,7 +285,7 @@ void scene::update_environment_parameters(entity e)
     auto comp = m_environments.get_component_for_entity(e);
     if (!comp)
         return;
-    rs->set_environment_texture(comp->hdr_texture, comp->render_level, false);
+    rs->set_environment_settings(comp->render_level, comp->intensity);
 }
 
 void scene::update(float dt)

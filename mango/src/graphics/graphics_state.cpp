@@ -117,11 +117,12 @@ bool graphics_state::bind_single_uniform()
     return true;
 }
 
-bool graphics_state::bind_uniform_buffer(g_uint index, buffer_ptr uniform_buffer)
+bool graphics_state::bind_buffer(g_uint index, buffer_ptr buffer, buffer_target target)
 {
     PROFILE_ZONE;
     MANGO_UNUSED(index);
-    MANGO_UNUSED(uniform_buffer);
+    MANGO_UNUSED(buffer);
+    MANGO_UNUSED(target);
     // TODO Paul
     return true;
 }

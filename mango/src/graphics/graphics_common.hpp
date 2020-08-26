@@ -960,6 +960,7 @@ namespace mango
         VERTEX_BUFFER,
         INDEX_BUFFER,
         UNIFORM_BUFFER,
+        SHADER_STORAGE_BUFFER,
         TEXTURE_BUFFER
     };
 

@@ -66,10 +66,10 @@ void render_system_impl::begin_render()
     m_current_render_system->begin_render();
 }
 
-void render_system_impl::finish_render()
+void render_system_impl::finish_render(float dt)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->finish_render();
+    m_current_render_system->finish_render(dt);
 }
 
 void render_system_impl::set_viewport(int32 x, int32 y, int32 width, int32 height)
@@ -103,10 +103,16 @@ void render_system_impl::set_view_projection_matrix(const glm::mat4& view_projec
     m_current_render_system->set_view_projection_matrix(view_projection);
 }
 
-void render_system_impl::set_environment_texture(const texture_ptr& hdr_texture, float render_level, bool new_texture)
+void render_system_impl::set_environment_texture(const texture_ptr& hdr_texture)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->set_environment_texture(hdr_texture, render_level, new_texture);
+    m_current_render_system->set_environment_texture(hdr_texture);
+}
+
+void render_system_impl::set_environment_settings(float render_level, float intensity)
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->set_environment_settings(render_level, intensity);
 }
 
 framebuffer_ptr render_system_impl::get_backbuffer()

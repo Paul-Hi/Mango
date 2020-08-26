@@ -5,14 +5,14 @@ layout(location = 1) in vec3 v_normal;
 layout(location = 2) in vec2 v_texcoord;
 layout(location = 3) in vec4 v_tangent;
 
-layout(location = 0) uniform mat4 u_view_projection_matrix;
+layout(location = 0) uniform mat4 view_projection_matrix;
 
 layout(binding = 0, std140) uniform scene_vertex_uniforms
 {
-    mat4 u_model_matrix;
-    mat3 u_normal_matrix;
-    bool u_has_normals;
-    bool u_has_tangents;
+    mat4 model_matrix;
+    mat3 normal_matrix;
+    bool has_normals;
+    bool has_tangents;
 };
 
 out shader_shared
@@ -28,7 +28,7 @@ out shader_shared
 
 void main()
 {
-    vec4 v_pos = u_model_matrix * vec4(v_position, 1.0);
+    vec4 v_pos = model_matrix * vec4(v_position, 1.0);
     vs_out.shared_vertex_position = v_pos.xyz / v_pos.w;
 
     vs_out.shared_texcoord = v_texcoord;
@@ -37,13 +37,13 @@ void main()
     vs_out.calculate_normals  = false;
     vs_out.calculate_tangents = false;
 
-    if(u_has_normals)
-        vs_out.shared_normal = u_normal_matrix * normalize(v_normal);
+    if(has_normals)
+        vs_out.shared_normal = normal_matrix * normalize(v_normal);
 
-    if(u_has_tangents)
+    if(has_tangents)
     {
-        vs_out.shared_tangent = u_normal_matrix * normalize(v_tangent.xyz);
-        if(u_has_normals)
+        vs_out.shared_tangent = normal_matrix * normalize(v_tangent.xyz);
+        if(has_normals)
         {
             vs_out.shared_bitangent = cross(vs_out.shared_normal, vs_out.shared_tangent);
             if(v_tangent.w == -1.0) // TODO Paul: Check this convention.
@@ -51,5 +51,5 @@ void main()
         }
     }
 
-    gl_Position = u_view_projection_matrix * v_pos;
+    gl_Position = view_projection_matrix * v_pos;
 }

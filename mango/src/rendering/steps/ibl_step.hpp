@@ -36,6 +36,13 @@ namespace mango
             m_render_level = render_level;
         }
 
+        //! \brief Sets the intensity of the environment light.
+        //! \param[in] intensity The intensity in cd/m^2.
+        inline void set_intensity(float intensity)
+        {
+            m_intensity = intensity;
+        }
+
         //! \brief Submits the texture binding \a commands and additional uniform calls to the given \a command_buffer.
         //! \param[in] command_buffer The \a command_buffer to submit the \a commands to.
         void bind_image_based_light_maps(command_buffer_ptr& command_buffer);
@@ -76,6 +83,8 @@ namespace mango
         glm::mat4 m_view_projection;
         //! \brief The miplevel to render the cubemap with.
         float m_render_level;
+        //! \brief The intensity of the environment light in cd/m^2.
+        float m_intensity;
 
         //! \brief The width of one cubemap face.
         const int32 m_cube_width = 1024;

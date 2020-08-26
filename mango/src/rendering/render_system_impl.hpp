@@ -27,12 +27,27 @@ namespace mango
         struct
         {
             int32 draw_calls;    //!< The number of draw calls.
-            int32 meshes;    //!< The number of meshes.
+            int32 meshes;        //!< The number of meshes.
             int32 primitives;    //!< The number of primitives.
-            int32 materials;    //!< The number of materials.
+            int32 materials;     //!< The number of materials.
             int32 canvas_width;  //!< The width of the current render canvas.
             int32 canvas_height; //!< The height of the current render canvas.
         } last_frame;            //!< Measured stats from the last rendered frame.
+    };
+
+    //! \brief Structure to store debug data.
+    struct debug_views
+    {
+        framebuffer_ptr fb_port0; //!< Port to attach a framebuffer to debug.
+        framebuffer_ptr fb_port1; //!< Port to attach a framebuffer to debug.
+        framebuffer_ptr fb_port2; //!< Port to attach a framebuffer to debug.
+    };
+
+    //! \brief Structure to store data for adaptive exposure.
+    struct luminance_data
+    {
+        uint32 histogram[256]; //!< The histogram data
+        float luminance;       //!< Smoothed out average luminance.
     };
 
     //! \brief The implementation of the \a render_system.
@@ -65,7 +80,8 @@ namespace mango
         //! \brief Renders the current frame.
         //! \details Calls the execute() function of the \a command_buffer, after doing some other things to it.
         //! This includes for example extra framebuffers and passes.
-        virtual void finish_render();
+        //! \param[in] dt Past time since last call.
+        virtual void finish_render(float dt);
 
         //! \brief Sets the viewport.
         //! \details  Should be called on resizing events, instead of scheduling a viewport command directly.
@@ -105,20 +121,31 @@ namespace mango
 
         //! \brief Sets the \a texture for a environment.
         //! \param[in] hdr_texture The pointer to the hdr \a texture to use as an environment.
+        virtual void set_environment_texture(const texture_ptr& hdr_texture);
+
+        //! \brief Sets data for environment rendering.
         //! \param[in] render_level The level from the hdr \a texture to render. -1 means no rendering.
-        //! \param[in] new_texture True if the \a texture changed, false, if only the render_level got updated.
-        virtual void set_environment_texture(const texture_ptr& hdr_texture, float render_level, bool new_texture = true);
+        //! \param[in] intensity The intensity of the environment in cd/m^2.
+        virtual void set_environment_settings(float render_level, float intensity);
 
         //! \brief Returns the backbuffer of the a render_system.
         //! \return The backbuffer.
         virtual framebuffer_ptr get_backbuffer();
 
         //! \brief Returns some stats regarding hardware.
-        //! \return some stats regarding hardware.
+        //! \return Some stats regarding hardware.
         inline const hardware_stats& get_hardware_stats()
         {
             MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
             return m_current_render_system->m_hardware_stats;
+        }
+
+        //! \brief Returns the debug views set by the \a render_system.
+        //! \return The debug view structure.
+        inline const debug_views& get_debug_views()
+        {
+            MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+            return m_current_render_system->m_debug_views;
         }
 
       protected:
@@ -130,6 +157,9 @@ namespace mango
 
         //! \brief The hardware stats.
         hardware_stats m_hardware_stats;
+
+        //! \brief The debug views.
+        debug_views m_debug_views;
 
       private:
         //! \brief A shared pointer to the currently used internal \a render_system.

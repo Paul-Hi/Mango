@@ -12,6 +12,8 @@
 
 namespace mango
 {
+    struct camera_data;
+
     //! \brief A \a render_system using a deferred base pipeline supporting physically based rendering.
     //! \details This system supports physically based materials with and without textures.
     class deferred_pbr_render_system : public render_system_impl
@@ -25,7 +27,7 @@ namespace mango
         virtual bool create() override;
         virtual void configure(const render_configuration& configuration) override;
         virtual void begin_render() override;
-        virtual void finish_render() override;
+        virtual void finish_render(float dt) override;
         virtual void set_viewport(int32 x, int32 y, int32 width, int32 height) override;
         virtual void update(float dt) override;
         virtual void destroy() override;
@@ -34,7 +36,8 @@ namespace mango
         void set_model_info(const glm::mat4& model_matrix, bool has_normals, bool has_tangents) override;
         void draw_mesh(const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
         void set_view_projection_matrix(const glm::mat4& view_projection) override;
-        void set_environment_texture(const texture_ptr& hdr_texture, float render_levelnew_texture, bool new_texture) override;
+        void set_environment_texture(const texture_ptr& hdr_texture) override;
+        void set_environment_settings(float render_level, float intensity) override;
 
         framebuffer_ptr get_backbuffer() override
         {
@@ -46,14 +49,34 @@ namespace mango
         framebuffer_ptr m_gbuffer;
         //! \brief The backbuffer of the deferred pipeline.
         framebuffer_ptr m_backbuffer;
+        //! \brief The hdr buffer of the deferred pipeline. Used for auto exposure.
+        framebuffer_ptr m_hdr_buffer;
 
         //! \brief The \a shader_program for the deferred geometry pass.
         //! \details This fills the g-buffer for later use in the lighting pass.
         shader_program_ptr m_scene_geometry_pass;
 
         //! \brief The \a shader_program for the lighting pass.
-        //! \details Utilizes the g-buffer filled before.
+        //! \details Utilizes the g-buffer filled before. Outputs hdr.
         shader_program_ptr m_lighting_pass;
+
+        //! \brief The \a shader_program for the luminance buffer construction.
+        //! \details Constructs the 'luminance' histogram.
+        shader_program_ptr m_construct_luminance_buffer;
+
+        //! \brief The \a shader_program for the luminance buffer reduction.
+        //! \details Reduces the 'luminance' histogram to the average luminance.
+        shader_program_ptr m_reduce_luminance_buffer;
+
+        //! \brief The shader storage buffer mapping for the luminance histogram
+        buffer_ptr m_luminance_histogram_buffer;
+
+        //! \brief The mapped luminance data from the histogram calculation.
+        luminance_data* m_luminance_data_mapping;
+
+        //! \brief The \a shader_program for the composing pass.
+        //! \details Takes the output in the hdr_buffer and does the final composing to get it to the screen.
+        shader_program_ptr m_composing_pass;
 
         //! \brief The prealocated size for all uniforms.
         //! \details The buffer is filled every frame. 1 MiB should be enough for now.
@@ -100,6 +123,20 @@ namespace mango
             g_float padding0; //!< Padding needed for st140 layout.
             g_float padding1; //!< Padding needed for st140 layout.
         };
+
+        //! \brief Uniform buffer structure for the lighting pass of the deferred pipeline.
+        struct lighting_pass_uniforms
+        {
+            std140_mat4 inverse_view_projection; //!< Inverse camera view projection matrix.
+            std140_vec3 camera_position;         //!< Camera position.
+        };
+
+        //! \brief Binds the uniform buffer of the lighting pass.
+        void bind_lighting_pass_uniform_buffer();
+
+        //! \brief Calculates automatic exposure and adapts physicall camera parameters.
+        //! \param[in,out] camera The \a camera_data of the current camera.
+        void apply_auto_exposure(camera_data& camera);
 
         //! \brief Optional additional steps of the deferred pipeline.
         shared_ptr<pipeline_step> m_pipeline_steps[mango::render_step::number_of_step_types];

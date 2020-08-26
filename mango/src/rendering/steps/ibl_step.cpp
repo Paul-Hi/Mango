@@ -143,6 +143,7 @@ bool ibl_step::create()
 
     m_current_rotation_scale = glm::mat3(1.0f);
     m_render_level           = 0.0f;
+    m_intensity              = 30000.0f;
 
     texture_configuration texture_config;
     texture_config.m_generate_mipmaps        = 1;
@@ -204,15 +205,19 @@ void ibl_step::attach() {}
 void ibl_step::execute(command_buffer_ptr& command_buffer)
 {
     PROFILE_ZONE;
-    if (m_render_level < 0.0f || !m_cubemap)
+    if (m_render_level < 0.0f)
         return;
 
     command_buffer->bind_shader_program(m_draw_environment);
     command_buffer->bind_vertex_array(m_cube_geometry);
     command_buffer->bind_single_uniform(0, &const_cast<glm::mat4&>(m_view_projection), sizeof(glm::mat4));
     command_buffer->bind_single_uniform(1, &m_current_rotation_scale, sizeof(m_current_rotation_scale));
-    command_buffer->bind_texture(0, m_prefiltered_specular, 2);
-    command_buffer->bind_single_uniform(3, &m_render_level, sizeof(m_render_level));
+    if (m_cubemap)
+        command_buffer->bind_texture(0, m_prefiltered_specular, 2);
+    else
+        command_buffer->bind_texture(0, default_ibl_texture, 2);
+    command_buffer->bind_single_uniform(3, &m_intensity, sizeof(m_intensity));
+    command_buffer->bind_single_uniform(4, &m_render_level, sizeof(m_render_level));
 
     command_buffer->draw_elements(primitive_topology::TRIANGLE_STRIP, 0, 18, index_type::UBYTE);
 
@@ -331,14 +336,15 @@ void ibl_step::bind_image_based_light_maps(command_buffer_ptr& command_buffer)
     PROFILE_ZONE;
     if (m_cubemap)
     {
-        command_buffer->bind_texture(5, m_irradiance_map, 7);       // TODO Paul: Binding and location...
-        command_buffer->bind_texture(6, m_prefiltered_specular, 8); // TODO Paul: Binding and location...
-        command_buffer->bind_texture(7, m_brdf_integration_lut, 9); // TODO Paul: Binding and location...
+        command_buffer->bind_texture(5, m_irradiance_map, 5);       // TODO Paul: Binding and location...
+        command_buffer->bind_texture(6, m_prefiltered_specular, 6); // TODO Paul: Binding and location...
+        command_buffer->bind_texture(7, m_brdf_integration_lut, 7); // TODO Paul: Binding and location...
     }
     else
     {
-        command_buffer->bind_texture(5, default_ibl_texture, 7);    // TODO Paul: Binding and location...
-        command_buffer->bind_texture(6, default_ibl_texture, 8);    // TODO Paul: Binding and location...
-        command_buffer->bind_texture(7, m_brdf_integration_lut, 9); // TODO Paul: Binding and location...
+        command_buffer->bind_texture(5, default_ibl_texture, 5);    // TODO Paul: Binding and location...
+        command_buffer->bind_texture(6, default_ibl_texture, 6);    // TODO Paul: Binding and location...
+        command_buffer->bind_texture(7, m_brdf_integration_lut, 7); // TODO Paul: Binding and location...
     }
+    command_buffer->bind_single_uniform(8, &m_intensity, sizeof(m_intensity));
 }

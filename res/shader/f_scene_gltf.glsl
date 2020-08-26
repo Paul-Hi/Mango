@@ -24,10 +24,10 @@ layout (location = 5, binding = 4) uniform sampler2D t_emissive_color;
 
 layout(binding = 0, std140) uniform scene_vertex_uniforms
 {
-    mat4 u_model_matrix;
-    mat3 u_normal_matrix;
-    bool u_has_normals;
-    bool u_has_tangents;
+    mat4 model_matrix;
+    mat3 normal_matrix;
+    bool has_normals;
+    bool has_tangents;
 };
 
 layout(binding = 1, std140) uniform scene_material_uniforms
@@ -78,13 +78,13 @@ vec3 get_normal()
     vec3 normal = normalize(fs_in.shared_normal);
     vec3 dfdx = dFdx(fs_in.shared_vertex_position);
     vec3 dfdy = dFdy(fs_in.shared_vertex_position);
-    if(!u_has_normals)
+    if(!has_normals)
         normal = normalize(cross(dfdx, dfdy)); // approximation
     if(normal_texture)
     {
         vec3 tangent   = fs_in.shared_tangent;
         vec3 bitangent = fs_in.shared_bitangent;
-        if(!u_has_tangents)
+        if(!has_tangents)
         {
             vec3 uv_dx = dFdx(vec3(fs_in.shared_texcoord, 0.0));
             vec3 uv_dy = dFdy(vec3(fs_in.shared_texcoord, 0.0));
@@ -103,7 +103,7 @@ vec3 get_normal()
 void main()
 {
     gbuffer_c0 = vec4(get_base_color());
-    gbuffer_c1 = vec4(get_normal(), 0.0);
-    gbuffer_c2 = vec4(get_emissive(), 0.0);
-    gbuffer_c3 = vec4(get_occlusion_roughness_metallic(), 0.0);
+    gbuffer_c1 = vec4(get_normal(), 1.0);
+    gbuffer_c2 = vec4(get_emissive(), 1.0);
+    gbuffer_c3 = vec4(get_occlusion_roughness_metallic(), 1.0);
 }
