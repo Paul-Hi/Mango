@@ -21,7 +21,7 @@ namespace mango
     class transformation_update_system : public ecsystem_1<transform_component>
     {
       public:
-        void update(float, scene_component_pool<transform_component>& transformations) override
+        void execute(float, scene_component_pool<transform_component>& transformations) override
         {
             NAMED_PROFILE_ZONE("Transformation Update");
             transformations.for_each(
@@ -40,7 +40,7 @@ namespace mango
     class scene_graph_update_system : public ecsystem_2<node_component, transform_component>
     {
       public:
-        void update(float, scene_component_pool<node_component>& nodes, scene_component_pool<transform_component>& transformations) override
+        void execute(float, scene_component_pool<node_component>& nodes, scene_component_pool<transform_component>& transformations) override
         {
             NAMED_PROFILE_ZONE("Scene Graph Update");
             nodes.for_each(
@@ -65,7 +65,7 @@ namespace mango
     class camera_update_system : public ecsystem_2<camera_component, transform_component>
     {
       public:
-        void update(float, scene_component_pool<camera_component>& cameras, scene_component_pool<transform_component>& transformations) override
+        void execute(float, scene_component_pool<camera_component>& cameras, scene_component_pool<transform_component>& transformations) override
         {
             NAMED_PROFILE_ZONE("Camera Update");
             cameras.for_each(
@@ -94,6 +94,68 @@ namespace mango
                 false);
         }
     };
+
+    //! \brief An \a ecsystem for rendering meshes.
+    class render_mesh_system : public ecsystem_2<mesh_component, transform_component>
+    {
+      public:
+        void setup(shared_ptr<render_system_impl> rs)
+        {
+            m_rs = rs;
+        }
+
+        void execute(float, scene_component_pool<mesh_component>& meshes, scene_component_pool<transform_component>& transformations) override
+        {
+            PROFILE_ZONE;
+            meshes.for_each(
+                [this, &meshes, &transformations](mesh_component& c, int32& index) {
+                    entity e                       = meshes.entity_at(index);
+                    transform_component* transform = transformations.get_component_for_entity(e);
+                    if (transform)
+                    {
+                        auto cmdb = m_rs->get_command_buffer();
+                        m_rs->set_model_info(transform->world_transformation_matrix, c.has_normals, c.has_tangents);
+
+                        for (int32 i = 0; i < static_cast<int32>(c.primitives.size()); ++i)
+                        {
+                            auto m = c.materials[i];
+                            auto p = c.primitives[i];
+                            cmdb->bind_vertex_array(p.vertex_array_object);
+                            m_rs->draw_mesh(m.component_material, p.topology, p.first, p.count, p.type_index, p.instance_count);
+                        }
+                    }
+                },
+                false);
+        }
+
+      private:
+        shared_ptr<render_system_impl> m_rs;
+    };
+
+    //! \brief An \a ecsystem for light submission.
+    class light_submission_system : public ecsystem_1<light_component>
+    {
+      public:
+        void setup(shared_ptr<render_system_impl> rs)
+        {
+            m_rs = rs;
+        }
+
+        void execute(float, scene_component_pool<light_component>& lights) override
+        {
+            PROFILE_ZONE;
+            lights.for_each(
+                [this, &lights](light_component& c, int32&) {
+                    auto cmdb = m_rs->get_command_buffer();
+                    m_rs->submit_light(c.type_of_light, &c.data);
+                },
+                false);
+        }
+
+      private:
+        shared_ptr<render_system_impl> m_rs;
+    };
+
 } // namespace mango
 
 #endif // MANGO_ECS_INTERNAL_HPP

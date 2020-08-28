@@ -451,7 +451,7 @@ void deferred_pbr_render_system::finish_render(float dt)
         float ape                                  = camera.camera_info->physical.aperture;
         float shu                                  = camera.camera_info->physical.shutter_speed;
         float iso                                  = camera.camera_info->physical.iso;
-        float ev100                                = glm::log2(((ape * ape) * 100.0f) / (shu * iso));
+        float ev100                                = glm::log2((ape * ape) / shu * 100.0f / iso);
         float camera_exposure                      = 1.0f / (1.2f * glm::exp2(ev100));
         m_command_buffer->bind_single_uniform(1, &camera_exposure, sizeof(camera_exposure));
 
@@ -677,6 +677,18 @@ void deferred_pbr_render_system::set_environment_settings(float render_level, fl
     }
 }
 
+void deferred_pbr_render_system::submit_light(light_type type, light_data* data)
+{
+    PROFILE_ZONE;
+    if (type == light_type::directional) // currently always true
+    {
+        auto directional_data               = static_cast<directional_light_data*>(data);
+        m_lp_uniforms.directional.direction = directional_data->direction;
+        m_lp_uniforms.directional.color     = std140_vec3(directional_data->light_color);
+        m_lp_uniforms.directional.intensity = directional_data->intensity;
+    }
+}
+
 void deferred_pbr_render_system::bind_lighting_pass_uniform_buffer()
 {
     PROFILE_ZONE;
@@ -698,13 +710,18 @@ void deferred_pbr_render_system::bind_lighting_pass_uniform_buffer()
             m_uniform_buffer->bind(buffer_target::UNIFORM_BUFFER, 0, m_offset, sizeof(scene_vertex_uniforms));
         }
     };
+
     auto scene  = m_shared_context->get_current_scene();
     auto camera = scene->get_active_camera_data();
-    lighting_pass_uniforms lp_uniforms;
     if (camera.camera_info && camera.transform)
     {
-        lp_uniforms.inverse_view_projection = glm::inverse(camera.camera_info->view_projection);
-        lp_uniforms.camera_position         = std140_vec3(camera.transform->world_transformation_matrix[3]);
+        m_lp_uniforms.inverse_view_projection = glm::inverse(camera.camera_info->view_projection);
+        m_lp_uniforms.camera_position         = std140_vec3(camera.transform->world_transformation_matrix[3]);
+
+        // TEST
+        // lp_uniforms.directional.direction = std140_vec3(glm::vec3(1.0, 0.05, 0.65));
+        // lp_uniforms.directional.color     = std140_vec3(glm::vec3(1.0, 0.4, 0.2));
+        // lp_uniforms.directional.intensity = 110000.0f;
     }
     else
     {
@@ -712,10 +729,13 @@ void deferred_pbr_render_system::bind_lighting_pass_uniform_buffer()
     }
 
     MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - static_cast<int32>(sizeof(lighting_pass_uniforms)), "Uniform buffer size is too small.");
-    memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &lp_uniforms, sizeof(lighting_pass_uniforms));
+    memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &m_lp_uniforms, sizeof(lighting_pass_uniforms));
 
     m_command_buffer->submit<set_lighting_pass_uniforms_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
     m_frame_uniform_offset += m_uniform_buffer_alignment;
+
+    // clean up m_lp_uniforms.
+    m_lp_uniforms.directional.intensity = 0.0f;
 }
 
 void deferred_pbr_render_system::apply_auto_exposure(camera_data& camera)

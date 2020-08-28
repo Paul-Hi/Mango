@@ -192,8 +192,6 @@ void editor::try_open_path(const shared_ptr<mango::scene>& application_scene, st
     auto ext = path.substr(path.find_last_of(".") + 1);
     if (ext == "glb" || ext == "gltf")
     {
-        application_scene->remove_entity(m_model);
-
-        m_model = application_scene->create_entities_from_model(path);
+        application_scene->create_entities_from_model(path);
     }
 }

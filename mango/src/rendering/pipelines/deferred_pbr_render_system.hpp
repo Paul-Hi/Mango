@@ -38,6 +38,7 @@ namespace mango
         void set_view_projection_matrix(const glm::mat4& view_projection) override;
         void set_environment_texture(const texture_ptr& hdr_texture) override;
         void set_environment_settings(float render_level, float intensity) override;
+        void submit_light(light_type type, light_data* data) override;
 
         framebuffer_ptr get_backbuffer() override
         {
@@ -129,12 +130,26 @@ namespace mango
         {
             std140_mat4 inverse_view_projection; //!< Inverse camera view projection matrix.
             std140_vec3 camera_position;         //!< Camera position.
+            struct
+            {
+                std140_vec3 direction;
+                std140_vec3 color;
+                g_float intensity;
+            } directional;
+            // struct
+            // {
+            //     std140_vec3 position;
+            //     std140_vec3 color;
+            //     g_float intensity;
+            // } spherical[16];
         };
+
+        lighting_pass_uniforms m_lp_uniforms;
 
         //! \brief Binds the uniform buffer of the lighting pass.
         void bind_lighting_pass_uniform_buffer();
 
-        //! \brief Calculates automatic exposure and adapts physicall camera parameters.
+        //! \brief Calculates automatic exposure and adapts physical camera parameters.
         //! \param[in,out] camera The \a camera_data of the current camera.
         void apply_auto_exposure(camera_data& camera);
 

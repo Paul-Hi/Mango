@@ -50,6 +50,9 @@ namespace mango
         float luminance;       //!< Smoothed out average luminance.
     };
 
+    enum class light_type : uint8;
+    struct light_data;
+
     //! \brief The implementation of the \a render_system.
     //! \details This class only manages the configuration of the base \a render_system and forwards everything else to the real implementation of the specific configured one.
     class render_system_impl : public render_system
@@ -127,6 +130,8 @@ namespace mango
         //! \param[in] render_level The level from the hdr \a texture to render. -1 means no rendering.
         //! \param[in] intensity The intensity of the environment in cd/m^2.
         virtual void set_environment_settings(float render_level, float intensity);
+
+        virtual void submit_light(light_type type, light_data* data);
 
         //! \brief Returns the backbuffer of the a render_system.
         //! \return The backbuffer.

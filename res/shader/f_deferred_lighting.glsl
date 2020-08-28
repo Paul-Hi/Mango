@@ -22,7 +22,13 @@ layout(location = 7, binding = 7) uniform sampler2D brdf_integration_lut;
 layout(binding = 0, std140) uniform lighting_pass_uniforms
 {
     mat4 inverse_view_projection;
-    vec4 camera_position;  // this is a vec3, but there are annoying bugs with some drivers.
+    vec4 camera_position; // this is a vec3, but there are annoying bugs with some drivers.
+    struct
+    {
+        vec4 direction; // this is a vec3, but there are annoying bugs with some drivers.
+        vec4 color; // this is a vec3, but there are annoying bugs with some drivers.
+        float intensity;
+    } directional;
 };
 
 layout (location = 8) uniform float ibl_intensity; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
@@ -89,7 +95,7 @@ void main()
     lighting += calculate_image_based_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
 
     // lights
-    // lighting += calculate_directional_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
+    lighting += calculate_directional_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
 
     vec3 emissive = get_emissive();
     lighting += emissive * 50000; // TODO Paul: Remove hardcoded intensity for all emissive values -.-
@@ -127,9 +133,11 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
 
 vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor)
 {
-    vec3 light_dir        = vec3(1.0); // hardcoded
-    float light_intensity = 111000.0; // hardcoded
-    vec3 light_col        = vec3(1.0) * light_intensity; // hardcoded
+    float light_intensity = directional.intensity;
+    if(light_intensity < 1e-5)
+        return vec3(0.0);
+    vec3 light_dir        = normalize(directional.direction.xyz);
+    vec3 light_col        = directional.color.rgb;
     float roughness       = (perceptual_roughness * perceptual_roughness);
 
     vec3 lighting = vec3(0.0);
@@ -151,7 +159,7 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     vec3 diffuse = n_dot_l * Fd;
     vec3 specular = n_dot_l * Fr;
 
-    lighting += (diffuse * occlusion_factor + specular) * light_col;
+    lighting += (diffuse * occlusion_factor + specular) * light_col * light_intensity;
 
     return lighting;
 }

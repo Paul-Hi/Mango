@@ -115,6 +115,12 @@ void render_system_impl::set_environment_settings(float render_level, float inte
     m_current_render_system->set_environment_settings(render_level, intensity);
 }
 
+void render_system_impl::submit_light(light_type type, light_data* data)
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->submit_light(type, data);
+}
+
 framebuffer_ptr render_system_impl::get_backbuffer()
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");

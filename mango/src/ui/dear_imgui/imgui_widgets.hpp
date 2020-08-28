@@ -625,6 +625,7 @@ namespace mango
             auto mesh_comp        = application_scene->query_mesh_component(e);
             auto camera_comp      = application_scene->query_camera_component(e);
             auto environment_comp = application_scene->query_environment_component(e);
+            auto light_comp       = application_scene->query_light_component(e);
 
             // Tag
             ImGui::Text("Tag");
@@ -954,7 +955,43 @@ namespace mango
                 if (ImGui::Button(("Add##environment" + std::to_string(e)).c_str()))
                     application_scene->add_environment_component(e);
             }
+            ImGui::Separator();
 
+            // Light
+            ImGui::Text("Light");
+            if (light_comp)
+            {
+                ImGui::Text("Light Type");
+                light_type current      = light_comp->type_of_light;
+                const char* possible[1] = { "Directional Light" };
+                int32 idx               = static_cast<int32>(current);
+                ImGui::ListBox(("##light_type_selection" + std::to_string(e)).c_str(), &idx, possible, 1);
+                current = static_cast<light_type>(idx);
+
+                if (current == light_type::directional) // Always true atm.
+                {
+                    auto d_data = static_cast<directional_light_data*>(&light_comp->data);
+
+                    ImGui::DragFloat(("Direction X##d_light_direction_x" + std::to_string(e)).c_str(), &d_data->direction.x, 0.1f, 0.0f, 0.0f, "%.1f");
+                    ImGui::DragFloat(("Direction Y##d_light_direction_y" + std::to_string(e)).c_str(), &d_data->direction.y, 0.1f, 0.0f, 0.0f, "%.1f");
+                    ImGui::DragFloat(("Direction Z##d_light_direction_z" + std::to_string(e)).c_str(), &d_data->direction.z, 0.1f, 0.0f, 0.0f, "%.1f");
+
+                    ImGui::ColorEdit4("Color##d_light_color", d_data->light_color, ImGuiColorEditFlags_NoInputs);
+
+                    ImGui::SliderFloat(("Intensity##d_light_intensity" + std::to_string(e)).c_str(), &d_data->intensity, 0.0f, 500000.0f);
+                }
+
+                ImGui::Spacing();
+                if (ImGui::Button(("Remove##light" + std::to_string(e)).c_str()))
+                {
+                    application_scene->remove_light_component(e);
+                }
+            }
+            else
+            {
+                if (ImGui::Button(("Add##light" + std::to_string(e)).c_str()))
+                    application_scene->add_light_component(e);
+            }
             ImGui::Separator();
         }
 
