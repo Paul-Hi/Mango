@@ -970,7 +970,7 @@ namespace mango
 
                 if (current == light_type::directional) // Always true atm.
                 {
-                    auto d_data = static_cast<directional_light_data*>(&light_comp->data);
+                    auto d_data = static_cast<directional_light_data*>(light_comp->data.get());
 
                     ImGui::DragFloat(("Direction X##d_light_direction_x" + std::to_string(e)).c_str(), &d_data->direction.x, 0.1f, 0.0f, 0.0f, "%.1f");
                     ImGui::DragFloat(("Direction Y##d_light_direction_y" + std::to_string(e)).c_str(), &d_data->direction.y, 0.1f, 0.0f, 0.0f, "%.1f");

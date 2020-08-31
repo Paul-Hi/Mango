@@ -33,21 +33,40 @@ command_buffer::~command_buffer()
     m_last = nullptr;
 }
 
-void command_buffer::execute()
+void command_buffer::clear()
 {
-    NAMED_PROFILE_ZONE("Commandbuffer Execution");
-    MANGO_ASSERT(m_first != nullptr, "Command buffer is empty!");
-    MANGO_ASSERT(m_last != nullptr, "Command buffer is empty!");
-
-    // This is also clearing the buffer
     unique_ptr<command> head = std::move(m_first);
 
     while (head)
     {
-        head->execute(m_execution_state);
         head = std::move(head->m_next);
     }
     m_last = nullptr;
+}
+
+void command_buffer::execute(bool clear)
+{
+    NAMED_PROFILE_ZONE("Commandbuffer Execution");
+    if (m_first == nullptr || m_last == nullptr)
+    {
+        MANGO_LOG_DEBUG("Command buffer is empty!");
+        MANGO_LOG_DEBUG("Command buffer is empty!");
+        return;
+    }
+
+    // This is also clearing the buffer
+    unique_ptr<command> head = std::move(m_first);
+    m_first                  = nullptr;
+    m_last                   = nullptr;
+
+    while (head)
+    {
+        head->execute(m_execution_state);
+        unique_ptr<command> tmp = std::move(head);
+        head                    = std::move(tmp->m_next);
+        if (!clear)
+            resubmit(std::move(tmp));
+    }
 }
 
 void command_buffer::set_viewport(int32 x, int32 y, int32 width, int32 height)

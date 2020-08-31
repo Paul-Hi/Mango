@@ -210,8 +210,8 @@ namespace mango
     //! \brief Component used for all lights excluding image based lights.
     struct light_component
     {
-        light_type type_of_light; //!< The type of the light.
-        light_data data;          //!< Light specific data.
+        light_type type_of_light    = light_type::directional;                    //!< The type of the light.
+        shared_ptr<light_data> data = std::make_shared<directional_light_data>(); //!< Light specific data.
     };
 
     //! \brief Structure used for collecting all the camera data of the current active camera.

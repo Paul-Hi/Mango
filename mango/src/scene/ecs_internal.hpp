@@ -113,15 +113,13 @@ namespace mango
                     transform_component* transform = transformations.get_component_for_entity(e);
                     if (transform)
                     {
-                        auto cmdb = m_rs->get_command_buffer();
                         m_rs->set_model_info(transform->world_transformation_matrix, c.has_normals, c.has_tangents);
 
                         for (int32 i = 0; i < static_cast<int32>(c.primitives.size()); ++i)
                         {
                             auto m = c.materials[i];
                             auto p = c.primitives[i];
-                            cmdb->bind_vertex_array(p.vertex_array_object);
-                            m_rs->draw_mesh(m.component_material, p.topology, p.first, p.count, p.type_index, p.instance_count);
+                            m_rs->draw_mesh(p.vertex_array_object, m.component_material, p.topology, p.first, p.count, p.type_index, p.instance_count);
                         }
                     }
                 },
@@ -147,7 +145,7 @@ namespace mango
             lights.for_each(
                 [this, &lights](light_component& c, int32&) {
                     auto cmdb = m_rs->get_command_buffer();
-                    m_rs->submit_light(c.type_of_light, &c.data);
+                    m_rs->submit_light(c.type_of_light, c.data.get());
                 },
                 false);
         }

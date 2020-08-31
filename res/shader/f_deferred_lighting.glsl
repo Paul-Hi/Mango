@@ -14,10 +14,11 @@ layout(location = 1, binding = 1) uniform sampler2D gbuffer_c1;
 layout(location = 2, binding = 2) uniform sampler2D gbuffer_c2;
 layout(location = 3, binding = 3) uniform sampler2D gbuffer_c3;
 layout(location = 4, binding = 4) uniform sampler2D gbuffer_depth;
+layout(location = 5, binding = 5) uniform sampler2D shadow_map;
 
-layout(location = 5, binding = 5) uniform samplerCube irradiance_map;
-layout(location = 6, binding = 6) uniform samplerCube prefiltered_specular;
-layout(location = 7, binding = 7) uniform sampler2D brdf_integration_lut;
+layout(location = 6, binding = 6) uniform samplerCube irradiance_map;
+layout(location = 7, binding = 7) uniform samplerCube prefiltered_specular;
+layout(location = 8, binding = 8) uniform sampler2D brdf_integration_lut;
 
 layout(binding = 0, std140) uniform lighting_pass_uniforms
 {
@@ -25,13 +26,14 @@ layout(binding = 0, std140) uniform lighting_pass_uniforms
     vec4 camera_position; // this is a vec3, but there are annoying bugs with some drivers.
     struct
     {
+        mat4 view_projection;
         vec4 direction; // this is a vec3, but there are annoying bugs with some drivers.
         vec4 color; // this is a vec3, but there are annoying bugs with some drivers.
         float intensity;
     } directional;
 };
 
-layout (location = 8) uniform float ibl_intensity; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
+layout (location = 9) uniform float ibl_intensity; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
 
 float D_GGX(in float n_dot_h, in float roughness);
 float V_SmithGGXCorrelated(in float n_dot_v, in float n_dot_l, in float roughness);
@@ -41,7 +43,7 @@ float Fd_BurleyRenormalized(in float n_dot_v, in float n_dot_l, in float l_dot_h
 
 vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection);
 vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor);
-vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor);
+vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor, in vec3 world_pos);
 
 vec3 get_specular_dominant_direction(in vec3 normal, in vec3 reflection, in float roughness);
 
@@ -66,6 +68,83 @@ vec3 get_occlusion_roughness_metallic()
     vec3 o_r_m = texture(gbuffer_c3, texcoord).rgb;
     o_r_m.x = max(o_r_m.x, 0.089f);
     return o_r_m;
+}
+
+float interleaved_gradient_noise(in vec2 screen_pos)
+{
+    vec3 magic = vec3(0.06711056, 0.00583715, 52.9829189);
+    return fract(magic.z * fract(dot(screen_pos, magic.xy)));
+}
+
+vec2 sample_vogel_disc(in int idx, in int num_samples, in float phi)
+{
+    float golden_angle = 2.4;
+
+    float r = sqrt(float(idx) + 0.5) / sqrt(float(num_samples));
+    float theta = float(idx) * golden_angle + phi;
+    float sine = sin(theta);
+    float cosine = cos(theta);
+
+    return vec2(cosine * r, sine * r);
+}
+
+vec3 shadow_map_coords(in mat4 shadow_map_projection, in vec3 world_pos)
+{
+    vec4 projected = shadow_map_projection * vec4(world_pos, 1.0);
+    vec3 shadow_coords = projected.xyz / projected.w;
+    shadow_coords = shadow_coords * 0.5 + 0.5;
+    return shadow_coords;
+}
+
+float penumbra(in float gradient_noise, in vec3 shadow_uv, in sampler2D lookup, in int num_samples, in float light_size)
+{
+    float avg_blocker_depth = 0.0;
+    int blocker_count = 0;
+    float max_blocker = 8.0 / 2048.0;
+
+    for(int i = 0; i < num_samples; i++)
+    {
+        vec2 sample_uv = sample_vogel_disc(i, num_samples, gradient_noise);
+        sample_uv = shadow_uv.xy + sample_uv * max_blocker;
+
+        float z = texture(lookup, sample_uv).x;
+        if(z < shadow_uv.z)
+        {
+            avg_blocker_depth += z;
+            blocker_count++;
+        }
+    }
+
+    if(blocker_count > 0)
+    {
+        avg_blocker_depth /= float(blocker_count);
+        return light_size * (shadow_uv.z - avg_blocker_depth) / avg_blocker_depth;
+    }
+    else
+        return 0.0;
+}
+
+float directional_shadow(in vec3 shadow_uv, in sampler2D lookup)
+{
+    int num_samples = 8;
+    float gradient_noise = interleaved_gradient_noise(gl_FragCoord.xy);
+    float penumbra = penumbra(gradient_noise, shadow_uv, lookup, num_samples * 4, 6.0);
+    penumbra = clamp(penumbra, 0.05, 1.0);
+    float max_penumbra = 8.0 / 2048.0;
+
+    float shadow = 0.0;
+    for(int i = 0; i < num_samples; i++)
+    {
+        vec2 sample_uv = sample_vogel_disc(i, num_samples, gradient_noise);
+        sample_uv = shadow_uv.xy + sample_uv * penumbra * max_penumbra;
+
+        float z = texture(lookup, sample_uv).x;
+        float bias = 0.005;
+        shadow += (z < (shadow_uv.z - bias)) ? 0.0 : 1.0;
+    }
+    shadow /= float(num_samples * 4);
+
+    return shadow;
 }
 
 void main()
@@ -95,7 +174,7 @@ void main()
     lighting += calculate_image_based_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
 
     // lights
-    lighting += calculate_directional_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
+    lighting += calculate_directional_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor, position);
 
     vec3 emissive = get_emissive();
     lighting += emissive * 50000; // TODO Paul: Remove hardcoded intensity for all emissive values -.-
@@ -131,7 +210,7 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     return (diffuse_ibl * occlusion_factor + specular_ibl) * ibl_intensity;
 }
 
-vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor)
+vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor, in vec3 world_pos)
 {
     float light_intensity = directional.intensity;
     if(light_intensity < 1e-5)
@@ -161,7 +240,7 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
 
     lighting += (diffuse * occlusion_factor + specular) * light_col * light_intensity;
 
-    return lighting;
+    return lighting * directional_shadow(shadow_map_coords(directional.view_projection, world_pos), shadow_map);
 }
 
 //

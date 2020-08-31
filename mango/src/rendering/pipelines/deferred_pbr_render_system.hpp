@@ -7,6 +7,7 @@
 #ifndef MANGO_DEFERRED_PBR_RENDER_SYSTEM_HPP
 #define MANGO_DEFERRED_PBR_RENDER_SYSTEM_HPP
 
+#include <graphics/framebuffer.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <rendering/steps/pipeline_step.hpp>
 
@@ -34,7 +35,7 @@ namespace mango
         virtual render_pipeline get_base_render_pipeline() override;
 
         void set_model_info(const glm::mat4& model_matrix, bool has_normals, bool has_tangents) override;
-        void draw_mesh(const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
+        void draw_mesh(const vertex_array_ptr& vertex_array, const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
         void set_view_projection_matrix(const glm::mat4& view_projection) override;
         void set_environment_texture(const texture_ptr& hdr_texture) override;
         void set_environment_settings(float render_level, float intensity) override;
@@ -53,6 +54,11 @@ namespace mango
         //! \brief The hdr buffer of the deferred pipeline. Used for auto exposure.
         framebuffer_ptr m_hdr_buffer;
 
+        framebuffer_ptr m_shadow_buffer;
+
+        command_buffer_ptr m_render_queue;
+        command_buffer_ptr m_caster_queue;
+
         //! \brief The \a shader_program for the deferred geometry pass.
         //! \details This fills the g-buffer for later use in the lighting pass.
         shader_program_ptr m_scene_geometry_pass;
@@ -68,6 +74,10 @@ namespace mango
         //! \brief The \a shader_program for the luminance buffer reduction.
         //! \details Reduces the 'luminance' histogram to the average luminance.
         shader_program_ptr m_reduce_luminance_buffer;
+
+        shader_program_ptr m_shadow_pass;
+
+        framebuffer_configuration m_shadow_map_fb_config;
 
         //! \brief The shader storage buffer mapping for the luminance histogram
         buffer_ptr m_luminance_histogram_buffer;
@@ -132,6 +142,7 @@ namespace mango
             std140_vec3 camera_position;         //!< Camera position.
             struct
             {
+                std140_mat4 view_projection;
                 std140_vec3 direction;
                 std140_vec3 color;
                 g_float intensity;
