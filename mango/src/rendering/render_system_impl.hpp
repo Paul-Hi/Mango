@@ -37,14 +37,6 @@ namespace mango
         } last_frame;            //!< Measured stats from the last rendered frame.
     };
 
-    //! \brief Structure to store debug data.
-    struct debug_views
-    {
-        framebuffer_ptr fb_port0; //!< Port to attach a framebuffer to debug.
-        framebuffer_ptr fb_port1; //!< Port to attach a framebuffer to debug.
-        framebuffer_ptr fb_port2; //!< Port to attach a framebuffer to debug.
-    };
-
     //! \brief Structure to store data for adaptive exposure.
     struct luminance_data
     {
@@ -148,13 +140,7 @@ namespace mango
             return m_current_render_system->m_hardware_stats;
         }
 
-        //! \brief Returns the debug views set by the \a render_system.
-        //! \return The debug view structure.
-        inline const debug_views& get_debug_views()
-        {
-            MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-            return m_current_render_system->m_debug_views;
-        }
+        virtual void on_ui_widget();
 
       protected:
         //! \brief Mangos internal context for shared usage in all \a render_systems.
@@ -166,8 +152,6 @@ namespace mango
         //! \brief The hardware stats.
         hardware_stats m_hardware_stats;
 
-        //! \brief The debug views.
-        debug_views m_debug_views;
 
       private:
         //! \brief A shared pointer to the currently used internal \a render_system.

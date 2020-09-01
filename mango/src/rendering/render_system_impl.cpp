@@ -4,9 +4,9 @@
 //! \date      2020
 //! \copyright Apache License 2.0
 
+#include <mango/profile.hpp>
 #include <rendering/pipelines/deferred_pbr_render_system.hpp>
 #include <rendering/render_system_impl.hpp>
-#include <mango/profile.hpp>
 
 using namespace mango;
 
@@ -88,7 +88,7 @@ void render_system_impl::set_model_info(const glm::mat4& model_matrix, bool has_
     m_current_render_system->set_model_info(model_matrix, has_normals, has_tangents);
 }
 
-void render_system_impl::draw_mesh(const vertex_array_ptr& vertex_array,const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
+void render_system_impl::draw_mesh(const vertex_array_ptr& vertex_array, const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
     MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
@@ -125,6 +125,12 @@ framebuffer_ptr render_system_impl::get_backbuffer()
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
     return m_current_render_system->get_backbuffer();
+}
+
+void render_system_impl::on_ui_widget()
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->on_ui_widget();
 }
 
 void render_system_impl::update(float dt)

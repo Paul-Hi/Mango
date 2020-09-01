@@ -40,6 +40,7 @@ namespace mango
         void set_environment_texture(const texture_ptr& hdr_texture) override;
         void set_environment_settings(float render_level, float intensity) override;
         void submit_light(light_type type, light_data* data) override;
+        void on_ui_widget() override;
 
         framebuffer_ptr get_backbuffer() override
         {
@@ -140,6 +141,8 @@ namespace mango
         {
             std140_mat4 inverse_view_projection; //!< Inverse camera view projection matrix.
             std140_vec3 camera_position;         //!< Camera position.
+            std140_vec4 camera_params;           //!< Camera near and far plane depth value. (zw) unused atm.
+
             struct
             {
                 std140_mat4 view_projection;
@@ -153,6 +156,27 @@ namespace mango
             //     std140_vec3 color;
             //     g_float intensity;
             // } spherical[16];
+
+            std140_bool debug = std140_bool(false);
+
+            struct debug_views
+            {
+                union {
+                    std140_bool debug[9] = { 0, 0, 0, 0, 0, 0, 0 };
+
+                    std140_bool position;
+                    std140_bool normal;
+                    std140_bool depth;
+                    std140_bool base_color;
+                    std140_bool reflection_color;
+                    std140_bool emission;
+                    std140_bool occlusion;
+                    std140_bool roughness;
+                    std140_bool metallic;
+                };
+            } debug_views;
+
+            g_float padding0; //!< Padding needed for st140 layout.
         };
 
         lighting_pass_uniforms m_lp_uniforms;
@@ -166,6 +190,8 @@ namespace mango
 
         //! \brief Optional additional steps of the deferred pipeline.
         shared_ptr<pipeline_step> m_pipeline_steps[mango::render_step::number_of_step_types];
+
+        bool m_wireframe = false;
     };
 
 } // namespace mango

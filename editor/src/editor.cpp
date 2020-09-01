@@ -36,6 +36,7 @@ bool editor::create()
         .show_widget(mango::ui_widget::scene_inspector)
         .show_widget(mango::ui_widget::material_inspector)
         .show_widget(mango::ui_widget::entity_component_inspector)
+        .show_widget(mango::ui_widget::render_system_ui)
         .submit_custom("Editor", [this](bool& enabled) {
             ImGui::Begin("Editor", &enabled);
             shared_ptr<context> mango_context = get_context().lock();

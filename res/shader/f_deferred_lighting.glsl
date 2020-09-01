@@ -24,13 +24,23 @@ layout(binding = 0, std140) uniform lighting_pass_uniforms
 {
     mat4 inverse_view_projection;
     vec4 camera_position; // this is a vec3, but there are annoying bugs with some drivers.
-    struct
-    {
-        mat4 view_projection;
-        vec4 direction; // this is a vec3, but there are annoying bugs with some drivers.
-        vec4 color; // this is a vec3, but there are annoying bugs with some drivers.
-        float intensity;
-    } directional;
+    vec4 camera_params; // near, far, (zw) unused
+
+    mat4 directional_view_projection;
+    vec4 directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
+    vec4 directional_color; // this is a vec3, but there are annoying bugs with some drivers.
+    float directional_intensity;
+
+    bool debug;
+    bool debug_views_position;
+    bool debug_views_normal;
+    bool debug_views_depth;
+    bool debug_views_base_color;
+    bool debug_views_reflection_color;
+    bool debug_views_emission;
+    bool debug_views_occlusion;
+    bool debug_views_roughness;
+    bool debug_views_metallic;
 };
 
 layout (location = 9) uniform float ibl_intensity; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
@@ -69,6 +79,8 @@ vec3 get_occlusion_roughness_metallic()
     o_r_m.x = max(o_r_m.x, 0.089f);
     return o_r_m;
 }
+
+void debug_views(in float depth);
 
 float interleaved_gradient_noise(in vec2 screen_pos)
 {
@@ -150,6 +162,11 @@ float directional_shadow(in vec3 shadow_uv, in sampler2D lookup)
 void main()
 {
     float depth = texture(gbuffer_depth, texcoord).r;
+    if(debug)
+    {
+        debug_views(depth);
+        return;
+    }
     gl_FragDepth = depth; // This is for the potential cubemap.
     if(depth >= 1.0) discard;
 
@@ -160,6 +177,7 @@ void main()
     float occlusion_factor               = occlusion_roughness_metallic.r;
     float perceptual_roughness           = occlusion_roughness_metallic.g;
     float metallic                       = occlusion_roughness_metallic.b;
+    vec3 emissive                        = get_emissive();
     float reflectance                    = 0.5; // TODO Paul: Make tweakable.
 
     vec3 f0          = 0.16 * reflectance * reflectance * (1.0 - metallic) + base_color.rgb * metallic;
@@ -176,7 +194,6 @@ void main()
     // lights
     lighting += calculate_directional_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor, position);
 
-    vec3 emissive = get_emissive();
     lighting += emissive * 50000; // TODO Paul: Remove hardcoded intensity for all emissive values -.-
 
     frag_color = vec4(lighting, base_color.a); // TODO Paul: Proper transparency.
@@ -212,11 +229,11 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
 
 vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor, in vec3 world_pos)
 {
-    float light_intensity = directional.intensity;
+    float light_intensity = directional_intensity;
     if(light_intensity < 1e-5)
         return vec3(0.0);
-    vec3 light_dir        = normalize(directional.direction.xyz);
-    vec3 light_col        = directional.color.rgb;
+    vec3 light_dir        = normalize(directional_direction.xyz);
+    vec3 light_col        = directional_color.rgb;
     float roughness       = (perceptual_roughness * perceptual_roughness);
 
     vec3 lighting = vec3(0.0);
@@ -240,7 +257,7 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
 
     lighting += (diffuse * occlusion_factor + specular) * light_col * light_intensity;
 
-    return lighting * directional_shadow(shadow_map_coords(directional.view_projection, world_pos), shadow_map);
+    return lighting * directional_shadow(shadow_map_coords(directional_view_projection, world_pos), shadow_map);
 }
 
 //
@@ -304,4 +321,38 @@ vec3 get_specular_dominant_direction(in vec3 normal, in vec3 reflection, in floa
     float smoothness = saturate(1.0 - roughness);
     float lerp_f = smoothness * (sqrt(smoothness) + roughness);
     return mix(normal, reflection, lerp_f);
+}
+
+
+void debug_views(in float depth)
+{
+    vec4 base_color = get_base_color();
+    vec3 normal = get_normal();
+    vec3 occlusion_roughness_metallic = get_occlusion_roughness_metallic();
+    float occlusion_factor = occlusion_roughness_metallic.r;
+    float perceptual_roughness = occlusion_roughness_metallic.g;
+    float metallic = occlusion_roughness_metallic.b;
+    vec3 emissive = get_emissive();
+
+    if(debug_views_position)
+        frag_color = vec4(world_space_from_depth(depth, texcoord, inverse_view_projection), 1.0);
+    if(debug_views_normal)
+        frag_color = vec4(normal, 1.0);
+    if(debug_views_depth)
+    {
+        float z_lin = (2.0 * camera_params.x) / (camera_params.y + camera_params.x - depth * (camera_params.y - camera_params.x));
+        frag_color = vec4(vec3(z_lin), 1.0);
+    }
+    if(debug_views_base_color)
+        frag_color = vec4(vec3(1.0 - metallic) * base_color.rgb, 1.0);
+    if(debug_views_reflection_color)
+        frag_color = vec4(vec3(metallic) * base_color.rgb, 1.0);
+    if(debug_views_occlusion)
+        frag_color = vec4(vec3(occlusion_factor), 1.0);
+    if(debug_views_roughness)
+        frag_color = vec4(vec3(perceptual_roughness), 1.0);
+    if(debug_views_metallic)
+        frag_color = vec4(vec3(metallic), 1.0);
+    if(debug_views_emission)
+        frag_color = vec4(vec3(emissive), 1.0);
 }

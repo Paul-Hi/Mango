@@ -11,6 +11,7 @@
 #include <graphics/vertex_array.hpp>
 #include <mango/profile.hpp>
 #include <rendering/steps/ibl_step.hpp>
+#include <util/helpers.hpp>
 
 using namespace mango;
 
@@ -30,97 +31,66 @@ bool ibl_step::create()
     shader_config.m_path       = "res/shader/c_equi_to_cubemap.glsl";
     shader_config.m_type       = shader_type::COMPUTE_SHADER;
     shader_ptr to_cube_compute = shader::create(shader_config);
-    if (!to_cube_compute)
-    {
-        MANGO_LOG_ERROR("Creation of cubemap compute shader failed! Ibl step not available!");
+    if (!check_creation(to_cube_compute.get(), "cubemap compute shader", "Ibl Step"))
         return false;
-    }
 
     m_equi_to_cubemap = shader_program::create_compute_pipeline(to_cube_compute);
-    if (!m_equi_to_cubemap)
-    {
-        MANGO_LOG_ERROR("Creation of cubemap compute shader program failed! Ibl step not available!");
+    if (!check_creation(m_equi_to_cubemap.get(), "cubemap compute shader program", "Ibl Step"))
         return false;
-    }
 
     // compute shader to build the irradiance cubemap for image based lighting.
     shader_config.m_path              = "res/shader/c_irradiance_map.glsl";
     shader_config.m_type              = shader_type::COMPUTE_SHADER;
     shader_ptr irradiance_map_compute = shader::create(shader_config);
-    if (!irradiance_map_compute)
-    {
-        MANGO_LOG_ERROR("Creation of ibl irradiance map compute shader failed! Ibl step not available!");
+    if (!check_creation(irradiance_map_compute.get(), "irradiance map compute shader", "Ibl Step"))
         return false;
-    }
 
     m_build_irradiance_map = shader_program::create_compute_pipeline(irradiance_map_compute);
-    if (!m_build_irradiance_map)
-    {
-        MANGO_LOG_ERROR("Creation of ibl irradiance map compute shader program failed! Ibl step not available!");
+    if (!check_creation(m_build_irradiance_map.get(), "irradiance map compute shader program", "Ibl Step"))
         return false;
-    }
 
     // compute shader to build the prefiltered specular cubemap for image based lighting.
     shader_config.m_path                        = "res/shader/c_prefilter_specular_map.glsl";
     shader_config.m_type                        = shader_type::COMPUTE_SHADER;
     shader_ptr specular_prefiltered_map_compute = shader::create(shader_config);
-    if (!specular_prefiltered_map_compute)
-    {
-        MANGO_LOG_ERROR("Creation of ibl prefiltered specular compute shader failed! Ibl step not available!");
+    if (!check_creation(specular_prefiltered_map_compute.get(), "prefilter specular ibl compute shader", "Ibl Step"))
         return false;
-    }
 
     m_build_specular_prefiltered_map = shader_program::create_compute_pipeline(specular_prefiltered_map_compute);
-    if (!m_build_specular_prefiltered_map)
-    {
-        MANGO_LOG_ERROR("Creation of ibl prefiltered specular map compute shader program failed! Ibl step not available!");
+    if (!check_creation(m_build_specular_prefiltered_map.get(), "prefilter specular ibl compute shader program", "Ibl Step"))
         return false;
-    }
 
     // compute shader to build the brdf integration lookup texture for image based lighting. Could be done only once.
     shader_config.m_path                = "res/shader/c_brdf_integration.glsl";
     shader_config.m_type                = shader_type::COMPUTE_SHADER;
     shader_ptr brdf_integration_compute = shader::create(shader_config);
-    if (!brdf_integration_compute)
-    {
-        MANGO_LOG_ERROR("Creation of ibl brdf integration compute shader failed! Ibl step not available!");
+    if (!check_creation(brdf_integration_compute.get(), "ibl brdf integration compute shader", "Ibl Step"))
         return false;
-    }
 
     m_build_integration_lut = shader_program::create_compute_pipeline(brdf_integration_compute);
-    if (!m_build_integration_lut)
-    {
-        MANGO_LOG_ERROR("Creation of ibl brdf integration compute shader program failed! Ibl step not available!");
+    if (!check_creation(m_build_integration_lut.get(), "ibl brdf integration compute shader program", "Ibl Step"))
         return false;
-    }
 
     // cubemap rendering
     shader_config.m_path      = "res/shader/v_cubemap.glsl";
     shader_config.m_type      = shader_type::VERTEX_SHADER;
     shader_ptr cubemap_vertex = shader::create(shader_config);
-    if (!cubemap_vertex)
-    {
-        MANGO_LOG_ERROR("Creation of cubemap vertex shader failed! Ibl step not available!");
+    if (!check_creation(cubemap_vertex.get(), "cubemap vertex shader", "Ibl Step"))
         return false;
-    }
 
     shader_config.m_path        = "res/shader/f_cubemap.glsl";
     shader_config.m_type        = shader_type::FRAGMENT_SHADER;
     shader_ptr cubemap_fragment = shader::create(shader_config);
-    if (!cubemap_fragment)
-    {
-        MANGO_LOG_ERROR("Creation of cubemap fragment shader failed! Ibl step not available!");
+    if (!check_creation(cubemap_fragment.get(), "cubemap fragment shader", "Ibl Step"))
         return false;
-    }
 
     m_draw_environment = shader_program::create_graphics_pipeline(cubemap_vertex, nullptr, nullptr, nullptr, cubemap_fragment);
-    if (!m_draw_environment)
-    {
-        MANGO_LOG_ERROR("Creation of cubemap rendering shader program failed! Ibl step not available!");
+    if (!check_creation(m_draw_environment.get(), "cubemap rendering shader program", "Ibl Step"))
         return false;
-    }
 
     m_cube_geometry = vertex_array::create();
+    if (!check_creation(m_cube_geometry.get(), "cubemap geometry vertex array", "Ibl Step"))
+        return false;
 
     buffer_configuration b_config;
     b_config.m_access   = buffer_access::NONE;
@@ -184,11 +154,9 @@ bool ibl_step::create()
     texture_config.m_texture_mag_filter = texture_parameter::FILTER_NEAREST;
     texture_config.m_is_cubemap         = true;
     default_ibl_texture                 = texture::create(texture_config);
-    if (!default_ibl_texture)
-    {
-        MANGO_LOG_ERROR("Creation of default texture failed! Render system not available!");
+    if (!check_creation(default_ibl_texture.get(), "default ibl texture", "Ibl Step"))
         return false;
-    }
+
     g_ubyte albedo[3] = { 127, 127, 127 };
     default_ibl_texture->set_data(format::RGB8, 1, 1, format::RGB, format::UNSIGNED_BYTE, albedo);
 
