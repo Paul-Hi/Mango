@@ -193,6 +193,10 @@ namespace mango
             , _w()
         {
         }
+        inline glm::vec3 value()
+        {
+            return glm::vec3(x, y, z);
+        }
 
       private:
         float _w = 0.0f;
@@ -221,6 +225,10 @@ namespace mango
             , w(0.0f)
         {
         }
+        inline glm::vec4 value()
+        {
+            return glm::vec4(x, y, z, w);
+        }
         //! \endcond
     };
 
@@ -242,6 +250,14 @@ namespace mango
             , r1()
             , r2()
         {
+        }
+        inline glm::mat3 value()
+        {
+            auto mat = glm::mat3();
+            mat[0] = r0.value();
+            mat[1] = r1.value();
+            mat[2] = r2.value();
+            return mat;
         }
         //! \endcond
     };
@@ -267,6 +283,15 @@ namespace mango
             , r2()
             , r3()
         {
+        }
+        inline glm::mat4 value()
+        {
+            auto mat = glm::mat4();
+            mat[0] = r0.value();
+            mat[1] = r1.value();
+            mat[2] = r2.value();
+            mat[3] = r3.value();
+            return mat;
         }
         //! \endcond
     };

@@ -16,6 +16,7 @@
 #include <mango/scene.hpp>
 #include <rendering/pipelines/deferred_pbr_render_system.hpp>
 #include <rendering/steps/ibl_step.hpp>
+#include <rendering/steps/shadow_map_step.hpp>
 #include <util/helpers.hpp>
 
 using namespace mango;
@@ -68,7 +69,6 @@ bool deferred_pbr_render_system::create()
     int32 h = ws->get_height();
 
     m_render_queue = command_buffer::create();
-    m_caster_queue = command_buffer::create();
 
     m_hardware_stats.last_frame.canvas_width  = w;
     m_hardware_stats.last_frame.canvas_height = h;
@@ -232,42 +232,6 @@ bool deferred_pbr_render_system::create()
     memset(&m_luminance_data_mapping->histogram[0], 0, 256 * sizeof(uint32));
     m_luminance_data_mapping->luminance = 1.0f;
 
-    // shadow mapping -> step
-    shader_config.m_path          = "res/shader/v_shadow_pass.glsl";
-    shader_config.m_type          = shader_type::VERTEX_SHADER;
-    shader_ptr shadow_pass_vertex = shader::create(shader_config);
-    if (!check_creation(shadow_pass_vertex.get(), "shadow pass vertex shader", "Render System"))
-        return false;
-
-    shader_config.m_path            = "res/shader/f_shadow_pass.glsl";
-    shader_config.m_type            = shader_type::FRAGMENT_SHADER;
-    shader_ptr shadow_pass_fragment = shader::create(shader_config);
-    if (!check_creation(shadow_pass_fragment.get(), "shadow pass fragment shader", "Render System"))
-        return false;
-
-    m_shadow_pass = shader_program::create_graphics_pipeline(shadow_pass_vertex, nullptr, nullptr, nullptr, shadow_pass_fragment);
-    if (!check_creation(m_shadow_pass.get(), "shadow pass shader program", "Render System"))
-        return false;
-
-    texture_configuration shadow_map_config;
-    shadow_map_config.m_generate_mipmaps        = 1;
-    shadow_map_config.m_is_standard_color_space = false;
-    shadow_map_config.m_texture_min_filter      = texture_parameter::FILTER_LINEAR;
-    shadow_map_config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
-    shadow_map_config.m_texture_wrap_s          = texture_parameter::WRAP_CLAMP_TO_EDGE;
-    shadow_map_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
-    int32 width = 2048, height = 2048; // hardcoded
-
-    m_shadow_map_fb_config.m_depth_attachment = texture::create(shadow_map_config); // directional is depth.
-    m_shadow_map_fb_config.m_depth_attachment->set_data(format::DEPTH_COMPONENT24, width, height, format::DEPTH_COMPONENT, format::FLOAT, nullptr);
-    // multiple shadow maps should be all attached to one fb in the future.
-    m_shadow_map_fb_config.m_width  = width;
-    m_shadow_map_fb_config.m_height = height;
-
-    m_shadow_buffer = framebuffer::create(m_shadow_map_fb_config);
-    if (!check_creation(m_shadow_buffer.get(), "shadow buffer", "Render System"))
-        return false;
-
     // default vao needed
     default_vao = vertex_array::create();
     if (!check_creation(default_vao.get(), "default vertex array object", "Render System"))
@@ -280,6 +244,9 @@ bool deferred_pbr_render_system::create()
     default_texture->set_data(format::RGB8, 1, 1, format::RGB, format::UNSIGNED_BYTE, albedo);
 
     glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &m_uniform_buffer_alignment);
+
+    memset(m_lp_uniforms.debug_views.debug, 0, sizeof(m_lp_uniforms.debug_views.debug));
+    m_lp_uniforms.debug = std140_bool(false);
 
     return true;
 }
@@ -313,7 +280,6 @@ void deferred_pbr_render_system::begin_render()
     // TODO Paul: This should not be done here, this is pretty bad!
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH_STENCIL, attachment_mask::ALL, 0.1f, 0.1f, 0.1f, 1.0f);
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_gbuffer);
-    m_command_buffer->clear_framebuffer(clear_buffer_mask::DEPTH_BUFFER, attachment_mask::DEPTH_BUFFER, 0.0f, 0.0f, 0.0f, 1.0f, m_shadow_buffer);
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_hdr_buffer);
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_backbuffer);
 
@@ -349,24 +315,20 @@ void deferred_pbr_render_system::finish_render(float dt)
         m_render_queue->execute();
     }
 
-    if (m_lp_uniforms.directional.intensity > 1e-5f && !m_lp_uniforms.debug.value())
+    if (m_pipeline_steps[mango::render_step::shadow_map])
     {
-        // shadow maps
-        int32 width = 2048, height = 2048; // hardcoded
-        m_command_buffer->bind_framebuffer(m_shadow_buffer);
-        m_command_buffer->bind_shader_program(m_shadow_pass);
-        m_command_buffer->set_viewport(0, 0, width, height);
-        m_command_buffer->bind_single_uniform(0, &m_lp_uniforms.directional.view_projection, sizeof(glm::mat4)); // shadow view projection
-        GL_NAMED_PROFILE_ZONE("Draw Geometry Shadow Map");
-        m_command_buffer->execute();
-        m_caster_queue->execute();
-    }
-    else
-    {
-        m_caster_queue->clear();
+        if (m_lp_uniforms.directional.intensity > 1e-5f && !m_lp_uniforms.debug.value())
+        {
+            std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])
+                ->set_directional_light_view_projection_matrix(m_lp_uniforms.directional.view_projection.value());
+
+            m_pipeline_steps[mango::render_step::shadow_map]->execute(m_command_buffer);
+        }
+        else
+            std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_caster_queue()->clear();
     }
 
-    // reset viewport
+    // reset viewport to be sure.
     auto x = m_hardware_stats.last_frame.canvas_x;
     auto y = m_hardware_stats.last_frame.canvas_y;
     auto w = m_hardware_stats.last_frame.canvas_width;
@@ -385,7 +347,10 @@ void deferred_pbr_render_system::finish_render(float dt)
         m_command_buffer->bind_texture(2, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT2), 2);
         m_command_buffer->bind_texture(3, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT3), 3);
         m_command_buffer->bind_texture(4, m_gbuffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 4);
-        m_command_buffer->bind_texture(5, m_shadow_buffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 5);
+        if (m_pipeline_steps[mango::render_step::shadow_map])
+            std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->bind_shadow_maps(m_command_buffer);
+        else
+            m_command_buffer->bind_texture(5, default_texture, 5);
         if (m_pipeline_steps[mango::render_step::ibl])
             std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl])->bind_image_based_light_maps(m_command_buffer);
         else
@@ -562,7 +527,8 @@ void deferred_pbr_render_system::set_model_info(const glm::mat4& model_matrix, b
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_vertex_uniforms));
 
     m_render_queue->submit<set_model_info_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
-    m_caster_queue->submit<set_model_info_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
+    if (m_pipeline_steps[mango::render_step::shadow_map])
+        std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_caster_queue()->submit<set_model_info_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
     m_frame_uniform_offset += m_uniform_buffer_alignment;
     m_hardware_stats.last_frame.meshes++;
 }
@@ -572,7 +538,12 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     PROFILE_ZONE;
 
     m_render_queue->bind_vertex_array(vertex_array);
-    m_caster_queue->bind_vertex_array(vertex_array);
+    command_buffer_ptr caster_queue;
+    if (m_pipeline_steps[mango::render_step::shadow_map])
+    {
+        caster_queue = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_caster_queue();
+        caster_queue->bind_vertex_array(vertex_array);
+    }
 
     MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
     MANGO_ASSERT(count >= 0, "The index count has to be greater than 0!");
@@ -668,18 +639,21 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     if (mat->double_sided)
     {
         m_render_queue->set_face_culling(false);
-        m_caster_queue->set_face_culling(false);
+        if (caster_queue)
+            caster_queue->set_face_culling(false);
     }
 
     if (type == index_type::NONE)
     {
         m_render_queue->draw_arrays(topology, first, count, instance_count);
-        m_caster_queue->draw_arrays(topology, first, count, instance_count);
+        if (caster_queue)
+            caster_queue->draw_arrays(topology, first, count, instance_count);
     }
     else
     {
         m_render_queue->draw_elements(topology, first, count, type, instance_count);
-        m_caster_queue->draw_elements(topology, first, count, type, instance_count);
+        if (caster_queue)
+            caster_queue->draw_elements(topology, first, count, type, instance_count);
     }
 
     m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls. Wrong, shadow map render calls not counted.
@@ -688,8 +662,11 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
 
     m_render_queue->set_face_culling(true);
     m_render_queue->bind_vertex_array(nullptr);
-    m_caster_queue->set_face_culling(true);
-    m_caster_queue->bind_vertex_array(nullptr);
+    if (caster_queue)
+    {
+        caster_queue->set_face_culling(true);
+        caster_queue->bind_vertex_array(nullptr);
+    }
 
     // This needs to be done.
     // TODO Paul: State synchronization is not perfect.
@@ -698,11 +675,15 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     m_render_queue->bind_texture(2, nullptr, 2);
     m_render_queue->bind_texture(3, nullptr, 3);
     m_render_queue->bind_texture(4, nullptr, 4);
-    m_caster_queue->bind_texture(0, nullptr, 0);
-    m_caster_queue->bind_texture(1, nullptr, 1);
-    m_caster_queue->bind_texture(2, nullptr, 2);
-    m_caster_queue->bind_texture(3, nullptr, 3);
-    m_caster_queue->bind_texture(4, nullptr, 4);
+
+    if (caster_queue)
+    {
+        caster_queue->bind_texture(0, nullptr, 0);
+        caster_queue->bind_texture(1, nullptr, 1);
+        caster_queue->bind_texture(2, nullptr, 2);
+        caster_queue->bind_texture(3, nullptr, 3);
+        caster_queue->bind_texture(4, nullptr, 4);
+    }
 }
 
 void deferred_pbr_render_system::set_view_projection_matrix(const glm::mat4& view_projection)
@@ -789,6 +770,7 @@ void deferred_pbr_render_system::bind_lighting_pass_uniform_buffer()
     {
         MANGO_LOG_ERROR("Lighting pass uniforms can not be set!");
     }
+    m_lp_uniforms.directional.cast_shadows = (m_pipeline_steps[mango::render_step::shadow_map] != nullptr);
 
     MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - static_cast<int32>(sizeof(lighting_pass_uniforms)), "Uniform buffer size is too small.");
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &m_lp_uniforms, sizeof(lighting_pass_uniforms));
@@ -857,6 +839,22 @@ void deferred_pbr_render_system::on_ui_widget()
             else
             {
                 m_pipeline_steps[mango::render_step::ibl] = nullptr;
+            }
+        }
+        static bool has_shadow_map = m_pipeline_steps[mango::render_step::shadow_map] != nullptr;
+        change_flag         = has_shadow_map;
+        ImGui::Checkbox("Shadow Map##deferred_pbr", &has_shadow_map);
+        if (has_shadow_map != change_flag)
+        {
+            if (has_shadow_map)
+            {
+                auto step_shadow_map = std::make_shared<shadow_map_step>();
+                step_shadow_map->create();
+                m_pipeline_steps[mango::render_step::shadow_map] = std::static_pointer_cast<pipeline_step>(step_shadow_map);
+            }
+            else
+            {
+                m_pipeline_steps[mango::render_step::shadow_map] = nullptr;
             }
         }
     }

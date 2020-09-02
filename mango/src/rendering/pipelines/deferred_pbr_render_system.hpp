@@ -55,10 +55,7 @@ namespace mango
         //! \brief The hdr buffer of the deferred pipeline. Used for auto exposure.
         framebuffer_ptr m_hdr_buffer;
 
-        framebuffer_ptr m_shadow_buffer;
-
         command_buffer_ptr m_render_queue;
-        command_buffer_ptr m_caster_queue;
 
         //! \brief The \a shader_program for the deferred geometry pass.
         //! \details This fills the g-buffer for later use in the lighting pass.
@@ -75,10 +72,6 @@ namespace mango
         //! \brief The \a shader_program for the luminance buffer reduction.
         //! \details Reduces the 'luminance' histogram to the average luminance.
         shader_program_ptr m_reduce_luminance_buffer;
-
-        shader_program_ptr m_shadow_pass;
-
-        framebuffer_configuration m_shadow_map_fb_config;
 
         //! \brief The shader storage buffer mapping for the luminance histogram
         buffer_ptr m_luminance_histogram_buffer;
@@ -149,6 +142,7 @@ namespace mango
                 std140_vec3 direction;
                 std140_vec3 color;
                 g_float intensity;
+                std140_bool cast_shadows;
             } directional;
             // struct
             // {
@@ -157,7 +151,7 @@ namespace mango
             //     g_float intensity;
             // } spherical[16];
 
-            std140_bool debug = std140_bool(false);
+            std140_bool debug;
 
             struct debug_views
             {
@@ -175,8 +169,6 @@ namespace mango
                     std140_bool metallic;
                 };
             } debug_views;
-
-            g_float padding0; //!< Padding needed for st140 layout.
         };
 
         lighting_pass_uniforms m_lp_uniforms;

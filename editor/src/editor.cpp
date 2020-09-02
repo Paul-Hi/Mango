@@ -24,7 +24,7 @@ bool editor::create()
     mango_ws->configure(window_config);
 
     render_configuration render_config;
-    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(true).enable_render_step(mango::render_step::ibl);
+    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(true).enable_render_step(mango::render_step::ibl).enable_render_step(mango::render_step::shadow_map);
     shared_ptr<render_system> mango_rs = mango_context->get_render_system().lock();
     MANGO_ASSERT(mango_rs, "Render System is expired!");
     mango_rs->configure(render_config);
@@ -65,7 +65,7 @@ bool editor::create()
             }
             if (m_main_camera == invalid_entity || !application_scene->is_entity_alive(m_main_camera))
             {
-                if(ImGui::Button("Create Editor Camera"))
+                if (ImGui::Button("Create Editor Camera"))
                     m_main_camera = application_scene->create_default_camera();
             }
 
@@ -85,7 +85,7 @@ bool editor::create()
     mango_context->make_scene_current(application_scene);
 
     // test load
-    //try_open_path(application_scene, "res/models/shaderball/shaderball.glb");
+    // try_open_path(application_scene, "res/models/shaderball/shaderball.glb");
 
     shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
     MANGO_ASSERT(mango_is, "Input System is expired!");

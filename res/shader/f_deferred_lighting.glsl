@@ -30,6 +30,7 @@ layout(binding = 0, std140) uniform lighting_pass_uniforms
     vec4 directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
     vec4 directional_color; // this is a vec3, but there are annoying bugs with some drivers.
     float directional_intensity;
+    bool cast_shadows;
 
     bool debug;
     bool debug_views_position;
@@ -257,7 +258,9 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
 
     lighting += (diffuse * occlusion_factor + specular) * light_col * light_intensity;
 
-    return lighting * directional_shadow(shadow_map_coords(directional_view_projection, world_pos), shadow_map);
+    float shadow = cast_shadows ? directional_shadow(shadow_map_coords(directional_view_projection, world_pos), shadow_map) : 1.0;
+
+    return lighting * shadow;
 }
 
 //

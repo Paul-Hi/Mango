@@ -44,7 +44,7 @@ void command_buffer::clear()
     m_last = nullptr;
 }
 
-void command_buffer::execute(bool clear)
+void command_buffer::execute()
 {
     NAMED_PROFILE_ZONE("Commandbuffer Execution");
     if (m_first == nullptr || m_last == nullptr)
@@ -64,8 +64,6 @@ void command_buffer::execute(bool clear)
         head->execute(m_execution_state);
         unique_ptr<command> tmp = std::move(head);
         head                    = std::move(tmp->m_next);
-        if (!clear)
-            resubmit(std::move(tmp));
     }
 }
 

@@ -30,7 +30,7 @@ namespace mango
     enum render_step
     {
         ibl,
-        // shadow,
+        shadow_map,
         // ssao,
         // voxel_gi,
         // dof,

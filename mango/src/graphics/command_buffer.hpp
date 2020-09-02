@@ -46,8 +46,7 @@ namespace mango
 
         //! \brief Executes all commands in the \a command_buffer since the lase call to execute().
         //! \details Does traverse the internal linked list and clears it while doing this.
-        //! \param[in] clear True if buffer should be cleared, else False.
-        void execute(bool clear = true);
+        void execute();
 
         //! \brief Sets the viewport size.
         //! \param[in] x The x position of the viewport. Has to be a positive value.
@@ -224,23 +223,6 @@ namespace mango
 
         //! \brief Pointer to the last command.
         command* m_last;
-
-        void resubmit(unique_ptr<command> other)
-        {
-            if (nullptr != m_first)
-            {
-                MANGO_ASSERT(nullptr != m_last, "Last command is null, while first command is not!");
-                MANGO_ASSERT(nullptr == m_last->m_next, "Last command has a successor!");
-                m_last->m_next = std::move(other);
-                m_last         = m_last->m_next.get();
-            }
-            else
-            {
-                MANGO_ASSERT(nullptr == m_last, "Last command is not null, but first command is!");
-                m_first = std::move(other);
-                m_last  = m_first.get();
-            }
-        }
     };
 
 } // namespace mango
