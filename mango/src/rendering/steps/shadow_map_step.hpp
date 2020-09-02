@@ -39,7 +39,6 @@ namespace mango
       private:
         command_buffer_ptr m_caster_queue;
         framebuffer_ptr m_shadow_buffer;
-        framebuffer_configuration m_shadow_map_fb_config;
         shader_program_ptr m_shadow_pass;
 
         int32 m_width  = 2048;

@@ -1123,6 +1123,7 @@ namespace mango
         case GL_FLOAT_MAT4:
             return shader_resource_type::MAT4;
         case GL_SAMPLER_2D:
+        case GL_SAMPLER_2D_ARRAY:
         case GL_SAMPLER_CUBE:
             return shader_resource_type::INT; // We only need integers, because the binding of the texture is not done with an uniform.
         case GL_IMAGE_2D:

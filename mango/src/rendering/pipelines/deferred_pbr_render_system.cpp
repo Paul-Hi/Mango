@@ -30,6 +30,8 @@ static void GLAPIENTRY debugCallback(g_enum source, g_enum type, g_uint id, g_en
 vertex_array_ptr default_vao;
 //! \brief Default texture that is bound to every texture unit not in use to prevent warnings.
 texture_ptr default_texture;
+//! \brief Default texture array that is bound to every texture unit not in use to prevent warnings.
+texture_ptr default_texture_array;
 
 deferred_pbr_render_system::deferred_pbr_render_system(const shared_ptr<context_impl>& context)
     : render_system_impl(context)
@@ -242,6 +244,11 @@ bool deferred_pbr_render_system::create()
         return false;
     g_ubyte albedo[3] = { 127, 127, 127 };
     default_texture->set_data(format::RGB8, 1, 1, format::RGB, format::UNSIGNED_BYTE, albedo);
+    attachment_config.m_layers = 3;
+    default_texture_array = texture::create(attachment_config);
+    if (!check_creation(default_texture_array.get(), "default texture array", "Render System"))
+        return false;
+    default_texture_array->set_data(format::RGB8, 1, 1, format::RGB, format::UNSIGNED_BYTE, albedo);
 
     glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &m_uniform_buffer_alignment);
 
@@ -348,14 +355,14 @@ void deferred_pbr_render_system::finish_render(float dt)
         if (m_pipeline_steps[mango::render_step::shadow_map])
             std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->bind_shadow_maps(m_command_buffer);
         else
-            m_command_buffer->bind_texture(5, default_texture, 5);
+            m_command_buffer->bind_texture(8, default_texture_array, 8);
         if (m_pipeline_steps[mango::render_step::ibl])
             std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl])->bind_image_based_light_maps(m_command_buffer);
         else
         {
+            m_command_buffer->bind_texture(5, default_texture, 5);
             m_command_buffer->bind_texture(6, default_texture, 6);
             m_command_buffer->bind_texture(7, default_texture, 7);
-            m_command_buffer->bind_texture(8, default_texture, 8);
             float intensity = 1.0f;
             m_command_buffer->bind_single_uniform(9, &intensity, sizeof(intensity));
         }

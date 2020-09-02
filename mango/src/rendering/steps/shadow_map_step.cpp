@@ -45,14 +45,15 @@ bool shadow_map_step::create()
     shadow_map_config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
     shadow_map_config.m_texture_wrap_s          = texture_parameter::WRAP_CLAMP_TO_EDGE;
     shadow_map_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
+    shadow_map_config.m_layers                  = 3;
 
-    m_shadow_map_fb_config.m_depth_attachment = texture::create(shadow_map_config); // directional is depth.
-    m_shadow_map_fb_config.m_depth_attachment->set_data(format::DEPTH_COMPONENT24, m_width, m_height, format::DEPTH_COMPONENT, format::FLOAT, nullptr);
-    // multiple shadow maps should be all attached to one fb in the future.
-    m_shadow_map_fb_config.m_width  = m_width;
-    m_shadow_map_fb_config.m_height = m_height;
+    framebuffer_configuration fb_config;
+    fb_config.m_depth_attachment = texture::create(shadow_map_config);
+    fb_config.m_depth_attachment->set_data(format::DEPTH_COMPONENT24, m_width, m_height, format::DEPTH_COMPONENT, format::FLOAT, nullptr);
+    fb_config.m_width  = m_width;
+    fb_config.m_height = m_height;
 
-    m_shadow_buffer = framebuffer::create(m_shadow_map_fb_config);
+    m_shadow_buffer = framebuffer::create(fb_config);
     if (!check_creation(m_shadow_buffer.get(), "shadow buffer", "Render System"))
         return false;
 
@@ -70,8 +71,8 @@ void shadow_map_step::execute(command_buffer_ptr& command_buffer)
 {
     PROFILE_ZONE;
     command_buffer->bind_framebuffer(m_shadow_buffer);
-    command_buffer->clear_framebuffer(clear_buffer_mask::DEPTH_BUFFER, attachment_mask::DEPTH_BUFFER, 0.0f, 0.0f, 0.0f, 1.0f, m_shadow_buffer);
     command_buffer->bind_shader_program(m_shadow_pass);
+    command_buffer->clear_framebuffer(clear_buffer_mask::DEPTH_BUFFER, attachment_mask::DEPTH_BUFFER, 0.0f, 0.0f, 0.0f, 1.0f, m_shadow_buffer);
     command_buffer->set_viewport(0, 0, m_width, m_height);
     command_buffer->bind_single_uniform(0, &m_view_projection, sizeof(glm::mat4)); // shadow view projection
     command_buffer->attach(m_caster_queue);
@@ -82,5 +83,5 @@ void shadow_map_step::destroy() {}
 void shadow_map_step::bind_shadow_maps(command_buffer_ptr& command_buffer)
 {
     PROFILE_ZONE;
-    command_buffer->bind_texture(5, m_shadow_buffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 5); // TODO Paul: Location, Binding?
+    command_buffer->bind_texture(8, m_shadow_buffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 8); // TODO Paul: Location, Binding?
 }

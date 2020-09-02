@@ -14,11 +14,13 @@ layout(location = 1, binding = 1) uniform sampler2D gbuffer_c1;
 layout(location = 2, binding = 2) uniform sampler2D gbuffer_c2;
 layout(location = 3, binding = 3) uniform sampler2D gbuffer_c3;
 layout(location = 4, binding = 4) uniform sampler2D gbuffer_depth;
-layout(location = 5, binding = 5) uniform sampler2D shadow_map;
 
-layout(location = 6, binding = 6) uniform samplerCube irradiance_map;
-layout(location = 7, binding = 7) uniform samplerCube prefiltered_specular;
-layout(location = 8, binding = 8) uniform sampler2D brdf_integration_lut;
+layout(location = 5, binding = 5) uniform samplerCube irradiance_map;
+layout(location = 6, binding = 6) uniform samplerCube prefiltered_specular;
+layout(location = 7, binding = 7) uniform sampler2D brdf_integration_lut;
+
+layout(location = 8, binding = 8) uniform sampler2DArray shadow_map;
+
 
 layout(binding = 0, std140) uniform lighting_pass_uniforms
 {
@@ -109,7 +111,7 @@ vec3 shadow_map_coords(in mat4 shadow_map_projection, in vec3 world_pos)
     return shadow_coords;
 }
 
-float penumbra(in float gradient_noise, in vec3 shadow_uv, in sampler2D lookup, in int num_samples, in float light_size)
+float penumbra(in float gradient_noise, in vec3 shadow_uv, in sampler2DArray lookup, in int num_samples, in float light_size)
 {
     float avg_blocker_depth = 0.0;
     int blocker_count = 0;
@@ -120,7 +122,7 @@ float penumbra(in float gradient_noise, in vec3 shadow_uv, in sampler2D lookup, 
         vec2 sample_uv = sample_vogel_disc(i, num_samples, gradient_noise);
         sample_uv = shadow_uv.xy + sample_uv * max_blocker;
 
-        float z = texture(lookup, sample_uv).x;
+        float z = texture(lookup, vec3(sample_uv.xy, 0)).x;
         if(z < shadow_uv.z)
         {
             avg_blocker_depth += z;
@@ -137,8 +139,16 @@ float penumbra(in float gradient_noise, in vec3 shadow_uv, in sampler2D lookup, 
         return 0.0;
 }
 
-float directional_shadow(in vec3 shadow_uv, in sampler2D lookup)
+float directional_shadow(in vec3 shadow_uv, in sampler2DArray lookup)
 {
+    if(shadow_uv.z > 1.0)
+        return 1.0;
+
+    float z = texture(lookup, vec3(shadow_uv.xy, 0)).x;
+    float bias = 0.005;
+    return (z < (shadow_uv.z - bias)) ? 0.0 : 1.0;
+
+
     int num_samples = 8;
     float gradient_noise = interleaved_gradient_noise(gl_FragCoord.xy);
     float penumbra = penumbra(gradient_noise, shadow_uv, lookup, num_samples * 4, 6.0);
@@ -149,9 +159,9 @@ float directional_shadow(in vec3 shadow_uv, in sampler2D lookup)
     for(int i = 0; i < num_samples; i++)
     {
         vec2 sample_uv = sample_vogel_disc(i, num_samples, gradient_noise);
-        sample_uv = shadow_uv.xy + sample_uv * penumbra * max_penumbra;
+        sample_uv = saturate(shadow_uv.xy + sample_uv * penumbra * max_penumbra);
 
-        float z = texture(lookup, sample_uv).x;
+        float z = texture(lookup, vec3(sample_uv.xy, 0)).x;
         float bias = 0.005;
         shadow += (z < (shadow_uv.z - bias)) ? 0.0 : 1.0;
     }
