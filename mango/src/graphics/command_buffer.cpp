@@ -44,6 +44,35 @@ void command_buffer::clear()
     m_last = nullptr;
 }
 
+void command_buffer::attach(command_buffer_ptr& other)
+{
+    unique_ptr<command> head = std::move(other->head());
+    if (!head)
+        return;
+
+    if (nullptr != m_first)
+    {
+        MANGO_ASSERT(nullptr != m_last, "Last command is null, while first command is not!");
+        MANGO_ASSERT(nullptr == m_last->m_next, "Last command has a successor!");
+        m_last->m_next = std::move(head);
+        do
+        {
+            m_last = m_last->m_next.get();
+        } while (m_last->m_next);
+    }
+    else
+    {
+        MANGO_ASSERT(nullptr == m_last, "Last command is not null, but first command is!");
+        m_first = std::move(head);
+        m_last  = m_first.get();
+        while (m_last->m_next)
+        {
+            m_last = m_last->m_next.get();
+        }
+    }
+    other->clear();
+}
+
 void command_buffer::execute()
 {
     NAMED_PROFILE_ZONE("Commandbuffer Execution");

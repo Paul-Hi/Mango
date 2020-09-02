@@ -201,6 +201,13 @@ namespace mango
             }
         }
 
+        inline unique_ptr<command> head()
+        {
+            return std::move(m_first);
+        }
+
+        void attach(command_buffer_ptr& other);
+
         //! \brief Returns the current \a graphics_state for building the \a command queue.
         //! \return The current building \a graphics_state.
         inline graphics_state& get_state()

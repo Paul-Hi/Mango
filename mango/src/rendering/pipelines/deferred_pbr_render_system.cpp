@@ -267,6 +267,12 @@ void deferred_pbr_render_system::configure(const render_configuration& configura
         step_ibl->create();
         m_pipeline_steps[mango::render_step::ibl] = std::static_pointer_cast<pipeline_step>(step_ibl);
     }
+    if (configuration.get_render_steps()[mango::render_step::shadow_map])
+    {
+        auto step_shadow_map = std::make_shared<shadow_map_step>();
+        step_shadow_map->create();
+        m_pipeline_steps[mango::render_step::shadow_map] = std::static_pointer_cast<pipeline_step>(step_shadow_map);
+    }
 }
 
 void deferred_pbr_render_system::begin_render()
@@ -300,20 +306,12 @@ void deferred_pbr_render_system::begin_render()
     m_command_buffer->wait_for_buffer(m_frame_uniform_buffer);
     if (m_wireframe)
         m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::LINE);
-
-    {
-        GL_NAMED_PROFILE_ZONE("Deferred Renderer Begin");
-        m_command_buffer->execute();
-    }
 }
 
 void deferred_pbr_render_system::finish_render(float dt)
 {
     PROFILE_ZONE;
-    {
-        GL_NAMED_PROFILE_ZONE("Draw Geometry GBuffer");
-        m_render_queue->execute();
-    }
+    m_command_buffer->attach(m_render_queue);
 
     if (m_pipeline_steps[mango::render_step::shadow_map])
     {
@@ -412,17 +410,7 @@ void deferred_pbr_render_system::finish_render(float dt)
 
         m_command_buffer->add_memory_barrier(memory_barrier_bit::SHADER_STORAGE_BARRIER_BIT);
 
-        {
-            GL_NAMED_PROFILE_ZONE("Deferred Renderer Lighting");
-            m_command_buffer->execute();
-        }
-
         apply_auto_exposure(camera);
-    }
-    else
-    {
-        GL_NAMED_PROFILE_ZONE("Deferred Renderer Lighting");
-        m_command_buffer->execute();
     }
 
     // composite
@@ -462,7 +450,7 @@ void deferred_pbr_render_system::finish_render(float dt)
     // We try to reset the default state as possible, without crashing all optimizations.
 
     {
-        GL_NAMED_PROFILE_ZONE("Deferred Renderer Composite");
+        GL_NAMED_PROFILE_ZONE("Deferred Renderer");
         m_command_buffer->execute();
     }
 
@@ -842,7 +830,7 @@ void deferred_pbr_render_system::on_ui_widget()
             }
         }
         static bool has_shadow_map = m_pipeline_steps[mango::render_step::shadow_map] != nullptr;
-        change_flag         = has_shadow_map;
+        change_flag                = has_shadow_map;
         ImGui::Checkbox("Shadow Map##deferred_pbr", &has_shadow_map);
         if (has_shadow_map != change_flag)
         {

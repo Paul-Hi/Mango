@@ -74,9 +74,7 @@ void shadow_map_step::execute(command_buffer_ptr& command_buffer)
     command_buffer->bind_shader_program(m_shadow_pass);
     command_buffer->set_viewport(0, 0, m_width, m_height);
     command_buffer->bind_single_uniform(0, &m_view_projection, sizeof(glm::mat4)); // shadow view projection
-    GL_NAMED_PROFILE_ZONE("Draw Geometry Shadow Map");
-    command_buffer->execute();
-    m_caster_queue->execute();
+    command_buffer->attach(m_caster_queue);
 }
 
 void shadow_map_step::destroy() {}
