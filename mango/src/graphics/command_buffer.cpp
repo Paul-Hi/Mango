@@ -289,7 +289,7 @@ void command_buffer::bind_shader_program(shader_program_ptr shader_program)
     }
 }
 
-void command_buffer::bind_single_uniform(int32 location, void* uniform_value, int64 data_size)
+void command_buffer::bind_single_uniform(int32 location, void* uniform_value, int64 data_size, int32 count)
 {
     PROFILE_ZONE;
     MANGO_ASSERT(location >= 0, "Uniform location has to be greater than 0!");
@@ -299,8 +299,10 @@ void command_buffer::bind_single_uniform(int32 location, void* uniform_value, in
       public:
         std::vector<uint8> m_data;
         int32 m_location;
-        bind_single_uniform_cmd(int32 location, void* uniform_value, int64 data_size)
+        int32 m_count;
+        bind_single_uniform_cmd(int32 location, void* uniform_value, int64 data_size, int32 count)
             : m_location(location)
+            , m_count(count)
         {
             m_data.resize(static_cast<ptr_size>(data_size));
             memcpy(&m_data[0], static_cast<uint8*>(uniform_value), static_cast<ptr_size>(data_size));
@@ -368,12 +370,12 @@ void command_buffer::bind_single_uniform(int32 location, void* uniform_value, in
             }
             case shader_resource_type::MAT3:
             {
-                glUniformMatrix3fv(m_location, 1, GL_FALSE, static_cast<g_float*>(data));
+                glUniformMatrix3fv(m_location, m_count, GL_FALSE, static_cast<g_float*>(data));
                 break;
             }
             case shader_resource_type::MAT4:
             {
-                glUniformMatrix4fv(m_location, 1, GL_FALSE, static_cast<g_float*>(data));
+                glUniformMatrix4fv(m_location, m_count, GL_FALSE, static_cast<g_float*>(data));
                 break;
             }
             default:
@@ -385,7 +387,7 @@ void command_buffer::bind_single_uniform(int32 location, void* uniform_value, in
 
     if (m_building_state.bind_single_uniform())
     {
-        submit<bind_single_uniform_cmd>(location, uniform_value, data_size);
+        submit<bind_single_uniform_cmd>(location, uniform_value, data_size, count);
     }
 }
 
@@ -963,5 +965,45 @@ void command_buffer::set_blend_factors(blend_factor source, blend_factor destina
     if (m_building_state.set_blend_factors(source, destination))
     {
         submit<set_blend_factors_cmd>(source, destination);
+    }
+}
+
+void command_buffer::set_polygon_offset(float factor, float units)
+{
+    PROFILE_ZONE;
+    class set_polygon_offset_cmd : public command
+    {
+      public:
+        float m_factor;
+        float m_units;
+        set_polygon_offset_cmd(float factor, float units)
+            : m_factor(factor)
+            , m_units(units)
+        {
+        }
+
+        void execute(graphics_state& state) override
+        {
+            NAMED_PROFILE_ZONE("Set Polygon Offset");
+            GL_NAMED_PROFILE_ZONE("Set Polygon Offset");
+
+            if(m_units > 1e-5)
+            {
+                glEnable(GL_POLYGON_OFFSET_FILL);
+                glPolygonOffset(m_factor, m_units);
+            }
+            else
+            {
+                glDisable(GL_POLYGON_OFFSET_FILL);
+            }
+
+
+            state.set_polygon_offset(m_factor, m_units);
+        }
+    };
+
+    if (m_building_state.set_polygon_offset(factor, units))
+    {
+        submit<set_polygon_offset_cmd>(factor, units);
     }
 }

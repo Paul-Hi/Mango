@@ -151,7 +151,7 @@ bool editor::create()
         {
             m_camera_radius /= 1.04f;
         }
-        m_camera_radius = glm::clamp(m_camera_radius, 0.01f, 100.0f);
+        m_camera_radius = glm::clamp(m_camera_radius, 0.01f, 20.0f);
     });
 
     return true;

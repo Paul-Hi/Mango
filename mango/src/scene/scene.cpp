@@ -114,8 +114,8 @@ entity scene::create_default_camera()
     // default parameters
     camera_component.cam_type                           = camera_type::perspective_camera;
     camera_component.perspective.aspect                 = 16.0f / 9.0f;
-    camera_component.z_near                             = 0.015f;
-    camera_component.z_far                              = 150.0f;
+    camera_component.z_near                             = 0.04f;
+    camera_component.z_far                              = 40.0f;
     camera_component.perspective.vertical_field_of_view = glm::radians(45.0f);
     camera_component.up                                 = glm::vec3(0.0f, 1.0f, 0.0f);
     camera_component.target                             = glm::vec3(0.0f, 0.0f, 0.0f);

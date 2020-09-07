@@ -4,6 +4,7 @@ const float PI = 3.1415926535897932384626433832795;
 const float INV_PI = 1.0 / PI;
 
 #define saturate(x) clamp(x, 0.0, 1.0)
+#define cascades 4
 
 out vec4 frag_color;
 
@@ -25,16 +26,18 @@ layout(location = 8, binding = 8) uniform sampler2DArray shadow_map;
 layout(binding = 0, std140) uniform lighting_pass_uniforms
 {
     mat4 inverse_view_projection;
+    mat4 view;
     vec4 camera_position; // this is a vec3, but there are annoying bugs with some drivers.
     vec4 camera_params; // near, far, (zw) unused
 
-    mat4 directional_view_projection;
+    mat4 directional_view_projection_matrices[cascades];
+    vec4 cascade_splits; // middle splits for 3 cascades only xy -.-
     vec4 directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
     vec4 directional_color; // this is a vec3, but there are annoying bugs with some drivers.
     float directional_intensity;
     bool cast_shadows;
 
-    bool debug;
+    bool debug_view_enabled;
     bool debug_views_position;
     bool debug_views_normal;
     bool debug_views_depth;
@@ -44,6 +47,8 @@ layout(binding = 0, std140) uniform lighting_pass_uniforms
     bool debug_views_occlusion;
     bool debug_views_roughness;
     bool debug_views_metallic;
+    bool show_cascades;
+    bool draw_shadow_maps;
 };
 
 layout (location = 9) uniform float ibl_intensity; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
@@ -85,6 +90,34 @@ vec3 get_occlusion_roughness_metallic()
 
 void debug_views(in float depth);
 
+vec4 shadow_map_coords(in vec3 world_pos) // xy texcoords, z depth, w cascade idx
+{
+    vec4 result;
+    vec4 view_pos = view * vec4(world_pos, 1.0);
+
+    for(int i = 0; i < cascades - 1; ++i)
+    {
+        if(abs(view_pos.z) > cascade_splits[i])
+        {
+            result.w = i + 1;
+        }
+    }
+
+    vec4 projected = directional_view_projection_matrices[int(result.w)] * vec4(world_pos, 1.0);
+    vec3 shadow_coords = projected.xyz / projected.w;
+    shadow_coords = shadow_coords * 0.5 + 0.5;
+    result.xyz = shadow_coords;
+
+    return result;
+}
+
+float dynamic_bias(in float depth, in float cascade_id)
+{
+    float bias = 0.002 - (cascade_id * 0.00065); // for now
+    float slope_bias = max(abs(dFdx(depth)), abs(dFdy(depth)));
+    return bias + slope_bias * bias;
+}
+
 float interleaved_gradient_noise(in vec2 screen_pos)
 {
     vec3 magic = vec3(0.06711056, 0.00583715, 52.9829189);
@@ -103,26 +136,18 @@ vec2 sample_vogel_disc(in int idx, in int num_samples, in float phi)
     return vec2(cosine * r, sine * r);
 }
 
-vec3 shadow_map_coords(in mat4 shadow_map_projection, in vec3 world_pos)
-{
-    vec4 projected = shadow_map_projection * vec4(world_pos, 1.0);
-    vec3 shadow_coords = projected.xyz / projected.w;
-    shadow_coords = shadow_coords * 0.5 + 0.5;
-    return shadow_coords;
-}
-
-float penumbra(in float gradient_noise, in vec3 shadow_uv, in sampler2DArray lookup, in int num_samples, in float light_size)
+float sample_blocker_distance(in vec4 shadow_uv, in sampler2DArray lookup, in int sample_count, in float gradient_noise, in float light_size)
 {
     float avg_blocker_depth = 0.0;
     int blocker_count = 0;
-    float max_blocker = 8.0 / 2048.0;
+    float max_width = (6.0 - shadow_uv.w) / 4096.0;
 
-    for(int i = 0; i < num_samples; i++)
+    for(int i = 0; i < sample_count; ++i)
     {
-        vec2 sample_uv = sample_vogel_disc(i, num_samples, gradient_noise);
-        sample_uv = shadow_uv.xy + sample_uv * max_blocker;
+        vec2 sample_uv = sample_vogel_disc(i, sample_count, gradient_noise);
+        sample_uv = shadow_uv.xy + sample_uv * max_width;
 
-        float z = texture(lookup, vec3(sample_uv.xy, 0)).x;
+        float z = texture(lookup, vec3(sample_uv, int(shadow_uv.w))).x;
         if(z < shadow_uv.z)
         {
             avg_blocker_depth += z;
@@ -139,45 +164,75 @@ float penumbra(in float gradient_noise, in vec3 shadow_uv, in sampler2DArray loo
         return 0.0;
 }
 
-float directional_shadow(in vec3 shadow_uv, in sampler2DArray lookup)
+float pcss(in vec4 shadow_uv, in sampler2DArray lookup)
+{
+    int num_samples = 16;
+    int num_blocker_samples = 8;
+    float gradient_noise = interleaved_gradient_noise(gl_FragCoord.xy);
+    float penumbra = sample_blocker_distance(shadow_uv,lookup, num_blocker_samples, gradient_noise, 2.0);
+    penumbra = clamp(penumbra, 0.05, 0.95) + 0.05;
+    float shadow = 0.0;
+    if(penumbra < 1e-5) return shadow;
+    float max_penumbra = (6.0 - shadow_uv.w) / 4096.0;
+
+    for(int i = 0; i < num_samples; ++i)
+    {
+        vec2 sample_uv = sample_vogel_disc(i, num_samples, gradient_noise);
+        sample_uv = shadow_uv.xy + sample_uv * penumbra * max_penumbra;
+
+        float z = texture(lookup, vec3(sample_uv, int(shadow_uv.w))).x;
+        float bias = dynamic_bias(z, shadow_uv.w);
+        shadow += (z < (shadow_uv.z - bias)) ? 0.01 : 1.0;
+    }
+    shadow /= float(num_samples);
+    return shadow;
+}
+
+float directional_shadow(in vec4 shadow_uv, in sampler2DArray lookup)
 {
     if(shadow_uv.z > 1.0)
         return 1.0;
 
-    float z = texture(lookup, vec3(shadow_uv.xy, 0)).x;
-    float bias = 0.005;
-    return (z < (shadow_uv.z - bias)) ? 0.0 : 1.0;
-
-
-    int num_samples = 8;
-    float gradient_noise = interleaved_gradient_noise(gl_FragCoord.xy);
-    float penumbra = penumbra(gradient_noise, shadow_uv, lookup, num_samples * 4, 6.0);
-    penumbra = clamp(penumbra, 0.05, 1.0);
-    float max_penumbra = 8.0 / 2048.0;
-
-    float shadow = 0.0;
-    for(int i = 0; i < num_samples; i++)
-    {
-        vec2 sample_uv = sample_vogel_disc(i, num_samples, gradient_noise);
-        sample_uv = saturate(shadow_uv.xy + sample_uv * penumbra * max_penumbra);
-
-        float z = texture(lookup, vec3(sample_uv.xy, 0)).x;
-        float bias = 0.005;
-        shadow += (z < (shadow_uv.z - bias)) ? 0.0 : 1.0;
-    }
-    shadow /= float(num_samples * 4);
-
-    return shadow;
+    return pcss(shadow_uv, lookup);
 }
 
 void main()
 {
     float depth = texture(gbuffer_depth, texcoord).r;
-    if(debug)
+    if(debug_view_enabled)
     {
         debug_views(depth);
         return;
     }
+    bool debug_shadow_maps_viewport = draw_shadow_maps && cast_shadows && texcoord.y < 0.25;
+    if(debug_shadow_maps_viewport)
+    {
+        bool sm3 = texcoord.x > 0.75;
+        bool sm2 = texcoord.x > 0.5;
+        bool sm1 = texcoord.x > 0.25;
+        if(sm3)
+        {
+            vec2 uv = vec2((texcoord.x - 0.75) / 0.25, texcoord.y / 0.25);
+            frag_color = vec4(vec3(texture(shadow_map, vec3(uv, 3)).x), 1.0);
+            return;
+        }
+        if(sm2)
+        {
+            vec2 uv = vec2((texcoord.x - 0.5) / 0.25, texcoord.y / 0.25);
+            frag_color = vec4(vec3(texture(shadow_map, vec3(uv, 2)).x), 1.0);
+            return;
+        }
+        if(sm1)
+        {
+            vec2 uv = vec2((texcoord.x - 0.25) / 0.25, texcoord.y / 0.25);
+            frag_color = vec4(vec3(texture(shadow_map, vec3(uv, 1)).x), 1.0);
+            return;
+        }
+        vec2 uv = vec2((texcoord.x) / 0.25, texcoord.y / 0.25);
+        frag_color = vec4(vec3(texture(shadow_map, vec3(uv, 0)).x), 1.0);
+        return;
+    }
+
     gl_FragDepth = depth; // This is for the potential cubemap.
     if(depth >= 1.0) discard;
 
@@ -268,9 +323,21 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
 
     lighting += (diffuse * occlusion_factor + specular) * light_col * light_intensity;
 
-    float shadow = cast_shadows ? directional_shadow(shadow_map_coords(directional_view_projection, world_pos), shadow_map) : 1.0;
+    if(cast_shadows)
+    {
+        vec4 shadow_data = shadow_map_coords(world_pos);
+        float shadow = cast_shadows ? directional_shadow(shadow_data, shadow_map) : 1.0;
+        lighting = lighting * shadow;
+        if(show_cascades)
+        {
+            if(shadow_data.w == 0) lighting.gb *= vec2(0.25);
+            if(shadow_data.w == 1) lighting.rb *= vec2(0.25);
+            if(shadow_data.w == 2) lighting.rg *= vec2(0.25);
+            if(shadow_data.w == 3) lighting.g  *= 0.25;
+        }
+    }
 
-    return lighting * shadow;
+    return lighting;
 }
 
 //

@@ -133,12 +133,14 @@ namespace mango
         struct lighting_pass_uniforms
         {
             std140_mat4 inverse_view_projection; //!< Inverse camera view projection matrix.
+            std140_mat4 view;                    //!< Camera view matrix.
             std140_vec3 camera_position;         //!< Camera position.
             std140_vec4 camera_params;           //!< Camera near and far plane depth value. (zw) unused atm.
 
             struct
             {
-                std140_mat4 view_projection;
+                std140_mat4 view_projections[4]; // TODO Paul: Size hardcoded.
+                std140_vec3 cascade_splits;
                 std140_vec3 direction;
                 std140_vec3 color;
                 g_float intensity;
@@ -151,7 +153,7 @@ namespace mango
             //     g_float intensity;
             // } spherical[16];
 
-            std140_bool debug;
+            std140_bool debug_view_enabled;
 
             struct debug_views
             {
@@ -169,12 +171,23 @@ namespace mango
                     std140_bool metallic;
                 };
             } debug_views;
+
+            struct debug_options
+            {
+                std140_bool show_cascades;
+                std140_bool draw_shadow_maps;
+            } debug_options;
+
+            float padding0;
+            float padding1;
         };
 
         lighting_pass_uniforms m_lp_uniforms;
+        float m_shadow_map_offset = 0.0f; // TODO Paul: This does not belong here.
 
         //! \brief Binds the uniform buffer of the lighting pass.
-        void bind_lighting_pass_uniform_buffer();
+        //! \param[in,out] camera The \a camera_data of the current camera.
+        void bind_lighting_pass_uniform_buffer(camera_data& camera);
 
         //! \brief Calculates automatic exposure and adapts physical camera parameters.
         //! \param[in,out] camera The \a camera_data of the current camera.

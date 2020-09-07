@@ -101,6 +101,12 @@ namespace mango
         //! \return True if state changed, else false.
         bool set_blend_factors(blend_factor source, blend_factor destination);
 
+        //! \brief Sets the polygon offset.
+        //! \param[in] factor The factor to use.
+        //! \param[in] units The offset units to use or 0.0f, when disabled.
+        //! \return True if state changed, else false.
+        bool set_polygon_offset(float factor, float units);
+
         //! \brief The maximum number of texture bindings (not really, just supported by the state).
         const static int32 max_texture_bindings = 16; // TODO Paul: We should really define these things somewhere else. And query from OpenGL.
         //! \brief Structure to cache the state of the graphics pipeline.

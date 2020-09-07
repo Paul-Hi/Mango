@@ -11,7 +11,7 @@ in vec2 texcoord;
 
 layout(location = 0, binding = 0) uniform sampler2D hdr_input;
 layout (location = 1) uniform float camera_exposure;
-layout (location = 2) uniform bool debug;
+layout (location = 2) uniform int debug_mode;
 
 vec4 tonemap_with_gamma_correction(in vec4 color);
 vec4 srgb_to_linear(in vec4 srgb);
@@ -19,7 +19,12 @@ vec4 linear_to_srgb(in vec4 linear);
 
 void main()
 {
-    if (debug)
+    if (debug_mode == 1)
+    {
+        frag_color = texture(hdr_input, texcoord);
+        return;
+    }
+    if(debug_mode == 2 && texcoord.y < 0.25) // TODO Paul: This is weird.
     {
         frag_color = texture(hdr_input, texcoord);
         return;

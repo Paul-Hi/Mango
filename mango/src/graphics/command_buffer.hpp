@@ -91,7 +91,8 @@ namespace mango
         //! \param[in] location The uniform location to bind the value to. Has to be a positive value.
         //! \param[in] uniform_value Pointer to a value.
         //! \param[in] data_size Size of the value in bytes. Has to be a positive value.
-        void bind_single_uniform(int32 location, void* uniform_value, int64 data_size);
+        //! \param[in] count The number, if an array of matrices should be uploaded.
+        void bind_single_uniform(int32 location, void* uniform_value, int64 data_size, int32 count = 1);
 
         //! \brief Binds an \a buffer for drawing.
         //! \param[in] index The \a buffer index to bind the \a buffer to.
@@ -175,6 +176,11 @@ namespace mango
         //! \param[in] source The \a blend_factor influencing the source value.
         //! \param[in] destination The \a blend_factor influencing the destination value.
         void set_blend_factors(blend_factor source, blend_factor destination);
+
+        //! \brief Sets the polygon offset.
+        //! \param[in] factor The factor to use.
+        //! \param[in] units The offset units to use or 0.0f, when disabled.
+        void set_polygon_offset(float factor, float units);
 
         // void bind_texture_buffer(uint32 target, uint32 index, buffer_view_ptr buffer, ptr_size offset, ptr_size size);
 

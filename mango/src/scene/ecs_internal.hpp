@@ -74,10 +74,17 @@ namespace mango
                     transform_component* transform = transformations.get_component_for_entity(e);
                     if (transform)
                     {
-                        glm::vec3 front = glm::normalize(c.target - glm::vec3(transform->world_transformation_matrix[3]));
-                        auto right      = glm::normalize(glm::cross(GLOBAL_UP, front));
-                        c.up            = glm::normalize(glm::cross(front, right));
-                        c.view          = glm::lookAt(glm::vec3(transform->world_transformation_matrix[3]), c.target, c.up);
+                        glm::vec3 front = c.target - glm::vec3(transform->world_transformation_matrix[3]);
+                        if (glm::length(front) > 1e-5)
+                            front = glm::normalize(front);
+                        else
+                        {
+                            front = GLOBAL_FORWARD;
+                            c.target = front * 0.1f; // We need this here.
+                        }
+                        auto right = glm::normalize(glm::cross(GLOBAL_UP, front));
+                        c.up       = glm::normalize(glm::cross(front, right));
+                        c.view     = glm::lookAt(glm::vec3(transform->world_transformation_matrix[3]), c.target, c.up);
                         if (c.cam_type == camera_type::perspective_camera)
                         {
                             c.projection = glm::perspective(c.perspective.vertical_field_of_view, c.perspective.aspect, c.z_near, c.z_far);

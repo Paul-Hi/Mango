@@ -29,22 +29,32 @@ namespace mango
             return m_caster_queue;
         }
 
-        void bind_shadow_maps(command_buffer_ptr& command_buffer);
+        void update_cascades(float camera_near, float camera_far, const glm::mat4& camera_view_projection, const glm::vec3& directional_direction, float shadow_map_offset);
 
-        inline void set_directional_light_view_projection_matrix(const glm::mat4& view_projection)
-        {
-            m_view_projection = view_projection;
-        }
+        static const int32 num_cascade_splits = 4;
+
+        void bind_shadow_maps_and_get_shadow_data(command_buffer_ptr& command_buffer, glm::mat4 (&out_view_projections)[num_cascade_splits], glm::vec3& cascade_splits);
 
       private:
         command_buffer_ptr m_caster_queue;
         framebuffer_ptr m_shadow_buffer;
         shader_program_ptr m_shadow_pass;
 
-        int32 m_width  = 2048;
-        int32 m_height = 2048; // hardcoded
+        int32 m_width  = 4096;
+        int32 m_height = 4096; // hardcoded
 
-        glm::mat4 m_view_projection;
+        float m_shadowmap_offset = 0.0f; // TODO Paul: This can probably be done better.
+
+        struct
+        {
+            float camera_near;
+            float camera_far;
+            float camera_vfov;
+            glm::vec3 directional_direction;
+            float split_depth[num_cascade_splits + 1];
+            float lambda;
+            glm::mat4 view_projection_matrices[num_cascade_splits];
+        } m_cascade_data;
     };
 } // namespace mango
 
