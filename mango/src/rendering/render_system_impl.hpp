@@ -126,6 +126,9 @@ namespace mango
         //! \param[in] intensity The intensity of the environment in cd/m^2.
         virtual void set_environment_settings(float render_level, float intensity);
 
+        //! \brief Submits a light to the \a render_system.
+        //! \param[in] type The submitted \a light_type.
+        //! \param[in] data The \a light_data describing the submitted light.
         virtual void submit_light(light_type type, light_data* data);
 
         //! \brief Returns the backbuffer of the a render_system.
@@ -140,6 +143,9 @@ namespace mango
             return m_current_render_system->m_hardware_stats;
         }
 
+        //! \brief Custom UI function.
+        //! \details This can be called by any \a ui_widget and displays settings and debug information for the active \a render_system.
+        //! This does not draw any window, so it needs one surrounduing it.
         virtual void on_ui_widget();
 
       protected:

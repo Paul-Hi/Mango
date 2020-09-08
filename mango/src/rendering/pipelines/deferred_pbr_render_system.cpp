@@ -252,7 +252,8 @@ bool deferred_pbr_render_system::create()
 
     glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &m_uniform_buffer_alignment);
 
-    memset(m_lp_uniforms.debug_views.debug, 0, sizeof(m_lp_uniforms.debug_views.debug));
+    for (int32 i = 0; i < 9; ++i)
+        m_lp_uniforms.debug_views.debug[i] = std140_bool(false);
     m_lp_uniforms.debug_view_enabled             = std140_bool(false);
     m_lp_uniforms.debug_options.show_cascades    = std140_bool(false);
     m_lp_uniforms.debug_options.draw_shadow_maps = std140_bool(false);
@@ -423,7 +424,7 @@ void deferred_pbr_render_system::finish_render(float dt)
 
         // time coefficient with tau = 1.1;
         float tau              = 1.1f;
-        float time_coefficient = 1.0f - exp(-dt * tau);
+        float time_coefficient = 1.0f - expf(-dt * tau);
         glm::vec4 red_params   = glm::vec4(time_coefficient, tex->get_width() * tex->get_height(), -10.0f, 42.0f); // min -10.0, max +32.0
         m_command_buffer->bind_single_uniform(0, &(red_params), sizeof(red_params));
 
@@ -533,7 +534,7 @@ void deferred_pbr_render_system::set_model_info(const glm::mat4& model_matrix, b
     scene_vertex_uniforms u{ std140_mat4(model_matrix), std140_mat3(glm::transpose(glm::inverse(model_matrix))), std140_bool(has_normals), std140_bool(has_tangents), 0, 0 };
 
     int32 to_add = m_uniform_buffer_alignment;
-    while (to_add < sizeof(lighting_pass_uniforms))
+    while (to_add < static_cast<int32>(sizeof(scene_vertex_uniforms)))
         to_add += m_uniform_buffer_alignment;
 
     MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - to_add, "Uniform buffer size is too small.");
@@ -644,7 +645,7 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     u.alpha_cutoff = mat->alpha_cutoff;
 
     int32 to_add = m_uniform_buffer_alignment;
-    while (to_add < sizeof(lighting_pass_uniforms))
+    while (to_add < static_cast<int32>(sizeof(scene_material_uniforms)))
         to_add += m_uniform_buffer_alignment;
 
     MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - to_add, "Uniform buffer size is too small.");
@@ -656,8 +657,6 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     if (mat->double_sided)
     {
         m_render_queue->set_face_culling(false);
-        if (caster_queue)
-            caster_queue->set_face_culling(false);
     }
 
     if (type == index_type::NONE)
@@ -680,10 +679,7 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     m_render_queue->set_face_culling(true);
     m_render_queue->bind_vertex_array(nullptr);
     if (caster_queue)
-    {
-        caster_queue->set_face_culling(true);
         caster_queue->bind_vertex_array(nullptr);
-    }
 
     // This needs to be done.
     // TODO Paul: State synchronization is not perfect.
@@ -780,7 +776,8 @@ void deferred_pbr_render_system::bind_lighting_pass_uniform_buffer(camera_data& 
     m_lp_uniforms.directional.cast_shadows = (m_pipeline_steps[mango::render_step::shadow_map] != nullptr);
 
     int32 to_add = m_uniform_buffer_alignment;
-    while (to_add < sizeof(lighting_pass_uniforms))
+
+    while (to_add < static_cast<int32>(sizeof(lighting_pass_uniforms)))
         to_add += m_uniform_buffer_alignment;
 
     MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - to_add, "Uniform buffer size is too small.");
@@ -875,8 +872,8 @@ void deferred_pbr_render_system::on_ui_widget()
     }
     if (ImGui::CollapsingHeader("Debug##deferred_pbr"))
     {
-        memset(m_lp_uniforms.debug_views.debug, 0, sizeof(m_lp_uniforms.debug_views.debug));
-        m_lp_uniforms.debug_view_enabled = std140_bool(false);
+        for (int32 i = 0; i < 9; ++i)
+            m_lp_uniforms.debug_views.debug[i] = std140_bool(false);
         ImGui::Combo("Views##deferred_pbr", &current_debug, debug);
         if (current_debug)
         {

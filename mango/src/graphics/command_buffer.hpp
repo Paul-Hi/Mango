@@ -42,6 +42,8 @@ namespace mango
         command_buffer();
         ~command_buffer();
 
+        //! \brief Clears the \a command_buffer.
+        //! \details Removes all added commands from the internal linked list.
         void clear();
 
         //! \brief Executes all commands in the \a command_buffer since the lase call to execute().
@@ -207,11 +209,9 @@ namespace mango
             }
         }
 
-        inline unique_ptr<command> head()
-        {
-            return std::move(m_first);
-        }
-
+        //! \brief Attaches another \a command_buffer to this one.
+        //! \details This does clear the other buffer.
+        //! \param[in] other Reference to another \a command_buffer.
         void attach(command_buffer_ptr& other);
 
         //! \brief Returns the current \a graphics_state for building the \a command queue.
@@ -222,6 +222,14 @@ namespace mango
         }
 
       private:
+
+        //! \brief Returns the unique head of the \a command_buffer.
+        //! \return The unique_ptr to the \a command_buffer head.
+        inline unique_ptr<command> head()
+        {
+            return std::move(m_first);
+        }
+
         //! \brief Building state to build the \a command_buffer.
         //! \details This state is fictional and used for building up the \a commands.
         //! It is used to avoid redundant pipeline changes and calls.

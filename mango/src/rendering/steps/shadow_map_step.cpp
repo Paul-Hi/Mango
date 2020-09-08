@@ -51,7 +51,7 @@ bool shadow_map_step::create()
     shadow_map_config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
     shadow_map_config.m_texture_wrap_s          = texture_parameter::WRAP_CLAMP_TO_EDGE;
     shadow_map_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
-    shadow_map_config.m_layers                  = num_cascade_splits;
+    shadow_map_config.m_layers                  = shadow_mapping_cascades;
 
     framebuffer_configuration fb_config;
     fb_config.m_depth_attachment = texture::create(shadow_map_config);
@@ -82,7 +82,7 @@ void shadow_map_step::execute(command_buffer_ptr& command_buffer)
     command_buffer->set_viewport(0, 0, m_width, m_height);
     command_buffer->set_face_culling(false);
     command_buffer->set_polygon_offset(1.0f, 4096.0f);
-    command_buffer->bind_single_uniform(0, &m_cascade_data.view_projection_matrices[0], sizeof(m_cascade_data.view_projection_matrices), num_cascade_splits); // shadow view projections
+    command_buffer->bind_single_uniform(0, &m_cascade_data.view_projection_matrices[0], sizeof(m_cascade_data.view_projection_matrices), shadow_mapping_cascades); // shadow view projections
     command_buffer->attach(m_caster_queue);
     command_buffer->set_polygon_offset(0.0f, 0.0f);
 }
@@ -100,13 +100,13 @@ void shadow_map_step::update_cascades(float camera_near, float camera_far, const
     auto near = camera_near;
     auto far  = camera_far;
 
-    if ((glm::abs(m_cascade_data.split_depth[0] - near) > 1e-5f) || (glm::abs(m_cascade_data.split_depth[num_cascade_splits] - far) > 1e-5f))
+    if ((glm::abs(m_cascade_data.split_depth[0] - near) > 1e-5f) || (glm::abs(m_cascade_data.split_depth[shadow_mapping_cascades] - far) > 1e-5f))
     {
         m_cascade_data.split_depth[0]                  = near;
-        m_cascade_data.split_depth[num_cascade_splits] = far;
-        for (int32 i = 1; i < num_cascade_splits; ++i)
+        m_cascade_data.split_depth[shadow_mapping_cascades] = far;
+        for (int32 i = 1; i < shadow_mapping_cascades; ++i)
         {
-            float p                       = i / static_cast<float>(num_cascade_splits);
+            float p                       = static_cast<float>(i) / static_cast<float>(shadow_mapping_cascades);
             float log                     = near * std::pow((far / near), p);
             float uniform                 = near + (far - near) * p;
             float C_i                     = m_cascade_data.lambda * log + (1.0f - m_cascade_data.lambda) * uniform;
@@ -128,15 +128,15 @@ void shadow_map_step::update_cascades(float camera_near, float camera_far, const
         frustum_corners[i] = glm::vec3(inv / inv.w);
     }
 
-    for (int32 casc = 0; casc < num_cascade_splits; ++casc)
+    for (int32 casc = 0; casc < shadow_mapping_cascades; ++casc)
     {
         glm::vec3 center = glm::vec3(0.0f);
         glm::vec3 current_frustum_corners[8];
         for (int32 i = 0; i < 4; ++i)
         {
             glm::vec3 corner_ray           = frustum_corners[i + 4] - frustum_corners[i];
-            glm::vec3 near_ray             = corner_ray * (m_cascade_data.split_depth[casc] / m_cascade_data.split_depth[num_cascade_splits]);
-            glm::vec3 far_ray              = corner_ray * (m_cascade_data.split_depth[casc + 1] / m_cascade_data.split_depth[num_cascade_splits]);
+            glm::vec3 near_ray             = corner_ray * (m_cascade_data.split_depth[casc] / m_cascade_data.split_depth[shadow_mapping_cascades]);
+            glm::vec3 far_ray              = corner_ray * (m_cascade_data.split_depth[casc + 1] / m_cascade_data.split_depth[shadow_mapping_cascades]);
             current_frustum_corners[i]     = frustum_corners[i] + near_ray;
             current_frustum_corners[i + 4] = frustum_corners[i] + far_ray;
             center += current_frustum_corners[i];
@@ -177,7 +177,7 @@ void shadow_map_step::update_cascades(float camera_near, float camera_far, const
     }
 }
 
-void shadow_map_step::bind_shadow_maps_and_get_shadow_data(command_buffer_ptr& command_buffer, glm::mat4 (&out_view_projections)[num_cascade_splits], glm::vec3& cascade_splits)
+void shadow_map_step::bind_shadow_maps_and_get_shadow_data(command_buffer_ptr& command_buffer, glm::mat4 (&out_view_projections)[shadow_mapping_cascades], glm::vec3& cascade_splits)
 {
     PROFILE_ZONE;
     command_buffer->bind_texture(8, m_shadow_buffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 8); // TODO Paul: Location, Binding?

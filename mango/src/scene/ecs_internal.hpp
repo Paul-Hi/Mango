@@ -79,7 +79,7 @@ namespace mango
                             front = glm::normalize(front);
                         else
                         {
-                            front = GLOBAL_FORWARD;
+                            front    = GLOBAL_FORWARD;
                             c.target = front * 0.1f; // We need this here.
                         }
                         auto right = glm::normalize(glm::cross(GLOBAL_UP, front));
@@ -106,6 +106,8 @@ namespace mango
     class render_mesh_system : public ecsystem_2<mesh_component, transform_component>
     {
       public:
+        //! \brief Setup for the \a render_mesh_system. Needs to be called before executing.
+        //! \param[in] rs The \a render_system to submit the meshes to.
         void setup(shared_ptr<render_system_impl> rs)
         {
             m_rs = rs;
@@ -134,6 +136,7 @@ namespace mango
         }
 
       private:
+        //! \brief The \a render_system to submit the meshes to.
         shared_ptr<render_system_impl> m_rs;
     };
 
@@ -141,6 +144,8 @@ namespace mango
     class light_submission_system : public ecsystem_1<light_component>
     {
       public:
+        //! \brief Setup for the \a light_submission_system. Needs to be called before executing.
+        //! \param[in] rs The \a render_system to submit the lights to.
         void setup(shared_ptr<render_system_impl> rs)
         {
             m_rs = rs;
@@ -158,6 +163,7 @@ namespace mango
         }
 
       private:
+        //! \brief The \a render_system to submit the lights to.
         shared_ptr<render_system_impl> m_rs;
     };
 

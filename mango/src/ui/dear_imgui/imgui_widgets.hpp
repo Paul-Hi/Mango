@@ -943,11 +943,14 @@ namespace mango
         ImGui::End();
     }
 
+    //! \brief Draws the render system widget for a given \a render_system_impl.
+    //! \param[in] rs The \a render_system_impl.
+    //! \param[in,out] enabled True if the window is open, else False.
     void render_system_widget(const shared_ptr<render_system_impl>& rs, bool& enabled)
     {
         // Because every pipeline could have different properties, we will have to delegate that.
         ImGui::Begin("Render System", &enabled);
-        if(enabled)
+        if (enabled)
             rs->on_ui_widget();
         ImGui::End();
     }
