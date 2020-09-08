@@ -42,6 +42,10 @@ namespace mango
         command_buffer();
         ~command_buffer();
 
+        //! \brief Clears the \a command_buffer.
+        //! \details Removes all added commands from the internal linked list.
+        void clear();
+
         //! \brief Executes all commands in the \a command_buffer since the lase call to execute().
         //! \details Does traverse the internal linked list and clears it while doing this.
         void execute();
@@ -89,7 +93,8 @@ namespace mango
         //! \param[in] location The uniform location to bind the value to. Has to be a positive value.
         //! \param[in] uniform_value Pointer to a value.
         //! \param[in] data_size Size of the value in bytes. Has to be a positive value.
-        void bind_single_uniform(int32 location, void* uniform_value, int64 data_size);
+        //! \param[in] count The number, if an array of matrices should be uploaded.
+        void bind_single_uniform(int32 location, void* uniform_value, int64 data_size, int32 count = 1);
 
         //! \brief Binds an \a buffer for drawing.
         //! \param[in] index The \a buffer index to bind the \a buffer to.
@@ -174,6 +179,11 @@ namespace mango
         //! \param[in] destination The \a blend_factor influencing the destination value.
         void set_blend_factors(blend_factor source, blend_factor destination);
 
+        //! \brief Sets the polygon offset.
+        //! \param[in] factor The factor to use.
+        //! \param[in] units The offset units to use or 0.0f, when disabled.
+        void set_polygon_offset(float factor, float units);
+
         // void bind_texture_buffer(uint32 target, uint32 index, buffer_view_ptr buffer, ptr_size offset, ptr_size size);
 
         //! \brief Submits a command to the \a command_buffer.
@@ -199,6 +209,11 @@ namespace mango
             }
         }
 
+        //! \brief Attaches another \a command_buffer to this one.
+        //! \details This does clear the other buffer.
+        //! \param[in] other Reference to another \a command_buffer.
+        void attach(command_buffer_ptr& other);
+
         //! \brief Returns the current \a graphics_state for building the \a command queue.
         //! \return The current building \a graphics_state.
         inline graphics_state& get_state()
@@ -207,6 +222,14 @@ namespace mango
         }
 
       private:
+
+        //! \brief Returns the unique head of the \a command_buffer.
+        //! \return The unique_ptr to the \a command_buffer head.
+        inline unique_ptr<command> head()
+        {
+            return std::move(m_first);
+        }
+
         //! \brief Building state to build the \a command_buffer.
         //! \details This state is fictional and used for building up the \a commands.
         //! It is used to avoid redundant pipeline changes and calls.

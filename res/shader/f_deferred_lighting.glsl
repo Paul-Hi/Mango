@@ -4,6 +4,7 @@ const float PI = 3.1415926535897932384626433832795;
 const float INV_PI = 1.0 / PI;
 
 #define saturate(x) clamp(x, 0.0, 1.0)
+#define cascades 4
 
 out vec4 frag_color;
 
@@ -19,13 +20,38 @@ layout(location = 5, binding = 5) uniform samplerCube irradiance_map;
 layout(location = 6, binding = 6) uniform samplerCube prefiltered_specular;
 layout(location = 7, binding = 7) uniform sampler2D brdf_integration_lut;
 
+layout(location = 8, binding = 8) uniform sampler2DArray shadow_map;
+
+
 layout(binding = 0, std140) uniform lighting_pass_uniforms
 {
     mat4 inverse_view_projection;
-    vec4 camera_position;  // this is a vec3, but there are annoying bugs with some drivers.
+    mat4 view;
+    vec4 camera_position; // this is a vec3, but there are annoying bugs with some drivers.
+    vec4 camera_params; // near, far, (zw) unused
+
+    mat4 directional_view_projection_matrices[cascades];
+    vec4 cascade_splits; // middle splits for 3 cascades only xy -.-
+    vec4 directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
+    vec4 directional_color; // this is a vec3, but there are annoying bugs with some drivers.
+    float directional_intensity;
+    bool cast_shadows;
+
+    bool debug_view_enabled;
+    bool debug_views_position;
+    bool debug_views_normal;
+    bool debug_views_depth;
+    bool debug_views_base_color;
+    bool debug_views_reflection_color;
+    bool debug_views_emission;
+    bool debug_views_occlusion;
+    bool debug_views_roughness;
+    bool debug_views_metallic;
+    bool show_cascades;
+    bool draw_shadow_maps;
 };
 
-layout (location = 8) uniform float ibl_intensity; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
+layout (location = 9) uniform float ibl_intensity; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
 
 float D_GGX(in float n_dot_h, in float roughness);
 float V_SmithGGXCorrelated(in float n_dot_v, in float n_dot_l, in float roughness);
@@ -35,7 +61,7 @@ float Fd_BurleyRenormalized(in float n_dot_v, in float n_dot_l, in float l_dot_h
 
 vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection);
 vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor);
-vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor);
+vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor, in vec3 world_pos);
 
 vec3 get_specular_dominant_direction(in vec3 normal, in vec3 reflection, in float roughness);
 
@@ -62,9 +88,151 @@ vec3 get_occlusion_roughness_metallic()
     return o_r_m;
 }
 
+void debug_views(in float depth);
+
+vec4 shadow_map_coords(in vec3 world_pos) // xy texcoords, z depth, w cascade idx
+{
+    vec4 result;
+    vec4 view_pos = view * vec4(world_pos, 1.0);
+
+    for(int i = 0; i < cascades - 1; ++i)
+    {
+        if(abs(view_pos.z) > cascade_splits[i])
+        {
+            result.w = i + 1;
+        }
+    }
+
+    vec4 projected = directional_view_projection_matrices[int(result.w)] * vec4(world_pos, 1.0);
+    vec3 shadow_coords = projected.xyz / projected.w;
+    shadow_coords = shadow_coords * 0.5 + 0.5;
+    result.xyz = shadow_coords;
+
+    return result;
+}
+
+float dynamic_bias(in float depth, in float cascade_id)
+{
+    float bias = 0.002 - (cascade_id * 0.00065); // for now
+    float slope_bias = max(abs(dFdx(depth)), abs(dFdy(depth)));
+    return bias + slope_bias * bias;
+}
+
+float interleaved_gradient_noise(in vec2 screen_pos)
+{
+    vec3 magic = vec3(0.06711056, 0.00583715, 52.9829189);
+    return fract(magic.z * fract(dot(screen_pos, magic.xy)));
+}
+
+vec2 sample_vogel_disc(in int idx, in int num_samples, in float phi)
+{
+    float golden_angle = 2.4;
+
+    float r = sqrt(float(idx) + 0.5) / sqrt(float(num_samples));
+    float theta = float(idx) * golden_angle + phi;
+    float sine = sin(theta);
+    float cosine = cos(theta);
+
+    return vec2(cosine * r, sine * r);
+}
+
+float sample_blocker_distance(in vec4 shadow_uv, in sampler2DArray lookup, in int sample_count, in float gradient_noise, in float light_size)
+{
+    float avg_blocker_depth = 0.0;
+    int blocker_count = 0;
+    float max_width = (6.0 - shadow_uv.w) / 4096.0;
+
+    for(int i = 0; i < sample_count; ++i)
+    {
+        vec2 sample_uv = sample_vogel_disc(i, sample_count, gradient_noise);
+        sample_uv = shadow_uv.xy + sample_uv * max_width;
+
+        float z = texture(lookup, vec3(sample_uv, int(shadow_uv.w))).x;
+        if(z < shadow_uv.z)
+        {
+            avg_blocker_depth += z;
+            blocker_count++;
+        }
+    }
+
+    if(blocker_count > 0)
+    {
+        avg_blocker_depth /= float(blocker_count);
+        return light_size * (shadow_uv.z - avg_blocker_depth) / avg_blocker_depth;
+    }
+    else
+        return 0.0;
+}
+
+float pcss(in vec4 shadow_uv, in sampler2DArray lookup)
+{
+    int num_samples = 16;
+    int num_blocker_samples = 8;
+    float gradient_noise = interleaved_gradient_noise(gl_FragCoord.xy);
+    float penumbra = sample_blocker_distance(shadow_uv,lookup, num_blocker_samples, gradient_noise, 2.0);
+    penumbra = clamp(penumbra, 0.05, 0.95) + 0.05;
+    float shadow = 0.0;
+    if(penumbra < 1e-5) return shadow;
+    float max_penumbra = (6.0 - shadow_uv.w) / 4096.0;
+
+    for(int i = 0; i < num_samples; ++i)
+    {
+        vec2 sample_uv = sample_vogel_disc(i, num_samples, gradient_noise);
+        sample_uv = shadow_uv.xy + sample_uv * penumbra * max_penumbra;
+
+        float z = texture(lookup, vec3(sample_uv, int(shadow_uv.w))).x;
+        float bias = dynamic_bias(z, shadow_uv.w);
+        shadow += (z < (shadow_uv.z - bias)) ? 0.01 : 1.0;
+    }
+    shadow /= float(num_samples);
+    return shadow;
+}
+
+float directional_shadow(in vec4 shadow_uv, in sampler2DArray lookup)
+{
+    if(shadow_uv.z > 1.0)
+        return 1.0;
+
+    return pcss(shadow_uv, lookup);
+}
+
 void main()
 {
     float depth = texture(gbuffer_depth, texcoord).r;
+    if(debug_view_enabled)
+    {
+        debug_views(depth);
+        return;
+    }
+    bool debug_shadow_maps_viewport = draw_shadow_maps && cast_shadows && texcoord.y < 0.25;
+    if(debug_shadow_maps_viewport)
+    {
+        bool sm3 = texcoord.x > 0.75;
+        bool sm2 = texcoord.x > 0.5;
+        bool sm1 = texcoord.x > 0.25;
+        if(sm3)
+        {
+            vec2 uv = vec2((texcoord.x - 0.75) / 0.25, texcoord.y / 0.25);
+            frag_color = vec4(vec3(texture(shadow_map, vec3(uv, 3)).x), 1.0);
+            return;
+        }
+        if(sm2)
+        {
+            vec2 uv = vec2((texcoord.x - 0.5) / 0.25, texcoord.y / 0.25);
+            frag_color = vec4(vec3(texture(shadow_map, vec3(uv, 2)).x), 1.0);
+            return;
+        }
+        if(sm1)
+        {
+            vec2 uv = vec2((texcoord.x - 0.25) / 0.25, texcoord.y / 0.25);
+            frag_color = vec4(vec3(texture(shadow_map, vec3(uv, 1)).x), 1.0);
+            return;
+        }
+        vec2 uv = vec2((texcoord.x) / 0.25, texcoord.y / 0.25);
+        frag_color = vec4(vec3(texture(shadow_map, vec3(uv, 0)).x), 1.0);
+        return;
+    }
+
     gl_FragDepth = depth; // This is for the potential cubemap.
     if(depth >= 1.0) discard;
 
@@ -75,6 +243,7 @@ void main()
     float occlusion_factor               = occlusion_roughness_metallic.r;
     float perceptual_roughness           = occlusion_roughness_metallic.g;
     float metallic                       = occlusion_roughness_metallic.b;
+    vec3 emissive                        = get_emissive();
     float reflectance                    = 0.5; // TODO Paul: Make tweakable.
 
     vec3 f0          = 0.16 * reflectance * reflectance * (1.0 - metallic) + base_color.rgb * metallic;
@@ -89,9 +258,8 @@ void main()
     lighting += calculate_image_based_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
 
     // lights
-    // lighting += calculate_directional_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
+    lighting += calculate_directional_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor, position);
 
-    vec3 emissive = get_emissive();
     lighting += emissive * 50000; // TODO Paul: Remove hardcoded intensity for all emissive values -.-
 
     frag_color = vec4(lighting, base_color.a); // TODO Paul: Proper transparency.
@@ -125,11 +293,13 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     return (diffuse_ibl * occlusion_factor + specular_ibl) * ibl_intensity;
 }
 
-vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor)
+vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor, in vec3 world_pos)
 {
-    vec3 light_dir        = vec3(1.0); // hardcoded
-    float light_intensity = 111000.0; // hardcoded
-    vec3 light_col        = vec3(1.0) * light_intensity; // hardcoded
+    float light_intensity = directional_intensity;
+    if(light_intensity < 1e-5)
+        return vec3(0.0);
+    vec3 light_dir        = normalize(directional_direction.xyz);
+    vec3 light_col        = directional_color.rgb;
     float roughness       = (perceptual_roughness * perceptual_roughness);
 
     vec3 lighting = vec3(0.0);
@@ -151,7 +321,21 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     vec3 diffuse = n_dot_l * Fd;
     vec3 specular = n_dot_l * Fr;
 
-    lighting += (diffuse * occlusion_factor + specular) * light_col;
+    lighting += (diffuse * occlusion_factor + specular) * light_col * light_intensity;
+
+    if(cast_shadows)
+    {
+        vec4 shadow_data = shadow_map_coords(world_pos);
+        float shadow = cast_shadows ? directional_shadow(shadow_data, shadow_map) : 1.0;
+        lighting = lighting * shadow;
+        if(show_cascades)
+        {
+            if(shadow_data.w == 0) lighting.gb *= vec2(0.25);
+            if(shadow_data.w == 1) lighting.rb *= vec2(0.25);
+            if(shadow_data.w == 2) lighting.rg *= vec2(0.25);
+            if(shadow_data.w == 3) lighting.g  *= 0.25;
+        }
+    }
 
     return lighting;
 }
@@ -217,4 +401,38 @@ vec3 get_specular_dominant_direction(in vec3 normal, in vec3 reflection, in floa
     float smoothness = saturate(1.0 - roughness);
     float lerp_f = smoothness * (sqrt(smoothness) + roughness);
     return mix(normal, reflection, lerp_f);
+}
+
+
+void debug_views(in float depth)
+{
+    vec4 base_color = get_base_color();
+    vec3 normal = get_normal();
+    vec3 occlusion_roughness_metallic = get_occlusion_roughness_metallic();
+    float occlusion_factor = occlusion_roughness_metallic.r;
+    float perceptual_roughness = occlusion_roughness_metallic.g;
+    float metallic = occlusion_roughness_metallic.b;
+    vec3 emissive = get_emissive();
+
+    if(debug_views_position)
+        frag_color = vec4(world_space_from_depth(depth, texcoord, inverse_view_projection), 1.0);
+    if(debug_views_normal)
+        frag_color = vec4(normal, 1.0);
+    if(debug_views_depth)
+    {
+        float z_lin = (2.0 * camera_params.x) / (camera_params.y + camera_params.x - depth * (camera_params.y - camera_params.x));
+        frag_color = vec4(vec3(z_lin), 1.0);
+    }
+    if(debug_views_base_color)
+        frag_color = vec4(vec3(1.0 - metallic) * base_color.rgb, 1.0);
+    if(debug_views_reflection_color)
+        frag_color = vec4(vec3(metallic) * base_color.rgb, 1.0);
+    if(debug_views_occlusion)
+        frag_color = vec4(vec3(occlusion_factor), 1.0);
+    if(debug_views_roughness)
+        frag_color = vec4(vec3(perceptual_roughness), 1.0);
+    if(debug_views_metallic)
+        frag_color = vec4(vec3(metallic), 1.0);
+    if(debug_views_emission)
+        frag_color = vec4(vec3(emissive), 1.0);
 }

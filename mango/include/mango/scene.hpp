@@ -116,6 +116,14 @@ namespace mango
             return m_environments.get_component_for_entity(e);
         }
 
+        //! \brief Retrieves the \a light_component from a specific \a entity.
+        //! \param[in] e The \a entity to get the \a light_component for.
+        //! \return The \a light_component or nullptr if non-existent.
+        inline light_component* get_light_component(entity e)
+        {
+            return m_lights.get_component_for_entity(e);
+        }
+
         //! \brief Queries the \a transform_component from a specific \a entity.
         //! \details Does the same as get, but is non verbose, when component is non existent.
         //! \param[in] e The \a entity to get the \a transform_component for.
@@ -161,6 +169,15 @@ namespace mango
             return m_environments.get_component_for_entity(e, true);
         }
 
+        //! \brief Queries the \a light_component from a specific \a entity.
+        //! \details Does the same as get, but is non verbose, when component is non existent.
+        //! \param[in] e The \a entity to get the \a light_component for.
+        //! \return The \a light_component or nullptr if non-existent.
+        inline light_component* query_light_component(entity e)
+        {
+            return m_lights.get_component_for_entity(e, true);
+        }
+
         //! \brief Adds \a transform_component to a specific \a entity.
         //! \param[in] e The \a entity to add the \a transform_component to.
         //! \return A reference to the created \a transform_component.
@@ -201,6 +218,14 @@ namespace mango
             return m_environments.create_component_for(e);
         }
 
+        //! \brief Adds \a light_component to a specific \a entity.
+        //! \param[in] e The \a entity to add the \a light_component to.
+        //! \return A reference to the created \a light_component.
+        inline light_component& add_light_component(entity e)
+        {
+            return m_lights.create_component_for(e);
+        }
+
         //! \brief Removes \a transform_component from a specific \a entity.
         //! \param[in] e The \a entity to remove the \a transform_component from.
         inline void remove_transform_component(entity e)
@@ -234,6 +259,13 @@ namespace mango
         inline void remove_environment_component(entity e)
         {
             m_environments.remove_component_from(e);
+        }
+
+        //! \brief Removes \a light_component from a specific \a entity.
+        //! \param[in] e The \a entity to remove the \a light_component from.
+        inline void remove_light_component(entity e)
+        {
+            m_lights.remove_component_from(e);
         }
 
         //! \brief Retrieves the \a camera_data for the currently active camera.
@@ -390,6 +422,8 @@ namespace mango
         scene_component_pool<camera_component> m_cameras;
         //! \brief All \a environment_components. There is only one unique at the moment.
         scene_component_pool<environment_component> m_environments;
+        //! \brief All \a light_components.
+        scene_component_pool<light_component> m_lights;
         //! \brief The current root entity of the scene.
         entity m_root_entity;
 

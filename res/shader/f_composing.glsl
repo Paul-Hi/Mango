@@ -11,6 +11,7 @@ in vec2 texcoord;
 
 layout(location = 0, binding = 0) uniform sampler2D hdr_input;
 layout (location = 1) uniform float camera_exposure;
+layout (location = 2) uniform int debug_mode;
 
 vec4 tonemap_with_gamma_correction(in vec4 color);
 vec4 srgb_to_linear(in vec4 srgb);
@@ -18,6 +19,16 @@ vec4 linear_to_srgb(in vec4 linear);
 
 void main()
 {
+    if (debug_mode == 1)
+    {
+        frag_color = texture(hdr_input, texcoord);
+        return;
+    }
+    if(debug_mode == 2 && texcoord.y < 0.25) // TODO Paul: This is weird.
+    {
+        frag_color = texture(hdr_input, texcoord);
+        return;
+    }
     frag_color = tonemap_with_gamma_correction(texture(hdr_input, texcoord));
 }
 
@@ -36,7 +47,7 @@ vec4 tonemap_with_gamma_correction(in vec4 color)
 {
     // tonemapping // TODO Paul: There is room for improvement. Gamma parameter?
     const float W = 11.2;
-    vec3 outcol = uncharted2_tonemap(color.rgb * camera_exposure * 2.0);
+    vec3 outcol = uncharted2_tonemap(color.rgb * camera_exposure * 4.0);
     outcol /= uncharted2_tonemap(vec3(W));
     return linear_to_srgb(vec4(outcol, color.a)); // gamma correction.
 }

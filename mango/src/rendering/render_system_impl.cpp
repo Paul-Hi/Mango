@@ -4,9 +4,9 @@
 //! \date      2020
 //! \copyright Apache License 2.0
 
+#include <mango/profile.hpp>
 #include <rendering/pipelines/deferred_pbr_render_system.hpp>
 #include <rendering/render_system_impl.hpp>
-#include <mango/profile.hpp>
 
 using namespace mango;
 
@@ -88,13 +88,13 @@ void render_system_impl::set_model_info(const glm::mat4& model_matrix, bool has_
     m_current_render_system->set_model_info(model_matrix, has_normals, has_tangents);
 }
 
-void render_system_impl::draw_mesh(const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
+void render_system_impl::draw_mesh(const vertex_array_ptr& vertex_array, const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
     MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
     MANGO_ASSERT(count >= 0, "The index count has to be greater than 0!");
     MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
-    m_current_render_system->draw_mesh(mat, topology, first, count, type, instance_count);
+    m_current_render_system->draw_mesh(vertex_array, mat, topology, first, count, type, instance_count);
 }
 
 void render_system_impl::set_view_projection_matrix(const glm::mat4& view_projection)
@@ -115,10 +115,22 @@ void render_system_impl::set_environment_settings(float render_level, float inte
     m_current_render_system->set_environment_settings(render_level, intensity);
 }
 
+void render_system_impl::submit_light(light_type type, light_data* data)
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->submit_light(type, data);
+}
+
 framebuffer_ptr render_system_impl::get_backbuffer()
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
     return m_current_render_system->get_backbuffer();
+}
+
+void render_system_impl::on_ui_widget()
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->on_ui_widget();
 }
 
 void render_system_impl::update(float dt)

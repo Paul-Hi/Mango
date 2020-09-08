@@ -17,11 +17,14 @@ texture_impl::texture_impl(const texture_configuration& configuration)
     , m_is_standard_color_space(configuration.m_is_standard_color_space)
     , m_generate_mipmaps(configuration.m_generate_mipmaps)
     , m_is_cubemap(configuration.m_is_cubemap)
+    , m_layers(configuration.m_layers)
 {
     g_enum type = GL_TEXTURE_2D;
 
     if (m_is_cubemap)
         type = GL_TEXTURE_CUBE_MAP;
+    else if (m_layers > 1)
+        type = GL_TEXTURE_2D_ARRAY;
 
     glCreateTextures(type, 1, &m_name);
     glTextureParameteri(m_name, GL_TEXTURE_MIN_FILTER, filter_parameter_to_gl(m_texture_min_filter));
@@ -46,7 +49,7 @@ void texture_impl::release()
     m_name = 0; // This is needed for is_created();
 }
 
-void texture_impl::set_data(format internal_format, int32 width, int32 height, format pixel_format, format type, const void* data)
+void texture_impl::set_data(format internal_format, int32 width, int32 height, format pixel_format, format type, const void* data, int32 layer)
 {
     MANGO_ASSERT(is_created(), "Texture not created!");
     MANGO_ASSERT(width > 0, "Texture width is invalid!");
@@ -62,7 +65,19 @@ void texture_impl::set_data(format internal_format, int32 width, int32 height, f
     g_enum gl_pixel_f    = static_cast<g_enum>(pixel_format);
     g_enum gl_type       = static_cast<g_enum>(type);
 
-    if (!m_is_cubemap)
+    if (m_layers > 1)
+    {
+        glTextureStorage3D(m_name, static_cast<g_sizei>(mipmaps()), gl_internal_f, static_cast<g_sizei>(width), static_cast<g_sizei>(height), m_layers);
+        if (data)
+        {
+            glTextureSubImage3D(m_name, 0, 0, 0, layer, static_cast<g_sizei>(width), static_cast<g_sizei>(height), m_layers, gl_pixel_f, gl_type, data); // TODO Paul: Is this correct?
+        }
+        if (mipmaps() > 0)
+        {
+            glGenerateTextureMipmap(m_name);
+        }
+    }
+    else if (!m_is_cubemap)
     {
         glTextureStorage2D(m_name, static_cast<g_sizei>(mipmaps()), gl_internal_f, static_cast<g_sizei>(width), static_cast<g_sizei>(height)); // TODO Paul: Mipmap number clamp?
         if (data)
@@ -76,7 +91,7 @@ void texture_impl::set_data(format internal_format, int32 width, int32 height, f
     }
     else
     {
-        glTextureStorage2D(m_name, static_cast<g_sizei>(mipmaps()), gl_internal_f,static_cast<g_sizei>(width), static_cast<g_sizei>(height));
+        glTextureStorage2D(m_name, static_cast<g_sizei>(mipmaps()), gl_internal_f, static_cast<g_sizei>(width), static_cast<g_sizei>(height));
         if (data)
         {
             for (int32 i = 0; i < 6; ++i)

@@ -81,65 +81,10 @@ namespace mango
             ImGui::Text("Rendered Materials: %d", stats.last_frame.materials);
             ImGui::Text("Canvas Size: (%d x %d) px", stats.last_frame.canvas_width, stats.last_frame.canvas_height);
         }
-        if (ImGui::CollapsingHeader("Renderer Debug Views"))
-        {
-            auto debug   = shared_context->get_render_system_internal().lock()->get_debug_views();
-            int32 line   = 1;
-            float aspect = static_cast<float>(stats.last_frame.canvas_height) / stats.last_frame.canvas_width;
-            if (debug.fb_port0)
-            {
-                ImGui::Text("Framebuffer Debug Port 0");
-                for (int32 i = 0; i < 7; ++i) // Current max. 7
-                {
-                    auto attachment = debug.fb_port0->get_attachment(static_cast<framebuffer_attachment>(i));
-                    if (attachment)
-                    {
-                        ImGui::Image((void*)(intptr_t)attachment->get_name(), ImVec2(256, 256 * aspect), ImVec2(0, 1), ImVec2(1, 0));
-                        if (line)
-                            ImGui::SameLine();
-                        line = (line + 1) % 4;
-                    }
-                }
-            }
-            ImGui::NewLine();
-            line = 1;
-            if (debug.fb_port1)
-            {
-                ImGui::Text("Framebuffer Debug Port 1");
-                for (int32 i = 0; i < 7; ++i) // Current max. 7
-                {
-                    auto attachment = debug.fb_port1->get_attachment(static_cast<framebuffer_attachment>(i));
-                    if (attachment)
-                    {
-                        ImGui::Image((void*)(intptr_t)attachment->get_name(), ImVec2(256, 256 * aspect), ImVec2(0, 1), ImVec2(1, 0));
-                        if (line)
-                            ImGui::SameLine();
-                        line = (line + 1) % 4;
-                    }
-                }
-            }
-            ImGui::NewLine();
-            line = 1;
-            if (debug.fb_port2)
-            {
-                ImGui::Text("Framebuffer Debug Port 2");
-                for (int32 i = 0; i < 7; ++i) // Current max. 7
-                {
-                    auto attachment = debug.fb_port2->get_attachment(static_cast<framebuffer_attachment>(i));
-                    if (attachment)
-                    {
-                        ImGui::Image((void*)(intptr_t)attachment->get_name(), ImVec2(256, 256 * aspect), ImVec2(0, 1), ImVec2(1, 0));
-                        if (line)
-                            ImGui::SameLine();
-                        line = (line + 1) % 4;
-                    }
-                }
-            }
-        }
         ImGui::End();
     }
 
-    namespace
+    namespace details
     {
         //! \brief Returns internal format, format and type for an image depending on a few infos.
         //! \param[in] srgb True if image is in standard color space, else False.
@@ -542,7 +487,7 @@ namespace mango
             }
         }
 
-    } // namespace
+    } // namespace details
 
     //! \brief Draws a scene graph in the user interface.
     //! \param[in] application_scene The current \a scene of the \a application.
@@ -566,7 +511,7 @@ namespace mango
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
-        draw_entity_tree(application_scene, root, selection);
+        details::draw_entity_tree(application_scene, root, selection);
         ImGui::End();
         selected = selection;
     }
@@ -604,7 +549,7 @@ namespace mango
             }
             if (entity_changed)
                 current_material = mesh->materials.at(0);
-            draw_material(current_material.component_material, rs, e);
+            details::draw_material(current_material.component_material, rs, e);
         }
         ImGui::End();
     }
@@ -625,6 +570,7 @@ namespace mango
             auto mesh_comp        = application_scene->query_mesh_component(e);
             auto camera_comp      = application_scene->query_camera_component(e);
             auto environment_comp = application_scene->query_environment_component(e);
+            auto light_comp       = application_scene->query_light_component(e);
 
             // Tag
             ImGui::Text("Tag");
@@ -919,7 +865,7 @@ namespace mango
 
                     char const* filter[1] = { "*.hdr" };
 
-                    environment_comp->hdr_texture = load_texture(tex_config, rs, filter, 1);
+                    environment_comp->hdr_texture = details::load_texture(tex_config, rs, filter, 1);
                     application_scene->set_active_environment(e);
                 }
                 if (environment_comp->hdr_texture)
@@ -954,12 +900,61 @@ namespace mango
                 if (ImGui::Button(("Add##environment" + std::to_string(e)).c_str()))
                     application_scene->add_environment_component(e);
             }
+            ImGui::Separator();
 
+            // Light
+            ImGui::Text("Light");
+            if (light_comp)
+            {
+                ImGui::Text("Light Type");
+                light_type current      = light_comp->type_of_light;
+                const char* possible[1] = { "Directional Light" };
+                int32 idx               = static_cast<int32>(current);
+                ImGui::ListBox(("##light_type_selection" + std::to_string(e)).c_str(), &idx, possible, 1);
+                current = static_cast<light_type>(idx);
+
+                if (current == light_type::directional) // Always true atm.
+                {
+                    auto d_data = static_cast<directional_light_data*>(light_comp->data.get());
+
+                    ImGui::DragFloat(("Direction X##d_light_direction_x" + std::to_string(e)).c_str(), &d_data->direction.x, 0.1f, 0.0f, 0.0f, "%.1f");
+                    ImGui::DragFloat(("Direction Y##d_light_direction_y" + std::to_string(e)).c_str(), &d_data->direction.y, 0.1f, 0.0f, 0.0f, "%.1f");
+                    ImGui::DragFloat(("Direction Z##d_light_direction_z" + std::to_string(e)).c_str(), &d_data->direction.z, 0.1f, 0.0f, 0.0f, "%.1f");
+
+                    ImGui::ColorEdit4("Color##d_light_color", d_data->light_color, ImGuiColorEditFlags_NoInputs);
+
+                    ImGui::SliderFloat(("Intensity##d_light_intensity" + std::to_string(e)).c_str(), &d_data->intensity, 0.0f, 500000.0f);
+                }
+
+                ImGui::Spacing();
+                if (ImGui::Button(("Remove##light" + std::to_string(e)).c_str()))
+                {
+                    application_scene->remove_light_component(e);
+                }
+            }
+            else
+            {
+                if (ImGui::Button(("Add##light" + std::to_string(e)).c_str()))
+                    application_scene->add_light_component(e);
+            }
             ImGui::Separator();
         }
 
         ImGui::End();
     }
+
+    //! \brief Draws the render system widget for a given \a render_system_impl.
+    //! \param[in] rs The \a render_system_impl.
+    //! \param[in,out] enabled True if the window is open, else False.
+    void render_system_widget(const shared_ptr<render_system_impl>& rs, bool& enabled)
+    {
+        // Because every pipeline could have different properties, we will have to delegate that.
+        ImGui::Begin("Render System", &enabled);
+        if (enabled)
+            rs->on_ui_widget();
+        ImGui::End();
+    }
+
 } // namespace mango
 
 #endif // MANGO_IMGUI_WIDGETS_HPP

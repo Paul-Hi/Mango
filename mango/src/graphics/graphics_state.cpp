@@ -197,3 +197,12 @@ bool graphics_state::set_blend_factors(blend_factor source, blend_factor destina
     }
     return false;
 }
+
+bool graphics_state::set_polygon_offset(float factor, float units)
+{
+    PROFILE_ZONE;
+    // TODO Paul
+    MANGO_UNUSED(factor);
+    MANGO_UNUSED(units);
+    return true;
+}

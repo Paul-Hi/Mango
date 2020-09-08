@@ -80,7 +80,12 @@ namespace mango
             return m_is_cubemap;
         }
 
-        void set_data(format internal_format, int32 width, int32 height, format pixel_format, format type, const void* data) override;
+        inline int32 layers() override
+        {
+            return m_layers;
+        }
+
+        void set_data(format internal_format, int32 width, int32 height, format pixel_format, format type, const void* data, int32 layer) override;
         void bind_texture_unit(int32 unit) override;
         void unbind() override;
         void release() override;
@@ -110,6 +115,8 @@ namespace mango
         int32 m_generate_mipmaps;
         //! \brief Specifies if the texture is a cubemap.
         bool m_is_cubemap;
+        //! \brief The number of layers.
+        int32 m_layers;
     };
 } // namespace mango
 

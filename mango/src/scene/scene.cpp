@@ -23,16 +23,20 @@ transformation_update_system transformation_update;
 scene_graph_update_system scene_graph_update;
 //! \brief The internal \a ecsystem for camera updates.
 camera_update_system camera_update;
+//! \brief The internal \a ecsystem for mesh rendering.
+render_mesh_system render_mesh;
+//! \brief The internal \a ecsystem for submitting lights.
+light_submission_system light_submission;
 
 static void update_scene_boundaries(glm::mat4& trafo, tinygltf::Model& m, tinygltf::Mesh& mesh, glm::vec3& min, glm::vec3& max);
-
-static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_pool<mesh_component>& meshes, scene_component_pool<transform_component>& transformations);
 
 scene::scene(const string& name)
     : m_nodes()
     , m_transformations()
     , m_meshes()
     , m_cameras()
+    , m_environments()
+    , m_lights()
 {
     PROFILE_ZONE;
     MANGO_UNUSED(name);
@@ -110,8 +114,8 @@ entity scene::create_default_camera()
     // default parameters
     camera_component.cam_type                           = camera_type::perspective_camera;
     camera_component.perspective.aspect                 = 16.0f / 9.0f;
-    camera_component.z_near                             = 0.015f;
-    camera_component.z_far                              = 150.0f;
+    camera_component.z_near                             = 0.04f;
+    camera_component.z_far                              = 40.0f;
     camera_component.perspective.vertical_field_of_view = glm::radians(45.0f);
     camera_component.up                                 = glm::vec3(0.0f, 1.0f, 0.0f);
     camera_component.target                             = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -292,9 +296,9 @@ void scene::update(float dt)
 {
     PROFILE_ZONE;
     MANGO_UNUSED(dt);
-    transformation_update.update(dt, m_transformations);
-    scene_graph_update.update(dt, m_nodes, m_transformations);
-    camera_update.update(dt, m_cameras, m_transformations);
+    transformation_update.execute(dt, m_transformations);
+    scene_graph_update.execute(dt, m_nodes, m_transformations);
+    camera_update.execute(dt, m_cameras, m_transformations);
 }
 
 void scene::render()
@@ -303,7 +307,10 @@ void scene::render()
     shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
     MANGO_ASSERT(rs, "Render System is expired!");
 
-    render_meshes(rs, m_meshes, m_transformations);
+    light_submission.setup(rs);
+    light_submission.execute(0.0f, m_lights);
+    render_mesh.setup(rs);
+    render_mesh.execute(0.0f, m_meshes, m_transformations);
 }
 
 void scene::attach(entity child, entity parent)
@@ -1055,30 +1062,6 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         material.component_material->alpha_cutoff    = 1.0f;
         MANGO_LOG_WARN("Alpha blending currently not supported!");
     }
-}
-
-static void render_meshes(shared_ptr<render_system_impl> rs, scene_component_pool<mesh_component>& meshes, scene_component_pool<transform_component>& transformations)
-{
-    PROFILE_ZONE;
-    meshes.for_each(
-        [&rs, &meshes, &transformations](mesh_component& c, int32& index) {
-            entity e                       = meshes.entity_at(index);
-            transform_component* transform = transformations.get_component_for_entity(e);
-            if (transform)
-            {
-                auto cmdb = rs->get_command_buffer();
-                rs->set_model_info(transform->world_transformation_matrix, c.has_normals, c.has_tangents);
-
-                for (int32 i = 0; i < static_cast<int32>(c.primitives.size()); ++i)
-                {
-                    auto m = c.materials[i];
-                    auto p = c.primitives[i];
-                    cmdb->bind_vertex_array(p.vertex_array_object);
-                    rs->draw_mesh(m.component_material, p.topology, p.first, p.count, p.type_index, p.instance_count);
-                }
-            }
-        },
-        false);
 }
 
 static void update_scene_boundaries(glm::mat4& trafo, tinygltf::Model& m, tinygltf::Mesh& mesh, glm::vec3& min, glm::vec3& max)

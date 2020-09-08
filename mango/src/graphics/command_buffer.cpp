@@ -33,21 +33,67 @@ command_buffer::~command_buffer()
     m_last = nullptr;
 }
 
-void command_buffer::execute()
+void command_buffer::clear()
 {
-    NAMED_PROFILE_ZONE("Commandbuffer Execution");
-    MANGO_ASSERT(m_first != nullptr, "Command buffer is empty!");
-    MANGO_ASSERT(m_last != nullptr, "Command buffer is empty!");
-
-    // This is also clearing the buffer
     unique_ptr<command> head = std::move(m_first);
 
     while (head)
     {
-        head->execute(m_execution_state);
         head = std::move(head->m_next);
     }
     m_last = nullptr;
+}
+
+void command_buffer::attach(command_buffer_ptr& other)
+{
+    unique_ptr<command> head = std::move(other->head());
+    if (!head)
+        return;
+
+    if (nullptr != m_first)
+    {
+        MANGO_ASSERT(nullptr != m_last, "Last command is null, while first command is not!");
+        MANGO_ASSERT(nullptr == m_last->m_next, "Last command has a successor!");
+        m_last->m_next = std::move(head);
+        do
+        {
+            m_last = m_last->m_next.get();
+        } while (m_last->m_next);
+    }
+    else
+    {
+        MANGO_ASSERT(nullptr == m_last, "Last command is not null, but first command is!");
+        m_first = std::move(head);
+        m_last  = m_first.get();
+        while (m_last->m_next)
+        {
+            m_last = m_last->m_next.get();
+        }
+    }
+    other->clear();
+}
+
+void command_buffer::execute()
+{
+    NAMED_PROFILE_ZONE("Commandbuffer Execution");
+    if (m_first == nullptr || m_last == nullptr)
+    {
+        MANGO_LOG_DEBUG("Command buffer is empty!");
+        MANGO_LOG_DEBUG("Command buffer is empty!");
+        return;
+    }
+
+    // This is also clearing the buffer
+    unique_ptr<command> head = std::move(m_first);
+    m_first                  = nullptr;
+    m_last                   = nullptr;
+
+    while (head)
+    {
+        head->execute(m_execution_state);
+        unique_ptr<command> tmp = std::move(head);
+        head                    = std::move(tmp->m_next);
+    }
 }
 
 void command_buffer::set_viewport(int32 x, int32 y, int32 width, int32 height)
@@ -243,7 +289,7 @@ void command_buffer::bind_shader_program(shader_program_ptr shader_program)
     }
 }
 
-void command_buffer::bind_single_uniform(int32 location, void* uniform_value, int64 data_size)
+void command_buffer::bind_single_uniform(int32 location, void* uniform_value, int64 data_size, int32 count)
 {
     PROFILE_ZONE;
     MANGO_ASSERT(location >= 0, "Uniform location has to be greater than 0!");
@@ -253,8 +299,10 @@ void command_buffer::bind_single_uniform(int32 location, void* uniform_value, in
       public:
         std::vector<uint8> m_data;
         int32 m_location;
-        bind_single_uniform_cmd(int32 location, void* uniform_value, int64 data_size)
+        int32 m_count;
+        bind_single_uniform_cmd(int32 location, void* uniform_value, int64 data_size, int32 count)
             : m_location(location)
+            , m_count(count)
         {
             m_data.resize(static_cast<ptr_size>(data_size));
             memcpy(&m_data[0], static_cast<uint8*>(uniform_value), static_cast<ptr_size>(data_size));
@@ -322,12 +370,12 @@ void command_buffer::bind_single_uniform(int32 location, void* uniform_value, in
             }
             case shader_resource_type::MAT3:
             {
-                glUniformMatrix3fv(m_location, 1, GL_FALSE, static_cast<g_float*>(data));
+                glUniformMatrix3fv(m_location, m_count, GL_FALSE, static_cast<g_float*>(data));
                 break;
             }
             case shader_resource_type::MAT4:
             {
-                glUniformMatrix4fv(m_location, 1, GL_FALSE, static_cast<g_float*>(data));
+                glUniformMatrix4fv(m_location, m_count, GL_FALSE, static_cast<g_float*>(data));
                 break;
             }
             default:
@@ -339,7 +387,7 @@ void command_buffer::bind_single_uniform(int32 location, void* uniform_value, in
 
     if (m_building_state.bind_single_uniform())
     {
-        submit<bind_single_uniform_cmd>(location, uniform_value, data_size);
+        submit<bind_single_uniform_cmd>(location, uniform_value, data_size, count);
     }
 }
 
@@ -917,5 +965,45 @@ void command_buffer::set_blend_factors(blend_factor source, blend_factor destina
     if (m_building_state.set_blend_factors(source, destination))
     {
         submit<set_blend_factors_cmd>(source, destination);
+    }
+}
+
+void command_buffer::set_polygon_offset(float factor, float units)
+{
+    PROFILE_ZONE;
+    class set_polygon_offset_cmd : public command
+    {
+      public:
+        float m_factor;
+        float m_units;
+        set_polygon_offset_cmd(float factor, float units)
+            : m_factor(factor)
+            , m_units(units)
+        {
+        }
+
+        void execute(graphics_state& state) override
+        {
+            NAMED_PROFILE_ZONE("Set Polygon Offset");
+            GL_NAMED_PROFILE_ZONE("Set Polygon Offset");
+
+            if(m_units > 1e-5)
+            {
+                glEnable(GL_POLYGON_OFFSET_FILL);
+                glPolygonOffset(m_factor, m_units);
+            }
+            else
+            {
+                glDisable(GL_POLYGON_OFFSET_FILL);
+            }
+
+
+            state.set_polygon_offset(m_factor, m_units);
+        }
+    };
+
+    if (m_building_state.set_polygon_offset(factor, units))
+    {
+        submit<set_polygon_offset_cmd>(factor, units);
     }
 }

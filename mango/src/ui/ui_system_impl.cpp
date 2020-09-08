@@ -172,6 +172,7 @@ void ui_system_impl::update(float dt)
     static bool scene_inspector_enabled            = true;
     static bool material_inspector_enabled         = true;
     static bool entity_component_inspector_enabled = true;
+    static bool render_system_widget_enabled       = true;
 
     // menu bar
     if (ImGui::BeginMenuBar())
@@ -194,6 +195,8 @@ void ui_system_impl::update(float dt)
                 material_inspector_enabled = true;
             if (widgets[ui_widget::entity_component_inspector] && ImGui::MenuItem("Entity Component Inspector"))
                 entity_component_inspector_enabled = true;
+            if (widgets[ui_widget::render_system_ui] && ImGui::MenuItem("Render System Settings"))
+                render_system_widget_enabled = true;
             if (custom.function && !custom.always_open && ImGui::MenuItem(custom.window_name.c_str()))
                 custom_enabled = true;
             ImGui::EndMenu();
@@ -245,9 +248,15 @@ void ui_system_impl::update(float dt)
             material_inspector_widget(nullptr, material_inspector_enabled, tmp != selected, selected, rs);
     }
 
-    // Test
+    // ECS Inspector
     if (widgets[ui_widget::entity_component_inspector] && entity_component_inspector_enabled && !cinema_view)
         entity_component_inspector_widget(application_scene, entity_component_inspector_enabled, selected, rs, viewport_size);
+
+    auto render_s = m_shared_context->get_render_system_internal().lock();
+    MANGO_ASSERT(render_s, "Render system is expired!");
+    // Render system widget
+    if (widgets[ui_widget::render_system_ui] && render_system_widget_enabled && !cinema_view)
+        render_system_widget(render_s, render_system_widget_enabled);
 
     ImGui::End(); // dock space end
 }

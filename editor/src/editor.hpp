@@ -25,8 +25,6 @@ class editor : public mango::application
   private:
     //! \brief Main camera. Testing.
     mango::entity m_main_camera;
-    //! \brief Current model root.
-    mango::entity m_model;
 
     //! \brief Last mouse position.
     glm::vec2 m_last_mouse_position;

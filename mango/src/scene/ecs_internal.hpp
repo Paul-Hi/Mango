@@ -21,7 +21,7 @@ namespace mango
     class transformation_update_system : public ecsystem_1<transform_component>
     {
       public:
-        void update(float, scene_component_pool<transform_component>& transformations) override
+        void execute(float, scene_component_pool<transform_component>& transformations) override
         {
             NAMED_PROFILE_ZONE("Transformation Update");
             transformations.for_each(
@@ -40,7 +40,7 @@ namespace mango
     class scene_graph_update_system : public ecsystem_2<node_component, transform_component>
     {
       public:
-        void update(float, scene_component_pool<node_component>& nodes, scene_component_pool<transform_component>& transformations) override
+        void execute(float, scene_component_pool<node_component>& nodes, scene_component_pool<transform_component>& transformations) override
         {
             NAMED_PROFILE_ZONE("Scene Graph Update");
             nodes.for_each(
@@ -65,7 +65,7 @@ namespace mango
     class camera_update_system : public ecsystem_2<camera_component, transform_component>
     {
       public:
-        void update(float, scene_component_pool<camera_component>& cameras, scene_component_pool<transform_component>& transformations) override
+        void execute(float, scene_component_pool<camera_component>& cameras, scene_component_pool<transform_component>& transformations) override
         {
             NAMED_PROFILE_ZONE("Camera Update");
             cameras.for_each(
@@ -74,10 +74,17 @@ namespace mango
                     transform_component* transform = transformations.get_component_for_entity(e);
                     if (transform)
                     {
-                        glm::vec3 front = glm::normalize(c.target - glm::vec3(transform->world_transformation_matrix[3]));
-                        auto right      = glm::normalize(glm::cross(GLOBAL_UP, front));
-                        c.up            = glm::normalize(glm::cross(front, right));
-                        c.view          = glm::lookAt(glm::vec3(transform->world_transformation_matrix[3]), c.target, c.up);
+                        glm::vec3 front = c.target - glm::vec3(transform->world_transformation_matrix[3]);
+                        if (glm::length(front) > 1e-5)
+                            front = glm::normalize(front);
+                        else
+                        {
+                            front    = GLOBAL_FORWARD;
+                            c.target = front * 0.1f; // We need this here.
+                        }
+                        auto right = glm::normalize(glm::cross(GLOBAL_UP, front));
+                        c.up       = glm::normalize(glm::cross(front, right));
+                        c.view     = glm::lookAt(glm::vec3(transform->world_transformation_matrix[3]), c.target, c.up);
                         if (c.cam_type == camera_type::perspective_camera)
                         {
                             c.projection = glm::perspective(c.perspective.vertical_field_of_view, c.perspective.aspect, c.z_near, c.z_far);
@@ -94,6 +101,72 @@ namespace mango
                 false);
         }
     };
+
+    //! \brief An \a ecsystem for rendering meshes.
+    class render_mesh_system : public ecsystem_2<mesh_component, transform_component>
+    {
+      public:
+        //! \brief Setup for the \a render_mesh_system. Needs to be called before executing.
+        //! \param[in] rs The \a render_system to submit the meshes to.
+        void setup(shared_ptr<render_system_impl> rs)
+        {
+            m_rs = rs;
+        }
+
+        void execute(float, scene_component_pool<mesh_component>& meshes, scene_component_pool<transform_component>& transformations) override
+        {
+            PROFILE_ZONE;
+            meshes.for_each(
+                [this, &meshes, &transformations](mesh_component& c, int32& index) {
+                    entity e                       = meshes.entity_at(index);
+                    transform_component* transform = transformations.get_component_for_entity(e);
+                    if (transform)
+                    {
+                        m_rs->set_model_info(transform->world_transformation_matrix, c.has_normals, c.has_tangents);
+
+                        for (int32 i = 0; i < static_cast<int32>(c.primitives.size()); ++i)
+                        {
+                            auto m = c.materials[i];
+                            auto p = c.primitives[i];
+                            m_rs->draw_mesh(p.vertex_array_object, m.component_material, p.topology, p.first, p.count, p.type_index, p.instance_count);
+                        }
+                    }
+                },
+                false);
+        }
+
+      private:
+        //! \brief The \a render_system to submit the meshes to.
+        shared_ptr<render_system_impl> m_rs;
+    };
+
+    //! \brief An \a ecsystem for light submission.
+    class light_submission_system : public ecsystem_1<light_component>
+    {
+      public:
+        //! \brief Setup for the \a light_submission_system. Needs to be called before executing.
+        //! \param[in] rs The \a render_system to submit the lights to.
+        void setup(shared_ptr<render_system_impl> rs)
+        {
+            m_rs = rs;
+        }
+
+        void execute(float, scene_component_pool<light_component>& lights) override
+        {
+            PROFILE_ZONE;
+            lights.for_each(
+                [this, &lights](light_component& c, int32&) {
+                    auto cmdb = m_rs->get_command_buffer();
+                    m_rs->submit_light(c.type_of_light, c.data.get());
+                },
+                false);
+        }
+
+      private:
+        //! \brief The \a render_system to submit the lights to.
+        shared_ptr<render_system_impl> m_rs;
+    };
+
 } // namespace mango
 
 #endif // MANGO_ECS_INTERNAL_HPP

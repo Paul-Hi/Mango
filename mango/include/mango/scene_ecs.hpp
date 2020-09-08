@@ -29,10 +29,10 @@ namespace mango
     class ecsystem_1
     {
       public:
-        //! \brief The update function for the \a ecsystem.
+        //! \brief The execute function for the \a ecsystem.
         //! \param[in] dt The time since the last call.
         //! \param[in] components A \a component_pool.
-        virtual void update(float dt, scene_component_pool<component>& components);
+        virtual void execute(float dt, scene_component_pool<component>& components);
     };
 
     //! \brief A templated base class for all ecs systems that require two components.
@@ -40,11 +40,11 @@ namespace mango
     class ecsystem_2
     {
       public:
-        //! \brief The update function for the \a ecsystem.
+        //! \brief The execute function for the \a ecsystem.
         //! \param[in] dt The time since the last call.
         //! \param[in] components_1 First \a component_pool.
         //! \param[in] components_2 Second \a component_pool.
-        virtual void update(float dt, scene_component_pool<component_1>& components_1, scene_component_pool<component_2>& components_2);
+        virtual void execute(float dt, scene_component_pool<component_1>& components_1, scene_component_pool<component_2>& components_2);
     };
 
     // fwd
@@ -196,19 +196,22 @@ namespace mango
     {
     };
 
-    //! \brief Llight data for directional lights.
+    //! \brief The default intensity of a directional light. Is approx. the intensity of the sun.
+    const float default_directional_intensity = 110000.0f;
+
+    //! \brief Light data for directional lights.
     struct directional_light_data : public light_data
     {
-        glm::vec3 direction;   //!< The light direction.
-        color_rgb light_color; //!< The light color. Will get multiplied by the intensity.
-        float intensity;       //!< The instensity of the light in lumen (111000 would f.e. be a basic sun)
+        glm::vec3 direction = glm::vec3(1.0f);           //!< The light direction.
+        color_rgb light_color;                           //!< The light color. Will get multiplied by the intensity.
+        float intensity = default_directional_intensity; //!< The instensity of the light in lumen (111000 would f.e. be a basic sun)
     };
 
     //! \brief Component used for all lights excluding image based lights.
     struct light_component
     {
-        light_type type_of_light; //!< The type of the light.
-        light_data data;          //!< Light specific data.
+        light_type type_of_light    = light_type::directional;                    //!< The type of the light.
+        shared_ptr<light_data> data = std::make_shared<directional_light_data>(); //!< Light specific data.
     };
 
     //! \brief Structure used for collecting all the camera data of the current active camera.

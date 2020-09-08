@@ -30,17 +30,11 @@ namespace mango
             int32 meshes;        //!< The number of meshes.
             int32 primitives;    //!< The number of primitives.
             int32 materials;     //!< The number of materials.
+            int32 canvas_x;      //!< The x of the current render canvas.
+            int32 canvas_y;      //!< The y of the current render canvas.
             int32 canvas_width;  //!< The width of the current render canvas.
             int32 canvas_height; //!< The height of the current render canvas.
         } last_frame;            //!< Measured stats from the last rendered frame.
-    };
-
-    //! \brief Structure to store debug data.
-    struct debug_views
-    {
-        framebuffer_ptr fb_port0; //!< Port to attach a framebuffer to debug.
-        framebuffer_ptr fb_port1; //!< Port to attach a framebuffer to debug.
-        framebuffer_ptr fb_port2; //!< Port to attach a framebuffer to debug.
     };
 
     //! \brief Structure to store data for adaptive exposure.
@@ -49,6 +43,9 @@ namespace mango
         uint32 histogram[256]; //!< The histogram data
         float luminance;       //!< Smoothed out average luminance.
     };
+
+    enum class light_type : uint8;
+    struct light_data;
 
     //! \brief The implementation of the \a render_system.
     //! \details This class only manages the configuration of the base \a render_system and forwards everything else to the real implementation of the specific configured one.
@@ -107,13 +104,14 @@ namespace mango
         virtual void set_model_info(const glm::mat4& model_matrix, bool has_normals, bool has_tangents);
 
         //! \brief Schedules drawing of a \a mesh with \a material.
+        //! \param[in] vertex_array The \a vertex_array_ptr for the next draw call.
         //! \param[in] mat The \a material for the next draw call.
         //! \param[in] topology The topology used for drawing the bound vertex data.
         //! \param[in] first The first index to start drawing from. Has to be a positive value.
         //! \param[in] count The number of indices to draw. Has to be a positive value.
         //! \param[in] type The \a index_type of the values in the index buffer.
         //! \param[in] instance_count The number of instances to draw. Has to be a positive value. For normal drawing pass 1.
-        virtual void draw_mesh(const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count = 1);
+        virtual void draw_mesh(const vertex_array_ptr& vertex_array, const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count = 1);
 
         //! \brief Sets the view projection matrix for the next draw calls.
         //! \param[in] view_projection The view projection for the next draw calls.
@@ -128,6 +126,11 @@ namespace mango
         //! \param[in] intensity The intensity of the environment in cd/m^2.
         virtual void set_environment_settings(float render_level, float intensity);
 
+        //! \brief Submits a light to the \a render_system.
+        //! \param[in] type The submitted \a light_type.
+        //! \param[in] data The \a light_data describing the submitted light.
+        virtual void submit_light(light_type type, light_data* data);
+
         //! \brief Returns the backbuffer of the a render_system.
         //! \return The backbuffer.
         virtual framebuffer_ptr get_backbuffer();
@@ -140,13 +143,10 @@ namespace mango
             return m_current_render_system->m_hardware_stats;
         }
 
-        //! \brief Returns the debug views set by the \a render_system.
-        //! \return The debug view structure.
-        inline const debug_views& get_debug_views()
-        {
-            MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-            return m_current_render_system->m_debug_views;
-        }
+        //! \brief Custom UI function.
+        //! \details This can be called by any \a ui_widget and displays settings and debug information for the active \a render_system.
+        //! This does not draw any window, so it needs one surrounduing it.
+        virtual void on_ui_widget();
 
       protected:
         //! \brief Mangos internal context for shared usage in all \a render_systems.
@@ -158,8 +158,6 @@ namespace mango
         //! \brief The hardware stats.
         hardware_stats m_hardware_stats;
 
-        //! \brief The debug views.
-        debug_views m_debug_views;
 
       private:
         //! \brief A shared pointer to the currently used internal \a render_system.

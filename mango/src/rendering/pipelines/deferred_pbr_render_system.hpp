@@ -7,6 +7,7 @@
 #ifndef MANGO_DEFERRED_PBR_RENDER_SYSTEM_HPP
 #define MANGO_DEFERRED_PBR_RENDER_SYSTEM_HPP
 
+#include <graphics/framebuffer.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <rendering/steps/pipeline_step.hpp>
 
@@ -34,10 +35,12 @@ namespace mango
         virtual render_pipeline get_base_render_pipeline() override;
 
         void set_model_info(const glm::mat4& model_matrix, bool has_normals, bool has_tangents) override;
-        void draw_mesh(const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
+        void draw_mesh(const vertex_array_ptr& vertex_array, const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
         void set_view_projection_matrix(const glm::mat4& view_projection) override;
         void set_environment_texture(const texture_ptr& hdr_texture) override;
         void set_environment_settings(float render_level, float intensity) override;
+        void submit_light(light_type type, light_data* data) override;
+        void on_ui_widget() override;
 
         framebuffer_ptr get_backbuffer() override
         {
@@ -51,6 +54,9 @@ namespace mango
         framebuffer_ptr m_backbuffer;
         //! \brief The hdr buffer of the deferred pipeline. Used for auto exposure.
         framebuffer_ptr m_hdr_buffer;
+
+        //! \brief Render queue used to store rendering related commands.
+        command_buffer_ptr m_render_queue;
 
         //! \brief The \a shader_program for the deferred geometry pass.
         //! \details This fills the g-buffer for later use in the lighting pass.
@@ -126,20 +132,73 @@ namespace mango
 
         //! \brief Uniform buffer structure for the lighting pass of the deferred pipeline.
         struct lighting_pass_uniforms
-        {
-            std140_mat4 inverse_view_projection; //!< Inverse camera view projection matrix.
+        {            std140_mat4 inverse_view_projection; //!< Inverse camera view projection matrix.
+            std140_mat4 view;                    //!< Camera view matrix.
             std140_vec3 camera_position;         //!< Camera position.
+            std140_vec4 camera_params;           //!< Camera near and far plane depth value. (zw) unused atm.
+
+            struct
+            {
+                //  TODO Paul: Size hardcoded.
+                std140_mat4 view_projections[4]; //!< The 4 view projection matrices of the different cascades.
+                std140_vec3 cascade_splits;      //!< The 3 cascade splits.
+                std140_vec3 direction;           //!< The direction to the light.
+                std140_vec3 color;               //!< The light color.
+                g_float intensity;               //!< The intensity of the directional light in lumen
+                std140_bool cast_shadows;        //!< True, if shadows can be casted.
+            } directional;                       //!< Data for the directional light (onyl one)
+            // struct
+            // {
+            //     std140_vec3 position;
+            //     std140_vec3 color;
+            //     g_float intensity;
+            // } spherical[16];
+
+            std140_bool debug_view_enabled; //!< True, if any debug view is enabled.
+
+            struct
+            {
+                std140_bool debug[9]; //!< All debug views.
+                // position
+                // normal
+                // depth
+                // base_color
+                // reflection_color
+                // emission
+                // occlusion
+                // roughness
+                // metallic
+            } debug_views; //!< The debug views.
+
+            struct
+            {
+                std140_bool show_cascades;    //!< Show the shadow cascades.
+                std140_bool draw_shadow_maps; //!< Draw the cascade shadow maps.
+            } debug_options;                  //!< The debug options.
+
+            float padding0; //!< padding.
+            float padding1; //!< padding.
         };
 
-        //! \brief Binds the uniform buffer of the lighting pass.
-        void bind_lighting_pass_uniform_buffer();
+        //! \brief The current \a lighting_pass_uniforms.
+        lighting_pass_uniforms m_lp_uniforms;
 
-        //! \brief Calculates automatic exposure and adapts physicall camera parameters.
+        //! \brief The shadow offset for the cascade projections.
+        float m_shadow_map_offset = 0.0f; // TODO Paul: This does not belong here.
+
+        //! \brief Binds the uniform buffer of the lighting pass.
+        //! \param[in,out] camera The \a camera_data of the current camera.
+        void bind_lighting_pass_uniform_buffer(camera_data& camera);
+
+        //! \brief Calculates automatic exposure and adapts physical camera parameters.
         //! \param[in,out] camera The \a camera_data of the current camera.
         void apply_auto_exposure(camera_data& camera);
 
         //! \brief Optional additional steps of the deferred pipeline.
         shared_ptr<pipeline_step> m_pipeline_steps[mango::render_step::number_of_step_types];
+
+        //! \brief True if the renderer should draw wireframe, else false.
+        bool m_wireframe = false;
     };
 
 } // namespace mango

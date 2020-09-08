@@ -37,6 +37,7 @@ Also have a look at the [Website](https://paul-hi.github.io/Mango/)!
 * Building and running on Linux and Windows.
 * Basic support of GLTF models (No animations yet, some features missing, no draco encoding)
 * HDR support and image based lighting
+* Directional light with Cascaded Shadow Mapping
 * Basic GUI with DearImGui with widgets
 * Many physically based rendering features
 * Deferred rendering with OpenGL backend

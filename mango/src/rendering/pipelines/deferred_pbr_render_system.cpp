@@ -7,15 +7,17 @@
 #include <core/window_system_impl.hpp>
 #include <glad/glad.h>
 #include <graphics/buffer.hpp>
-#include <graphics/framebuffer.hpp>
 #include <graphics/shader.hpp>
 #include <graphics/shader_program.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
+#include <imgui.h>
 #include <mango/profile.hpp>
 #include <mango/scene.hpp>
 #include <rendering/pipelines/deferred_pbr_render_system.hpp>
 #include <rendering/steps/ibl_step.hpp>
+#include <rendering/steps/shadow_map_step.hpp>
+#include <util/helpers.hpp>
 
 using namespace mango;
 
@@ -28,6 +30,8 @@ static void GLAPIENTRY debugCallback(g_enum source, g_enum type, g_uint id, g_en
 vertex_array_ptr default_vao;
 //! \brief Default texture that is bound to every texture unit not in use to prevent warnings.
 texture_ptr default_texture;
+//! \brief Default texture array that is bound to every texture unit not in use to prevent warnings.
+texture_ptr default_texture_array;
 
 deferred_pbr_render_system::deferred_pbr_render_system(const shared_ptr<context_impl>& context)
     : render_system_impl(context)
@@ -66,6 +70,8 @@ bool deferred_pbr_render_system::create()
     int32 w = ws->get_width();
     int32 h = ws->get_height();
 
+    m_render_queue = command_buffer::create();
+
     m_hardware_stats.last_frame.canvas_width  = w;
     m_hardware_stats.last_frame.canvas_height = h;
 
@@ -94,13 +100,8 @@ bool deferred_pbr_render_system::create()
 
     m_gbuffer = framebuffer::create(gbuffer_config);
 
-    if (!m_gbuffer)
-    {
-        MANGO_LOG_ERROR("Creation of gbuffer failed! Render system not available!");
+    if (!check_creation(m_gbuffer.get(), "gbuffer", "Render System"))
         return false;
-    }
-
-    m_debug_views.fb_port0 = m_gbuffer;
 
     // HDR for auto exposure
     framebuffer_configuration hdr_buffer_config;
@@ -114,13 +115,8 @@ bool deferred_pbr_render_system::create()
 
     m_hdr_buffer = framebuffer::create(hdr_buffer_config);
 
-    if (!m_hdr_buffer)
-    {
-        MANGO_LOG_ERROR("Creation of hdr buffer failed! Render system not available!");
+    if (!check_creation(m_hdr_buffer.get(), "hdr buffer", "Render System"))
         return false;
-    }
-
-    m_debug_views.fb_port1 = m_hdr_buffer;
 
     // backbuffer
 
@@ -135,29 +131,21 @@ bool deferred_pbr_render_system::create()
 
     m_backbuffer = framebuffer::create(backbuffer_config);
 
-    if (!m_backbuffer)
-    {
-        MANGO_LOG_ERROR("Creation of backbuffer failed! Render system not available!");
+    if (!check_creation(m_backbuffer.get(), "backbuffer", "Render System"))
         return false;
-    }
-
-    m_debug_views.fb_port2 = m_backbuffer;
 
     // frame uniform buffer
     buffer_configuration uniform_buffer_config(uniform_buffer_size, buffer_target::UNIFORM_BUFFER, buffer_access::MAPPED_ACCESS_WRITE);
     m_frame_uniform_buffer = buffer::create(uniform_buffer_config);
-    if (!m_frame_uniform_buffer)
-    {
-        MANGO_LOG_ERROR("Creation of frame uniform buffer failed! Render system not available!");
+
+    if (!check_creation(m_frame_uniform_buffer.get(), "frame uniform buffer", "Render System"))
         return false;
-    }
 
     m_mapped_uniform_memory = m_frame_uniform_buffer->map(0, m_frame_uniform_buffer->byte_length(), buffer_access::MAPPED_ACCESS_WRITE);
-    if (!m_mapped_uniform_memory)
-    {
-        MANGO_LOG_ERROR("Mapping of uniforms failed! Render system not available!");
+
+    if (!check_mapping(m_frame_uniform_buffer.get(), "uniforms", "Render System"))
         return false;
-    }
+
     m_frame_uniform_offset = 0;
 
     // scene geometry pass
@@ -165,105 +153,73 @@ bool deferred_pbr_render_system::create()
     shader_config.m_path = "res/shader/v_scene_gltf.glsl";
     shader_config.m_type = shader_type::VERTEX_SHADER;
     shader_ptr d_vertex  = shader::create(shader_config);
-    if (!d_vertex)
-    {
-        MANGO_LOG_ERROR("Creation of geometry pass vertex shader failed! Render system not available!");
+    if (!check_creation(d_vertex.get(), "geometry pass vertex shader", "Render System"))
         return false;
-    }
 
     shader_config.m_path  = "res/shader/f_scene_gltf.glsl";
     shader_config.m_type  = shader_type::FRAGMENT_SHADER;
     shader_ptr d_fragment = shader::create(shader_config);
-    if (!d_fragment)
-    {
-        MANGO_LOG_ERROR("Creation of geometry pass fragment shader failed! Render system not available!");
+    if (!check_creation(d_fragment.get(), "geometry pass fragment shader", "Render System"))
         return false;
-    }
 
     m_scene_geometry_pass = shader_program::create_graphics_pipeline(d_vertex, nullptr, nullptr, nullptr, d_fragment);
-    // shader light pass
+    if (!check_creation(m_scene_geometry_pass.get(), "geometry pass shader program", "Render System"))
+        return false;
 
+    // lighting pass
     shader_config.m_path = "res/shader/v_empty.glsl";
     shader_config.m_type = shader_type::VERTEX_SHADER;
     d_vertex             = shader::create(shader_config);
-    if (!d_vertex)
-    {
-        MANGO_LOG_ERROR("Creation of lighting vertex shader failed! Render system not available!");
+    if (!check_creation(d_vertex.get(), "empty vertex shader", "Render System"))
         return false;
-    }
 
     shader_config.m_path  = "res/shader/g_create_screen_space_quad.glsl";
     shader_config.m_type  = shader_type::GEOMETRY_SHADER;
     shader_ptr d_geometry = shader::create(shader_config);
-    if (!d_geometry)
-    {
-        MANGO_LOG_ERROR("Creation of lighting geometry shader failed! Render system not available!");
+    if (!check_creation(d_geometry.get(), "geometry pass geometry shader", "Render System"))
         return false;
-    }
 
     shader_config.m_path = "res/shader/f_deferred_lighting.glsl";
     shader_config.m_type = shader_type::FRAGMENT_SHADER;
     d_fragment           = shader::create(shader_config);
-    if (!d_fragment)
-    {
-        MANGO_LOG_ERROR("Creation of lighting fragment shader failed! Render system not available!");
+    if (!check_creation(d_fragment.get(), "lighting pass fragment shader", "Render System"))
         return false;
-    }
 
     m_lighting_pass = shader_program::create_graphics_pipeline(d_vertex, nullptr, nullptr, d_geometry, d_fragment);
-    if (!m_lighting_pass)
-    {
-        MANGO_LOG_ERROR("Creation of lighting pass failed! Render system not available!");
+    if (!check_creation(m_lighting_pass.get(), "lighting pass shader program", "Render System"))
         return false;
-    }
 
+    // composing pass
     shader_config.m_path = "res/shader/f_composing.glsl";
     shader_config.m_type = shader_type::FRAGMENT_SHADER;
     d_fragment           = shader::create(shader_config);
-    if (!d_fragment)
-    {
-        MANGO_LOG_ERROR("Creation of lighting fragment shader failed! Render system not available!");
+    if (!check_creation(d_fragment.get(), "composing pass fragment shader", "Render System"))
         return false;
-    }
 
     m_composing_pass = shader_program::create_graphics_pipeline(d_vertex, nullptr, nullptr, d_geometry, d_fragment);
-    if (!m_composing_pass)
-    {
-        MANGO_LOG_ERROR("Creation of composing pass failed! Render system not available!");
+    if (!check_creation(m_composing_pass.get(), "composing pass shader program", "Render System"))
         return false;
-    }
 
     shader_config.m_path                  = "res/shader/c_construct_luminance_buffer.glsl";
     shader_config.m_type                  = shader_type::COMPUTE_SHADER;
     shader_ptr construct_luminance_buffer = shader::create(shader_config);
-    if (!construct_luminance_buffer)
-    {
-        MANGO_LOG_ERROR("Creation of luminance buffer construction compute shader failed! Render system not available!");
+    if (!check_creation(construct_luminance_buffer.get(), "luminance construction compute shader", "Render System"))
         return false;
-    }
 
+    // luminance compute for auto exposure
     m_construct_luminance_buffer = shader_program::create_compute_pipeline(construct_luminance_buffer);
-    if (!m_construct_luminance_buffer)
-    {
-        MANGO_LOG_ERROR("Creation of luminance buffer construction compute shader program failed! Render system not available!");
+    if (!check_creation(m_construct_luminance_buffer.get(), "luminance construction compute shader program", "Render System"))
         return false;
-    }
 
     shader_config.m_path               = "res/shader/c_luminance_buffer_reduction.glsl";
     shader_config.m_type               = shader_type::COMPUTE_SHADER;
     shader_ptr reduce_luminance_buffer = shader::create(shader_config);
-    if (!reduce_luminance_buffer)
-    {
-        MANGO_LOG_ERROR("Creation of luminance buffer reduction compute shader failed! Render system not available!");
+    if (!check_creation(reduce_luminance_buffer.get(), "luminance reduction compute shader", "Render System"))
         return false;
-    }
 
     m_reduce_luminance_buffer = shader_program::create_compute_pipeline(reduce_luminance_buffer);
-    if (!m_reduce_luminance_buffer)
-    {
-        MANGO_LOG_ERROR("Creation of luminance buffer reduction compute shader program failed! Render system not available!");
+    if (!check_creation(m_reduce_luminance_buffer.get(), "luminance reduction compute shader program", "Render System"))
         return false;
-    }
 
     buffer_configuration b_config;
     b_config.m_access            = buffer_access::MAPPED_ACCESS_READ_WRITE;
@@ -272,32 +228,35 @@ bool deferred_pbr_render_system::create()
     m_luminance_histogram_buffer = buffer::create(b_config);
 
     m_luminance_data_mapping = static_cast<luminance_data*>(m_luminance_histogram_buffer->map(0, b_config.m_size, buffer_access::MAPPED_ACCESS_WRITE));
-    if (!m_luminance_data_mapping)
-    {
-        MANGO_LOG_ERROR("Mapping of average luminance failed! Render system not available!");
+    if (!check_mapping(m_luminance_data_mapping, "luminance data", "Render System"))
         return false;
-    }
+
     memset(&m_luminance_data_mapping->histogram[0], 0, 256 * sizeof(uint32));
     m_luminance_data_mapping->luminance = 1.0f;
 
     // default vao needed
     default_vao = vertex_array::create();
-    if (!default_vao)
-    {
-        MANGO_LOG_ERROR("Creation of default vao failed! Render system not available!");
+    if (!check_creation(default_vao.get(), "default vertex array object", "Render System"))
         return false;
-    }
     // default texture needed (config is not relevant)
     default_texture = texture::create(attachment_config);
-    if (!default_texture)
-    {
-        MANGO_LOG_ERROR("Creation of default texture failed! Render system not available!");
+    if (!check_creation(default_texture.get(), "default texture", "Render System"))
         return false;
-    }
-    g_ubyte black = 0;
-    default_texture->set_data(format::R8, 1, 1, format::RED, format::UNSIGNED_BYTE, &black);
+    g_ubyte albedo[3] = { 127, 127, 127 };
+    default_texture->set_data(format::RGB8, 1, 1, format::RGB, format::UNSIGNED_BYTE, albedo);
+    attachment_config.m_layers = 3;
+    default_texture_array      = texture::create(attachment_config);
+    if (!check_creation(default_texture_array.get(), "default texture array", "Render System"))
+        return false;
+    default_texture_array->set_data(format::RGB8, 1, 1, format::RGB, format::UNSIGNED_BYTE, albedo);
 
     glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &m_uniform_buffer_alignment);
+
+    for (int32 i = 0; i < 9; ++i)
+        m_lp_uniforms.debug_views.debug[i] = std140_bool(false);
+    m_lp_uniforms.debug_view_enabled             = std140_bool(false);
+    m_lp_uniforms.debug_options.show_cascades    = std140_bool(false);
+    m_lp_uniforms.debug_options.draw_shadow_maps = std140_bool(false);
 
     return true;
 }
@@ -318,6 +277,12 @@ void deferred_pbr_render_system::configure(const render_configuration& configura
         step_ibl->create();
         m_pipeline_steps[mango::render_step::ibl] = std::static_pointer_cast<pipeline_step>(step_ibl);
     }
+    if (configuration.get_render_steps()[mango::render_step::shadow_map])
+    {
+        auto step_shadow_map = std::make_shared<shadow_map_step>();
+        step_shadow_map->create();
+        m_pipeline_steps[mango::render_step::shadow_map] = std::static_pointer_cast<pipeline_step>(step_shadow_map);
+    }
 }
 
 void deferred_pbr_render_system::begin_render()
@@ -327,12 +292,18 @@ void deferred_pbr_render_system::begin_render()
     m_hardware_stats.last_frame.meshes     = 0;
     m_hardware_stats.last_frame.primitives = 0;
     m_hardware_stats.last_frame.materials  = 0;
+
+    // TODO Paul: This should not be done here, this is pretty bad!
+    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH_STENCIL, attachment_mask::ALL, 0.1f, 0.1f, 0.1f, 1.0f);
+    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_gbuffer);
+    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_hdr_buffer);
+    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_backbuffer);
+
     m_command_buffer->set_depth_test(true);
     m_command_buffer->set_depth_func(compare_operation::LESS);
     m_command_buffer->set_face_culling(true);
     m_command_buffer->set_cull_face(polygon_face::FACE_BACK);
     m_command_buffer->bind_framebuffer(m_gbuffer);
-    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_gbuffer);
     m_command_buffer->bind_shader_program(m_scene_geometry_pass);
 
     auto scene  = m_shared_context->get_current_scene();
@@ -343,49 +314,87 @@ void deferred_pbr_render_system::begin_render()
     }
 
     m_command_buffer->wait_for_buffer(m_frame_uniform_buffer);
-    // m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::LINE);
+    if (m_wireframe)
+        m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::LINE);
 }
 
 void deferred_pbr_render_system::finish_render(float dt)
 {
     PROFILE_ZONE;
+    auto scene  = m_shared_context->get_current_scene();
+    auto camera = scene->get_active_camera_data();
+
+    m_command_buffer->attach(m_render_queue);
+
+    if (m_pipeline_steps[mango::render_step::shadow_map])
+    {
+        if (m_lp_uniforms.directional.intensity > 1e-5f && !m_lp_uniforms.debug_view_enabled.value())
+        {
+            std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])
+                ->update_cascades(camera.camera_info->z_near, camera.camera_info->z_far, camera.camera_info->view_projection, m_lp_uniforms.directional.direction.value(), m_shadow_map_offset);
+
+            m_pipeline_steps[mango::render_step::shadow_map]->execute(m_command_buffer);
+        }
+        else
+            std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_caster_queue()->clear();
+    }
+
+    // reset viewport to be sure.
+    auto x = m_hardware_stats.last_frame.canvas_x;
+    auto y = m_hardware_stats.last_frame.canvas_y;
+    auto w = m_hardware_stats.last_frame.canvas_width;
+    auto h = m_hardware_stats.last_frame.canvas_height;
+    m_command_buffer->set_viewport(x, y, w, h);
+    m_command_buffer->set_face_culling(true);
+
     // lighting pass
     {
-        m_command_buffer->bind_vertex_array(nullptr);
-        m_command_buffer->bind_shader_program(nullptr);
-
         m_command_buffer->bind_framebuffer(m_hdr_buffer); // bind hdr.
-        m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.2f, 1.0f, m_hdr_buffer);
-        m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::FILL);
         m_command_buffer->bind_shader_program(m_lighting_pass);
+        m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::FILL);
 
-        bind_lighting_pass_uniform_buffer();
         m_command_buffer->bind_texture(0, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0), 0);
         m_command_buffer->bind_texture(1, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT1), 1);
         m_command_buffer->bind_texture(2, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT2), 2);
         m_command_buffer->bind_texture(3, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT3), 3);
         m_command_buffer->bind_texture(4, m_gbuffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 4);
+        if (m_pipeline_steps[mango::render_step::shadow_map])
+        {
+            glm::mat4 vp_matrices[4];
+            glm::vec3 splits;
+            std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->bind_shadow_maps_and_get_shadow_data(m_command_buffer, vp_matrices, splits);
+            m_lp_uniforms.directional.view_projections[0] = std140_mat4(vp_matrices[0]);
+            m_lp_uniforms.directional.view_projections[1] = std140_mat4(vp_matrices[1]);
+            m_lp_uniforms.directional.view_projections[2] = std140_mat4(vp_matrices[2]);
+            m_lp_uniforms.directional.view_projections[3] = std140_mat4(vp_matrices[3]);
+            m_lp_uniforms.directional.cascade_splits      = std140_vec3(splits);
+        }
+        else
+            m_command_buffer->bind_texture(8, default_texture_array, 8);
         if (m_pipeline_steps[mango::render_step::ibl])
             std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl])->bind_image_based_light_maps(m_command_buffer);
+        else
+        {
+            m_command_buffer->bind_texture(5, default_texture, 5);
+            m_command_buffer->bind_texture(6, default_texture, 6);
+            m_command_buffer->bind_texture(7, default_texture, 7);
+            float intensity = 1.0f;
+            m_command_buffer->bind_single_uniform(9, &intensity, sizeof(intensity));
+        }
+
+        // bind here because of shadows...
+        bind_lighting_pass_uniform_buffer(camera);
 
         // TODO Paul: Check if the binding is better for performance or not.
         m_command_buffer->bind_vertex_array(default_vao);
 
         m_command_buffer->draw_arrays(primitive_topology::POINTS, 0, 1);
         m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done, on glCalls.
-
-        // We try to reset the default state as possible, without crashing all optimizations.
-
-        m_command_buffer->bind_vertex_array(nullptr);
-        // We need to unbind the program so we can make changes to the textures.
-        m_command_buffer->bind_shader_program(nullptr);
     }
 
-    auto scene  = m_shared_context->get_current_scene();
-    auto camera = scene->get_active_camera_data();
-
     // environment drawing
-    if (m_pipeline_steps[mango::render_step::ibl])
+
+    if (m_pipeline_steps[mango::render_step::ibl] && !m_lp_uniforms.debug_view_enabled.value())
     {
         // We need the not translated view for skybox rendering.
         if (camera.camera_info)
@@ -397,7 +406,7 @@ void deferred_pbr_render_system::finish_render(float dt)
     }
 
     // auto exposure compute shaders
-    if (camera.camera_info->physical.adaptive_exposure)
+    if (camera.camera_info->physical.adaptive_exposure && !m_lp_uniforms.debug_view_enabled.value())
     {
         m_command_buffer->bind_shader_program(m_construct_luminance_buffer);
         auto tex = m_hdr_buffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0);
@@ -415,7 +424,7 @@ void deferred_pbr_render_system::finish_render(float dt)
 
         // time coefficient with tau = 1.1;
         float tau              = 1.1f;
-        float time_coefficient = 1.0f - exp(-dt * tau);
+        float time_coefficient = 1.0f - expf(-dt * tau);
         glm::vec4 red_params   = glm::vec4(time_coefficient, tex->get_width() * tex->get_height(), -10.0f, 42.0f); // min -10.0, max +32.0
         m_command_buffer->bind_single_uniform(0, &(red_params), sizeof(red_params));
 
@@ -423,27 +432,14 @@ void deferred_pbr_render_system::finish_render(float dt)
 
         m_command_buffer->add_memory_barrier(memory_barrier_bit::SHADER_STORAGE_BARRIER_BIT);
 
-        {
-            GL_NAMED_PROFILE_ZONE("Deferred Renderer First");
-            m_command_buffer->execute();
-        }
-
         apply_auto_exposure(camera);
-    }
-    else
-    {
-        {
-            GL_NAMED_PROFILE_ZONE("Deferred Renderer First");
-            m_command_buffer->execute();
-        }
     }
 
     // composite
     {
-        m_command_buffer->bind_framebuffer(m_backbuffer); // bind backbuffer.
-        m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.2f, 1.0f, m_backbuffer);
         m_command_buffer->set_depth_func(compare_operation::LESS);
         m_command_buffer->set_cull_face(polygon_face::FACE_BACK);
+        m_command_buffer->bind_framebuffer(m_backbuffer); // bind backbuffer.
         m_command_buffer->bind_shader_program(m_composing_pass);
         camera.camera_info->physical.aperture      = glm::clamp(camera.camera_info->physical.aperture, min_aperture, max_aperture);
         camera.camera_info->physical.shutter_speed = glm::clamp(camera.camera_info->physical.shutter_speed, min_shutter_speed, max_shutter_speed);
@@ -451,9 +447,11 @@ void deferred_pbr_render_system::finish_render(float dt)
         float ape                                  = camera.camera_info->physical.aperture;
         float shu                                  = camera.camera_info->physical.shutter_speed;
         float iso                                  = camera.camera_info->physical.iso;
-        float ev100                                = glm::log2(((ape * ape) * 100.0f) / (shu * iso));
+        float ev100                                = glm::log2((ape * ape) / shu * 100.0f / iso);
         float camera_exposure                      = 1.0f / (1.2f * glm::exp2(ev100));
         m_command_buffer->bind_single_uniform(1, &camera_exposure, sizeof(camera_exposure));
+        int32 b_val = m_lp_uniforms.debug_view_enabled.value() ? 1 : (m_lp_uniforms.debug_options.draw_shadow_maps.value() ? 2 : 0);
+        m_command_buffer->bind_single_uniform(2, &(b_val), sizeof(b_val));
 
         m_command_buffer->bind_texture(0, m_hdr_buffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0), 0);
 
@@ -466,13 +464,15 @@ void deferred_pbr_render_system::finish_render(float dt)
 
     m_command_buffer->lock_buffer(m_frame_uniform_buffer);
 
-    m_command_buffer->bind_framebuffer(nullptr);    // bind default.
-    m_command_buffer->bind_shader_program(nullptr); // unbind.
-    // TODO Paul: This should not be done here, this is pretty bad!
-    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH_STENCIL, attachment_mask::ALL, 0.1f, 0.1f, 0.1f, 1.0f);
+    m_command_buffer->bind_framebuffer(nullptr);
+    m_command_buffer->bind_vertex_array(nullptr);
+    // We need to unbind the program so we can make changes to the textures.
+    m_command_buffer->bind_shader_program(nullptr);
+
+    // We try to reset the default state as possible, without crashing all optimizations.
 
     {
-        GL_NAMED_PROFILE_ZONE("Deferred Renderer Second");
+        GL_NAMED_PROFILE_ZONE("Deferred Renderer");
         m_command_buffer->execute();
     }
 
@@ -491,6 +491,8 @@ void deferred_pbr_render_system::set_viewport(int32 x, int32 y, int32 width, int
     m_backbuffer->resize(width, height);
     m_hdr_buffer->resize(width, height);
 
+    m_hardware_stats.last_frame.canvas_x      = x;
+    m_hardware_stats.last_frame.canvas_y      = y;
     m_hardware_stats.last_frame.canvas_width  = width;
     m_hardware_stats.last_frame.canvas_height = height;
 }
@@ -531,17 +533,32 @@ void deferred_pbr_render_system::set_model_info(const glm::mat4& model_matrix, b
 
     scene_vertex_uniforms u{ std140_mat4(model_matrix), std140_mat3(glm::transpose(glm::inverse(model_matrix))), std140_bool(has_normals), std140_bool(has_tangents), 0, 0 };
 
-    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - static_cast<int32>(sizeof(scene_vertex_uniforms)), "Uniform buffer size is too small.");
+    int32 to_add = m_uniform_buffer_alignment;
+    while (to_add < static_cast<int32>(sizeof(scene_vertex_uniforms)))
+        to_add += m_uniform_buffer_alignment;
+
+    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - to_add, "Uniform buffer size is too small.");
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_vertex_uniforms));
 
-    m_command_buffer->submit<set_model_info_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
-    m_frame_uniform_offset += m_uniform_buffer_alignment;
+    m_render_queue->submit<set_model_info_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
+    if (m_pipeline_steps[mango::render_step::shadow_map])
+        std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_caster_queue()->submit<set_model_info_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
+    m_frame_uniform_offset += to_add;
     m_hardware_stats.last_frame.meshes++;
 }
 
-void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
+void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array, const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
 {
     PROFILE_ZONE;
+
+    m_render_queue->bind_vertex_array(vertex_array);
+    command_buffer_ptr caster_queue;
+    if (m_pipeline_steps[mango::render_step::shadow_map])
+    {
+        caster_queue = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_caster_queue();
+        caster_queue->bind_vertex_array(vertex_array);
+    }
+
     MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
     MANGO_ASSERT(count >= 0, "The index count has to be greater than 0!");
     MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
@@ -573,79 +590,113 @@ void deferred_pbr_render_system::draw_mesh(const material_ptr& mat, primitive_to
     if (mat->use_base_color_texture)
     {
         u.base_color_texture = std140_bool(true);
-        m_command_buffer->bind_texture(0, mat->base_color_texture, 1);
+        m_render_queue->bind_texture(0, mat->base_color_texture, 1);
     }
     else
     {
         u.base_color_texture = std140_bool(false);
-        m_command_buffer->bind_texture(0, default_texture, 1);
+        m_render_queue->bind_texture(0, default_texture, 1);
     }
     if (mat->use_roughness_metallic_texture)
     {
         u.roughness_metallic_texture = std140_bool(true);
-        m_command_buffer->bind_texture(1, mat->roughness_metallic_texture, 2);
+        m_render_queue->bind_texture(1, mat->roughness_metallic_texture, 2);
     }
     else
     {
         u.roughness_metallic_texture = std140_bool(false);
-        m_command_buffer->bind_texture(1, default_texture, 2);
+        m_render_queue->bind_texture(1, default_texture, 2);
     }
     if (mat->use_occlusion_texture)
     {
         u.occlusion_texture = std140_bool(true);
-        m_command_buffer->bind_texture(2, mat->occlusion_texture, 3);
+        m_render_queue->bind_texture(2, mat->occlusion_texture, 3);
         u.packed_occlusion = std140_bool(false);
     }
     else
     {
         u.occlusion_texture = std140_bool(false);
-        m_command_buffer->bind_texture(2, default_texture, 3);
+        m_render_queue->bind_texture(2, default_texture, 3);
         // eventually it is packed
         u.packed_occlusion = std140_bool(mat->packed_occlusion && mat->use_packed_occlusion);
     }
     if (mat->use_normal_texture)
     {
         u.normal_texture = std140_bool(true);
-        m_command_buffer->bind_texture(3, mat->normal_texture, 4);
+        m_render_queue->bind_texture(3, mat->normal_texture, 4);
     }
     else
     {
         u.normal_texture = std140_bool(false);
-        m_command_buffer->bind_texture(3, default_texture, 4);
+        m_render_queue->bind_texture(3, default_texture, 4);
     }
     if (mat->use_emissive_color_texture)
     {
         u.emissive_color_texture = std140_bool(true);
-        m_command_buffer->bind_texture(4, mat->emissive_color_texture, 5);
+        m_render_queue->bind_texture(4, mat->emissive_color_texture, 5);
     }
     else
     {
         u.emissive_color_texture = std140_bool(false);
-        m_command_buffer->bind_texture(4, default_texture, 5);
+        m_render_queue->bind_texture(4, default_texture, 5);
     }
 
     u.alpha_mode   = static_cast<g_int>(mat->alpha_rendering);
     u.alpha_cutoff = mat->alpha_cutoff;
 
-    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - static_cast<int32>(sizeof(scene_material_uniforms)), "Uniform buffer size is too small.");
+    int32 to_add = m_uniform_buffer_alignment;
+    while (to_add < static_cast<int32>(sizeof(scene_material_uniforms)))
+        to_add += m_uniform_buffer_alignment;
+
+    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - to_add, "Uniform buffer size is too small.");
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_material_uniforms));
 
-    m_command_buffer->submit<push_material_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
-    m_frame_uniform_offset += m_uniform_buffer_alignment;
+    m_render_queue->submit<push_material_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
+    m_frame_uniform_offset += to_add;
 
     if (mat->double_sided)
-        m_command_buffer->set_face_culling(false);
+    {
+        m_render_queue->set_face_culling(false);
+    }
 
     if (type == index_type::NONE)
-        m_command_buffer->draw_arrays(topology, first, count, instance_count);
+    {
+        m_render_queue->draw_arrays(topology, first, count, instance_count);
+        if (caster_queue)
+            caster_queue->draw_arrays(topology, first, count, instance_count);
+    }
     else
-        m_command_buffer->draw_elements(topology, first, count, type, instance_count);
+    {
+        m_render_queue->draw_elements(topology, first, count, type, instance_count);
+        if (caster_queue)
+            caster_queue->draw_elements(topology, first, count, type, instance_count);
+    }
 
-    m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done, on glCalls.
+    m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls. Wrong, shadow map render calls not counted.
     m_hardware_stats.last_frame.primitives++;
     m_hardware_stats.last_frame.materials++;
 
-    m_command_buffer->set_face_culling(true);
+    m_render_queue->set_face_culling(true);
+    m_render_queue->bind_vertex_array(nullptr);
+    if (caster_queue)
+        caster_queue->bind_vertex_array(nullptr);
+
+    // This needs to be done.
+    // TODO Paul: State synchronization is not perfect.
+    m_render_queue->bind_texture(0, nullptr, 0);
+    m_render_queue->bind_texture(1, nullptr, 1);
+    m_render_queue->bind_texture(2, nullptr, 2);
+    m_render_queue->bind_texture(3, nullptr, 3);
+    m_render_queue->bind_texture(4, nullptr, 4);
+
+    if (caster_queue)
+    {
+        caster_queue->bind_texture(0, nullptr, 0);
+        caster_queue->bind_texture(1, nullptr, 1);
+        caster_queue->bind_texture(2, nullptr, 2);
+        caster_queue->bind_texture(3, nullptr, 3);
+        caster_queue->bind_texture(4, nullptr, 4);
+    }
 }
 
 void deferred_pbr_render_system::set_view_projection_matrix(const glm::mat4& view_projection)
@@ -677,7 +728,19 @@ void deferred_pbr_render_system::set_environment_settings(float render_level, fl
     }
 }
 
-void deferred_pbr_render_system::bind_lighting_pass_uniform_buffer()
+void deferred_pbr_render_system::submit_light(light_type type, light_data* data)
+{
+    PROFILE_ZONE;
+    if (type == light_type::directional) // currently always true
+    {
+        auto directional_data               = static_cast<directional_light_data*>(data);
+        m_lp_uniforms.directional.direction = directional_data->direction;
+        m_lp_uniforms.directional.color     = std140_vec3(directional_data->light_color);
+        m_lp_uniforms.directional.intensity = directional_data->intensity;
+    }
+}
+
+void deferred_pbr_render_system::bind_lighting_pass_uniform_buffer(camera_data& camera)
 {
     PROFILE_ZONE;
     class set_lighting_pass_uniforms_cmd : public command
@@ -693,29 +756,38 @@ void deferred_pbr_render_system::bind_lighting_pass_uniform_buffer()
 
         void execute(graphics_state&) override
         {
-            GL_NAMED_PROFILE_ZONE("Set Model Info");
+            GL_NAMED_PROFILE_ZONE("Bind Lighting Pass Uniforms");
             MANGO_ASSERT(m_uniform_buffer, "Uniforms do not exist anymore.");
-            m_uniform_buffer->bind(buffer_target::UNIFORM_BUFFER, 0, m_offset, sizeof(scene_vertex_uniforms));
+            m_uniform_buffer->bind(buffer_target::UNIFORM_BUFFER, 0, m_offset, sizeof(lighting_pass_uniforms));
         }
     };
-    auto scene  = m_shared_context->get_current_scene();
-    auto camera = scene->get_active_camera_data();
-    lighting_pass_uniforms lp_uniforms;
+
     if (camera.camera_info && camera.transform)
     {
-        lp_uniforms.inverse_view_projection = glm::inverse(camera.camera_info->view_projection);
-        lp_uniforms.camera_position         = std140_vec3(camera.transform->world_transformation_matrix[3]);
+        m_lp_uniforms.inverse_view_projection = glm::inverse(camera.camera_info->view_projection);
+        m_lp_uniforms.view                    = camera.camera_info->view;
+        m_lp_uniforms.camera_position         = std140_vec3(camera.transform->world_transformation_matrix[3]);
+        m_lp_uniforms.camera_params           = std140_vec4(glm::vec4(camera.camera_info->z_near, camera.camera_info->z_far, 0.0f, 0.0f));
     }
     else
     {
         MANGO_LOG_ERROR("Lighting pass uniforms can not be set!");
     }
+    m_lp_uniforms.directional.cast_shadows = (m_pipeline_steps[mango::render_step::shadow_map] != nullptr);
 
-    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - static_cast<int32>(sizeof(lighting_pass_uniforms)), "Uniform buffer size is too small.");
-    memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &lp_uniforms, sizeof(lighting_pass_uniforms));
+    int32 to_add = m_uniform_buffer_alignment;
+
+    while (to_add < static_cast<int32>(sizeof(lighting_pass_uniforms)))
+        to_add += m_uniform_buffer_alignment;
+
+    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - to_add, "Uniform buffer size is too small.");
+    memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &m_lp_uniforms, sizeof(lighting_pass_uniforms));
 
     m_command_buffer->submit<set_lighting_pass_uniforms_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
-    m_frame_uniform_offset += m_uniform_buffer_alignment;
+    m_frame_uniform_offset += to_add;
+
+    // clean up m_lp_uniforms.
+    m_lp_uniforms.directional.intensity = 0.0f;
 }
 
 void deferred_pbr_render_system::apply_auto_exposure(camera_data& camera)
@@ -751,6 +823,76 @@ void deferred_pbr_render_system::apply_auto_exposure(camera_data& camera)
     camera.camera_info->physical.shutter_speed = shu;
     camera.camera_info->physical.iso           = iso;
 }
+
+void deferred_pbr_render_system::on_ui_widget()
+{
+    const char* debug          = { " Default \0 Position \0 Normal \0 Depth \0 Base Color \0 Reflection Color \0 Emission \0 Occlusion \0 Roughness \0 Metallic " };
+    static int32 current_debug = 0;
+    bool change_flag           = false;
+    ImGui::Text("Deferred PBR Render System");
+    ImGui::Checkbox("Wireframe##deferred_pbr", &m_wireframe);
+    static bool has_ibl        = m_pipeline_steps[mango::render_step::ibl] != nullptr;
+    static bool has_shadow_map = m_pipeline_steps[mango::render_step::shadow_map] != nullptr;
+    if (ImGui::CollapsingHeader("Steps##deferred_pbr"))
+    {
+        change_flag = has_ibl;
+        ImGui::Checkbox("IBL##deferred_pbr", &has_ibl);
+        if (has_ibl != change_flag)
+        {
+            if (has_ibl)
+            {
+                auto step_ibl = std::make_shared<ibl_step>();
+                step_ibl->create();
+                m_pipeline_steps[mango::render_step::ibl] = std::static_pointer_cast<pipeline_step>(step_ibl);
+            }
+            else
+            {
+                m_pipeline_steps[mango::render_step::ibl] = nullptr;
+            }
+        }
+        change_flag = has_shadow_map;
+        ImGui::Checkbox("Shadow Map##deferred_pbr", &has_shadow_map);
+        if (has_shadow_map != change_flag)
+        {
+            if (has_shadow_map)
+            {
+                auto step_shadow_map = std::make_shared<shadow_map_step>();
+                step_shadow_map->create();
+                m_pipeline_steps[mango::render_step::shadow_map] = std::static_pointer_cast<pipeline_step>(step_shadow_map);
+            }
+            else
+            {
+                m_pipeline_steps[mango::render_step::shadow_map] = nullptr;
+            }
+        }
+        if (has_shadow_map)
+        {
+            ImGui::SliderFloat("Shadow Map Offset##deferred_pbr", &m_shadow_map_offset, 0.0f, 100.0f);
+        }
+    }
+    if (ImGui::CollapsingHeader("Debug##deferred_pbr"))
+    {
+        for (int32 i = 0; i < 9; ++i)
+            m_lp_uniforms.debug_views.debug[i] = std140_bool(false);
+        ImGui::Combo("Views##deferred_pbr", &current_debug, debug);
+        if (current_debug)
+        {
+            m_lp_uniforms.debug_views.debug[current_debug - 1] = std140_bool(true);
+            m_lp_uniforms.debug_view_enabled                   = std140_bool(true);
+        }
+        if (has_shadow_map)
+        {
+            bool casc = m_lp_uniforms.debug_options.show_cascades.value();
+            ImGui::Checkbox("Show Cascades##deferred_pbr", &casc);
+            m_lp_uniforms.debug_options.show_cascades = std140_bool(casc);
+
+            bool sm = m_lp_uniforms.debug_options.draw_shadow_maps.value();
+            ImGui::Checkbox("Show Shadow Maps##deferred_pbr", &sm);
+            m_lp_uniforms.debug_options.draw_shadow_maps = std140_bool(sm);
+        }
+    }
+}
+
 #ifdef MANGO_DEBUG
 
 static const char* getStringForType(g_enum type)
