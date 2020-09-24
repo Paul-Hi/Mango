@@ -47,8 +47,9 @@ namespace mango
         //! \brief Binds the shadow maps and returns relevant lighting pass data.
         //!\param[in] command_buffer The \a command_buffer to add the binding commands to.
         //! \param[out] out_view_projections An array to store the view projection matrices of the cascades into.
-        //! \param[out] cascade_splits An three dimensional vector to store the splits depths into.
-        void bind_shadow_maps_and_get_shadow_data(command_buffer_ptr& command_buffer, glm::mat4 (&out_view_projections)[shadow_mapping_cascades], glm::vec3& cascade_splits);
+        //! \param[out] far_planes An vec4 to store the far planes of the cascade views into.
+        //! \param[out] cascade_info An four dimensional vector to store the splits depths into. The w component is the shadow map resolution.
+        void bind_shadow_maps_and_get_shadow_data(command_buffer_ptr& command_buffer, glm::mat4 (&out_view_projections)[shadow_mapping_cascades], glm::vec4& far_planes, glm::vec4& cascade_info);
 
       private:
         //! \brief Queue to store caster render commands into.
@@ -58,10 +59,8 @@ namespace mango
         //! \brief Program to execute the shadow mapping pass.
         shader_program_ptr m_shadow_pass;
 
-        //! \brief Shadow map width.
-        int32 m_width = 4096; // TODO Paul: hardcoded.
-        //! \brief Shadow map height.
-        int32 m_height = 4096; // TODO Paul: hardcoded.
+        //! \brief Shadow map resolution.
+        int32 m_resolution = 2048; // TODO Paul: hardcoded. Read from config.
 
         //! \brief The offset for the projection.
         float m_shadowmap_offset = 0.0f; // TODO Paul: This can probably be done better.
@@ -74,6 +73,7 @@ namespace mango
             float split_depth[shadow_mapping_cascades + 1];              //!< The calculated split depths.
             float lambda;                                                //!< Lambda used to calculate split depths uniform <-> log.
             glm::mat4 view_projection_matrices[shadow_mapping_cascades]; //!< The view projection matrices.
+            glm::vec4 far_planes;                                        //!< The far planes of the shadow views.
         } m_cascade_data;                                                //!< Data related to shadow cascades.
     };
 } // namespace mango

@@ -132,7 +132,8 @@ namespace mango
 
         //! \brief Uniform buffer structure for the lighting pass of the deferred pipeline.
         struct lighting_pass_uniforms
-        {            std140_mat4 inverse_view_projection; //!< Inverse camera view projection matrix.
+        {
+            std140_mat4 inverse_view_projection; //!< Inverse camera view projection matrix.
             std140_mat4 view;                    //!< Camera view matrix.
             std140_vec3 camera_position;         //!< Camera position.
             std140_vec4 camera_params;           //!< Camera near and far plane depth value. (zw) unused atm.
@@ -141,7 +142,8 @@ namespace mango
             {
                 //  TODO Paul: Size hardcoded.
                 std140_mat4 view_projections[4]; //!< The 4 view projection matrices of the different cascades.
-                std140_vec3 cascade_splits;      //!< The 3 cascade splits.
+                std140_vec4 far_planes;          //!< The 4 far planes of the different cascade views.
+                std140_vec4 cascade_info;        //!< The 3 cascade splits. w component is the cascade shadow map resolution.
                 std140_vec3 direction;           //!< The direction to the light.
                 std140_vec3 color;               //!< The light color.
                 g_float intensity;               //!< The intensity of the directional light in lumen

@@ -63,6 +63,7 @@ bool deferred_pbr_render_system::create()
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, NULL, GL_FALSE);
     // glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, 0, GL_DEBUG_SEVERITY_NOTIFICATION, -1, "Test Message GLDebug!");
+    MANGO_LOG_DEBUG("Debug Output Enabled");
 #endif // MANGO_DEBUG
 
     shared_ptr<window_system_impl> ws = m_shared_context->get_window_system_internal().lock();
@@ -361,13 +362,15 @@ void deferred_pbr_render_system::finish_render(float dt)
         if (m_pipeline_steps[mango::render_step::shadow_map])
         {
             glm::mat4 vp_matrices[4];
-            glm::vec3 splits;
-            std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->bind_shadow_maps_and_get_shadow_data(m_command_buffer, vp_matrices, splits);
+            glm::vec4 far_planes;
+            glm::vec4 cascade_info;
+            std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->bind_shadow_maps_and_get_shadow_data(m_command_buffer, vp_matrices, far_planes, cascade_info);
             m_lp_uniforms.directional.view_projections[0] = std140_mat4(vp_matrices[0]);
             m_lp_uniforms.directional.view_projections[1] = std140_mat4(vp_matrices[1]);
             m_lp_uniforms.directional.view_projections[2] = std140_mat4(vp_matrices[2]);
             m_lp_uniforms.directional.view_projections[3] = std140_mat4(vp_matrices[3]);
-            m_lp_uniforms.directional.cascade_splits      = std140_vec3(splits);
+            m_lp_uniforms.directional.far_planes          = std140_vec4(far_planes);
+            m_lp_uniforms.directional.cascade_info        = std140_vec4(cascade_info);
         }
         else
             m_command_buffer->bind_texture(8, default_texture_array, 8);

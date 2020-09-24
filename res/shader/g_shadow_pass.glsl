@@ -16,7 +16,8 @@ void main()
         mat4 view_projection_matrix = view_projection_matrices[layer];
         for(int i = 0; i < gl_in.length(); ++i)
         {
-            gl_Position = view_projection_matrix * gl_in[i].gl_Position;
+            vec4 pos = view_projection_matrix * gl_in[i].gl_Position;
+            gl_Position = pos;
             EmitVertex();
         }
         EndPrimitive();
