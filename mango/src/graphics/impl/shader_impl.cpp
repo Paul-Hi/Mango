@@ -18,13 +18,18 @@ shader_impl::shader_impl(const shader_configuration& configuration)
     string source_string = "";
     std::ifstream input_stream;
     input_stream.open(m_path, std::ios::in | std::ios::binary);
-    if (input_stream.good())
+
+    if (input_stream.is_open())
     {
         input_stream.seekg(0, std::ios::end);
         source_string.resize(static_cast<uint32_t>(input_stream.tellg()));
         input_stream.seekg(0, std::ios::beg);
         input_stream.read(&source_string[0], source_string.size());
         input_stream.close();
+    }
+    else
+    {
+        MANGO_LOG_ERROR("Opening shader file failed: {0} !");
     }
 
     m_name                        = glCreateShader(shader_type_to_gl(m_type));

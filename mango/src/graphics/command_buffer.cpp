@@ -565,52 +565,67 @@ void command_buffer::add_memory_barrier(memory_barrier_bit barrier_bit)
     submit<add_memory_barrier_cmd>(barrier_bit);
 }
 
-void command_buffer::lock_buffer(buffer_ptr buffer)
+void command_buffer::fence_sync(g_sync sync)
 {
     PROFILE_ZONE;
-    class lock_buffer_cmd : public command
+    class fence_sync_cmd : public command
     {
       public:
-        buffer_ptr m_buffer;
-        lock_buffer_cmd(buffer_ptr buffer)
-            : m_buffer(buffer)
+        g_sync m_sync;
+        fence_sync_cmd(g_sync sync)
+            : m_sync(sync)
         {
         }
 
         void execute(graphics_state&) override
         {
-            NAMED_PROFILE_ZONE("Lock Buffer");
-            GL_NAMED_PROFILE_ZONE("Lock Buffer");
-            m_buffer->lock();
+            NAMED_PROFILE_ZONE("Fence Sync");
+            GL_NAMED_PROFILE_ZONE("Fence Sync");
+            if (glIsSync(m_sync))
+            {
+                glDeleteSync(m_sync);
+            }
+            m_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
         }
     };
 
     // TODO Paul: Store that in the state?
-    submit<lock_buffer_cmd>(buffer);
+    submit<fence_sync_cmd>(sync);
 }
 
-void command_buffer::wait_for_buffer(buffer_ptr buffer)
+void command_buffer::client_wait_sync(g_sync sync)
 {
     PROFILE_ZONE;
-    class wait_for_buffer_cmd : public command
+    class client_wait_sync_cmd : public command
     {
       public:
-        buffer_ptr m_buffer;
-        wait_for_buffer_cmd(buffer_ptr buffer)
-            : m_buffer(buffer)
+        g_sync m_sync;
+        client_wait_sync_cmd(g_sync sync)
+            : m_sync(sync)
         {
         }
 
         void execute(graphics_state&) override
         {
-            NAMED_PROFILE_ZONE("Wait For Buffer");
-            GL_NAMED_PROFILE_ZONE("Wait For Buffer");
-            m_buffer->request_wait();
+            NAMED_PROFILE_ZONE("Client Wait Sync");
+            GL_NAMED_PROFILE_ZONE("Client Wait Sync");
+            if (glIsSync(m_sync))
+            {
+                int32 waiting_time = 100;
+                while (1)
+                {
+                    g_enum wait_return = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, waiting_time);
+                    if (wait_return == GL_ALREADY_SIGNALED || wait_return == GL_CONDITION_SATISFIED)
+                        return;
+                    MANGO_LOG_INFO("SIGNALED {0}, WAITING TIME {1}", wait_return, waiting_time);
+                    waiting_time *= 10;
+                }
+            }
         }
     };
 
     // TODO Paul: Store that in the state?
-    submit<wait_for_buffer_cmd>(buffer);
+    submit<client_wait_sync_cmd>(sync);
 }
 
 void command_buffer::calculate_mipmaps(texture_ptr texture)
@@ -987,7 +1002,7 @@ void command_buffer::set_polygon_offset(float factor, float units)
             NAMED_PROFILE_ZONE("Set Polygon Offset");
             GL_NAMED_PROFILE_ZONE("Set Polygon Offset");
 
-            if(m_units > 1e-5)
+            if (m_units > 1e-5)
             {
                 glEnable(GL_POLYGON_OFFSET_FILL);
                 glPolygonOffset(m_factor, m_units);
@@ -996,7 +1011,6 @@ void command_buffer::set_polygon_offset(float factor, float units)
             {
                 glDisable(GL_POLYGON_OFFSET_FILL);
             }
-
 
             state.set_polygon_offset(m_factor, m_units);
         }

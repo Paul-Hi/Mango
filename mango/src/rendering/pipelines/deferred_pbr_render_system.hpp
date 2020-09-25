@@ -201,6 +201,9 @@ namespace mango
 
         //! \brief True if the renderer should draw wireframe, else false.
         bool m_wireframe = false;
+
+        //! \brief Object used for cpu <-> gpu sync.
+        g_sync m_frame_sync;
     };
 
 } // namespace mango

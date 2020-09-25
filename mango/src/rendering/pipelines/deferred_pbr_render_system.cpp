@@ -201,13 +201,13 @@ bool deferred_pbr_render_system::create()
     if (!check_creation(m_composing_pass.get(), "composing pass shader program", "Render System"))
         return false;
 
+    // luminance compute for auto exposure
     shader_config.m_path                  = "res/shader/c_construct_luminance_buffer.glsl";
     shader_config.m_type                  = shader_type::COMPUTE_SHADER;
     shader_ptr construct_luminance_buffer = shader::create(shader_config);
     if (!check_creation(construct_luminance_buffer.get(), "luminance construction compute shader", "Render System"))
         return false;
 
-    // luminance compute for auto exposure
     m_construct_luminance_buffer = shader_program::create_compute_pipeline(construct_luminance_buffer);
     if (!check_creation(m_construct_luminance_buffer.get(), "luminance construction compute shader program", "Render System"))
         return false;
@@ -314,7 +314,6 @@ void deferred_pbr_render_system::begin_render()
         set_view_projection_matrix(camera.camera_info->view_projection);
     }
 
-    m_command_buffer->wait_for_buffer(m_frame_uniform_buffer);
     if (m_wireframe)
         m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::LINE);
 }
@@ -465,14 +464,13 @@ void deferred_pbr_render_system::finish_render(float dt)
         m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done, on glCalls.
     }
 
-    m_command_buffer->lock_buffer(m_frame_uniform_buffer);
-
     m_command_buffer->bind_framebuffer(nullptr);
     m_command_buffer->bind_vertex_array(nullptr);
     // We need to unbind the program so we can make changes to the textures.
     m_command_buffer->bind_shader_program(nullptr);
 
-    // We try to reset the default state as possible, without crashing all optimizations.
+    m_command_buffer->fence_sync(m_frame_sync);
+    m_command_buffer->client_wait_sync(m_frame_sync);
 
     {
         GL_NAMED_PROFILE_ZONE("Deferred Renderer");

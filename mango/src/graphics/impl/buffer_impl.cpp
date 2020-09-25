@@ -153,25 +153,3 @@ void* buffer_impl::map(int64 offset, int64 length, buffer_access)
 }
 
 void buffer_impl::unmap() {}
-
-void buffer_impl::lock()
-{
-    if (glIsSync(m_sync))
-    {
-        glDeleteSync(m_sync);
-    }
-    m_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-}
-
-void buffer_impl::request_wait()
-{
-    if (glIsSync(m_sync))
-    {
-        while (1)
-        {
-            g_enum wait_return = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, 10);
-            if (wait_return == GL_ALREADY_SIGNALED || wait_return == GL_CONDITION_SATISFIED)
-                return;
-        }
-    }
-}

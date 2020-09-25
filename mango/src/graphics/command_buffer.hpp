@@ -126,13 +126,13 @@ namespace mango
         //! \param[in] barrier_bit The \a memory_barrier_bit to add the barrier to.
         void add_memory_barrier(memory_barrier_bit barrier_bit);
 
-        //! \brief Locks a \a buffer after a modification.
-        //! \param[in] buffer The pointer to the \a buffer to lock.
-        void lock_buffer(buffer_ptr buffer);
+        //! \brief Places a GPU sync.
+        //! \param[in,out] sync The sync object.
+        void fence_sync(g_sync sync);
 
-        //! \brief Waits for a \a buffer after a series of gl calls.
-        //! \param[in] buffer The pointer to the \a buffer to wait for.
-        void wait_for_buffer(buffer_ptr buffer);
+        //! \brief Waits for a sync signal by the GPU.
+        //! \param[in,out] sync The sync object.
+        void client_wait_sync(g_sync sync);
 
         //! \brief Calukates the mipmaps for the \a texture.
         //! \details This is used to recalculate the mipmaps after the pixels where changed by a compute shader.
