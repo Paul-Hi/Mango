@@ -4,8 +4,8 @@ const float PI = 3.1415926535897932384626433832795;
 const float INV_PI = 1.0 / PI;
 
 #define saturate(x) clamp(x, 0.0, 1.0)
-#define cascades 4
-#define shadow_res_reference 1024
+#define max_cascades 4
+#define shadow_res_reference 512
 
 out vec4 frag_color;
 
@@ -31,7 +31,7 @@ layout(binding = 0, std140) uniform lighting_pass_uniforms
     vec4 camera_position; // this is a vec3, but there are annoying bugs with some drivers.
     vec4 camera_params; // near, far, (zw) unused
 
-    mat4 directional_view_projection_matrices[cascades];
+    mat4 directional_view_projection_matrices[max_cascades];
     vec4 directional_far_planes;
     vec4 cascade_info; // splits are xyz, w is the shadow map resolution
     vec4 directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
@@ -97,12 +97,19 @@ vec4 shadow_map_coords(in vec3 world_pos) // xy texcoords, z depth, w cascade id
     vec4 result;
     vec4 view_pos = view * vec4(world_pos, 1.0);
 
-    for(int i = 0; i < cascades - 1; ++i)
+    result.w = 0;
+    for(int i = 0; i < max_cascades - 1; ++i)
     {
+        if(directional_far_planes[i + 1] < directional_far_planes[i])
+        {
+            break;
+        }
         if(abs(view_pos.z) > cascade_info[i])
         {
             result.w = i + 1;
+            continue;
         }
+        break;
     }
 
     vec3 bias = get_normal() * 0.1;
@@ -143,7 +150,9 @@ float sample_blocker_distance(in vec4 shadow_uv, in sampler2DArray lookup, in in
 {
     float avg_blocker_depth = 0.0;
     int blocker_count = 0;
-    float max_width = (24.0 - 4.0 * shadow_uv.w) / cascade_info.w;
+    float max_width = 26.0 / cascade_info.w;
+    float ref_width = 12.0 / shadow_res_reference;
+    max_width = min(ref_width, max_width);
     float d_l = linearize_depth(shadow_uv.z, 1e-5, directional_far_planes[int(shadow_uv.w)]);
 
     for(int i = 0; i < sample_count; ++i)
@@ -178,9 +187,9 @@ float pcss(in vec4 shadow_uv, in sampler2DArray lookup)
     float gradient_noise = interleaved_gradient_noise(gl_FragCoord.xy);
     float penumbra = sample_blocker_distance(shadow_uv,lookup, num_blocker_samples, gradient_noise, 2.0);
     float shadow = 0.0;
-    float max_penumbra = (3.0 - shadow_uv.w * 0.5) / cascade_info.w;
-    float ref_penumbra = (3.0 - shadow_uv.w * 0.5) / shadow_res_reference;
-    max_penumbra = ref_penumbra < max_penumbra ? mix(max_penumbra, ref_penumbra, 0.5) : ref_penumbra;
+    float max_penumbra = 6.0 / cascade_info.w;
+    float ref_penumbra = 3.0 / shadow_res_reference;
+    max_penumbra = max(ref_penumbra, max_penumbra);
     float d_l = linearize_depth(shadow_uv.z, 1e-5, directional_far_planes[sample_id]);
     num_samples += int(penumbra * 16.0);
 
