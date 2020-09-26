@@ -572,10 +572,47 @@ namespace mango
             auto environment_comp = application_scene->query_environment_component(e);
             auto light_comp       = application_scene->query_light_component(e);
 
+            if (ImGui::Button("Add Component"))
+            {
+                ImGui::OpenPopup("##component_addition_popup");
+            }
+            if (ImGui::BeginPopup("##component_addition_popup"))
+            {
+                if (!tag_comp && ImGui::Selectable("Tag Component"))
+                {
+                    application_scene->add_tag(e);
+                }
+                if (!transform_comp && ImGui::Selectable("Transform Component"))
+                {
+                    application_scene->add_transform_component(e);
+                }
+                //if (!mesh_comp && ImGui::Selectable("Mesh Component"))
+                //{
+                //    application_scene->add_mesh_component(e);
+                //}
+                if (/*!model_comp && */ImGui::Selectable("Model Component"))
+                {
+                }
+                if (!camera_comp && ImGui::Selectable("Camera Component"))
+                {
+                    application_scene->add_camera_component(e);
+                }
+                if (!environment_comp && ImGui::Selectable("Environment Component"))
+                {
+                    application_scene->add_environment_component(e);
+                }
+                if (!light_comp && ImGui::Selectable("Light Component"))
+                {
+                    application_scene->add_light_component(e);
+                }
+
+                ImGui::EndPopup();
+            }
+            ImGui::Separator();
             // Tag
-            ImGui::Text("Tag");
             if (tag_comp)
             {
+                ImGui::Text("Tag");
                 std::array<char, 32> tmp_string;                       // TODO Paul: Max length? 32 enough for now?
                 strcpy(tmp_string.data(), tag_comp->tag_name.c_str()); // TODO Paul: Kind of fishy.
                 ImGui::InputTextWithHint(("##tag" + std::to_string(e)).c_str(), "Enter Entity Tag", tmp_string.data(), 32);
@@ -583,18 +620,13 @@ namespace mango
                 ImGui::Spacing();
                 if (ImGui::Button(("Remove##tag" + std::to_string(e)).c_str()))
                     application_scene->remove_tag(e);
+                ImGui::Separator();
             }
-            else
-            {
-                if (ImGui::Button(("Add##tag" + std::to_string(e)).c_str()))
-                    application_scene->add_tag(e);
-            }
-            ImGui::Separator();
 
             // Transform
-            ImGui::Text("Transform");
             if (transform_comp)
             {
+                ImGui::Text("Transform");
                 ImGui::BeginTabBar(("##local_transform" + std::to_string(e)).c_str());
                 if (ImGui::BeginTabItem(("Translation##translation" + std::to_string(e)).c_str()))
                 {
@@ -715,19 +747,13 @@ namespace mango
                 // ImGui::SameLine();
                 // if (ImGui::Button(("Remove##transform" + std::to_string(e)).c_str()))
                 //     application_scene->remove_transform_component(e);
+                ImGui::Separator();
             }
-            else
-            {
-                if (ImGui::Button(("Add##transform" + std::to_string(e)).c_str()))
-                    application_scene->add_transform_component(e);
-            }
-
-            ImGui::Separator();
 
             // Mesh
-            ImGui::Text("Mesh");
             if (mesh_comp)
             {
+                ImGui::Text("Mesh");
                 ImGui::Text("Primitive/Material List:");
                 if (ImGui::ListBoxHeader(("##primitives_materials_list_box" + std::to_string(e)).c_str(), ImVec2(ImGui::GetWindowWidth() * 0.5f, 64)))
                 {
@@ -740,19 +766,13 @@ namespace mango
                 ImGui::Spacing();
                 if (ImGui::Button(("Remove##mesh" + std::to_string(e)).c_str()))
                     application_scene->remove_mesh_component(e);
+                ImGui::Separator();
             }
-            else
-            {
-                if (ImGui::Button(("Add##mesh" + std::to_string(e)).c_str()))
-                    application_scene->add_mesh_component(e);
-            }
-
-            ImGui::Separator();
 
             // Camera
-            ImGui::Text("Camera");
             if (camera_comp)
             {
+                ImGui::Text("Camera");
                 entity cam  = application_scene->get_active_camera_data().active_camera_entity;
                 bool active = cam == e;
                 ImGui::Checkbox(("Make Scene Camera##camera" + std::to_string(e)).c_str(), &active);
@@ -810,18 +830,13 @@ namespace mango
                 ImGui::Spacing();
                 if (ImGui::Button(("Remove##camera" + std::to_string(e)).c_str()))
                     application_scene->remove_camera_component(e);
+                ImGui::Separator();
             }
-            else
-            {
-                if (ImGui::Button(("Add##camera" + std::to_string(e)).c_str()))
-                    application_scene->add_camera_component(e);
-            }
-            ImGui::Separator();
 
             // Environment
-            ImGui::Text("Environment");
             if (environment_comp)
             {
+                ImGui::Text("Environment");
                 entity env  = application_scene->get_active_environment_data().active_environment_entity;
                 bool active = env == e;
                 if (environment_comp->hdr_texture)
@@ -894,18 +909,13 @@ namespace mango
                         application_scene->set_active_environment(invalid_entity);
                     application_scene->remove_environment_component(e);
                 }
+                ImGui::Separator();
             }
-            else
-            {
-                if (ImGui::Button(("Add##environment" + std::to_string(e)).c_str()))
-                    application_scene->add_environment_component(e);
-            }
-            ImGui::Separator();
 
             // Light
-            ImGui::Text("Light");
             if (light_comp)
             {
+                ImGui::Text("Light");
                 ImGui::Text("Light Type");
                 light_type current      = light_comp->type_of_light;
                 const char* possible[1] = { "Directional Light" };
@@ -931,13 +941,8 @@ namespace mango
                 {
                     application_scene->remove_light_component(e);
                 }
+                ImGui::Separator();
             }
-            else
-            {
-                if (ImGui::Button(("Add##light" + std::to_string(e)).c_str()))
-                    application_scene->add_light_component(e);
-            }
-            ImGui::Separator();
         }
 
         ImGui::End();

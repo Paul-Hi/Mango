@@ -331,7 +331,8 @@ void deferred_pbr_render_system::finish_render(float dt)
         if (m_lp_uniforms.directional.intensity > 1e-5f && !m_lp_uniforms.debug_view_enabled.value() && camera.camera_info)
         {
             std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])
-                ->update_cascades(camera.camera_info->z_near, camera.camera_info->z_far, camera.camera_info->view_projection, m_lp_uniforms.directional.direction.value(), m_shadow_map_resolution, m_shadow_map_cascade_count, m_shadow_map_offset);
+                ->update_cascades(camera.camera_info->z_near, camera.camera_info->z_far, camera.camera_info->view_projection, m_lp_uniforms.directional.direction.value(), m_shadow_map_resolution,
+                                  m_shadow_map_cascade_count, m_shadow_map_offset);
 
             m_pipeline_steps[mango::render_step::shadow_map]->execute(m_command_buffer);
         }
@@ -869,9 +870,9 @@ void deferred_pbr_render_system::on_ui_widget()
         if (has_shadow_map)
         {
             // Resolution 512, 1024, 2048, 4096
-            const char* resolutions  = " 512 \0 1024 \0 2048 \0 4096 \0\0";
-            int32 r = m_shadow_map_resolution;
-            int32 current = r > 2048 ? 3 : (r > 1024 ? 2 : (r > 512 ? 1 : 0));
+            const char* resolutions = " 512 \0 1024 \0 2048 \0 4096 \0\0";
+            int32 r                 = m_shadow_map_resolution;
+            int32 current           = r > 2048 ? 3 : (r > 1024 ? 2 : (r > 512 ? 1 : 0));
             ImGui::Combo("Shadow Map Resolution##deferred_pbr", &current, resolutions);
             m_shadow_map_resolution = 512 * glm::pow(2, current);
             // Cascades 1, 2, 3, 4
@@ -884,6 +885,7 @@ void deferred_pbr_render_system::on_ui_widget()
     {
         for (int32 i = 0; i < 9; ++i)
             m_lp_uniforms.debug_views.debug[i] = std140_bool(false);
+        m_lp_uniforms.debug_view_enabled = std140_bool(false);
         ImGui::Combo("Views##deferred_pbr", &current_debug, debug);
         if (current_debug)
         {

@@ -151,7 +151,11 @@ entity scene::create_entities_from_model(const string& path)
     glm::vec3 min_backup   = m_scene_boundaries.min;
     m_scene_boundaries.max = glm::vec3(-3.402823e+38f);
     m_scene_boundaries.min = glm::vec3(3.402823e+38f);
-    MANGO_ASSERT(m.scenes.size() > 0, "No scenes in the gltf model found!");
+    if(m.scenes.size() <= 0)
+    {
+        MANGO_LOG_DEBUG("No scenes in the gltf model found! Can not load invalid gltf.");
+        return invalid_entity;
+    }
 
     // load all model buffer views into buffers.
     std::map<int, buffer_ptr> index_to_buffer_data;
