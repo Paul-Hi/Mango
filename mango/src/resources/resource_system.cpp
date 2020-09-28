@@ -73,6 +73,7 @@ const shared_ptr<model> resource_system::get_gltf_model(const string& path, cons
     if (!err.empty())
     {
         MANGO_LOG_ERROR("Error on loading gltf file {0}:\n {1}", path, err);
+        return nullptr;
     }
 
     if (!ret)

@@ -58,23 +58,23 @@ int32 application::run(int32 t_argc, char** t_argv)
         ws->poll_events();
         m_should_close = m_should_close || ws->should_close();
 
-        float frame_time = static_cast<float>(m_frame_timer->elapsedMicroseconds().count()) * 0.000001f; // We need the resolution. TODO Paul: We could wrap this with some kind of 'high res clock'.
+        m_frametime = static_cast<float>(m_frame_timer->elapsedMicroseconds().count()) * 0.000001f; // We need the resolution. TODO Paul: We could wrap this with some kind of 'high res clock'.
         m_frame_timer->restart();
 
         // update
-        update(frame_time);
-        scene->update(frame_time);
-        ws->update(frame_time);
-        is->update(frame_time);
-        rs->update(frame_time);
-        uis->update(frame_time);
+        update(m_frametime);
+        scene->update(m_frametime);
+        ws->update(m_frametime);
+        is->update(m_frametime);
+        rs->update(m_frametime);
+        uis->update(m_frametime);
 
         // render
         rs->begin_render();
         //
         scene->render();
         //
-        rs->finish_render(frame_time); // needs frame time for auto exposure.
+        rs->finish_render(m_frametime); // needs frame time for auto exposure.
         //
         uis->draw_ui();
 

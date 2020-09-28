@@ -37,12 +37,8 @@ namespace mango
         //! \param[in] camera_far The cameras far plane depth.
         //! \param[in] camera_view_projection The cameras view projection matrix.
         //! \param[in] directional_direction The direction to the light.
-        //! \param[in] shadow_map_resolution The resolution for each cascade shadowmap.
-        //! \param[in] shadow_map_cascade_count The number of cascades to use.
-        //! \param[in] shadow_map_offset The offset to use for the orthogonal projection. This is needed at the moment to account for certain geometry not in the camera frustum. Higher value does
         //! reduce quality.
-        void update_cascades(float camera_near, float camera_far, const glm::mat4& camera_view_projection, const glm::vec3& directional_direction, int32 shadow_map_resolution,
-                             int32 shadow_map_cascade_count, float shadow_map_offset);
+        void update_cascades(float camera_near, float camera_far, const glm::mat4& camera_view_projection, const glm::vec3& directional_direction);
 
         //! \brief The maximum number of cascades.
         static const int32 max_shadow_mapping_cascades = 4; // TODO Paul: We should move this.
@@ -53,6 +49,8 @@ namespace mango
         //! \param[out] far_planes An vec4 to store the far planes of the cascade views into.
         //! \param[out] cascade_info An four dimensional vector to store the splits depths into. The w component is the shadow map resolution.
         void bind_shadow_maps_and_get_shadow_data(command_buffer_ptr& command_buffer, glm::mat4 (&out_view_projections)[max_shadow_mapping_cascades], glm::vec4& far_planes, glm::vec4& cascade_info);
+
+        void on_ui_widget() override;
 
       private:
         //! \brief Queue to store caster render commands into.
@@ -70,6 +68,9 @@ namespace mango
 
         //! \brief The offset for the projection.
         float m_shadowmap_offset = 0.0f; // TODO Paul: This can probably be done better.
+
+        //! \brief Dirty bit for cascade count update.
+        bool m_dirty_cascades;
 
         struct
         {

@@ -25,6 +25,11 @@ namespace mango
         //! \param[in] command_buffer The buffer given by the \a render to execute into.
         virtual void execute(command_buffer_ptr& command_buffer) = 0;
 
+        //! \brief Custom UI function.
+        //! \details This can be called by any \a ui_widget and displays settings for the active \a pipeline_step.
+        //! This does not draw any window, so it needs one surrounding it.
+        virtual void on_ui_widget() = 0;
+
       protected:
         virtual bool create()         = 0;
         virtual void update(float dt) = 0;

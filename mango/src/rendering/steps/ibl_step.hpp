@@ -55,6 +55,8 @@ namespace mango
             m_view_projection = view_projection;
         }
 
+        void on_ui_widget() override{};
+
       private:
         //! \brief Cubemap texture.
         texture_ptr m_cubemap;

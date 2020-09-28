@@ -221,6 +221,11 @@ namespace mango
             return m_building_state;
         }
 
+        inline bool empty()
+        {
+            return m_first != nullptr;
+        }
+
       private:
 
         //! \brief Returns the unique head of the \a command_buffer.

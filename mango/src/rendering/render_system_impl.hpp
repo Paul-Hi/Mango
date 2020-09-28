@@ -145,7 +145,7 @@ namespace mango
 
         //! \brief Custom UI function.
         //! \details This can be called by any \a ui_widget and displays settings and debug information for the active \a render_system.
-        //! This does not draw any window, so it needs one surrounduing it.
+        //! This does not draw any window, so it needs one surrounding it.
         virtual void on_ui_widget();
 
       protected:

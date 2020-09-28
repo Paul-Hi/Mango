@@ -9,6 +9,7 @@
 #include <graphics/shader_program.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
+#include <imgui.h>
 #include <mango/profile.hpp>
 #include <rendering/steps/shadow_map_step.hpp>
 #include <util/helpers.hpp>
@@ -63,6 +64,8 @@ bool shadow_map_step::create()
     if (!check_creation(m_shadow_buffer.get(), "shadow buffer", "Render System"))
         return false;
 
+    m_cascade_data.lambda = 0.65f;
+
     return true;
 }
 
@@ -90,29 +93,18 @@ void shadow_map_step::execute(command_buffer_ptr& command_buffer)
 
 void shadow_map_step::destroy() {}
 
-void shadow_map_step::update_cascades(float camera_near, float camera_far, const glm::mat4& camera_view_projection, const glm::vec3& directional_direction, int32 shadow_map_resolution,
-                                      int32 shadow_map_cascade_count, float shadow_map_offset)
+void shadow_map_step::update_cascades(float camera_near, float camera_far, const glm::mat4& camera_view_projection, const glm::vec3& directional_direction)
 {
     m_cascade_data.camera_near           = camera_near;
     m_cascade_data.camera_far            = camera_far;
     m_cascade_data.directional_direction = directional_direction;
-    m_cascade_data.lambda                = 0.65f;
-    m_shadowmap_offset                   = shadow_map_offset;
-
-    if (m_resolution != shadow_map_resolution)
-    {
-        m_resolution = shadow_map_resolution;
-        m_shadow_buffer->resize(m_resolution, m_resolution);
-    }
-
 
     auto near = camera_near;
     auto far  = camera_far;
 
-    if ((glm::abs(m_cascade_data.split_depth[0] - near) > 1e-5f) || (glm::abs(m_cascade_data.split_depth[m_shadow_map_cascade_count] - far) > 1e-5f) ||
-        (m_shadow_map_cascade_count != shadow_map_cascade_count))
+    if ((glm::abs(m_cascade_data.split_depth[0] - near) > 1e-5f) || (glm::abs(m_cascade_data.split_depth[m_shadow_map_cascade_count] - far) > 1e-5f) || m_dirty_cascades)
     {
-        m_shadow_map_cascade_count = shadow_map_cascade_count;
+        m_dirty_cascades                                       = false;
         m_cascade_data.split_depth[0]                          = near;
         m_cascade_data.split_depth[m_shadow_map_cascade_count] = far;
         for (int32 i = 1; i < m_shadow_map_cascade_count; ++i)
@@ -177,12 +169,12 @@ void shadow_map_step::update_cascades(float camera_near, float camera_far, const
         glm::mat4 shadow_matrix = projection * view;
         glm::vec4 origin        = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
         origin                  = shadow_matrix * origin;
-        origin                  = origin * static_cast<float>(m_resolution) * 0.5f;
+        origin *= static_cast<float>(m_resolution) * 0.5f;
 
         glm::vec4 offset = glm::round(origin) - origin;
-        offset           = offset * 2.0f / static_cast<float>(m_resolution);
-        offset.z         = 0.0f;
-        offset.w         = 0.0f;
+        offset *= 2.0f / static_cast<float>(m_resolution);
+        offset.z = 0.0f;
+        offset.w = 0.0f;
         projection[3] += offset;
 
         m_cascade_data.view_projection_matrices[casc] = projection * view;
@@ -208,4 +200,26 @@ void shadow_map_step::bind_shadow_maps_and_get_shadow_data(command_buffer_ptr& c
     cascade_info.w          = static_cast<float>(m_resolution);
     if (m_shadow_map_cascade_count < 4)
         far_planes[m_shadow_map_cascade_count] = far_planes.x - 10.0f; // set the not valid cascade smaller then the first value.
+}
+
+void shadow_map_step::on_ui_widget()
+{
+    // Resolution 512, 1024, 2048, 4096
+    const char* resolutions = " 512 \0 1024 \0 2048 \0 4096 \0\0";
+    int32 r                 = m_resolution;
+    int32 current           = r > 2048 ? 3 : (r > 1024 ? 2 : (r > 512 ? 1 : 0));
+    ImGui::Combo("Shadow Map Resolution##shadow_step", &current, resolutions);
+    m_resolution = 512 * static_cast<int32>(glm::pow(2, current));
+    if (m_resolution != r)
+        m_shadow_buffer->resize(m_resolution, m_resolution);
+    // Offset 0.0 - 100.0
+    ImGui::SliderFloat("Shadow Map Offset##shadow_step", &m_shadowmap_offset, 0.0f, 100.0f);
+
+    // Cascades 1, 2, 3, 4
+    int32 tmp_c = m_shadow_map_cascade_count;
+    ImGui::SliderInt("Number Of Shadow Cascades##shadow_step", &m_shadow_map_cascade_count, 1, 4);
+    m_dirty_cascades = tmp_c != m_shadow_map_cascade_count;
+    float tmp_l      = m_cascade_data.lambda;
+    ImGui::SliderFloat("Cascade Splits Lambda##shadow_step", &m_cascade_data.lambda, 0.0f, 1.0f);
+    m_dirty_cascades |= tmp_l != m_cascade_data.lambda;
 }

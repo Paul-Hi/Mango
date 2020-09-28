@@ -67,6 +67,7 @@ bool editor::create()
             {
                 if (ImGui::Button("Create Editor Camera"))
                     m_main_camera = application_scene->create_default_camera();
+                application_scene->get_tag(m_main_camera)->tag_name = "Editor Camera";
             }
 
             ImGui::End();
@@ -80,7 +81,8 @@ bool editor::create()
     mango_context->register_scene(application_scene);
 
     // camera
-    m_main_camera = application_scene->create_default_camera();
+    m_main_camera                                       = application_scene->create_default_camera();
+    application_scene->get_tag(m_main_camera)->tag_name = "Editor Camera";
 
     mango_context->make_scene_current(application_scene);
 

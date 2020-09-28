@@ -144,6 +144,9 @@ entity scene::create_entities_from_model(const string& path)
     m_tags.create_component_for(gltf_root).tag_name = path.substr(start);
     model_configuration config                      = { name };
     const shared_ptr<model> loaded                  = rs->get_gltf_model(path, config);
+    if(!loaded)
+        return invalid_entity;
+
     tinygltf::Model& m                              = loaded->gltf_model;
 
     // load the default scene or the first one.

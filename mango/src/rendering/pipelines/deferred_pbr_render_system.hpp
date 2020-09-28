@@ -185,11 +185,6 @@ namespace mango
         //! \brief The current \a lighting_pass_uniforms.
         lighting_pass_uniforms m_lp_uniforms;
 
-        //! \brief The shadow offset for the cascade projections.
-        float m_shadow_map_offset        = 0.0f; // TODO Paul: This does not belong here.
-        int32 m_shadow_map_cascade_count = 3;    // TODO Paul: This does not belong here.
-        int32 m_shadow_map_resolution    = 2048; // TODO Paul: This does not belong here.
-
         //! \brief Binds the uniform buffer of the lighting pass.
         //! \param[in,out] camera The \a camera_data of the current camera.
         void bind_lighting_pass_uniform_buffer(camera_data& camera);
