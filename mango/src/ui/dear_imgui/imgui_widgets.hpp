@@ -926,21 +926,7 @@ namespace mango
                     }
                     if (environment_comp->hdr_texture)
                     {
-                        bool should_render = environment_comp->render_level >= 0.0f;
-                        bool changed       = ImGui::SliderFloat(("Intensity##environment_intensity" + std::to_string(e)).c_str(), &environment_comp->intensity, 0.0f, 50000.0f);
-                        bool tmp           = should_render;
-                        ImGui::Checkbox(("Render Environment##render_environment" + std::to_string(e)).c_str(), &should_render);
-                        changed = changed || (should_render != tmp);
-                        if (should_render)
-                        {
-                            environment_comp->render_level = glm::max(environment_comp->render_level, 0.0f);
-                            changed                        = ImGui::SliderFloat(("Blur Level##environment_blur" + std::to_string(e)).c_str(), &environment_comp->render_level, 0.0f, 4.0f) || changed;
-                        }
-                        else
-                            environment_comp->render_level = -1.0f;
-
-                        if (changed)
-                            application_scene->update_environment_parameters(e);
+                        ImGui::SliderFloat(("Intensity##environment_intensity" + std::to_string(e)).c_str(), &environment_comp->intensity, 0.0f, 50000.0f);
                     }
 
                     ImGui::Spacing();
@@ -979,6 +965,7 @@ namespace mango
                         ImGui::ColorEdit4("Color##d_light_color", d_data->light_color, ImGuiColorEditFlags_NoInputs);
 
                         ImGui::SliderFloat(("Intensity##d_light_intensity" + std::to_string(e)).c_str(), &d_data->intensity, 0.0f, 500000.0f);
+                        ImGui::Checkbox(("Cast Shadows##d_light_cast" + std::to_string(e)).c_str(), &d_data->cast_shadows);
                     }
 
                     ImGui::Spacing();

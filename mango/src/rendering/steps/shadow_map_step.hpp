@@ -20,6 +20,7 @@ namespace mango
         void update(float dt) override;
 
         void attach() override;
+        void configure(const shadow_step_configuration& config);
         void execute(command_buffer_ptr& command_buffer) override;
 
         void destroy() override;
@@ -67,7 +68,7 @@ namespace mango
         int32 m_shadow_map_cascade_count = 3; // TODO Paul: This can probably be done better.
 
         //! \brief The offset for the projection.
-        float m_shadowmap_offset = 0.0f; // TODO Paul: This can probably be done better.
+        float m_shadow_map_offset = 0.0f; // TODO Paul: This can probably be done better.
 
         //! \brief Dirty bit for cascade count update.
         bool m_dirty_cascades;

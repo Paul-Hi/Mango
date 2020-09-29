@@ -214,7 +214,7 @@ entity scene::create_entities_from_model(const string& path)
     return gltf_root;
 }
 
-entity scene::create_environment_from_hdr(const string& path, float rendered_mip_level)
+entity scene::create_environment_from_hdr(const string& path)
 {
     PROFILE_ZONE;
     entity environment_entity = create_empty();
@@ -261,7 +261,6 @@ entity scene::create_environment_from_hdr(const string& path, float rendered_mip
 
     environment.hdr_texture = hdr_texture;
 
-    environment.render_level = rendered_mip_level;
     set_active_environment(environment_entity); // TODO Paul: Transformation?
 
     return environment_entity;
@@ -275,7 +274,6 @@ void scene::set_active_environment(entity e)
     {
         m_active.environment = e;
         rs->set_environment_texture(nullptr);
-        rs->set_environment_settings(0.0f, mango::default_environment_intensity);
         return;
     }
     auto next_comp = m_environments.get_component_for_entity(e);
@@ -284,19 +282,6 @@ void scene::set_active_environment(entity e)
 
     m_active.environment = e;
     rs->set_environment_texture(next_comp->hdr_texture);
-    rs->set_environment_settings(next_comp->render_level, next_comp->intensity);
-}
-
-void scene::update_environment_parameters(entity e)
-{
-    shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
-    MANGO_ASSERT(rs, "Render System is expired!");
-    if (e == invalid_entity)
-        return;
-    auto comp = m_environments.get_component_for_entity(e);
-    if (!comp)
-        return;
-    rs->set_environment_settings(comp->render_level, comp->intensity);
 }
 
 void scene::update(float dt)

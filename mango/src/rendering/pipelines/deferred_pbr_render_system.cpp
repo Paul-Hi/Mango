@@ -288,6 +288,24 @@ void deferred_pbr_render_system::configure(const render_configuration& configura
     }
 }
 
+void deferred_pbr_render_system::setup_ibl_step(const ibl_step_configuration& config)
+{
+    if (m_pipeline_steps[mango::render_step::ibl])
+    {
+        auto step = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
+        step->configure(config);
+    }
+}
+
+void deferred_pbr_render_system::setup_shadow_map_step(const shadow_step_configuration& config)
+{
+    if (m_pipeline_steps[mango::render_step::shadow_map])
+    {
+        auto step = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map]);
+        step->configure(config);
+    }
+}
+
 void deferred_pbr_render_system::begin_render()
 {
     PROFILE_ZONE;
@@ -308,10 +326,11 @@ void deferred_pbr_render_system::finish_render(float dt)
     PROFILE_ZONE;
     auto scene  = m_shared_context->get_current_scene();
     auto camera = scene->get_active_camera_data();
+    auto env    = scene->get_active_environment_data();
 
     if (m_pipeline_steps[mango::render_step::shadow_map])
     {
-        if (m_lp_uniforms.directional.intensity > 1e-5f && !m_lp_uniforms.debug_view_enabled.value() && camera.camera_info)
+        if (m_lp_uniforms.directional.intensity > 1e-5f && !m_lp_uniforms.debug_view_enabled.value() && camera.camera_info && m_lp_uniforms.directional.cast_shadows.value())
         {
             std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])
                 ->update_cascades(camera.camera_info->z_near, camera.camera_info->z_far, camera.camera_info->view_projection, m_lp_uniforms.directional.direction.value());
@@ -376,7 +395,13 @@ void deferred_pbr_render_system::finish_render(float dt)
         else
             m_command_buffer->bind_texture(8, default_texture_array, 8);
         if (m_pipeline_steps[mango::render_step::ibl])
+        {
             std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl])->bind_image_based_light_maps(m_command_buffer);
+            float intensity = mango::default_environment_intensity;
+            if (env.environment_info)
+                intensity = env.environment_info->intensity;
+            m_command_buffer->bind_single_uniform(9, &intensity, sizeof(intensity));
+        }
         else
         {
             m_command_buffer->bind_texture(5, default_texture, 5);
@@ -400,10 +425,12 @@ void deferred_pbr_render_system::finish_render(float dt)
 
     if (m_pipeline_steps[mango::render_step::ibl] && !m_lp_uniforms.debug_view_enabled.value())
     {
+        shared_ptr<ibl_step> imgbl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
         // We need the not translated view for skybox rendering.
         if (camera.camera_info)
-            std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl])->set_view_projection_matrix(camera.camera_info->projection * glm::mat4(glm::mat3(camera.camera_info->view)));
-
+            imgbl->set_view_projection_matrix(camera.camera_info->projection * glm::mat4(glm::mat3(camera.camera_info->view)));
+        if (env.environment_info)
+            imgbl->set_intensity(env.environment_info->intensity);
         m_command_buffer->set_depth_func(compare_operation::LESS_EQUAL);
         m_command_buffer->set_cull_face(polygon_face::FACE_FRONT);
         m_pipeline_steps[mango::render_step::ibl]->execute(m_command_buffer);
@@ -719,19 +746,6 @@ void deferred_pbr_render_system::set_environment_texture(const texture_ptr& hdr_
     {
         auto ibl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
         ibl->load_from_hdr(hdr_texture);
-        ibl->set_render_level(0.0f);
-        ibl->set_intensity(mango::default_environment_intensity);
-    }
-}
-
-void deferred_pbr_render_system::set_environment_settings(float render_level, float intensity)
-{
-    PROFILE_ZONE;
-    if (m_pipeline_steps[mango::render_step::ibl])
-    {
-        auto ibl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
-        ibl->set_render_level(render_level);
-        ibl->set_intensity(intensity);
     }
 }
 
@@ -740,10 +754,11 @@ void deferred_pbr_render_system::submit_light(light_type type, light_data* data)
     PROFILE_ZONE;
     if (type == light_type::directional) // currently always true
     {
-        auto directional_data               = static_cast<directional_light_data*>(data);
-        m_lp_uniforms.directional.direction = directional_data->direction;
-        m_lp_uniforms.directional.color     = std140_vec3(directional_data->light_color);
-        m_lp_uniforms.directional.intensity = directional_data->intensity;
+        auto directional_data                  = static_cast<directional_light_data*>(data);
+        m_lp_uniforms.directional.direction    = directional_data->direction;
+        m_lp_uniforms.directional.color        = std140_vec3(directional_data->light_color);
+        m_lp_uniforms.directional.intensity    = directional_data->intensity;
+        m_lp_uniforms.directional.cast_shadows = directional_data->cast_shadows;
     }
 }
 
@@ -780,7 +795,7 @@ void deferred_pbr_render_system::bind_lighting_pass_uniform_buffer(camera_data& 
     {
         MANGO_LOG_ERROR("Lighting pass uniforms can not be set! No active camera!");
     }
-    m_lp_uniforms.directional.cast_shadows = (m_pipeline_steps[mango::render_step::shadow_map] != nullptr);
+    m_lp_uniforms.directional.cast_shadows = m_lp_uniforms.directional.cast_shadows.value() && (m_pipeline_steps[mango::render_step::shadow_map] != nullptr);
 
     int32 to_add = m_uniform_buffer_alignment;
 

@@ -60,6 +60,18 @@ void render_system_impl::configure(const render_configuration& configuration)
     }
 }
 
+void render_system_impl::setup_ibl_step(const ibl_step_configuration& config)
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->setup_ibl_step(config);
+}
+
+void render_system_impl::setup_shadow_map_step(const shadow_step_configuration& config)
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->setup_shadow_map_step(config);
+}
+
 void render_system_impl::begin_render()
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
@@ -107,12 +119,6 @@ void render_system_impl::set_environment_texture(const texture_ptr& hdr_texture)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
     m_current_render_system->set_environment_texture(hdr_texture);
-}
-
-void render_system_impl::set_environment_settings(float render_level, float intensity)
-{
-    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->set_environment_settings(render_level, intensity);
 }
 
 void render_system_impl::submit_light(light_type type, light_data* data)

@@ -11,6 +11,7 @@
 #include <graphics/vertex_array.hpp>
 #include <imgui.h>
 #include <mango/profile.hpp>
+#include <mango/render_system.hpp>
 #include <rendering/steps/shadow_map_step.hpp>
 #include <util/helpers.hpp>
 
@@ -75,6 +76,17 @@ void shadow_map_step::update(float dt)
 }
 
 void shadow_map_step::attach() {}
+
+void shadow_map_step::configure(const shadow_step_configuration& config)
+{
+    m_resolution               = config.get_resolution();
+    m_shadow_map_offset        = config.get_offset();
+    m_shadow_map_cascade_count = config.get_cascade_count();
+    m_cascade_data.lambda      = config.get_split_lambda();
+    MANGO_ASSERT(m_resolution % 2 == 0, "Shadow Map Resolution has to be a multiple of 2!");
+    MANGO_ASSERT(m_shadow_map_cascade_count > 0 && m_shadow_map_cascade_count < 5, "Cascade count has to be between 1 and 4!");
+    MANGO_ASSERT(m_cascade_data.lambda > 0.0f && m_cascade_data.lambda < 1.0f, "Lambda has to be between 0.0 and 1.0!");
+}
 
 void shadow_map_step::execute(command_buffer_ptr& command_buffer)
 {
@@ -162,9 +174,9 @@ void shadow_map_step::update_cascades(float camera_near, float camera_far, const
 
         glm::mat4 projection;
         glm::mat4 view;
-        view                            = glm::lookAt(center + glm::normalize(directional_direction) * (-min_value.z + m_shadowmap_offset), center, GLOBAL_UP);
-        projection                      = glm::ortho(min_value.x, max_value.x, min_value.y, max_value.y, 0.0f, (max_value.z - min_value.z) + m_shadowmap_offset);
-        m_cascade_data.far_planes[casc] = (max_value.z - min_value.z) + m_shadowmap_offset;
+        view                            = glm::lookAt(center + glm::normalize(directional_direction) * (-min_value.z + m_shadow_map_offset), center, GLOBAL_UP);
+        projection                      = glm::ortho(min_value.x, max_value.x, min_value.y, max_value.y, 0.0f, (max_value.z - min_value.z) + m_shadow_map_offset);
+        m_cascade_data.far_planes[casc] = (max_value.z - min_value.z) + m_shadow_map_offset;
 
         glm::mat4 shadow_matrix = projection * view;
         glm::vec4 origin        = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -213,7 +225,7 @@ void shadow_map_step::on_ui_widget()
     if (m_resolution != r)
         m_shadow_buffer->resize(m_resolution, m_resolution);
     // Offset 0.0 - 100.0
-    ImGui::SliderFloat("Shadow Map Offset##shadow_step", &m_shadowmap_offset, 0.0f, 100.0f);
+    ImGui::SliderFloat("Shadow Map Offset##shadow_step", &m_shadow_map_offset, 0.0f, 100.0f);
 
     // Cascades 1, 2, 3, 4
     int32 tmp_c = m_shadow_map_cascade_count;

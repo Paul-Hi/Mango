@@ -61,9 +61,8 @@ namespace mango
         //! \details An entity with \a environment_component.
         //! The environment texture is preprocessed, prefiltered and can be rendered as a cube. This is done with a \a pipeline_step.
         //! \param[in] path The path to the hdr image to load.
-        //! \param[in] rendered_mip_level The mipmap level to render the texture. -1 if no visualization is wanted.
         //! \return The created environment entity.
-        entity create_environment_from_hdr(const string& path, float rendered_mip_level);
+        entity create_environment_from_hdr(const string& path);
 
         //! \brief Attach an \a entity to another entity in a child <-> parent realationship.
         //! \details Adds a \a node_component. Used for building hierarchies.
@@ -316,11 +315,6 @@ namespace mango
         //! \brief Sets the active environment to an \a entity.
         //! \param[in] e The \a entity to set the active environment to.
         void set_active_environment(entity e);
-
-        //! \brief Updates environment parameters of the corresponding component of an \a entity.
-        //! \details This does update the environment, but leaves the texture untouched. Does not run compute shaders.
-        //! \param[in] e The \a entity to update the environment parameters of.
-        void update_environment_parameters(entity e);
 
         //! \brief Retrieves the \a scene root \a entity.
         //! \return The \a scene root \a entity.

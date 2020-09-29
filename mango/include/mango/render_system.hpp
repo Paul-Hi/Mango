@@ -122,6 +122,106 @@ namespace mango
         bool m_render_steps[render_step::number_of_step_types];
     };
 
+    class shadow_step_configuration
+    {
+      public:
+        //! \brief Default constructor to set some default values.
+        shadow_step_configuration()
+            : m_resolution(2048)
+            , m_offset(0.0f)
+            , m_cascade_count(3)
+            , m_lambda(0.65f)
+        {
+        }
+
+        shadow_step_configuration(int32 resolution, float offset, int32 cascade_count, float lambda)
+            : m_resolution(resolution)
+            , m_offset(offset)
+            , m_cascade_count(cascade_count)
+            , m_lambda(lambda)
+        {
+        }
+
+        inline shadow_step_configuration& set_resolution(int32 resolution)
+        {
+            m_resolution = resolution;
+            return *this;
+        }
+
+        inline shadow_step_configuration& set_offset(float offset)
+        {
+            m_offset = offset;
+            return *this;
+        }
+
+        inline shadow_step_configuration& set_cascade_count(int32 cascade_count)
+        {
+            m_cascade_count = cascade_count;
+            return *this;
+        }
+
+        inline shadow_step_configuration& set_split_lambda(float lambda)
+        {
+            m_lambda = lambda;
+            return *this;
+        }
+
+        inline int32 get_resolution() const
+        {
+            return m_resolution;
+        }
+
+        inline float get_offset() const
+        {
+            return m_offset;
+        }
+
+        inline int32 get_cascade_count() const
+        {
+            return m_cascade_count;
+        }
+
+        inline float get_split_lambda() const
+        {
+            return m_lambda;
+        }
+
+      private:
+        int32 m_resolution;
+        float m_offset;
+        int32 m_cascade_count;
+        float m_lambda;
+    };
+
+    class ibl_step_configuration
+    {
+      public:
+        //! \brief Default constructor to set some default values.
+        ibl_step_configuration()
+            : m_render_level(0.0f)
+        {
+        }
+
+        ibl_step_configuration(float render_level)
+            : m_render_level(render_level)
+        {
+        }
+
+        inline ibl_step_configuration& set_render_level(float render_level)
+        {
+            m_render_level = render_level;
+            return *this;
+        }
+
+        inline float get_render_level() const
+        {
+            return m_render_level;
+        }
+
+      private:
+        float m_render_level;
+    };
+
     //! \brief A system for window creation and handling.
     //! \details The \a render_system manages the handle of the window, swaps buffers after rendering and polls for input.
     class render_system : public system
@@ -132,6 +232,9 @@ namespace mango
         //! Changes the configuration in the \a render_system to \a configuration.
         //! \param[in] configuration The \a render_configuration to use for the window.
         virtual void configure(const render_configuration& configuration) = 0;
+
+        virtual void setup_ibl_step(const ibl_step_configuration& config) = 0;
+        virtual void setup_shadow_map_step(const shadow_step_configuration& config) = 0;
 
       protected:
         virtual bool create()         = 0;

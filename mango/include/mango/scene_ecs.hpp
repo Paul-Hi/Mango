@@ -182,7 +182,6 @@ namespace mango
         glm::mat3 rotation_scale_matrix = glm::mat3(1.0f); //!< The rotation and scale of the environment.
         shared_ptr<texture> hdr_texture;                   //!< The hdr texture used to build the environment.
         float intensity = default_environment_intensity;   //!< Intensity in cd/m^2. Default 30000 (sunny sky).
-        float render_level;                                //!< The render level to render or -1 if the environment should not be rendered.
     };
 
     //! \brief Light types used in \a light_components.
@@ -202,9 +201,10 @@ namespace mango
     //! \brief Light data for directional lights.
     struct directional_light_data : public light_data
     {
-        glm::vec3 direction = glm::vec3(1.0f);           //!< The light direction.
-        color_rgb light_color;                           //!< The light color. Will get multiplied by the intensity.
-        float intensity = default_directional_intensity; //!< The instensity of the light in lumen (111000 would f.e. be a basic sun)
+        glm::vec3 direction = glm::vec3(1.0f);             //!< The light direction.
+        color_rgb light_color;                             //!< The light color. Will get multiplied by the intensity.
+        float intensity   = default_directional_intensity; //!< The instensity of the light in lumen (111000 would f.e. be a basic sun)
+        bool cast_shadows = false;                         //!< True if the light should cast shadows.
     };
 
     //! \brief Component used for all lights excluding image based lights.

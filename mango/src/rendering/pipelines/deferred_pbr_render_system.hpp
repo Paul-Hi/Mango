@@ -27,6 +27,8 @@ namespace mango
 
         virtual bool create() override;
         virtual void configure(const render_configuration& configuration) override;
+        virtual void setup_ibl_step(const ibl_step_configuration& config)  override;
+        virtual void setup_shadow_map_step(const shadow_step_configuration& config) override;
         virtual void begin_render() override;
         virtual void finish_render(float dt) override;
         virtual void set_viewport(int32 x, int32 y, int32 width, int32 height) override;
@@ -38,7 +40,6 @@ namespace mango
         void draw_mesh(const vertex_array_ptr& vertex_array, const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
         void set_view_projection_matrix(const glm::mat4& view_projection) override;
         void set_environment_texture(const texture_ptr& hdr_texture) override;
-        void set_environment_settings(float render_level, float intensity) override;
         void submit_light(light_type type, light_data* data) override;
         void on_ui_widget() override;
 

@@ -19,6 +19,7 @@ namespace mango
         void update(float dt) override;
 
         void attach() override;
+        void configure(const ibl_step_configuration& config);
         void execute(command_buffer_ptr& command_buffer) override;
 
         void destroy() override;
@@ -27,14 +28,6 @@ namespace mango
         //! \details Creates irradiance map and prefiltered specular map.
         //! \param[in] hdr_texture The texture with the hdr image data.
         void load_from_hdr(const texture_ptr& hdr_texture);
-
-        //! \brief Sets the mip level to render that environment with.
-        //! \details For higher values the prefiltered specular filtered map is used.
-        //! \param[in] render_level The level to render with. Negative values disable the rendering.
-        inline void set_render_level(float render_level)
-        {
-            m_render_level = render_level;
-        }
 
         //! \brief Sets the intensity of the environment light.
         //! \param[in] intensity The intensity in cd/m^2.
@@ -55,7 +48,7 @@ namespace mango
             m_view_projection = view_projection;
         }
 
-        void on_ui_widget() override{};
+        void on_ui_widget() override;
 
       private:
         //! \brief Cubemap texture.
