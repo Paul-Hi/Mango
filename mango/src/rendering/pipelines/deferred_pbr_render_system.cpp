@@ -319,6 +319,13 @@ void deferred_pbr_render_system::begin_render()
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_gbuffer);
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_hdr_buffer);
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_backbuffer);
+
+    m_command_buffer->client_wait_sync(m_frame_sync);
+
+    {
+        GL_NAMED_PROFILE_ZONE("Deferred Renderer Begin");
+        m_command_buffer->execute();
+    }
 }
 
 void deferred_pbr_render_system::finish_render(float dt)
@@ -446,7 +453,7 @@ void deferred_pbr_render_system::finish_render(float dt)
         glm::vec2 params = glm::vec2(-10.0f, 1.0f / 42.0f); // min -10.0, max +32.0
         m_command_buffer->bind_single_uniform(1, &(params), sizeof(params));
 
-        m_command_buffer->dispatch_compute(tex->get_width() / 16, tex->get_height() / 16, 1);
+        m_command_buffer->dispatch_compute(tex->get_width() / 32, tex->get_height() / 32, 1);
 
         m_command_buffer->add_memory_barrier(memory_barrier_bit::SHADER_STORAGE_BARRIER_BIT);
 
@@ -503,10 +510,9 @@ void deferred_pbr_render_system::finish_render(float dt)
     m_command_buffer->bind_shader_program(nullptr);
 
     m_command_buffer->fence_sync(m_frame_sync);
-    m_command_buffer->client_wait_sync(m_frame_sync);
 
     {
-        GL_NAMED_PROFILE_ZONE("Deferred Renderer");
+        GL_NAMED_PROFILE_ZONE("Deferred Renderer Finish");
         m_command_buffer->execute();
     }
 

@@ -22,8 +22,6 @@ out shader_shared
     vec3 shared_normal;
     vec3 shared_tangent;
     vec3 shared_bitangent;
-    flat bool calculate_normals;
-    flat bool calculate_tangents;
 } vs_out;
 
 void main()
@@ -32,10 +30,6 @@ void main()
     vs_out.shared_vertex_position = v_pos.xyz / v_pos.w;
 
     vs_out.shared_texcoord = v_texcoord;
-
-
-    vs_out.calculate_normals  = false;
-    vs_out.calculate_tangents = false;
 
     if(has_normals)
         vs_out.shared_normal = normal_matrix * normalize(v_normal);

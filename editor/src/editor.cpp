@@ -24,7 +24,7 @@ bool editor::create()
     mango_ws->configure(window_config);
 
     render_configuration render_config;
-    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(true).enable_render_step(mango::render_step::ibl).enable_render_step(mango::render_step::shadow_map);
+    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(false).enable_render_step(mango::render_step::ibl).enable_render_step(mango::render_step::shadow_map);
     shared_ptr<render_system> mango_rs = mango_context->get_render_system().lock();
     MANGO_ASSERT(mango_rs, "Render System is expired!");
     mango_rs->configure(render_config);
@@ -97,17 +97,16 @@ bool editor::create()
     //    mango_rs->setup_shadow_map_step(shadow_config);
 //
     //    try_open_path(application_scene, "res/models/shaderball/shaderball.glb");
-    //    entity lighting                                = application_scene->create_environment_from_hdr("res/textures/venice_sunset_4k.hdr");
-    //    application_scene->get_tag(lighting)->tag_name = "Global Lighting";
-    //    auto e_data                                    = application_scene->get_active_environment_data();
-    //    e_data.environment_info->intensity             = 20000.0f;
-    //    auto l_c                                       = application_scene->add_light_component(lighting);
-    //    l_c.type_of_light                              = mango::light_type::directional;
-    //    auto directional_data                          = static_cast<mango::directional_light_data*>(l_c.data.get());
-    //    directional_data->direction                    = glm::vec3(0.5f, 0.1f, 0.3f);
-    //    directional_data->intensity                    = 200000.0f;
-    //    directional_data->light_color                  = mango::color_rgb({ 1.0f, 0.7f, 0.5f });
-    //    directional_data->cast_shadows                 = true;
+    //    entity lighting                                                   = application_scene->create_environment_from_hdr("res/textures/Mans_Outside_2k.hdr");
+    //    application_scene->get_tag(lighting)->tag_name                    = "Global Lighting";
+    //    application_scene->get_environment_component(lighting)->intensity = 20000.0f;
+    //    auto& l_c                                                         = application_scene->add_light_component(lighting);
+    //    l_c.type_of_light                                                 = mango::light_type::directional;
+    //    auto directional_data                                             = static_cast<mango::directional_light_data*>(l_c.data.get());
+    //    directional_data->direction                                       = glm::vec3(-0.05f, 0.05f, 0.3f);
+    //    directional_data->intensity                                       = 200000.0f;
+    //    directional_data->light_color                                     = mango::color_rgb({ 1.0f, 0.7f, 0.5f });
+    //    directional_data->cast_shadows                                    = true;
     //}
     // test end
 

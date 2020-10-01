@@ -73,6 +73,10 @@ namespace mango
         //! \brief Dirty bit for cascade count update.
         bool m_dirty_cascades;
 
+        //! \brief The range to use for interpolating the cascades.
+        //! \details Larger values mean smoother transition, but less quality and performance impact.
+        float m_cascade_interpolation_range = 0.5f;
+
         struct
         {
             float camera_near;                                               //!< The cameras near plane depth.

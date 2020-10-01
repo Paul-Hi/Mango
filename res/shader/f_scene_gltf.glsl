@@ -12,8 +12,6 @@ in shader_shared
     vec3 shared_normal;
     vec3 shared_tangent;
     vec3 shared_bitangent;
-    flat bool calculate_normals;
-    flat bool calculate_tangents;
 } fs_in;
 
 layout (location = 1, binding = 0) uniform sampler2D t_base_color;

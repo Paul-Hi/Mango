@@ -589,6 +589,7 @@ namespace mango
         {
             auto tag_comp         = application_scene->query_tag(e);
             auto transform_comp   = application_scene->query_transform_component(e);
+            auto model_comp       = application_scene->query_model_component(e);
             auto mesh_comp        = application_scene->query_mesh_component(e);
             auto camera_comp      = application_scene->query_camera_component(e);
             auto environment_comp = application_scene->query_environment_component(e);
@@ -612,8 +613,9 @@ namespace mango
                 //{
                 //    application_scene->add_mesh_component(e);
                 //}
-                if (/*!model_comp && */ ImGui::Selectable("Model Component"))
+                if (!model_comp && ImGui::Selectable("Model Component"))
                 {
+                    application_scene->add_model_component(e);
                 }
                 if (!camera_comp && ImGui::Selectable("Camera Component"))
                 {
@@ -776,6 +778,52 @@ namespace mango
                     // ImGui::SameLine();
                     // if (ImGui::Button(("Remove##transform" + std::to_string(e)).c_str()))
                     //     application_scene->remove_transform_component(e);
+                    ImGui::Separator();
+                    ImGui::TreePop();
+                }
+            }
+
+            // Model
+            if (model_comp)
+            {
+                if (ImGui::TreeNode(("Model Component##" + std::to_string(e)).c_str()))
+                {
+                    ImGui::Spacing();
+                    if (model_comp->model_file_path.empty())
+                    {
+                        ImGui::Text("No Model loaded!");
+                        if (ImGui::Button("Load"))
+                        {
+                            char const* filter[2] = { "*.gltf", "*.glb" };
+
+                            char* query_path = tinyfd_openFileDialog("", "res/", 2, filter, NULL, 0);
+                            if (query_path)
+                            {
+                                string queried = string(query_path);
+                                auto ext       = queried.substr(queried.find_last_of(".") + 1);
+                                if (ext == "glb" || ext == "gltf")
+                                    application_scene->create_entities_from_model(queried, e);
+                            }
+                        }
+                        // Removing only possible when no model is loaded ... TODO Paul?
+                        if (ImGui::Button(("Remove##model" + std::to_string(e)).c_str()))
+                            application_scene->remove_model_component(e);
+                    }
+                    else
+                    {
+                        ImGui::Text(("Model loaded from: '" + model_comp->model_file_path + "'").c_str());
+                        glm::vec3 min = model_comp->min_extends;
+                        glm::vec3 max = model_comp->max_extends;
+                        if (transform_comp)
+                        {
+                            min = glm::vec3(transform_comp->world_transformation_matrix * glm::vec4(min, 1.0f));
+                            max = glm::vec3(transform_comp->world_transformation_matrix * glm::vec4(max, 1.0f));
+                        }
+                        // TODO Paul: These are only correct, if we do not change any mesh transformations.
+                        ImGui::Text(("Min Extends: [ " + std::to_string(min.x) + ", " + std::to_string(min.y) + ", " + std::to_string(min.z) + "]").c_str());
+                        ImGui::Text(("Max Extends: [ " + std::to_string(max.x) + ", " + std::to_string(max.y) + ", " + std::to_string(max.z) + "]").c_str());
+                    }
+
                     ImGui::Separator();
                     ImGui::TreePop();
                 }
@@ -958,9 +1006,9 @@ namespace mango
                     {
                         auto d_data = static_cast<directional_light_data*>(light_comp->data.get());
 
-                        ImGui::DragFloat(("Direction X##d_light_direction_x" + std::to_string(e)).c_str(), &d_data->direction.x, 0.1f, 0.0f, 0.0f, "%.1f");
-                        ImGui::DragFloat(("Direction Y##d_light_direction_y" + std::to_string(e)).c_str(), &d_data->direction.y, 0.1f, 0.0f, 0.0f, "%.1f");
-                        ImGui::DragFloat(("Direction Z##d_light_direction_z" + std::to_string(e)).c_str(), &d_data->direction.z, 0.1f, 0.0f, 0.0f, "%.1f");
+                        ImGui::DragFloat(("Direction X##d_light_direction_x" + std::to_string(e)).c_str(), &d_data->direction.x, 0.05f, 0.0f, 0.0f, "%.2f");
+                        ImGui::DragFloat(("Direction Y##d_light_direction_y" + std::to_string(e)).c_str(), &d_data->direction.y, 0.05f, 0.0f, 0.0f, "%.2f");
+                        ImGui::DragFloat(("Direction Z##d_light_direction_z" + std::to_string(e)).c_str(), &d_data->direction.z, 0.05f, 0.0f, 0.0f, "%.2f");
 
                         ImGui::ColorEdit4("Color##d_light_color", d_data->light_color, ImGuiColorEditFlags_NoInputs);
 

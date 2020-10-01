@@ -51,11 +51,12 @@ namespace mango
         entity create_default_camera();
 
         //! \brief Creates entities from a model loaded from a gltf file.
-        //! \details Internally creates entities with \a mesh_components, \a material_components, \a transform_components and \a node_components.
+        //! \details Internally creates entities with \a model_components, \a mesh_components, \a material_components, \a primitive_components, \a transform_components and \a node_components.
         //! All the components are filled with data loaded from the gltf file.
         //! \param[in] path The path to the gltf model to load.
+        //! \param[in] gltf_root If there is already a entity created to work as root it should be passed here.
         //! \return The root entity of the model.
-        entity create_entities_from_model(const string& path);
+        entity create_entities_from_model(const string& path, entity gltf_root = invalid_entity);
 
         //! \brief Creates an environment entity.
         //! \details An entity with \a environment_component.
@@ -89,6 +90,14 @@ namespace mango
         inline camera_component* get_camera_component(entity e)
         {
             return m_cameras.get_component_for_entity(e);
+        }
+
+        //! \brief Retrieves the \a model_component from a specific \a entity.
+        //! \param[in] e The \a entity to get the \a model_component for.
+        //! \return The \a model_component or nullptr if non-existent.
+        inline model_component* get_model_component(entity e)
+        {
+            return m_models.get_component_for_entity(e);
         }
 
         //! \brief Retrieves the \a mesh_component from a specific \a entity.
@@ -139,6 +148,15 @@ namespace mango
         inline camera_component* query_camera_component(entity e)
         {
             return m_cameras.get_component_for_entity(e, true);
+        }
+
+        //! \brief Queries the \a model_component from a specific \a entity.
+        //! \details Does the same as get, but is non verbose, when component is non existent.
+        //! \param[in] e The \a entity to get the \a model_component for.
+        //! \return The \a model_component or nullptr if non-existent.
+        inline model_component* query_model_component(entity e)
+        {
+            return m_models.get_component_for_entity(e, true);
         }
 
         //! \brief Queries the \a mesh_component from a specific \a entity.
@@ -193,6 +211,14 @@ namespace mango
             return m_cameras.create_component_for(e);
         }
 
+        //! \brief Adds \a model_component to a specific \a entity.
+        //! \param[in] e The \a entity to add the \a model_component to.
+        //! \return A reference to the created \a model_component.
+        inline model_component& add_model_component(entity e)
+        {
+            return m_models.create_component_for(e);
+        }
+
         //! \brief Adds \a mesh_component to a specific \a entity.
         //! \param[in] e The \a entity to add the \a mesh_component to.
         //! \return A reference to the created \a mesh_component.
@@ -237,6 +263,13 @@ namespace mango
         inline void remove_camera_component(entity e)
         {
             m_cameras.remove_component_from(e);
+        }
+
+        //! \brief Removes \a model_component from a specific \a entity.
+        //! \param[in] e The \a entity to remove the \a model_component from.
+        inline void remove_model_component(entity e)
+        {
+            m_models.remove_component_from(e);
         }
 
         //! \brief Removes \a mesh_component from a specific \a entity.
@@ -410,6 +443,8 @@ namespace mango
         scene_component_pool<node_component> m_nodes;
         //! \brief All \a transform_components.
         scene_component_pool<transform_component> m_transformations;
+        //! \brief All \a model_components.
+        scene_component_pool<model_component> m_models;
         //! \brief All \a mesh_components.
         scene_component_pool<mesh_component> m_meshes;
         //! \brief All \a camera_components.

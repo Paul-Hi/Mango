@@ -150,8 +150,8 @@ void shadow_map_step::update_cascades(float camera_near, float camera_far, const
         for (int32 i = 0; i < 4; ++i)
         {
             glm::vec3 corner_ray           = frustum_corners[i + 4] - frustum_corners[i];
-            glm::vec3 near_ray             = corner_ray * (m_cascade_data.split_depth[casc] / m_cascade_data.split_depth[m_shadow_map_cascade_count]);
-            glm::vec3 far_ray              = corner_ray * (m_cascade_data.split_depth[casc + 1] / m_cascade_data.split_depth[m_shadow_map_cascade_count]);
+            glm::vec3 near_ray             = corner_ray * (m_cascade_data.split_depth[casc] - m_cascade_interpolation_range) / m_cascade_data.split_depth[m_shadow_map_cascade_count];
+            glm::vec3 far_ray              = corner_ray * (m_cascade_data.split_depth[casc + 1] + m_cascade_interpolation_range) / m_cascade_data.split_depth[m_shadow_map_cascade_count];
             current_frustum_corners[i]     = frustum_corners[i] + near_ray;
             current_frustum_corners[i + 4] = frustum_corners[i] + far_ray;
             center += current_frustum_corners[i];
@@ -198,6 +198,7 @@ void shadow_map_step::bind_shadow_maps_and_get_shadow_data(command_buffer_ptr& c
 {
     PROFILE_ZONE;
     command_buffer->bind_texture(8, m_shadow_buffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 8); // TODO Paul: Location, Binding?
+    command_buffer->bind_single_uniform(10, &m_cascade_interpolation_range, sizeof(m_cascade_interpolation_range)); // TODO Paul: Binding?
     out_view_projections[0] = m_cascade_data.view_projection_matrices[0];
     out_view_projections[1] = m_cascade_data.view_projection_matrices[1];
     out_view_projections[2] = m_cascade_data.view_projection_matrices[2];
@@ -211,7 +212,7 @@ void shadow_map_step::bind_shadow_maps_and_get_shadow_data(command_buffer_ptr& c
     cascade_info.z          = m_cascade_data.split_depth[3];
     cascade_info.w          = static_cast<float>(m_resolution);
     if (m_shadow_map_cascade_count < 4)
-        far_planes[m_shadow_map_cascade_count] = far_planes.x - 10.0f; // set the not valid cascade smaller then the first value.
+        cascade_info[m_shadow_map_cascade_count - 1] = -1.0f; // set the not valid cascade to a negative one.
 }
 
 void shadow_map_step::on_ui_widget()
@@ -231,6 +232,7 @@ void shadow_map_step::on_ui_widget()
     int32 tmp_c = m_shadow_map_cascade_count;
     ImGui::SliderInt("Number Of Shadow Cascades##shadow_step", &m_shadow_map_cascade_count, 1, 4);
     m_dirty_cascades = tmp_c != m_shadow_map_cascade_count;
+    ImGui::SliderFloat("Cascade Interpolation Range##shadow_step", &m_cascade_interpolation_range, 0.0f, 10.0f);
     float tmp_l      = m_cascade_data.lambda;
     ImGui::SliderFloat("Cascade Splits Lambda##shadow_step", &m_cascade_data.lambda, 0.0f, 1.0f);
     m_dirty_cascades |= tmp_l != m_cascade_data.lambda;

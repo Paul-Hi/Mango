@@ -98,6 +98,14 @@ namespace mango
         shared_ptr<material> component_material; //!< The material holding all properties, textures etc.
     };
 
+    struct model_component
+    {
+        string model_file_path;
+        // TODO Paul: Extract bounds into own class.
+        glm::vec3 min_extends;
+        glm::vec3 max_extends;
+    };
+
     //! \brief Component used for renderable mesh geometry. Used for drawing.
     struct mesh_component
     {
@@ -273,6 +281,14 @@ namespace mango
         }
     };
     template <>
+    struct type_name<model_component>
+    {
+        static const char* get()
+        {
+            return "model_component";
+        }
+    };
+    template <>
     struct type_name<mesh_component>
     {
         static const char* get()
@@ -294,6 +310,14 @@ namespace mango
         static const char* get()
         {
             return "environment_component";
+        }
+    };
+    template <>
+    struct type_name<light_component>
+    {
+        static const char* get()
+        {
+            return "light_component";
         }
     };
     //! \endcond
