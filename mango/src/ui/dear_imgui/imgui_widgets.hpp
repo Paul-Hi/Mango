@@ -68,7 +68,9 @@ namespace mango
         ImGui::Begin("Hardware Info", &enabled);
         if (ImGui::CollapsingHeader("Editor Stats"))
         {
-            ImGui::Text("Frame Time: %.2f ms", shared_context->get_application()->frame_time() * 1000.0f);
+            float frametime = shared_context->get_application()->frame_time();
+            ImGui::Text("Frame Time: %.2f ms", frametime * 1000.0f);
+            ImGui::Text("Framerate: %.2f fps", 1.0f / frametime);
         }
         auto stats = shared_context->get_render_system_internal().lock()->get_hardware_stats();
         if (ImGui::CollapsingHeader("Renderer Stats"))

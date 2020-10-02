@@ -105,8 +105,15 @@ void shadow_map_step::execute(command_buffer_ptr& command_buffer)
 
 void shadow_map_step::destroy() {}
 
-void shadow_map_step::update_cascades(float camera_near, float camera_far, const glm::mat4& camera_view_projection, const glm::vec3& directional_direction)
+void shadow_map_step::update_cascades(float dt, float camera_near, float camera_far, const glm::mat4& camera_view_projection, const glm::vec3& directional_direction)
 {
+    // Update only with 30 fps
+    static float fps_lock = 0.0f;
+    fps_lock += dt;
+    if(fps_lock * 1000.0f < 1.0f / 30.0f)
+        return;
+    fps_lock -= 1.0f / 30.0f;
+
     m_cascade_data.camera_near           = camera_near;
     m_cascade_data.camera_far            = camera_far;
     m_cascade_data.directional_direction = directional_direction;
@@ -197,7 +204,7 @@ void shadow_map_step::bind_shadow_maps_and_get_shadow_data(command_buffer_ptr& c
                                                            glm::vec4& cascade_info)
 {
     PROFILE_ZONE;
-    command_buffer->bind_texture(8, m_shadow_buffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 8); // TODO Paul: Location, Binding?
+    command_buffer->bind_texture(8, m_shadow_buffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 8);  // TODO Paul: Location, Binding?
     command_buffer->bind_single_uniform(10, &m_cascade_interpolation_range, sizeof(m_cascade_interpolation_range)); // TODO Paul: Binding?
     out_view_projections[0] = m_cascade_data.view_projection_matrices[0];
     out_view_projections[1] = m_cascade_data.view_projection_matrices[1];
@@ -233,7 +240,7 @@ void shadow_map_step::on_ui_widget()
     ImGui::SliderInt("Number Of Shadow Cascades##shadow_step", &m_shadow_map_cascade_count, 1, 4);
     m_dirty_cascades = tmp_c != m_shadow_map_cascade_count;
     ImGui::SliderFloat("Cascade Interpolation Range##shadow_step", &m_cascade_interpolation_range, 0.0f, 10.0f);
-    float tmp_l      = m_cascade_data.lambda;
+    float tmp_l = m_cascade_data.lambda;
     ImGui::SliderFloat("Cascade Splits Lambda##shadow_step", &m_cascade_data.lambda, 0.0f, 1.0f);
     m_dirty_cascades |= tmp_l != m_cascade_data.lambda;
 }

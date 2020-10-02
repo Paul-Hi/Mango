@@ -108,8 +108,10 @@ bool deferred_pbr_render_system::create()
 
     // HDR for auto exposure
     framebuffer_configuration hdr_buffer_config;
+    attachment_config.m_generate_mipmaps  = calculate_mip_count(w, h);
     hdr_buffer_config.m_color_attachment0 = texture::create(attachment_config);
     hdr_buffer_config.m_color_attachment0->set_data(format::RGBA32F, w, h, format::RGBA, format::FLOAT, nullptr);
+    attachment_config.m_generate_mipmaps = 1;
     hdr_buffer_config.m_depth_attachment = texture::create(attachment_config);
     hdr_buffer_config.m_depth_attachment->set_data(format::DEPTH_COMPONENT32F, w, h, format::DEPTH_COMPONENT, format::FLOAT, nullptr);
 
@@ -150,6 +152,8 @@ bool deferred_pbr_render_system::create()
         return false;
 
     m_frame_uniform_offset = 0;
+    m_current_buffer_start = 0;
+    m_current_buffer_part  = 0;
 
     // scene geometry pass
     shader_configuration shader_config;
@@ -320,7 +324,8 @@ void deferred_pbr_render_system::begin_render()
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_hdr_buffer);
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_backbuffer);
 
-    m_command_buffer->client_wait_sync(m_frame_sync);
+    // TODO Paul: Is there a better way?
+    m_command_buffer->client_wait_sync(m_frame_buffer_sync[m_current_buffer_part]);
 
     {
         GL_NAMED_PROFILE_ZONE("Deferred Renderer Begin");
@@ -340,7 +345,7 @@ void deferred_pbr_render_system::finish_render(float dt)
         if (m_lp_uniforms.directional.intensity > 1e-5f && !m_lp_uniforms.debug_view_enabled.value() && camera.camera_info && m_lp_uniforms.directional.cast_shadows.value())
         {
             std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])
-                ->update_cascades(camera.camera_info->z_near, camera.camera_info->z_far, camera.camera_info->view_projection, m_lp_uniforms.directional.direction.value());
+                ->update_cascades(dt, camera.camera_info->z_near, camera.camera_info->z_far, camera.camera_info->view_projection, m_lp_uniforms.directional.direction.value());
 
             m_pipeline_steps[mango::render_step::shadow_map]->execute(m_command_buffer);
         }
@@ -429,7 +434,6 @@ void deferred_pbr_render_system::finish_render(float dt)
     }
 
     // environment drawing
-
     if (m_pipeline_steps[mango::render_step::ibl] && !m_lp_uniforms.debug_view_enabled.value())
     {
         shared_ptr<ibl_step> imgbl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
@@ -448,12 +452,23 @@ void deferred_pbr_render_system::finish_render(float dt)
     {
         m_command_buffer->bind_shader_program(m_construct_luminance_buffer);
         auto tex = m_hdr_buffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0);
-        m_command_buffer->bind_image_texture(0, tex, 0, false, 0, base_access::READ_ONLY, format::RGBA32F);
+        m_command_buffer->calculate_mipmaps(tex);
+        m_command_buffer->add_memory_barrier(memory_barrier_bit::SHADER_IMAGE_ACCESS_BARRIER_BIT);
+        int32 mip_level  = 0;
+        int32 tex_width  = tex->get_width();
+        int32 tex_height = tex->get_height();
+        while (tex_width >> mip_level > 256 && tex_height >> mip_level > 256)
+        {
+            ++mip_level;
+        }
+        tex_width >>= mip_level;
+        tex_height >>= mip_level;
+        m_command_buffer->bind_image_texture(0, tex, mip_level, false, 0, base_access::READ_ONLY, format::RGBA32F);
         m_command_buffer->bind_buffer(1, m_luminance_histogram_buffer, buffer_target::SHADER_STORAGE_BUFFER);
-        glm::vec2 params = glm::vec2(-10.0f, 1.0f / 42.0f); // min -10.0, max +32.0
+        glm::vec2 params = glm::vec2(-8.0f, 1.0f / 136.0f); // min -8.0, max +128.0
         m_command_buffer->bind_single_uniform(1, &(params), sizeof(params));
 
-        m_command_buffer->dispatch_compute(tex->get_width() / 32, tex->get_height() / 32, 1);
+        m_command_buffer->dispatch_compute(tex_width / 16, tex_height / 16, 1);
 
         m_command_buffer->add_memory_barrier(memory_barrier_bit::SHADER_STORAGE_BARRIER_BIT);
 
@@ -461,16 +476,16 @@ void deferred_pbr_render_system::finish_render(float dt)
         m_command_buffer->bind_buffer(0, m_luminance_histogram_buffer, buffer_target::SHADER_STORAGE_BUFFER);
 
         // time coefficient with tau = 1.1;
-        float tau              = 1.1f;
+        float tau              = 0.75f;
         float time_coefficient = 1.0f - expf(-dt * tau);
-        glm::vec4 red_params   = glm::vec4(time_coefficient, tex->get_width() * tex->get_height(), -10.0f, 42.0f); // min -10.0, max +32.0
+        glm::vec4 red_params   = glm::vec4(time_coefficient, tex_width * tex_height, -8.0f, 136.0f); // min -8.0, max +128.0
         m_command_buffer->bind_single_uniform(0, &(red_params), sizeof(red_params));
 
         m_command_buffer->dispatch_compute(1, 1, 1);
 
         m_command_buffer->add_memory_barrier(memory_barrier_bit::SHADER_STORAGE_BARRIER_BIT);
 
-        apply_auto_exposure(camera);
+        apply_auto_exposure(camera); // for next frame.
     }
 
     // composite
@@ -488,8 +503,8 @@ void deferred_pbr_render_system::finish_render(float dt)
             float ape                                  = camera.camera_info->physical.aperture;
             float shu                                  = camera.camera_info->physical.shutter_speed;
             float iso                                  = camera.camera_info->physical.iso;
-            float ev100                                = glm::log2((ape * ape) / shu * 100.0f / iso);
-            camera_exposure                            = 1.0f / (1.2f * glm::exp2(ev100));
+            float e                                    = ((ape * ape) * 100.0f) / (shu * iso);
+            camera_exposure                            = 1.0f / (1.2f * e);
         }
         m_command_buffer->bind_single_uniform(1, &camera_exposure, sizeof(camera_exposure));
         int32 b_val = m_lp_uniforms.debug_view_enabled.value() ? 1 : (m_lp_uniforms.debug_options.draw_shadow_maps.value() ? 2 : 0);
@@ -504,19 +519,27 @@ void deferred_pbr_render_system::finish_render(float dt)
         m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done, on glCalls.
     }
 
+    m_last_offset = m_frame_uniform_offset - m_current_buffer_start;
+    m_current_buffer_part++;
+
+    m_command_buffer->fence_sync(m_frame_buffer_sync[m_current_buffer_part]);
+
+    m_current_buffer_part %= 3;
+    m_current_buffer_start = m_current_buffer_part * frame_size;
+
+    m_current_buffer_start -= m_current_buffer_start % m_uniform_buffer_alignment;
+
+    m_frame_uniform_offset = m_current_buffer_start;
+
     m_command_buffer->bind_framebuffer(nullptr);
     m_command_buffer->bind_vertex_array(nullptr);
     // We need to unbind the program so we can make changes to the textures.
     m_command_buffer->bind_shader_program(nullptr);
 
-    m_command_buffer->fence_sync(m_frame_sync);
-
     {
         GL_NAMED_PROFILE_ZONE("Deferred Renderer Finish");
         m_command_buffer->execute();
     }
-
-    m_frame_uniform_offset = 0;
 }
 
 void deferred_pbr_render_system::set_viewport(int32 x, int32 y, int32 width, int32 height)
@@ -577,7 +600,7 @@ void deferred_pbr_render_system::set_model_info(const glm::mat4& model_matrix, b
     while (to_add < static_cast<int32>(sizeof(scene_vertex_uniforms)))
         to_add += m_uniform_buffer_alignment;
 
-    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - to_add, "Uniform buffer size is too small.");
+    MANGO_ASSERT(m_frame_uniform_offset - m_current_buffer_part * frame_size < frame_size - to_add, "Buffer frame size is too small.");
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_vertex_uniforms));
 
     m_render_queue->submit<set_model_info_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
@@ -688,7 +711,7 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     while (to_add < static_cast<int32>(sizeof(scene_material_uniforms)))
         to_add += m_uniform_buffer_alignment;
 
-    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - to_add, "Uniform buffer size is too small.");
+    MANGO_ASSERT(m_frame_uniform_offset - m_current_buffer_part * frame_size < frame_size - to_add, "Buffer frame size is too small.");
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_material_uniforms));
 
     m_render_queue->submit<push_material_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
@@ -808,7 +831,7 @@ void deferred_pbr_render_system::bind_lighting_pass_uniform_buffer(camera_data& 
     while (to_add < static_cast<int32>(sizeof(lighting_pass_uniforms)))
         to_add += m_uniform_buffer_alignment;
 
-    MANGO_ASSERT(m_frame_uniform_offset < uniform_buffer_size - to_add, "Uniform buffer size is too small.");
+    MANGO_ASSERT(m_frame_uniform_offset - m_current_buffer_part * frame_size < frame_size - to_add, "Buffer frame size is too small.");
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &m_lp_uniforms, sizeof(lighting_pass_uniforms));
 
     m_command_buffer->submit<set_lighting_pass_uniforms_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
@@ -831,7 +854,8 @@ void deferred_pbr_render_system::apply_auto_exposure(camera_data& camera)
 
     // K is a light meter calibration constant
     static const float K = 12.5f;
-    float target_ev      = glm::log2(avg_luminance * 100.0f / K);
+    static const float S = 100.0f;
+    float target_ev      = glm::log2(avg_luminance * S / K);
 
     // Compute the resulting ISO if we left both shutter and aperture here
     float iso           = glm::clamp(((ape * ape) * 100.0f) / (shu * glm::exp2(target_ev)), mango::min_iso, mango::max_iso);
@@ -906,6 +930,8 @@ void deferred_pbr_render_system::on_ui_widget()
     }
     if (ImGui::CollapsingHeader("Debug##deferred_pbr"))
     {
+        float not_in_use = 100.0f * (1.0f - (float)(frame_size - m_last_offset) / (float)frame_size);
+        ImGui::Text(("Frame Uniform Buffer Occupancy: " + std::to_string(not_in_use)).c_str());
         ImGui::Checkbox("Render Wireframe##deferred_pbr", &m_wireframe);
 
         for (int32 i = 0; i < 9; ++i)

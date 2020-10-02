@@ -4,7 +4,7 @@
 #define epsilon 0.005
 #define rgb_to_luminance vec3(0.2125, 0.7154, 0.0721)
 
-layout(local_size_x = 32, local_size_y = 32) in;
+layout(local_size_x = 16, local_size_y = 16) in;
 
 layout(binding = 0, rgba32f) uniform readonly image2D hdr_color;
 layout(std430, binding = 1) buffer luminance_data

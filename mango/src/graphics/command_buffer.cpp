@@ -582,10 +582,9 @@ void command_buffer::fence_sync(g_sync sync)
             NAMED_PROFILE_ZONE("Fence Sync");
             GL_NAMED_PROFILE_ZONE("Fence Sync");
             if (glIsSync(m_sync))
-            {
                 glDeleteSync(m_sync);
-            }
             m_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+            MANGO_ASSERT(m_sync, "Sync creation failed.");
         }
     };
 
@@ -609,23 +608,45 @@ void command_buffer::client_wait_sync(g_sync sync)
         {
             NAMED_PROFILE_ZONE("Client Wait Sync");
             GL_NAMED_PROFILE_ZONE("Client Wait Sync");
-            if (glIsSync(m_sync))
+            if (!glIsSync(m_sync))
+                return;
+            int32 waiting_time = 1;
+            g_enum wait_return = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, waiting_time);
+            int32 count        = -1;
+            while (wait_return != GL_ALREADY_SIGNALED && wait_return != GL_CONDITION_SATISFIED)
             {
-                int32 waiting_time = 100;
-                while (1)
-                {
-                    g_enum wait_return = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, waiting_time);
-                    if (wait_return == GL_ALREADY_SIGNALED || wait_return == GL_CONDITION_SATISFIED)
-                        return;
-                    MANGO_LOG_INFO("SIGNALED {0}, WAITING TIME {1}", wait_return, waiting_time);
-                    waiting_time *= 10;
-                }
+                wait_return = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, waiting_time);
+                count++;
+            }
+            if (count > 0)
+            {
+                MANGO_LOG_DEBUG("Waited {0} times.", count);
             }
         }
     };
 
     // TODO Paul: Store that in the state?
     submit<client_wait_sync_cmd>(sync);
+}
+
+void command_buffer::client_wait()
+{
+    PROFILE_ZONE;
+    class client_wait_cmd : public command
+    {
+      public:
+        client_wait_cmd() {}
+
+        void execute(graphics_state&) override
+        {
+            NAMED_PROFILE_ZONE("Client Wait");
+            GL_NAMED_PROFILE_ZONE("Client Wait");
+            glFinish();
+        }
+    };
+
+    // TODO Paul: Store that in the state?
+    submit<client_wait_cmd>();
 }
 
 void command_buffer::calculate_mipmaps(texture_ptr texture)

@@ -42,27 +42,7 @@ bool editor::create()
             shared_ptr<context> mango_context = get_context().lock();
             MANGO_ASSERT(mango_context, "Context is expired!");
             auto application_scene = mango_context->get_current_scene();
-            ImGui::Text("Load a GLTF Model.");
-            if (ImGui::Button("Open"))
-            {
-                char const* filter[2] = { "*.gltf", "*.glb" };
-
-                char* query_path = tinyfd_openFileDialog("", "res/", 2, filter, NULL, 1);
-                if (query_path)
-                {
-                    string queried = string(query_path);
-
-                    ptr_size pos = 0;
-                    string token;
-                    while ((pos = queried.find('|')) != string::npos)
-                    {
-                        token = queried.substr(0, pos);
-                        try_open_path(application_scene, token);
-                        queried.erase(0, pos + 1);
-                    }
-                    try_open_path(application_scene, queried);
-                }
-            }
+            ImGui::Text("This is Mangos Editor.");
             if (m_main_camera == invalid_entity || !application_scene->is_entity_alive(m_main_camera))
             {
                 if (ImGui::Button("Create Editor Camera"))
@@ -87,27 +67,27 @@ bool editor::create()
     mango_context->make_scene_current(application_scene);
 
     // test settings
-    //{
-    //    ibl_step_configuration ibl_config;
-    //    ibl_config.set_render_level(0.1f);
-    //    mango_rs->setup_ibl_step(ibl_config);
-//
-    //    shadow_step_configuration shadow_config;
-    //    shadow_config.set_resolution(2048).set_offset(3.0f).set_cascade_count(3).set_split_lambda(0.5f);
-    //    mango_rs->setup_shadow_map_step(shadow_config);
-//
-    //    try_open_path(application_scene, "res/models/shaderball/shaderball.glb");
-    //    entity lighting                                                   = application_scene->create_environment_from_hdr("res/textures/Mans_Outside_2k.hdr");
-    //    application_scene->get_tag(lighting)->tag_name                    = "Global Lighting";
-    //    application_scene->get_environment_component(lighting)->intensity = 20000.0f;
-    //    auto& l_c                                                         = application_scene->add_light_component(lighting);
-    //    l_c.type_of_light                                                 = mango::light_type::directional;
-    //    auto directional_data                                             = static_cast<mango::directional_light_data*>(l_c.data.get());
-    //    directional_data->direction                                       = glm::vec3(-0.05f, 0.05f, 0.3f);
-    //    directional_data->intensity                                       = 200000.0f;
-    //    directional_data->light_color                                     = mango::color_rgb({ 1.0f, 0.7f, 0.5f });
-    //    directional_data->cast_shadows                                    = true;
-    //}
+    {
+        ibl_step_configuration ibl_config;
+        ibl_config.set_render_level(0.1f);
+        mango_rs->setup_ibl_step(ibl_config);
+
+        shadow_step_configuration shadow_config;
+        shadow_config.set_resolution(2048).set_offset(3.0f).set_cascade_count(3).set_split_lambda(0.5f);
+        mango_rs->setup_shadow_map_step(shadow_config);
+
+        application_scene->create_entities_from_model("res/models/shaderball/shaderball.glb");
+        entity lighting                                                   = application_scene->create_environment_from_hdr("res/textures/Mans_Outside_2k.hdr");
+        application_scene->get_tag(lighting)->tag_name                    = "Global Lighting";
+        application_scene->get_environment_component(lighting)->intensity = 20000.0f;
+        auto& l_c                                                         = application_scene->add_light_component(lighting);
+        l_c.type_of_light                                                 = mango::light_type::directional;
+        auto directional_data                                             = static_cast<mango::directional_light_data*>(l_c.data.get());
+        directional_data->direction                                       = glm::vec3(-0.05f, 0.05f, 0.3f);
+        directional_data->intensity                                       = 200000.0f;
+        directional_data->light_color                                     = mango::color_rgb({ 1.0f, 0.7f, 0.5f });
+        directional_data->cast_shadows                                    = true;
+    }
     // test end
 
     shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
@@ -192,6 +172,8 @@ void editor::update(float dt)
         return;
     auto cam_transform = application_scene->get_transform_component(m_main_camera);
     auto cam_data      = application_scene->get_camera_component(m_main_camera);
+    if(!cam_data || ! cam_transform)
+        return;
 
     if (glm::length(m_target_offset) > 0.0f)
     {
@@ -209,13 +191,3 @@ void editor::update(float dt)
 }
 
 void editor::destroy() {}
-
-void editor::try_open_path(const shared_ptr<mango::scene>& application_scene, string path)
-{
-    PROFILE_ZONE;
-    auto ext = path.substr(path.find_last_of(".") + 1);
-    if (ext == "glb" || ext == "gltf")
-    {
-        application_scene->create_entities_from_model(path);
-    }
-}

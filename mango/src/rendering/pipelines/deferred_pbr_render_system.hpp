@@ -27,7 +27,7 @@ namespace mango
 
         virtual bool create() override;
         virtual void configure(const render_configuration& configuration) override;
-        virtual void setup_ibl_step(const ibl_step_configuration& config)  override;
+        virtual void setup_ibl_step(const ibl_step_configuration& config) override;
         virtual void setup_shadow_map_step(const shadow_step_configuration& config) override;
         virtual void begin_render() override;
         virtual void finish_render(float dt) override;
@@ -86,12 +86,18 @@ namespace mango
         shader_program_ptr m_composing_pass;
 
         //! \brief The prealocated size for all uniforms.
-        //! \details The buffer is filled every frame. 1 MiB should be enough for now.
+        //! \details The buffer has 3 parts and is filled every frame. 1 MiB should be enough for now.
         const int32 uniform_buffer_size = 1048576;
+        const int32 frame_size = uniform_buffer_size / 3 - 512; // TODO Paul: We give some padding for large uniform alignments here...
+        int32 m_current_buffer_part = 0;
+        int32 m_current_buffer_start = 0;
         int32 m_frame_uniform_offset;     //!< The current offset in the uniform memory to write to.
+        int32 m_last_offset;              //!< The last frames offset in the uniform memory.
         g_int m_uniform_buffer_alignment; //!< The alignment of the structures in the uniform buffer. Gets queried from OpenGL.
         //! \brief The mapped memory to be filled with all uniforms blocks per frame.
         void* m_mapped_uniform_memory;
+        //! \brief Sync objects for gpu <-> cpu synchronization.
+        g_sync m_frame_buffer_sync[3];
 
         //! \brief The uniform buffer mapping the gpu buffer to the scene uniforms.
         buffer_ptr m_frame_uniform_buffer;
@@ -199,9 +205,6 @@ namespace mango
 
         //! \brief True if the renderer should draw wireframe, else false.
         bool m_wireframe = false;
-
-        //! \brief Object used for cpu <-> gpu sync.
-        g_sync m_frame_sync;
     };
 
 } // namespace mango

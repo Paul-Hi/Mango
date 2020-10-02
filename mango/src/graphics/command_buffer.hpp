@@ -134,6 +134,9 @@ namespace mango
         //! \param[in,out] sync The sync object.
         void client_wait_sync(g_sync sync);
 
+        //! \brief Waits blocking for a the GPU to finish.
+        void client_wait();
+
         //! \brief Calukates the mipmaps for the \a texture.
         //! \details This is used to recalculate the mipmaps after the pixels where changed by a compute shader.
         //! \param[in] texture The pointer to the \a texture to calculate the mipmaps.

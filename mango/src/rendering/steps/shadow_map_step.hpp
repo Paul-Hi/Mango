@@ -34,12 +34,13 @@ namespace mango
 
         //! \brief Updates the cascades for CSM.
         //! \details Calculates the camera frustum, the cascade split depths and the view projection matrices for the directional light.
+        //! \param[in] dt Time since last call.
         //! \param[in] camera_near The cameras near plane depth.
         //! \param[in] camera_far The cameras far plane depth.
         //! \param[in] camera_view_projection The cameras view projection matrix.
         //! \param[in] directional_direction The direction to the light.
         //! reduce quality.
-        void update_cascades(float camera_near, float camera_far, const glm::mat4& camera_view_projection, const glm::vec3& directional_direction);
+        void update_cascades(float dt, float camera_near, float camera_far, const glm::mat4& camera_view_projection, const glm::vec3& directional_direction);
 
         //! \brief The maximum number of cascades.
         static const int32 max_shadow_mapping_cascades = 4; // TODO Paul: We should move this.

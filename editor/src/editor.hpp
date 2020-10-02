@@ -34,11 +34,6 @@ class editor : public mango::application
     glm::vec2 m_target_offset;
     //! \brief Radius for camera.
     float m_camera_radius;
-
-    //! \brief Tries to find a hdri or gltf file at the specified path.
-    //! \param[in] application_scene The current scene of the application.
-    //! \param[in] path The path.
-    void try_open_path(const mango::shared_ptr<mango::scene>& application_scene, mango::string path);
 };
 
 #endif // EDITOR_HPP

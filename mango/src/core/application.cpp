@@ -11,10 +11,10 @@
 #include <graphics/command_buffer.hpp>
 #include <mango/application.hpp>
 #include <mango/assert.hpp>
+#include <mango/profile.hpp>
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <ui/ui_system_impl.hpp>
-#include <mango/profile.hpp>
 
 using namespace mango;
 
@@ -59,6 +59,15 @@ int32 application::run(int32 t_argc, char** t_argv)
         m_should_close = m_should_close || ws->should_close();
 
         m_frametime = static_cast<float>(m_frame_timer->elapsedMicroseconds().count()) * 0.000001f; // We need the resolution. TODO Paul: We could wrap this with some kind of 'high res clock'.
+        // Debug every second
+        static float fps_lock = 0.0f;
+        fps_lock += m_frametime;
+        if (fps_lock >= 1.0f)
+        {
+            fps_lock -= 1.0f;
+            MANGO_LOG_DEBUG("Frame Time: {0} ms", m_frametime * 1000.0f);
+            MANGO_LOG_DEBUG("Framerate: {0} fps", 1.0f / m_frametime);
+        }
         m_frame_timer->restart();
 
         // update
