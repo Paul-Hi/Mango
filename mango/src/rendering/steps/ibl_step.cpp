@@ -329,16 +329,16 @@ void ibl_step::on_ui_widget()
 {
     // Render Level 0.0 - 8.0
     bool should_render = !(m_render_level < -1e-5f);
-    float tmp          = 0.0f;
+    static float tmp   = 0.0f;
     ImGui::Checkbox("Render IBL Visualization##ibl_step", &should_render);
     if (!should_render)
     {
-        tmp            = m_render_level;
         m_render_level = -1.0f;
     }
     else
     {
         m_render_level = tmp;
         ImGui::SliderFloat("Blur Level##ibl_step", &m_render_level, 0.0f, 8.0f);
+        tmp = m_render_level;
     }
 }

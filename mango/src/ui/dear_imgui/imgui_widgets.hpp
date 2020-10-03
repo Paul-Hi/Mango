@@ -521,7 +521,7 @@ namespace mango
         ImGui::Begin("Scene Inspector", &enabled);
         entity root = application_scene->get_root();
 
-        if (ImGui::IsWindowFocused() && !ImGui::IsAnyItemHovered() && !ImGui::IsPopupOpen("##scene_menu") && ImGui::IsMouseClicked(1))
+        if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() && !ImGui::IsPopupOpen("##scene_menu") && ImGui::IsMouseClicked(1))
             ImGui::OpenPopup("##scene_menu");
         if (ImGui::BeginPopup("##scene_menu"))
         {
