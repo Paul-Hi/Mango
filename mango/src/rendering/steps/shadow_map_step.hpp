@@ -25,9 +25,14 @@ namespace mango
 
         void destroy() override;
 
+        inline void clear_shadow_buffer(command_buffer_ptr& command_buffer)
+        {
+            command_buffer->clear_framebuffer(clear_buffer_mask::DEPTH_BUFFER, attachment_mask::DEPTH_BUFFER, 0.0f, 0.0f, 0.0f, 1.0f, m_shadow_buffer);
+        }
+
         //! \brief Returns the queue to submit commands used to render shadow casters.
         //! \return The casters queue.
-        command_buffer_ptr get_caster_queue()
+        inline command_buffer_ptr get_caster_queue()
         {
             return m_caster_queue;
         }

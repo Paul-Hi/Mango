@@ -93,7 +93,6 @@ void shadow_map_step::execute(command_buffer_ptr& command_buffer)
     PROFILE_ZONE;
     command_buffer->bind_framebuffer(m_shadow_buffer);
     command_buffer->bind_shader_program(m_shadow_pass);
-    command_buffer->clear_framebuffer(clear_buffer_mask::DEPTH_BUFFER, attachment_mask::DEPTH_BUFFER, 0.0f, 0.0f, 0.0f, 1.0f, m_shadow_buffer);
     command_buffer->set_viewport(0, 0, m_resolution, m_resolution);
     command_buffer->set_face_culling(false);
     command_buffer->set_polygon_offset(1.1f, 4.0f);

@@ -323,6 +323,11 @@ void deferred_pbr_render_system::begin_render()
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_gbuffer);
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_hdr_buffer);
     m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_backbuffer);
+    if (m_pipeline_steps[mango::render_step::shadow_map])
+    {
+        auto step = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map]);
+        step->clear_shadow_buffer(m_command_buffer);
+    }
 
     // TODO Paul: Is there a better way?
     m_command_buffer->client_wait_sync(m_frame_buffer_sync[m_current_buffer_part]);
@@ -654,11 +659,15 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     {
         u.base_color_texture = std140_bool(true);
         m_render_queue->bind_texture(0, mat->base_color_texture, 1);
+        if (caster_queue)
+            caster_queue->bind_texture(0, mat->base_color_texture, 5);
     }
     else
     {
         u.base_color_texture = std140_bool(false);
         m_render_queue->bind_texture(0, default_texture, 1);
+        if (caster_queue)
+            caster_queue->bind_texture(0, default_texture, 5);
     }
     if (mat->use_roughness_metallic_texture)
     {
@@ -715,6 +724,8 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     memcpy(static_cast<g_byte*>(m_mapped_uniform_memory) + m_frame_uniform_offset, &u, sizeof(scene_material_uniforms));
 
     m_render_queue->submit<push_material_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
+    if (caster_queue)
+        caster_queue->submit<push_material_cmd>(m_frame_uniform_buffer, m_frame_uniform_offset);
     m_frame_uniform_offset += to_add;
 
     if (mat->double_sided)
