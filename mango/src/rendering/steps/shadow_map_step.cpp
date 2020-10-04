@@ -80,10 +80,12 @@ void shadow_map_step::attach() {}
 void shadow_map_step::configure(const shadow_step_configuration& config)
 {
     m_resolution               = config.get_resolution();
+    m_max_penumbra             = config.get_max_penumbra();
     m_shadow_map_offset        = config.get_offset();
     m_shadow_map_cascade_count = config.get_cascade_count();
     m_cascade_data.lambda      = config.get_split_lambda();
     MANGO_ASSERT(m_resolution % 2 == 0, "Shadow Map Resolution has to be a multiple of 2!");
+    MANGO_ASSERT(m_max_penumbra > 1.0f && m_max_penumbra < 32.0f, "Maximum Penumbra value is not in valid range 1 - 32!");
     MANGO_ASSERT(m_shadow_map_cascade_count > 0 && m_shadow_map_cascade_count < 5, "Cascade count has to be between 1 and 4!");
     MANGO_ASSERT(m_cascade_data.lambda > 0.0f && m_cascade_data.lambda < 1.0f, "Lambda has to be between 0.0 and 1.0!");
 }
@@ -109,7 +111,7 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
     // Update only with 30 fps
     static float fps_lock = 0.0f;
     fps_lock += dt;
-    if(fps_lock * 1000.0f < 1.0f / 30.0f)
+    if (fps_lock * 1000.0f < 1.0f / 30.0f)
         return;
     fps_lock -= 1.0f / 30.0f;
 
@@ -180,7 +182,10 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
 
         glm::mat4 projection;
         glm::mat4 view;
-        view                            = glm::lookAt(center + glm::normalize(directional_direction) * (-min_value.z + m_shadow_map_offset), center, GLOBAL_UP);
+        glm::vec3 up = GLOBAL_UP;
+        if (1.0f - glm::dot(up, glm::normalize(m_cascade_data.directional_direction)) < 1e-5f)
+            up = GLOBAL_RIGHT;
+        view                            = glm::lookAt(center + glm::normalize(m_cascade_data.directional_direction) * (-min_value.z + m_shadow_map_offset), center, up);
         projection                      = glm::ortho(min_value.x, max_value.x, min_value.y, max_value.y, 0.0f, (max_value.z - min_value.z) + m_shadow_map_offset);
         m_cascade_data.far_planes[casc] = (max_value.z - min_value.z) + m_shadow_map_offset;
 
@@ -205,6 +210,7 @@ void shadow_map_step::bind_shadow_maps_and_get_shadow_data(command_buffer_ptr& c
     PROFILE_ZONE;
     command_buffer->bind_texture(8, m_shadow_buffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 8);  // TODO Paul: Location, Binding?
     command_buffer->bind_single_uniform(10, &m_cascade_interpolation_range, sizeof(m_cascade_interpolation_range)); // TODO Paul: Binding?
+    command_buffer->bind_single_uniform(11, &m_max_penumbra, sizeof(m_max_penumbra));                               // TODO Paul: Binding?
     out_view_projections[0] = m_cascade_data.view_projection_matrices[0];
     out_view_projections[1] = m_cascade_data.view_projection_matrices[1];
     out_view_projections[2] = m_cascade_data.view_projection_matrices[2];
@@ -231,6 +237,8 @@ void shadow_map_step::on_ui_widget()
     m_resolution = 512 * static_cast<int32>(glm::pow(2, current));
     if (m_resolution != r)
         m_shadow_buffer->resize(m_resolution, m_resolution);
+    // Offset 1.0 - 32.0
+    ImGui::SliderFloat("Maximum Penumbra Width##shadow_step", &m_max_penumbra, 1.0f, 32.0f);
     // Offset 0.0 - 100.0
     ImGui::SliderFloat("Shadow Map Offset##shadow_step", &m_shadow_map_offset, 0.0f, 100.0f);
 

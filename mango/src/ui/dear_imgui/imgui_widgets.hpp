@@ -510,14 +510,16 @@ namespace mango
 
                 ImGui::Checkbox(("Double Sided##" + std::to_string(e)).c_str(), & material->double_sided);
                 ImGui::Separator();
-                const char* types  = "opaque\0masked\0blended\0\0";
+                const char* types  = "opaque\0masked\0blended\0dithered\0\0";
                 int32 alpha_mode_int = static_cast<int32>(material->alpha_rendering);
                 ImGui::Combo(("Alpha Mode##" + std::to_string(e)).c_str(), &alpha_mode_int, types);
                 material->alpha_rendering = static_cast<alpha_mode>(alpha_mode_int);
-                if(material->alpha_rendering == alpha_mode::MODE_BLEND)
-                    ImGui::Text("Blending currently not supported!");
                 if(material->alpha_rendering == alpha_mode::MODE_MASK)
                     ImGui::SliderFloat("Alpha CutOff", material->alpha_cutoff.type_data(), 0.0f, 1.0f);
+                if(material->alpha_rendering == alpha_mode::MODE_BLEND)
+                    ImGui::Text("Blending currently not supported!");
+                if(material->alpha_rendering == alpha_mode::MODE_DITHER)
+                    ImGui::Text("Dithering ... Just for fun!");
 
             }
         }

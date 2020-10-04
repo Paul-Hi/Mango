@@ -5,7 +5,6 @@ const float INV_PI = 1.0 / PI;
 
 #define saturate(x) clamp(x, 0.0, 1.0)
 #define max_cascades 4
-#define shadow_res_reference 512
 
 out vec4 frag_color;
 
@@ -55,6 +54,7 @@ layout(binding = 0, std140) uniform lighting_pass_uniforms
 
 layout (location = 9) uniform float ibl_intensity; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
 layout (location = 10) uniform float shadow_cascade_interpolation_range = 0.5; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
+layout (location = 11) uniform float maximum_penumbra = 3.0; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
 
 float D_GGX(in float n_dot_h, in float roughness);
 float V_SmithGGXCorrelated(in float n_dot_v, in float n_dot_l, in float roughness);
@@ -171,9 +171,7 @@ float sample_blocker_distance(in vec3 shadow_coords, in int cascade_id, in sampl
 {
     float avg_blocker_depth = 0.0;
     int blocker_count = 0;
-    float max_width = 26.0 / cascade_info.w;
-    float ref_width = 12.0 / shadow_res_reference;
-    max_width = max(ref_width, max_width);
+    float max_width = (maximum_penumbra * 4.0) / cascade_info.w;
     float d_l = linearize_depth(shadow_coords.z, 1e-5, directional_far_planes[cascade_id]);
 
     for(int i = 0; i < sample_count; ++i)
@@ -202,16 +200,14 @@ float sample_blocker_distance(in vec3 shadow_coords, in int cascade_id, in sampl
 
 float pcss(in vec3 shadow_coords, in int cascade_id, in sampler2DArray lookup)
 {
-    int num_samples = 16;
-    int num_blocker_samples = 8;
+    int num_samples = int(maximum_penumbra * 3.0);
+    int num_blocker_samples = int(maximum_penumbra * 1.5);
     float gradient_noise = interleaved_gradient_noise(gl_FragCoord.xy);
-    float penumbra = sample_blocker_distance(shadow_coords, cascade_id, lookup, num_blocker_samples, gradient_noise, 2.0);
+    float penumbra = saturate(sample_blocker_distance(shadow_coords, cascade_id, lookup, num_blocker_samples, gradient_noise, 2.0));
     float shadow = 0.0;
-    float max_penumbra = 6.0 / cascade_info.w;
-    float ref_penumbra = 3.0 / shadow_res_reference;
-    max_penumbra = max(ref_penumbra, max_penumbra);
+    float max_penumbra = maximum_penumbra / cascade_info.w;
     float d_l = linearize_depth(shadow_coords.z, 1e-5, directional_far_planes[cascade_id]);
-    num_samples += int(penumbra * 16.0);
+    num_samples += int(penumbra * 12.0);
 
     for(int i = 0; i < num_samples; ++i)
     {
@@ -220,7 +216,7 @@ float pcss(in vec3 shadow_coords, in int cascade_id, in sampler2DArray lookup)
 
         float z = texture(lookup, vec3(sample_uv, cascade_id)).x;
         float c_l = linearize_depth(z, 1e-5, directional_far_planes[cascade_id]);
-        shadow += (c_l < d_l) ? 0.01 : 1.0;
+        shadow += (c_l < d_l) ? 0.0 : 1.0;
     }
     shadow /= float(num_samples);
     return shadow;

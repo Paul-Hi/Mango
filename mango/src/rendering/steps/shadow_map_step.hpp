@@ -83,6 +83,10 @@ namespace mango
         //! \details Larger values mean smoother transition, but less quality and performance impact.
         float m_cascade_interpolation_range = 0.5f;
 
+        //! \brief The maximum penumra radius in pixels.
+        //! \details Larger values can look more natural, but may cause artefacts and performance drops.
+        float m_max_penumbra = 3.0f;
+
         struct
         {
             float camera_near;                                               //!< The cameras near plane depth.

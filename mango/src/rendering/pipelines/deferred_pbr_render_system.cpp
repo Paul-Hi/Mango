@@ -462,7 +462,7 @@ void deferred_pbr_render_system::finish_render(float dt)
         int32 mip_level  = 0;
         int32 tex_width  = tex->get_width();
         int32 tex_height = tex->get_height();
-        while (tex_width >> mip_level > 256 && tex_height >> mip_level > 256)
+        while (tex_width >> mip_level > 512 && tex_height >> mip_level > 512) // we can make it smaller, when we have some better focussing.
         {
             ++mip_level;
         }

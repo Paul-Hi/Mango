@@ -128,14 +128,16 @@ namespace mango
         //! \brief Default constructor to set some default values.
         shadow_step_configuration()
             : m_resolution(2048)
+            , m_max_penumbra(3.0f)
             , m_offset(0.0f)
             , m_cascade_count(3)
             , m_lambda(0.65f)
         {
         }
 
-        shadow_step_configuration(int32 resolution, float offset, int32 cascade_count, float lambda)
+        shadow_step_configuration(int32 resolution, float max_penumbra, float offset, int32 cascade_count, float lambda)
             : m_resolution(resolution)
+            , m_max_penumbra(max_penumbra)
             , m_offset(offset)
             , m_cascade_count(cascade_count)
             , m_lambda(lambda)
@@ -145,6 +147,12 @@ namespace mango
         inline shadow_step_configuration& set_resolution(int32 resolution)
         {
             m_resolution = resolution;
+            return *this;
+        }
+
+        inline shadow_step_configuration& set_max_penumbra(float max_penumbra)
+        {
+            m_max_penumbra = max_penumbra;
             return *this;
         }
 
@@ -171,6 +179,11 @@ namespace mango
             return m_resolution;
         }
 
+        inline float get_max_penumbra() const
+        {
+            return m_max_penumbra;
+        }
+
         inline float get_offset() const
         {
             return m_offset;
@@ -188,6 +201,7 @@ namespace mango
 
       private:
         int32 m_resolution;
+        float m_max_penumbra;
         float m_offset;
         int32 m_cascade_count;
         float m_lambda;
@@ -233,7 +247,7 @@ namespace mango
         //! \param[in] configuration The \a render_configuration to use for the window.
         virtual void configure(const render_configuration& configuration) = 0;
 
-        virtual void setup_ibl_step(const ibl_step_configuration& config) = 0;
+        virtual void setup_ibl_step(const ibl_step_configuration& config)           = 0;
         virtual void setup_shadow_map_step(const shadow_step_configuration& config) = 0;
 
       protected:
