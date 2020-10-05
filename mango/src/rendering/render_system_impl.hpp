@@ -59,8 +59,8 @@ namespace mango
 
         virtual bool create() override;
         virtual void configure(const render_configuration& configuration) override;
-        virtual void setup_ibl_step(const ibl_step_configuration& config)  override;
-        virtual void setup_shadow_map_step(const shadow_step_configuration& config) override;
+        virtual void setup_ibl_step(const ibl_step_configuration& configuration)  override;
+        virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) override;
 
         //! \brief Retrieves the \a command_buffer of a \a render_system.
         //! \details The \a command_buffer should be created and destroyed by the \a render_system.

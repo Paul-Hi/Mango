@@ -98,12 +98,13 @@ namespace mango
         shared_ptr<material> component_material; //!< The material holding all properties, textures etc.
     };
 
+    //! \brief Component used for gltf models.
     struct model_component
     {
-        string model_file_path;
+        string model_file_path; //!< The models location.
         // TODO Paul: Extract bounds into own class.
-        glm::vec3 min_extends;
-        glm::vec3 max_extends;
+        glm::vec3 min_extends; //!< The minimum extends of the gltf model.
+        glm::vec3 max_extends; //!< The maximum extends of the gltf model.
     };
 
     //! \brief Component used for renderable mesh geometry. Used for drawing.

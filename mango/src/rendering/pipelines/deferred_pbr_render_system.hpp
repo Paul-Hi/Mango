@@ -27,8 +27,8 @@ namespace mango
 
         virtual bool create() override;
         virtual void configure(const render_configuration& configuration) override;
-        virtual void setup_ibl_step(const ibl_step_configuration& config) override;
-        virtual void setup_shadow_map_step(const shadow_step_configuration& config) override;
+        virtual void setup_ibl_step(const ibl_step_configuration& configuration) override;
+        virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) override;
         virtual void begin_render() override;
         virtual void finish_render(float dt) override;
         virtual void set_viewport(int32 x, int32 y, int32 width, int32 height) override;
@@ -88,12 +88,13 @@ namespace mango
         //! \brief The prealocated size for all uniforms.
         //! \details The buffer has 3 parts and is filled every frame. 1 MiB should be enough for now.
         const int32 uniform_buffer_size = 1048576;
-        const int32 frame_size = uniform_buffer_size / 3 - 512; // TODO Paul: We give some padding for large uniform alignments here...
-        int32 m_current_buffer_part = 0;
-        int32 m_current_buffer_start = 0;
-        int32 m_frame_uniform_offset;     //!< The current offset in the uniform memory to write to.
-        int32 m_last_offset;              //!< The last frames offset in the uniform memory.
-        g_int m_uniform_buffer_alignment; //!< The alignment of the structures in the uniform buffer. Gets queried from OpenGL.
+        //! \brief The size of one frame in the uniform buffer. Used for triple buffering.
+        const int32 frame_size       = uniform_buffer_size / 3 - 512; // TODO Paul: We give some padding for large uniform alignments here...
+        int32 m_current_buffer_part  = 0;                             //!< The current part of the uniform buffer in use [0, 1, 2].
+        int32 m_current_buffer_start = 0;                             //!< The pointer to the start of the current part of the uniform buffer in use.
+        int32 m_frame_uniform_offset;                                 //!< The current offset in the uniform memory to write to.
+        int32 m_last_offset;                                          //!< The last frames offset in the uniform memory.
+        g_int m_uniform_buffer_alignment;                             //!< The alignment of the structures in the uniform buffer. Gets queried from OpenGL.
         //! \brief The mapped memory to be filled with all uniforms blocks per frame.
         void* m_mapped_uniform_memory;
         //! \brief Sync objects for gpu <-> cpu synchronization.

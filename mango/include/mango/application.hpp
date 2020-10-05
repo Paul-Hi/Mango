@@ -152,8 +152,6 @@ namespace mango
             return m_frametime;
         }
 
-        void doit();
-
       private:
         //! \brief The context of the application.
         shared_ptr<context_impl> m_context;

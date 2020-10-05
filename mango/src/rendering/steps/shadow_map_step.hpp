@@ -20,11 +20,16 @@ namespace mango
         void update(float dt) override;
 
         void attach() override;
-        void configure(const shadow_step_configuration& config);
+
+        //! \brief Configures the \a shadow_map_step.
+        //! \param[in] configuration The \a shadow_step_configuration to use.
+        void configure(const shadow_step_configuration& configuration);
         void execute(command_buffer_ptr& command_buffer) override;
 
         void destroy() override;
 
+        //! \brief Clears the shadow map buffer.
+        //! \param[in] command_buffer The \a command_buffer to add the clear command to.
         inline void clear_shadow_buffer(command_buffer_ptr& command_buffer)
         {
             command_buffer->clear_framebuffer(clear_buffer_mask::DEPTH_BUFFER, attachment_mask::DEPTH_BUFFER, 0.0f, 0.0f, 0.0f, 1.0f, m_shadow_buffer);

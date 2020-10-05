@@ -224,6 +224,8 @@ namespace mango
             return m_building_state;
         }
 
+        //! \brief Checks if the \a command_buffer is empty.
+        //! \return True if no commands are qeued, else False.
         inline bool empty()
         {
             return m_first != nullptr;

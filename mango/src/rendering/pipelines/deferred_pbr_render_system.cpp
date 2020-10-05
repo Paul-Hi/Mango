@@ -292,21 +292,21 @@ void deferred_pbr_render_system::configure(const render_configuration& configura
     }
 }
 
-void deferred_pbr_render_system::setup_ibl_step(const ibl_step_configuration& config)
+void deferred_pbr_render_system::setup_ibl_step(const ibl_step_configuration& configuration)
 {
     if (m_pipeline_steps[mango::render_step::ibl])
     {
         auto step = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
-        step->configure(config);
+        step->configure(configuration);
     }
 }
 
-void deferred_pbr_render_system::setup_shadow_map_step(const shadow_step_configuration& config)
+void deferred_pbr_render_system::setup_shadow_map_step(const shadow_step_configuration& configuration)
 {
     if (m_pipeline_steps[mango::render_step::shadow_map])
     {
         auto step = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map]);
-        step->configure(config);
+        step->configure(configuration);
     }
 }
 
@@ -470,7 +470,7 @@ void deferred_pbr_render_system::finish_render(float dt)
         tex_height >>= mip_level;
         m_command_buffer->bind_image_texture(0, tex, mip_level, false, 0, base_access::READ_ONLY, format::RGBA32F);
         m_command_buffer->bind_buffer(1, m_luminance_histogram_buffer, buffer_target::SHADER_STORAGE_BUFFER);
-        glm::vec2 params = glm::vec2(-8.0f, 1.0f / 136.0f); // min -8.0, max +128.0
+        glm::vec2 params = glm::vec2(-8.0f, 1.0f / 40.0f); // min -8.0, max +32.0
         m_command_buffer->bind_single_uniform(1, &(params), sizeof(params));
 
         m_command_buffer->dispatch_compute(tex_width / 16, tex_height / 16, 1);
@@ -483,7 +483,7 @@ void deferred_pbr_render_system::finish_render(float dt)
         // time coefficient with tau = 1.1;
         float tau              = 0.75f;
         float time_coefficient = 1.0f - expf(-dt * tau);
-        glm::vec4 red_params   = glm::vec4(time_coefficient, tex_width * tex_height, -8.0f, 136.0f); // min -8.0, max +128.0
+        glm::vec4 red_params   = glm::vec4(time_coefficient, tex_width * tex_height, -8.0f, 40.0f); // min -8.0, max +32.0
         m_command_buffer->bind_single_uniform(0, &(red_params), sizeof(red_params));
 
         m_command_buffer->dispatch_compute(1, 1, 1);

@@ -173,9 +173,9 @@ void ibl_step::update(float dt)
 
 void ibl_step::attach() {}
 
-void ibl_step::configure(const ibl_step_configuration& config)
+void ibl_step::configure(const ibl_step_configuration& configuration)
 {
-    m_render_level = config.get_render_level();
+    m_render_level = configuration.get_render_level();
     MANGO_ASSERT(m_render_level > 0.0f && m_render_level < 8.1f, "Shadow Map Resolution has to be between 0.0 and 8.0f!");
 }
 

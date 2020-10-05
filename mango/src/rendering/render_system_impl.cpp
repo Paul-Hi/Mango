@@ -60,16 +60,16 @@ void render_system_impl::configure(const render_configuration& configuration)
     }
 }
 
-void render_system_impl::setup_ibl_step(const ibl_step_configuration& config)
+void render_system_impl::setup_ibl_step(const ibl_step_configuration& configuration)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->setup_ibl_step(config);
+    m_current_render_system->setup_ibl_step(configuration);
 }
 
-void render_system_impl::setup_shadow_map_step(const shadow_step_configuration& config)
+void render_system_impl::setup_shadow_map_step(const shadow_step_configuration& configuration)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->setup_shadow_map_step(config);
+    m_current_render_system->setup_shadow_map_step(configuration);
 }
 
 void render_system_impl::begin_render()

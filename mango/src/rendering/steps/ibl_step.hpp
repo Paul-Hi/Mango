@@ -19,7 +19,10 @@ namespace mango
         void update(float dt) override;
 
         void attach() override;
-        void configure(const ibl_step_configuration& config);
+
+        //! \brief Configures the \a ibl_step.
+        //! \param[in] configuration The \a ibl_step_configuration to use.
+        void configure(const ibl_step_configuration& configuration);
         void execute(command_buffer_ptr& command_buffer) override;
 
         void destroy() override;

@@ -77,13 +77,13 @@ void shadow_map_step::update(float dt)
 
 void shadow_map_step::attach() {}
 
-void shadow_map_step::configure(const shadow_step_configuration& config)
+void shadow_map_step::configure(const shadow_step_configuration& configuration)
 {
-    m_resolution               = config.get_resolution();
-    m_max_penumbra             = config.get_max_penumbra();
-    m_shadow_map_offset        = config.get_offset();
-    m_shadow_map_cascade_count = config.get_cascade_count();
-    m_cascade_data.lambda      = config.get_split_lambda();
+    m_resolution               = configuration.get_resolution();
+    m_max_penumbra             = configuration.get_max_penumbra();
+    m_shadow_map_offset        = configuration.get_offset();
+    m_shadow_map_cascade_count = configuration.get_cascade_count();
+    m_cascade_data.lambda      = configuration.get_split_lambda();
     MANGO_ASSERT(m_resolution % 2 == 0, "Shadow Map Resolution has to be a multiple of 2!");
     MANGO_ASSERT(m_max_penumbra > 1.0f && m_max_penumbra < 32.0f, "Maximum Penumbra value is not in valid range 1 - 32!");
     MANGO_ASSERT(m_shadow_map_cascade_count > 0 && m_shadow_map_cascade_count < 5, "Cascade count has to be between 1 and 4!");

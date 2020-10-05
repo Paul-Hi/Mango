@@ -122,6 +122,7 @@ namespace mango
         bool m_render_steps[render_step::number_of_step_types];
     };
 
+    //! \brief The configuration for the \a shadow_map_step.
     class shadow_step_configuration
     {
       public:
@@ -135,6 +136,12 @@ namespace mango
         {
         }
 
+        //! \brief Constructs a \a shadow_step_configuration with specific values.
+        //! \param[in] resolution The configurated resolution for each cascade shadow map.
+        //! \param[in] max_penumbra The configurated maximum diffusion value for soft shadows.
+        //! \param[in] offset The configurated offset for the orthographic cameras so that every bit of geometry can potentially cast shadows.
+        //! \param[in] cascade_count The configurated number of cascades for the shadow mapping.
+        //! \param[in] lambda The configurated lambda for the split calculation. 0 means complete uniform, 1 complete logarithmic.
         shadow_step_configuration(int32 resolution, float max_penumbra, float offset, int32 cascade_count, float lambda)
             : m_resolution(resolution)
             , m_max_penumbra(max_penumbra)
@@ -144,69 +151,101 @@ namespace mango
         {
         }
 
+        //! \brief Sets the shadow map resolution.
+        //! \param[in] resolution The resolution to set the shadow maps to.
+        //! \return A reference to the modified \a shadow_step_configuration.
         inline shadow_step_configuration& set_resolution(int32 resolution)
         {
             m_resolution = resolution;
             return *this;
         }
 
+        //! \brief Sets the maximum penumbra.
+        //! \param[in] max_penumbra The maximum diffusion value for soft shadows.
+        //! \return A reference to the modified \a shadow_step_configuration.
         inline shadow_step_configuration& set_max_penumbra(float max_penumbra)
         {
             m_max_penumbra = max_penumbra;
             return *this;
         }
 
+        //! \brief Sets the shadow map camera offset.
+        //! \param[in] offset The offset for the orthographic cameras so that every bit of geometry can potentially cast shadows.
+        //! \return A reference to the modified \a shadow_step_configuration.
         inline shadow_step_configuration& set_offset(float offset)
         {
             m_offset = offset;
             return *this;
         }
 
+        //! \brief Sets the number of shadow cascades.
+        //! \param[in] cascade_count The number of shadow mapping cascades.
+        //! \return A reference to the modified \a shadow_step_configuration.
         inline shadow_step_configuration& set_cascade_count(int32 cascade_count)
         {
             m_cascade_count = cascade_count;
             return *this;
         }
 
+        //! \brief Sets the lambda to calculate th cascade splits with.
+        //! \param[in] lambda The lambda to use.
+        //! \details  0 means complete uniform, 1 complete logarithmic.
+        //! \return A reference to the modified \a shadow_step_configuration.
         inline shadow_step_configuration& set_split_lambda(float lambda)
         {
             m_lambda = lambda;
             return *this;
         }
 
+        //! \brief Retrieves and returns the shadow map resolution.
+        //! \return The configurated shadow map resolution.
         inline int32 get_resolution() const
         {
             return m_resolution;
         }
 
+        //! \brief Retrieves and returns the maximum penumbra.
+        //! \return The configurated maximum penumbra.
         inline float get_max_penumbra() const
         {
             return m_max_penumbra;
         }
 
+        //! \brief Retrieves and returns the shadow map orthographic camera offset.
+        //! \return The configurated shadow map orthographic camera offset.
         inline float get_offset() const
         {
             return m_offset;
         }
 
+        //! \brief Retrieves and returns the number of cascades.
+        //! \return The configurated number of cascades.
         inline int32 get_cascade_count() const
         {
             return m_cascade_count;
         }
 
+        //! \brief Retrieves and returns the lambda used for split calculation.
+        //! \return The configurated lambda used for split calculation.
         inline float get_split_lambda() const
         {
             return m_lambda;
         }
 
       private:
+        //! \brief The configured shadow map resolution.
         int32 m_resolution;
+        //! \brief The configured maximum penumbra.
         float m_max_penumbra;
+        //! \brief The configured offset for the shadow map orthographic cameras.
         float m_offset;
+        //! \brief The configured number of cascades.
         int32 m_cascade_count;
+        //! \brief The configured splitting lambda
         float m_lambda;
     };
 
+    //! \brief The configuration for the \a ibl_step.
     class ibl_step_configuration
     {
       public:
@@ -216,23 +255,31 @@ namespace mango
         {
         }
 
+        //! \brief Constructs a \a ibl_step_configuration with specific values.
+        //! \param[in] render_level The configurated render_level to render the ibl with.
         ibl_step_configuration(float render_level)
             : m_render_level(render_level)
         {
         }
 
+        //! \brief Sets the render level to render the ibl with.
+        //! \param[in] render_level The render_level to render the ibl with.
+        //! \return A reference to the modified \a ibl_step_configuration.
         inline ibl_step_configuration& set_render_level(float render_level)
         {
             m_render_level = render_level;
             return *this;
         }
 
+        //! \brief Retrieves and returns the render level to render the ibl with.
+        //! \return The configurated render_level to render the ibl with.
         inline float get_render_level() const
         {
             return m_render_level;
         }
 
       private:
+        //! \brief The render level.
         float m_render_level;
     };
 
@@ -247,8 +294,14 @@ namespace mango
         //! \param[in] configuration The \a render_configuration to use for the window.
         virtual void configure(const render_configuration& configuration) = 0;
 
-        virtual void setup_ibl_step(const ibl_step_configuration& config)           = 0;
-        virtual void setup_shadow_map_step(const shadow_step_configuration& config) = 0;
+        //! \brief Does the setup of the \a ibl_step.
+        //! \details After configuration this function should be called.
+        //! \param[in] configuration The \a ibl_step_configuration to use.
+        virtual void setup_ibl_step(const ibl_step_configuration& configuration) = 0;
+        //! \brief Does the setup of the \a shadow_map_step.
+        //! \details After configuration this function should be called.
+        //! \param[in] configuration The \a shadow_step_configuration to use.
+        virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) = 0;
 
       protected:
         virtual bool create()         = 0;
