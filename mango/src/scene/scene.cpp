@@ -119,9 +119,9 @@ entity scene::create_default_camera()
     camera_component.perspective.vertical_field_of_view = glm::radians(45.0f);
     camera_component.up                                 = glm::vec3(0.0f, 1.0f, 0.0f);
     camera_component.target                             = glm::vec3(0.0f, 0.0f, 0.0f);
-    camera_component.physical.aperture                 = 16.0f;
-    camera_component.physical.shutter_speed            = 1.0f / 125.0f;
-    camera_component.physical.iso                      = 100.0f;
+    camera_component.physical.aperture                  = 16.0f;
+    camera_component.physical.shutter_speed             = 1.0f / 125.0f;
+    camera_component.physical.iso                       = 100.0f;
 
     glm::vec3 position = glm::vec3(0.0f, 0.0f, 1.5f);
 
@@ -131,12 +131,17 @@ entity scene::create_default_camera()
     return camera_entity;
 }
 
-entity scene::create_entities_from_model(const string& path)
+entity scene::create_entities_from_model(const string& path, entity gltf_root)
 {
     PROFILE_ZONE;
-    entity gltf_root = create_empty();
-    attach(gltf_root, m_root_entity);
-    auto& transform                = m_transformations.create_component_for(gltf_root);
+    if (gltf_root == invalid_entity)
+    {
+        gltf_root = create_empty();
+        attach(gltf_root, m_root_entity);
+    }
+
+    auto& model_comp               = m_models.create_component_for(gltf_root);
+    model_comp.model_file_path     = path;
     shared_ptr<resource_system> rs = m_shared_context->get_resource_system_internal().lock();
     MANGO_ASSERT(rs, "Resource System is expired!");
     auto start                                      = path.find_last_of("\\/") + 1;
@@ -144,14 +149,21 @@ entity scene::create_entities_from_model(const string& path)
     m_tags.create_component_for(gltf_root).tag_name = path.substr(start);
     model_configuration config                      = { name };
     const shared_ptr<model> loaded                  = rs->get_gltf_model(path, config);
-    tinygltf::Model& m                              = loaded->gltf_model;
+    if (!loaded)
+        return invalid_entity;
+
+    tinygltf::Model& m = loaded->gltf_model;
 
     // load the default scene or the first one.
     glm::vec3 max_backup   = m_scene_boundaries.max;
     glm::vec3 min_backup   = m_scene_boundaries.min;
     m_scene_boundaries.max = glm::vec3(-3.402823e+38f);
     m_scene_boundaries.min = glm::vec3(3.402823e+38f);
-    MANGO_ASSERT(m.scenes.size() > 0, "No scenes in the gltf model found!");
+    if (m.scenes.size() <= 0)
+    {
+        MANGO_LOG_DEBUG("No scenes in the gltf model found! Can not load invalid gltf.");
+        return invalid_entity;
+    }
 
     // load all model buffer views into buffers.
     std::map<int, buffer_ptr> index_to_buffer_data;
@@ -189,8 +201,10 @@ entity scene::create_entities_from_model(const string& path)
     }
 
     // normalize scale
-    const glm::vec3 scale = glm::vec3(10.0f / (glm::compMax(m_scene_boundaries.max - m_scene_boundaries.min)));
-    transform.scale       = scale;
+    const glm::vec3 scale                                        = glm::vec3(10.0f / (glm::compMax(m_scene_boundaries.max - m_scene_boundaries.min)));
+    m_transformations.get_component_for_entity(gltf_root)->scale = scale;
+    model_comp.min_extends                                       = m_scene_boundaries.min;
+    model_comp.max_extends                                       = m_scene_boundaries.max;
 
     if (m_active.camera == invalid_entity)
     {
@@ -204,10 +218,11 @@ entity scene::create_entities_from_model(const string& path)
     m_scene_boundaries.min =
         glm::min(m_scene_boundaries.min, min_backup); // TODO Paul: This is just in case all other assets are still here, we need to do the calculation with all still existing entities.
 
+
     return gltf_root;
 }
 
-entity scene::create_environment_from_hdr(const string& path, float rendered_mip_level)
+entity scene::create_environment_from_hdr(const string& path)
 {
     PROFILE_ZONE;
     entity environment_entity = create_empty();
@@ -254,7 +269,6 @@ entity scene::create_environment_from_hdr(const string& path, float rendered_mip
 
     environment.hdr_texture = hdr_texture;
 
-    environment.render_level = rendered_mip_level;
     set_active_environment(environment_entity); // TODO Paul: Transformation?
 
     return environment_entity;
@@ -268,7 +282,6 @@ void scene::set_active_environment(entity e)
     {
         m_active.environment = e;
         rs->set_environment_texture(nullptr);
-        rs->set_environment_settings(0.0f, mango::default_environment_intensity);
         return;
     }
     auto next_comp = m_environments.get_component_for_entity(e);
@@ -277,19 +290,6 @@ void scene::set_active_environment(entity e)
 
     m_active.environment = e;
     rs->set_environment_texture(next_comp->hdr_texture);
-    rs->set_environment_settings(next_comp->render_level, next_comp->intensity);
-}
-
-void scene::update_environment_parameters(entity e)
-{
-    shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
-    MANGO_ASSERT(rs, "Render System is expired!");
-    if (e == invalid_entity)
-        return;
-    auto comp = m_environments.get_component_for_entity(e);
-    if (!comp)
-        return;
-    rs->set_environment_settings(comp->render_level, comp->intensity);
 }
 
 void scene::update(float dt)

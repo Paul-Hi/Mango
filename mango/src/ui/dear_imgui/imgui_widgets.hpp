@@ -63,13 +63,14 @@ namespace mango
     //! \brief This is an imgui widget drawing some stats of the framework.
     //! \param[in] shared_context The shared context.
     //! \param[in] enabled Specifies if window is rendered or not and can be set by imgui.
-    //! \param[in] dt The time since the last call.
-    void hardware_info_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, float dt)
+    void hardware_info_widget(const shared_ptr<context_impl>& shared_context, bool& enabled)
     {
         ImGui::Begin("Hardware Info", &enabled);
         if (ImGui::CollapsingHeader("Editor Stats"))
         {
-            ImGui::Text("Approx. Frame Time: %.2f ms", dt * 1000.0f);
+            float frametime = shared_context->get_application()->frame_time();
+            ImGui::Text("Frame Time: %.2f ms", frametime * 1000.0f);
+            ImGui::Text("Framerate: %.2f fps", 1.0f / frametime);
         }
         auto stats = shared_context->get_render_system_internal().lock()->get_hardware_stats();
         if (ImGui::CollapsingHeader("Renderer Stats"))
@@ -149,13 +150,35 @@ namespace mango
             auto children = application_scene->get_children(e);
 
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 5));
-            bool open = ImGui::TreeNodeEx((name + "##id_" + std::to_string(e)).c_str(),
-                                          ImGuiTreeNodeFlags_FramePadding | ((selected == e) ? ImGuiTreeNodeFlags_Selected : 0) | (children.empty() ? ImGuiTreeNodeFlags_Leaf : 0), "%s", name.c_str());
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_FramePadding | ((selected == e) ? ImGuiTreeNodeFlags_Selected : 0) |
+                                       (children.empty() ? ImGuiTreeNodeFlags_Leaf : 0);
+            bool open = ImGui::TreeNodeEx((name + "##id_" + std::to_string(e)).c_str(), flags, "%s", name.c_str());
             ImGui::PopStyleVar();
 
-            if (ImGui::IsItemClicked())
+            if (ImGui::IsItemClicked(0))
             {
                 selected = e;
+            }
+            if (ImGui::IsItemClicked(1) && !ImGui::IsPopupOpen(("##entity_menu" + std::to_string(e)).c_str()))
+            {
+                selected = e;
+                ImGui::OpenPopup(("##entity_menu" + std::to_string(e)).c_str());
+            }
+            if (ImGui::BeginPopup(("##entity_menu" + std::to_string(e)).c_str()))
+            {
+                if (ImGui::Selectable(("Add Entity##entity_menu" + std::to_string(e)).c_str()))
+                {
+                    selected = application_scene->create_empty();
+                    application_scene->attach(selected, e);
+                }
+                if (application_scene->get_root() != e && ImGui::Selectable(("Remove Entity##entity_menu" + std::to_string(e)).c_str()))
+                {
+                    application_scene->remove_entity(e);
+                    if (selected == e)
+                        selected = invalid_entity;
+                }
+
+                ImGui::EndPopup();
             }
             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
             {
@@ -484,6 +507,20 @@ namespace mango
                     ImGui::Separator();
                     ImGui::TreePop();
                 }
+
+                ImGui::Checkbox(("Double Sided##" + std::to_string(e)).c_str(), & material->double_sided);
+                ImGui::Separator();
+                const char* types  = "opaque\0masked\0blended\0dithered\0\0";
+                int32 alpha_mode_int = static_cast<int32>(material->alpha_rendering);
+                ImGui::Combo(("Alpha Mode##" + std::to_string(e)).c_str(), &alpha_mode_int, types);
+                material->alpha_rendering = static_cast<alpha_mode>(alpha_mode_int);
+                if(material->alpha_rendering == alpha_mode::MODE_MASK)
+                    ImGui::SliderFloat("Alpha CutOff", material->alpha_cutoff.type_data(), 0.0f, 1.0f);
+                if(material->alpha_rendering == alpha_mode::MODE_BLEND)
+                    ImGui::Text("Blending currently not supported!");
+                if(material->alpha_rendering == alpha_mode::MODE_DITHER)
+                    ImGui::Text("Dithering ... Just for fun!");
+
             }
         }
 
@@ -496,21 +533,22 @@ namespace mango
     void scene_inspector_widget(const shared_ptr<scene>& application_scene, bool& enabled, entity& selected)
     {
         ImGui::Begin("Scene Inspector", &enabled);
-        entity root             = application_scene->get_root();
+        entity root = application_scene->get_root();
+
+        if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() && !ImGui::IsPopupOpen("##scene_menu") && ImGui::IsMouseClicked(1))
+            ImGui::OpenPopup("##scene_menu");
+        if (ImGui::BeginPopup("##scene_menu"))
+        {
+            if (ImGui::Selectable("Add Entity##scene_menu"))
+            {
+                selected = application_scene->create_empty();
+                application_scene->attach(selected, root);
+            }
+
+            ImGui::EndPopup();
+        }
+
         static entity selection = invalid_entity;
-        if (ImGui::Button("Create Empty Entity##create_empty_entity"))
-        {
-            selection = application_scene->create_empty();
-            application_scene->attach(selection, application_scene->get_root());
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Remove Selected Entity##remove_selected_entity"))
-        {
-            application_scene->remove_entity(selected);
-        }
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
         details::draw_entity_tree(application_scene, root, selection);
         ImGui::End();
         selected = selection;
@@ -567,379 +605,444 @@ namespace mango
         {
             auto tag_comp         = application_scene->query_tag(e);
             auto transform_comp   = application_scene->query_transform_component(e);
+            auto model_comp       = application_scene->query_model_component(e);
             auto mesh_comp        = application_scene->query_mesh_component(e);
             auto camera_comp      = application_scene->query_camera_component(e);
             auto environment_comp = application_scene->query_environment_component(e);
             auto light_comp       = application_scene->query_light_component(e);
 
+            if (ImGui::Button("Add Component"))
+            {
+                ImGui::OpenPopup("##component_addition_popup");
+            }
+            if (ImGui::BeginPopup("##component_addition_popup"))
+            {
+                if (!tag_comp && ImGui::Selectable("Tag Component"))
+                {
+                    application_scene->add_tag(e);
+                }
+                if (!transform_comp && ImGui::Selectable("Transform Component"))
+                {
+                    application_scene->add_transform_component(e);
+                }
+                // if (!mesh_comp && ImGui::Selectable("Mesh Component"))
+                //{
+                //    application_scene->add_mesh_component(e);
+                //}
+                if (!model_comp && ImGui::Selectable("Model Component"))
+                {
+                    application_scene->add_model_component(e);
+                }
+                if (!camera_comp && ImGui::Selectable("Camera Component"))
+                {
+                    application_scene->add_camera_component(e);
+                }
+                if (!environment_comp && ImGui::Selectable("Environment Component"))
+                {
+                    application_scene->add_environment_component(e);
+                }
+                if (!light_comp && ImGui::Selectable("Light Component"))
+                {
+                    application_scene->add_light_component(e);
+                }
+
+                ImGui::EndPopup();
+            }
+            ImGui::Separator();
+            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 0.0f);
             // Tag
-            ImGui::Text("Tag");
             if (tag_comp)
             {
-                std::array<char, 32> tmp_string;                       // TODO Paul: Max length? 32 enough for now?
-                strcpy(tmp_string.data(), tag_comp->tag_name.c_str()); // TODO Paul: Kind of fishy.
-                ImGui::InputTextWithHint(("##tag" + std::to_string(e)).c_str(), "Enter Entity Tag", tmp_string.data(), 32);
-                tag_comp->tag_name = tmp_string.data();
-                ImGui::Spacing();
-                if (ImGui::Button(("Remove##tag" + std::to_string(e)).c_str()))
-                    application_scene->remove_tag(e);
+                if (ImGui::TreeNode(("Tag Component##" + std::to_string(e)).c_str()))
+                {
+                    ImGui::Spacing();
+                    std::array<char, 32> tmp_string;                       // TODO Paul: Max length? 32 enough for now?
+                    strcpy(tmp_string.data(), tag_comp->tag_name.c_str()); // TODO Paul: Kind of fishy.
+                    ImGui::InputTextWithHint(("##tag" + std::to_string(e)).c_str(), "Enter Entity Tag", tmp_string.data(), 32);
+                    tag_comp->tag_name = tmp_string.data();
+                    ImGui::Spacing();
+                    if (ImGui::Button(("Remove##tag" + std::to_string(e)).c_str()))
+                        application_scene->remove_tag(e);
+                    ImGui::Separator();
+                    ImGui::TreePop();
+                }
             }
-            else
-            {
-                if (ImGui::Button(("Add##tag" + std::to_string(e)).c_str()))
-                    application_scene->add_tag(e);
-            }
-            ImGui::Separator();
 
             // Transform
-            ImGui::Text("Transform");
             if (transform_comp)
             {
-                ImGui::BeginTabBar(("##local_transform" + std::to_string(e)).c_str());
-                if (ImGui::BeginTabItem(("Translation##translation" + std::to_string(e)).c_str()))
+                if (ImGui::TreeNode(("Transform Component##" + std::to_string(e)).c_str()))
                 {
-                    if (environment_comp)
-                    {
-                        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-                        ImGui::BeginGroup();
-                    }
-                    ImGui::DragFloat(("X##t_delta_x" + std::to_string(e)).c_str(), &transform_comp->position.x, 0.1f, 0.0f, 0.0f, "%.1f");
-                    ImGui::DragFloat(("Y##t_delta_y" + std::to_string(e)).c_str(), &transform_comp->position.y, 0.1f, 0.0f, 0.0f, "%.1f");
-                    ImGui::DragFloat(("Z##t_delta_z" + std::to_string(e)).c_str(), &transform_comp->position.z, 0.1f, 0.0f, 0.0f, "%.1f");
-
                     ImGui::Spacing();
-                    if (ImGui::Button(("Clear##translation" + std::to_string(e)).c_str()))
-                        transform_comp->position = glm::vec3(0.0f);
-                    if (environment_comp)
+                    ImGui::BeginTabBar(("##local_transform" + std::to_string(e)).c_str());
+                    if (ImGui::BeginTabItem(("Translation##translation" + std::to_string(e)).c_str()))
                     {
-                        ImGui::EndGroup();
-                        ImGui::PopItemFlag();
-                        ImGui::PopStyleVar();
-                        if (ImGui::IsItemHovered())
-                            ImGui::SetTooltip("Disabled for environments");
+                        if (environment_comp)
+                        {
+                            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+                            ImGui::BeginGroup();
+                        }
+                        ImGui::DragFloat(("X##t_delta_x" + std::to_string(e)).c_str(), &transform_comp->position.x, 0.1f, 0.0f, 0.0f, "%.1f");
+                        ImGui::DragFloat(("Y##t_delta_y" + std::to_string(e)).c_str(), &transform_comp->position.y, 0.1f, 0.0f, 0.0f, "%.1f");
+                        ImGui::DragFloat(("Z##t_delta_z" + std::to_string(e)).c_str(), &transform_comp->position.z, 0.1f, 0.0f, 0.0f, "%.1f");
+
+                        ImGui::Spacing();
+                        if (ImGui::Button(("Clear##translation" + std::to_string(e)).c_str()))
+                            transform_comp->position = glm::vec3(0.0f);
+                        if (environment_comp)
+                        {
+                            ImGui::EndGroup();
+                            ImGui::PopItemFlag();
+                            ImGui::PopStyleVar();
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip("Disabled for environments");
+                        }
+                        ImGui::EndTabItem();
                     }
-                    ImGui::EndTabItem();
+                    if (ImGui::BeginTabItem(("Rotation##rotation" + std::to_string(e)).c_str()))
+                    {
+                        if ((camera_comp || environment_comp))
+                        {
+                            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+                            ImGui::BeginGroup();
+                        }
+                        static bool dragging[3] = { false, false, false };
+                        float x                 = dragging[0] && ImGui::IsWindowFocused() ? ImGui::GetMouseDragDelta().x * 0.1f : 0.0f;
+                        float y                 = dragging[1] && ImGui::IsWindowFocused() ? ImGui::GetMouseDragDelta().x * 0.1f : 0.0f;
+                        float z                 = dragging[2] && ImGui::IsWindowFocused() ? ImGui::GetMouseDragDelta().x * 0.1f : 0.0f;
+                        float t_x               = x;
+                        float t_y               = y;
+                        float t_z               = z;
+
+                        ImGui::DragFloat(("X##r_delta_x" + std::to_string(e)).c_str(), &x, 0.1f, 0.0f, 0.0f, "%.1f°");
+                        if (!ImGui::IsMouseDragging(0) && !ImGui::IsItemDeactivatedAfterChange())
+                            t_x = x;
+                        if (ImGui::IsItemActivated())
+                        {
+                            dragging[0] = true;
+                            dragging[1] = false;
+                            dragging[2] = false;
+                        }
+                        ImGui::DragFloat(("Y##r_delta_y" + std::to_string(e)).c_str(), &y, 0.1f, 0.0f, 0.0f, "%.1f°");
+                        if (!ImGui::IsMouseDragging(0) && !ImGui::IsItemDeactivatedAfterChange())
+                            t_y = y;
+                        if (ImGui::IsItemActivated())
+                        {
+                            dragging[0] = false;
+                            dragging[1] = true;
+                            dragging[2] = false;
+                        }
+                        ImGui::DragFloat(("Z##r_delta_z" + std::to_string(e)).c_str(), &z, 0.1f, 0.0f, 0.0f, "%.1f°");
+                        if (!ImGui::IsMouseDragging(0) && !ImGui::IsItemDeactivatedAfterChange())
+                            t_z = z;
+                        if (ImGui::IsItemActivated())
+                        {
+                            dragging[0] = false;
+                            dragging[1] = false;
+                            dragging[2] = true;
+                        }
+
+                        glm::quat x_quat = glm::angleAxis(glm::radians(x - t_x), glm::vec3(1.0f, 0.0f, 0.0f));
+                        glm::quat y_quat = glm::angleAxis(glm::radians(y - t_y), glm::vec3(0.0f, 1.0f, 0.0f));
+                        glm::quat z_quat = glm::angleAxis(glm::radians(z - t_z), glm::vec3(0.0f, 0.0f, 1.0f));
+
+                        transform_comp->rotation = x_quat * y_quat * z_quat * transform_comp->rotation;
+
+                        ImGui::Spacing();
+                        if (ImGui::Button(("Clear##rotation" + std::to_string(e)).c_str()))
+                            transform_comp->rotation = glm::quat(glm::vec3(0.0, 0.0, 0.0));
+                        if ((camera_comp || environment_comp))
+                        {
+                            ImGui::EndGroup();
+                            ImGui::PopItemFlag();
+                            ImGui::PopStyleVar();
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip("Disabled for %s", (environment_comp ? "environments" : "cameras"));
+                        }
+                        ImGui::EndTabItem();
+                    }
+                    if (ImGui::BeginTabItem(("Scale##scale" + std::to_string(e)).c_str()))
+                    {
+                        if ((camera_comp || environment_comp))
+                        {
+                            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+                            ImGui::BeginGroup();
+                        }
+
+                        ImGui::DragFloat(("X##s_delta_x" + std::to_string(e)).c_str(), &transform_comp->scale.x, 0.01f, 0.0f, 0.0f, "%.2f");
+                        ImGui::DragFloat(("Y##s_delta_y" + std::to_string(e)).c_str(), &transform_comp->scale.y, 0.01f, 0.0f, 0.0f, "%.2f");
+                        ImGui::DragFloat(("Z##s_delta_z" + std::to_string(e)).c_str(), &transform_comp->scale.z, 0.01f, 0.0f, 0.0f, "%.2f");
+
+                        ImGui::Spacing();
+                        if (ImGui::Button(("Clear##scale" + std::to_string(e)).c_str()))
+                            transform_comp->scale = glm::vec3(1.0f);
+                        if ((camera_comp || environment_comp))
+                        {
+                            ImGui::EndGroup();
+                            ImGui::PopItemFlag();
+                            ImGui::PopStyleVar();
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip("Disabled for %s", (environment_comp ? "environments" : "cameras"));
+                        }
+                        ImGui::EndTabItem();
+                    }
+                    ImGui::EndTabBar();
+                    // TODO Paul: Removing transforms? .... Should be possible.
+                    // ImGui::SameLine();
+                    // if (ImGui::Button(("Remove##transform" + std::to_string(e)).c_str()))
+                    //     application_scene->remove_transform_component(e);
+                    ImGui::Separator();
+                    ImGui::TreePop();
                 }
-                if (ImGui::BeginTabItem(("Rotation##rotation" + std::to_string(e)).c_str()))
-                {
-                    if ((camera_comp || environment_comp))
-                    {
-                        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-                        ImGui::BeginGroup();
-                    }
-                    static bool dragging[3] = { false, false, false };
-                    float x                 = dragging[0] && ImGui::IsWindowFocused() ? ImGui::GetMouseDragDelta().x * 0.1f : 0.0f;
-                    float y                 = dragging[1] && ImGui::IsWindowFocused() ? ImGui::GetMouseDragDelta().x * 0.1f : 0.0f;
-                    float z                 = dragging[2] && ImGui::IsWindowFocused() ? ImGui::GetMouseDragDelta().x * 0.1f : 0.0f;
-                    float t_x               = x;
-                    float t_y               = y;
-                    float t_z               = z;
-
-                    ImGui::DragFloat(("X##r_delta_x" + std::to_string(e)).c_str(), &x, 0.1f, 0.0f, 0.0f, "%.1f°");
-                    if (!ImGui::IsMouseDragging(0) && !ImGui::IsItemDeactivatedAfterChange())
-                        t_x = x;
-                    if (ImGui::IsItemActivated())
-                    {
-                        dragging[0] = true;
-                        dragging[1] = false;
-                        dragging[2] = false;
-                    }
-                    ImGui::DragFloat(("Y##r_delta_y" + std::to_string(e)).c_str(), &y, 0.1f, 0.0f, 0.0f, "%.1f°");
-                    if (!ImGui::IsMouseDragging(0) && !ImGui::IsItemDeactivatedAfterChange())
-                        t_y = y;
-                    if (ImGui::IsItemActivated())
-                    {
-                        dragging[0] = false;
-                        dragging[1] = true;
-                        dragging[2] = false;
-                    }
-                    ImGui::DragFloat(("Z##r_delta_z" + std::to_string(e)).c_str(), &z, 0.1f, 0.0f, 0.0f, "%.1f°");
-                    if (!ImGui::IsMouseDragging(0) && !ImGui::IsItemDeactivatedAfterChange())
-                        t_z = z;
-                    if (ImGui::IsItemActivated())
-                    {
-                        dragging[0] = false;
-                        dragging[1] = false;
-                        dragging[2] = true;
-                    }
-
-                    glm::quat x_quat = glm::angleAxis(glm::radians(x - t_x), glm::vec3(1.0f, 0.0f, 0.0f));
-                    glm::quat y_quat = glm::angleAxis(glm::radians(y - t_y), glm::vec3(0.0f, 1.0f, 0.0f));
-                    glm::quat z_quat = glm::angleAxis(glm::radians(z - t_z), glm::vec3(0.0f, 0.0f, 1.0f));
-
-                    transform_comp->rotation = x_quat * y_quat * z_quat * transform_comp->rotation;
-
-                    ImGui::Spacing();
-                    if (ImGui::Button(("Clear##rotation" + std::to_string(e)).c_str()))
-                        transform_comp->rotation = glm::quat(glm::vec3(0.0, 0.0, 0.0));
-                    if ((camera_comp || environment_comp))
-                    {
-                        ImGui::EndGroup();
-                        ImGui::PopItemFlag();
-                        ImGui::PopStyleVar();
-                        if (ImGui::IsItemHovered())
-                            ImGui::SetTooltip("Disabled for %s", (environment_comp ? "environments" : "cameras"));
-                    }
-                    ImGui::EndTabItem();
-                }
-                if (ImGui::BeginTabItem(("Scale##scale" + std::to_string(e)).c_str()))
-                {
-                    if ((camera_comp || environment_comp))
-                    {
-                        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-                        ImGui::BeginGroup();
-                    }
-
-                    ImGui::DragFloat(("X##s_delta_x" + std::to_string(e)).c_str(), &transform_comp->scale.x, 0.01f, 0.0f, 0.0f, "%.2f");
-                    ImGui::DragFloat(("Y##s_delta_y" + std::to_string(e)).c_str(), &transform_comp->scale.y, 0.01f, 0.0f, 0.0f, "%.2f");
-                    ImGui::DragFloat(("Z##s_delta_z" + std::to_string(e)).c_str(), &transform_comp->scale.z, 0.01f, 0.0f, 0.0f, "%.2f");
-
-                    ImGui::Spacing();
-                    if (ImGui::Button(("Clear##scale" + std::to_string(e)).c_str()))
-                        transform_comp->scale = glm::vec3(1.0f);
-                    if ((camera_comp || environment_comp))
-                    {
-                        ImGui::EndGroup();
-                        ImGui::PopItemFlag();
-                        ImGui::PopStyleVar();
-                        if (ImGui::IsItemHovered())
-                            ImGui::SetTooltip("Disabled for %s", (environment_comp ? "environments" : "cameras"));
-                    }
-                    ImGui::EndTabItem();
-                }
-                ImGui::EndTabBar();
-                // TODO Paul: Removing transforms? .... Should be possible.
-                // ImGui::SameLine();
-                // if (ImGui::Button(("Remove##transform" + std::to_string(e)).c_str()))
-                //     application_scene->remove_transform_component(e);
             }
-            else
+
+            // Model
+            if (model_comp)
             {
-                if (ImGui::Button(("Add##transform" + std::to_string(e)).c_str()))
-                    application_scene->add_transform_component(e);
-            }
+                if (ImGui::TreeNode(("Model Component##" + std::to_string(e)).c_str()))
+                {
+                    ImGui::Spacing();
+                    if (model_comp->model_file_path.empty())
+                    {
+                        ImGui::Text("No Model loaded!");
+                        if (ImGui::Button("Load"))
+                        {
+                            char const* filter[2] = { "*.gltf", "*.glb" };
 
-            ImGui::Separator();
+                            char* query_path = tinyfd_openFileDialog("", "res/", 2, filter, NULL, 0);
+                            if (query_path)
+                            {
+                                string queried = string(query_path);
+                                auto ext       = queried.substr(queried.find_last_of(".") + 1);
+                                if (ext == "glb" || ext == "gltf")
+                                    application_scene->create_entities_from_model(queried, e);
+                            }
+                        }
+                        // Removing only possible when no model is loaded ... TODO Paul?
+                        if (ImGui::Button(("Remove##model" + std::to_string(e)).c_str()))
+                            application_scene->remove_model_component(e);
+                    }
+                    else
+                    {
+                        ImGui::Text(("Model loaded from: '" + model_comp->model_file_path + "'").c_str());
+                        glm::vec3 min = model_comp->min_extends;
+                        glm::vec3 max = model_comp->max_extends;
+                        if (transform_comp)
+                        {
+                            min = glm::vec3(transform_comp->world_transformation_matrix * glm::vec4(min, 1.0f));
+                            max = glm::vec3(transform_comp->world_transformation_matrix * glm::vec4(max, 1.0f));
+                        }
+                        // TODO Paul: These are only correct, if we do not change any mesh transformations.
+                        ImGui::Text(("Min Extends: [ " + std::to_string(min.x) + ", " + std::to_string(min.y) + ", " + std::to_string(min.z) + "]").c_str());
+                        ImGui::Text(("Max Extends: [ " + std::to_string(max.x) + ", " + std::to_string(max.y) + ", " + std::to_string(max.z) + "]").c_str());
+                    }
+
+                    ImGui::Separator();
+                    ImGui::TreePop();
+                }
+            }
 
             // Mesh
-            ImGui::Text("Mesh");
             if (mesh_comp)
             {
-                ImGui::Text("Primitive/Material List:");
-                if (ImGui::ListBoxHeader(("##primitives_materials_list_box" + std::to_string(e)).c_str(), ImVec2(ImGui::GetWindowWidth() * 0.5f, 64)))
+                if (ImGui::TreeNode(("Mesh Component##" + std::to_string(e)).c_str()))
                 {
-                    for (auto m : mesh_comp->materials)
-                        ImGui::Text(("Primitive with " + m.material_name + " material").c_str());
-                    ImGui::ListBoxFooter();
+                    ImGui::Spacing();
+                    ImGui::Text("Primitive/Material List:");
+                    if (ImGui::ListBoxHeader(("##primitives_materials_list_box" + std::to_string(e)).c_str(), ImVec2(ImGui::GetWindowWidth() * 0.5f, 64)))
+                    {
+                        for (auto m : mesh_comp->materials)
+                            ImGui::Text(("Primitive with " + m.material_name + " material").c_str());
+                        ImGui::ListBoxFooter();
+                    }
+                    ImGui::Checkbox(("Has normals##mesh" + std::to_string(e)).c_str(), &mesh_comp->has_normals);
+                    ImGui::Checkbox(("Has tangents##mesh" + std::to_string(e)).c_str(), &mesh_comp->has_tangents);
+                    ImGui::Spacing();
+                    if (ImGui::Button(("Remove##mesh" + std::to_string(e)).c_str()))
+                        application_scene->remove_mesh_component(e);
+                    ImGui::Separator();
+                    ImGui::TreePop();
                 }
-                ImGui::Checkbox(("Has normals##mesh" + std::to_string(e)).c_str(), &mesh_comp->has_normals);
-                ImGui::Checkbox(("Has tangents##mesh" + std::to_string(e)).c_str(), &mesh_comp->has_tangents);
-                ImGui::Spacing();
-                if (ImGui::Button(("Remove##mesh" + std::to_string(e)).c_str()))
-                    application_scene->remove_mesh_component(e);
             }
-            else
-            {
-                if (ImGui::Button(("Add##mesh" + std::to_string(e)).c_str()))
-                    application_scene->add_mesh_component(e);
-            }
-
-            ImGui::Separator();
 
             // Camera
-            ImGui::Text("Camera");
             if (camera_comp)
             {
-                entity cam  = application_scene->get_active_camera_data().active_camera_entity;
-                bool active = cam == e;
-                ImGui::Checkbox(("Make Scene Camera##camera" + std::to_string(e)).c_str(), &active);
-                if (active)
-                    application_scene->set_active_camera(e);
-                const char* types  = "perspective\0orthographic\0\0";
-                int32 cam_type_int = static_cast<int32>(camera_comp->cam_type);
-                ImGui::Combo(("Camera Type##camera" + std::to_string(e)).c_str(), &cam_type_int, types);
-                camera_comp->cam_type = static_cast<camera_type>(cam_type_int);
-                ImGui::SliderFloat(("Near Plane##camera" + std::to_string(e)).c_str(), &camera_comp->z_near, 0.0f, camera_comp->z_far);
-                ImGui::SliderFloat(("Far Plane##camera" + std::to_string(e)).c_str(), &camera_comp->z_far, camera_comp->z_near, 1000.0f);
-                if (camera_comp->cam_type == camera_type::perspective_camera)
+                if (ImGui::TreeNode(("Camera Component##" + std::to_string(e)).c_str()))
                 {
-                    ImGui::SliderAngle(("Vertical Field Of View##camera" + std::to_string(e)).c_str(), &camera_comp->perspective.vertical_field_of_view, 1.75f, 175.0f, "%.0f°");
-                    ImGui::Text(("Aspect: " + std::to_string(camera_comp->perspective.aspect)).c_str());
-                    if (ImGui::Button(("Aspect to viewport##camera" + std::to_string(e)).c_str()))
+                    ImGui::Spacing();
+                    entity cam  = application_scene->get_active_camera_data().active_camera_entity;
+                    bool active = cam == e;
+                    ImGui::Checkbox(("Make Scene Camera##camera" + std::to_string(e)).c_str(), &active);
+                    if (active)
+                        application_scene->set_active_camera(e);
+                    const char* types  = "perspective\0orthographic\0\0";
+                    int32 cam_type_int = static_cast<int32>(camera_comp->cam_type);
+                    ImGui::Combo(("Camera Type##camera" + std::to_string(e)).c_str(), &cam_type_int, types);
+                    camera_comp->cam_type = static_cast<camera_type>(cam_type_int);
+                    ImGui::SliderFloat(("Near Plane##camera" + std::to_string(e)).c_str(), &camera_comp->z_near, 0.0f, camera_comp->z_far);
+                    ImGui::SliderFloat(("Far Plane##camera" + std::to_string(e)).c_str(), &camera_comp->z_far, camera_comp->z_near, 1000.0f);
+                    if (camera_comp->cam_type == camera_type::perspective_camera)
                     {
-                        camera_comp->perspective.aspect = viewport_size.x / viewport_size.y;
+                        ImGui::SliderAngle(("Vertical Field Of View##camera" + std::to_string(e)).c_str(), &camera_comp->perspective.vertical_field_of_view, 1.75f, 175.0f, "%.0f°");
+                        ImGui::Text(("Aspect: " + std::to_string(camera_comp->perspective.aspect)).c_str());
+                        if (ImGui::Button(("Aspect to viewport##camera" + std::to_string(e)).c_str()))
+                        {
+                            camera_comp->perspective.aspect = viewport_size.x / viewport_size.y;
+                        }
                     }
-                }
-                else // orthographic
-                {
-                    ImGui::SliderFloat(("Magnification X##camera" + std::to_string(e)).c_str(), &camera_comp->orthographic.x_mag, 0.1f, 100.0f);
-                    ImGui::SliderFloat(("Magnification Y##camera" + std::to_string(e)).c_str(), &camera_comp->orthographic.y_mag, 0.1f, 100.0f);
-                    if (ImGui::Button(("Magnification to viewport##camera" + std::to_string(e)).c_str()))
+                    else // orthographic
                     {
-                        camera_comp->orthographic.x_mag = viewport_size.x / viewport_size.y;
-                        camera_comp->orthographic.y_mag = 1.0f;
+                        ImGui::SliderFloat(("Magnification X##camera" + std::to_string(e)).c_str(), &camera_comp->orthographic.x_mag, 0.1f, 100.0f);
+                        ImGui::SliderFloat(("Magnification Y##camera" + std::to_string(e)).c_str(), &camera_comp->orthographic.y_mag, 0.1f, 100.0f);
+                        if (ImGui::Button(("Magnification to viewport##camera" + std::to_string(e)).c_str()))
+                        {
+                            camera_comp->orthographic.x_mag = viewport_size.x / viewport_size.y;
+                            camera_comp->orthographic.y_mag = 1.0f;
+                        }
                     }
+                    ImGui::DragFloat3(("Target##camera" + std::to_string(e)).c_str(), &camera_comp->target.x, 0.1f, 0.0f, 0.0f, "%.1f");
+
+                    ImGui::Checkbox(("Adaptive Exposure##camera" + std::to_string(e)).c_str(), &camera_comp->physical.adaptive_exposure);
+
+                    if (camera_comp->physical.adaptive_exposure)
+                    {
+                        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+                        ImGui::BeginGroup();
+                    }
+
+                    ImGui::InputFloat(("Aperture##camera" + std::to_string(e)).c_str(), &camera_comp->physical.aperture, 0.1f, 1.0f, "%.1f");
+                    ImGui::InputFloat(("Shutter Speed##camera" + std::to_string(e)).c_str(), &camera_comp->physical.shutter_speed, 0.0001f, 0.1f, "%.5f");
+                    ImGui::InputFloat(("Iso##camera" + std::to_string(e)).c_str(), &camera_comp->physical.iso, 10.0f, 100.0f, "%.1f");
+
+                    if (camera_comp->physical.adaptive_exposure)
+                    {
+                        ImGui::EndGroup();
+                        ImGui::PopItemFlag();
+                        ImGui::PopStyleVar();
+                        if (ImGui::IsItemHovered())
+                            ImGui::SetTooltip("Adaptive Exposure is activated");
+                    }
+
+                    ImGui::Spacing();
+                    if (ImGui::Button(("Remove##camera" + std::to_string(e)).c_str()))
+                        application_scene->remove_camera_component(e);
+                    ImGui::Separator();
+                    ImGui::TreePop();
                 }
-                ImGui::DragFloat3(("Target##camera" + std::to_string(e)).c_str(), &camera_comp->target.x, 0.1f, 0.0f, 0.0f, "%.1f");
-
-                ImGui::Checkbox(("Adaptive Exposure##camera" + std::to_string(e)).c_str(), &camera_comp->physical.adaptive_exposure);
-
-                if (camera_comp->physical.adaptive_exposure)
-                {
-                    ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-                    ImGui::BeginGroup();
-                }
-
-                ImGui::InputFloat(("Aperture##camera" + std::to_string(e)).c_str(), &camera_comp->physical.aperture, 0.1f, 1.0f, "%.1f");
-                ImGui::InputFloat(("Shutter Speed##camera" + std::to_string(e)).c_str(), &camera_comp->physical.shutter_speed, 0.0001f, 0.1f, "%.5f");
-                ImGui::InputFloat(("Iso##camera" + std::to_string(e)).c_str(), &camera_comp->physical.iso, 10.0f, 100.0f, "%.1f");
-
-                if (camera_comp->physical.adaptive_exposure)
-                {
-                    ImGui::EndGroup();
-                    ImGui::PopItemFlag();
-                    ImGui::PopStyleVar();
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("Adaptive Exposure is activated");
-                }
-
-                ImGui::Spacing();
-                if (ImGui::Button(("Remove##camera" + std::to_string(e)).c_str()))
-                    application_scene->remove_camera_component(e);
             }
-            else
-            {
-                if (ImGui::Button(("Add##camera" + std::to_string(e)).c_str()))
-                    application_scene->add_camera_component(e);
-            }
-            ImGui::Separator();
 
             // Environment
-            ImGui::Text("Environment");
             if (environment_comp)
             {
-                entity env  = application_scene->get_active_environment_data().active_environment_entity;
-                bool active = env == e;
-                if (environment_comp->hdr_texture)
-                    ImGui::Checkbox(("Make Scene Environment##camera" + std::to_string(e)).c_str(), &active);
-                if (env != e && active)
-                    application_scene->set_active_environment(e);
-
-                ImVec2 canvas_p0;
-                ImDrawList* draw_list = ImGui::GetWindowDrawList();
-                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                canvas_p0 = ImGui::GetCursorScreenPos();
-                draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 128, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
-                if (environment_comp->hdr_texture)
-                    ImGui::Image((void*)(intptr_t)environment_comp->hdr_texture->get_name(), ImVec2(128, 64));
-                else
-                    ImGui::Dummy(ImVec2(128, 64));
-                if (ImGui::IsItemHovered())
+                if (ImGui::TreeNode(("Environment Component##" + std::to_string(e)).c_str()))
                 {
+                    ImGui::Spacing();
+                    entity env  = application_scene->get_active_environment_data().active_environment_entity;
+                    bool active = env == e;
+                    if (environment_comp->hdr_texture)
+                        ImGui::Checkbox(("Make Scene Environment##camera" + std::to_string(e)).c_str(), &active);
+                    if (env != e && active)
+                        application_scene->set_active_environment(e);
+
+                    ImVec2 canvas_p0;
+                    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
+                    canvas_p0 = ImGui::GetCursorScreenPos();
+                    draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 128, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
+                    if (environment_comp->hdr_texture)
+                        ImGui::Image((void*)(intptr_t)environment_comp->hdr_texture->get_name(), ImVec2(128, 64));
+                    else
+                        ImGui::Dummy(ImVec2(128, 64));
+                    if (ImGui::IsItemHovered())
+                    {
+                        if (environment_comp->hdr_texture)
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
+                            ImGui::BeginTooltip();
+                            ImGui::Image((void*)(intptr_t)environment_comp->hdr_texture->get_name(), ImVec2(512, 256));
+                            ImGui::EndTooltip();
+                            ImGui::PopStyleColor();
+                        }
+                        else
+                            ImGui::SetTooltip("Load HDR image");
+                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 128, canvas_p0.y + 64), IM_COL32(200, 200, 200, 255), 2.0f);
+                    }
+                    ImGui::PopStyleVar();
+                    if (ImGui::IsItemClicked())
+                    {
+                        texture_configuration tex_config;
+                        tex_config.m_generate_mipmaps        = 1;
+                        tex_config.m_is_standard_color_space = false;
+                        tex_config.m_texture_min_filter      = texture_parameter::FILTER_LINEAR;
+                        tex_config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
+                        tex_config.m_texture_wrap_s          = texture_parameter::WRAP_CLAMP_TO_EDGE;
+                        tex_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
+
+                        char const* filter[1] = { "*.hdr" };
+
+                        environment_comp->hdr_texture = details::load_texture(tex_config, rs, filter, 1);
+                        application_scene->set_active_environment(e);
+                    }
                     if (environment_comp->hdr_texture)
                     {
-                        ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
-                        ImGui::BeginTooltip();
-                        ImGui::Image((void*)(intptr_t)environment_comp->hdr_texture->get_name(), ImVec2(512, 256));
-                        ImGui::EndTooltip();
-                        ImGui::PopStyleColor();
+                        ImGui::SliderFloat(("Intensity##environment_intensity" + std::to_string(e)).c_str(), &environment_comp->intensity, 0.0f, 50000.0f);
                     }
-                    else
-                        ImGui::SetTooltip("Load HDR image");
-                    draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 128, canvas_p0.y + 64), IM_COL32(200, 200, 200, 255), 2.0f);
-                }
-                ImGui::PopStyleVar();
-                if (ImGui::IsItemClicked())
-                {
-                    texture_configuration tex_config;
-                    tex_config.m_generate_mipmaps        = 1;
-                    tex_config.m_is_standard_color_space = false;
-                    tex_config.m_texture_min_filter      = texture_parameter::FILTER_LINEAR;
-                    tex_config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
-                    tex_config.m_texture_wrap_s          = texture_parameter::WRAP_CLAMP_TO_EDGE;
-                    tex_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
 
-                    char const* filter[1] = { "*.hdr" };
-
-                    environment_comp->hdr_texture = details::load_texture(tex_config, rs, filter, 1);
-                    application_scene->set_active_environment(e);
-                }
-                if (environment_comp->hdr_texture)
-                {
-                    bool should_render = environment_comp->render_level >= 0.0f;
-                    bool changed       = ImGui::SliderFloat(("Intensity##environment_intensity" + std::to_string(e)).c_str(), &environment_comp->intensity, 0.0f, 50000.0f);
-                    bool tmp           = should_render;
-                    ImGui::Checkbox(("Render Environment##render_environment" + std::to_string(e)).c_str(), &should_render);
-                    changed = changed || (should_render != tmp);
-                    if (should_render)
+                    ImGui::Spacing();
+                    if (ImGui::Button(("Remove##environment" + std::to_string(e)).c_str()))
                     {
-                        environment_comp->render_level = glm::max(environment_comp->render_level, 0.0f);
-                        changed                        = ImGui::SliderFloat(("Blur Level##environment_blur" + std::to_string(e)).c_str(), &environment_comp->render_level, 0.0f, 4.0f) || changed;
+                        if (active)
+                            application_scene->set_active_environment(invalid_entity);
+                        application_scene->remove_environment_component(e);
                     }
-                    else
-                        environment_comp->render_level = -1.0f;
-
-                    if (changed)
-                        application_scene->update_environment_parameters(e);
-                }
-
-                ImGui::Spacing();
-                if (ImGui::Button(("Remove##environment" + std::to_string(e)).c_str()))
-                {
-                    if (active)
-                        application_scene->set_active_environment(invalid_entity);
-                    application_scene->remove_environment_component(e);
+                    ImGui::Separator();
+                    ImGui::TreePop();
                 }
             }
-            else
-            {
-                if (ImGui::Button(("Add##environment" + std::to_string(e)).c_str()))
-                    application_scene->add_environment_component(e);
-            }
-            ImGui::Separator();
 
             // Light
-            ImGui::Text("Light");
             if (light_comp)
             {
-                ImGui::Text("Light Type");
-                light_type current      = light_comp->type_of_light;
-                const char* possible[1] = { "Directional Light" };
-                int32 idx               = static_cast<int32>(current);
-                ImGui::ListBox(("##light_type_selection" + std::to_string(e)).c_str(), &idx, possible, 1);
-                current = static_cast<light_type>(idx);
-
-                if (current == light_type::directional) // Always true atm.
+                if (ImGui::TreeNode(("Light Component##" + std::to_string(e)).c_str()))
                 {
-                    auto d_data = static_cast<directional_light_data*>(light_comp->data.get());
+                    ImGui::Spacing();
+                    ImGui::Text("Light Type");
+                    light_type current      = light_comp->type_of_light;
+                    const char* possible[1] = { "Directional Light" };
+                    int32 idx               = static_cast<int32>(current);
+                    ImGui::ListBox(("##light_type_selection" + std::to_string(e)).c_str(), &idx, possible, 1);
+                    current = static_cast<light_type>(idx);
 
-                    ImGui::DragFloat(("Direction X##d_light_direction_x" + std::to_string(e)).c_str(), &d_data->direction.x, 0.1f, 0.0f, 0.0f, "%.1f");
-                    ImGui::DragFloat(("Direction Y##d_light_direction_y" + std::to_string(e)).c_str(), &d_data->direction.y, 0.1f, 0.0f, 0.0f, "%.1f");
-                    ImGui::DragFloat(("Direction Z##d_light_direction_z" + std::to_string(e)).c_str(), &d_data->direction.z, 0.1f, 0.0f, 0.0f, "%.1f");
+                    if (current == light_type::directional) // Always true atm.
+                    {
+                        auto d_data = static_cast<directional_light_data*>(light_comp->data.get());
 
-                    ImGui::ColorEdit4("Color##d_light_color", d_data->light_color, ImGuiColorEditFlags_NoInputs);
+                        ImGui::DragFloat(("Direction X##d_light_direction_x" + std::to_string(e)).c_str(), &d_data->direction.x, 0.05f, 0.0f, 0.0f, "%.2f");
+                        ImGui::DragFloat(("Direction Y##d_light_direction_y" + std::to_string(e)).c_str(), &d_data->direction.y, 0.05f, 0.0f, 0.0f, "%.2f");
+                        ImGui::DragFloat(("Direction Z##d_light_direction_z" + std::to_string(e)).c_str(), &d_data->direction.z, 0.05f, 0.0f, 0.0f, "%.2f");
 
-                    ImGui::SliderFloat(("Intensity##d_light_intensity" + std::to_string(e)).c_str(), &d_data->intensity, 0.0f, 500000.0f);
-                }
+                        ImGui::ColorEdit4("Color##d_light_color", d_data->light_color, ImGuiColorEditFlags_NoInputs);
 
-                ImGui::Spacing();
-                if (ImGui::Button(("Remove##light" + std::to_string(e)).c_str()))
-                {
-                    application_scene->remove_light_component(e);
+                        ImGui::SliderFloat(("Intensity##d_light_intensity" + std::to_string(e)).c_str(), &d_data->intensity, 0.0f, 500000.0f);
+                        ImGui::Checkbox(("Cast Shadows##d_light_cast" + std::to_string(e)).c_str(), &d_data->cast_shadows);
+                    }
+
+                    ImGui::Spacing();
+                    if (ImGui::Button(("Remove##light" + std::to_string(e)).c_str()))
+                    {
+                        application_scene->remove_light_component(e);
+                    }
+                    ImGui::Separator();
+                    ImGui::TreePop();
                 }
             }
-            else
-            {
-                if (ImGui::Button(("Add##light" + std::to_string(e)).c_str()))
-                    application_scene->add_light_component(e);
-            }
-            ImGui::Separator();
+            ImGui::PopStyleVar();
         }
-
         ImGui::End();
     }
 

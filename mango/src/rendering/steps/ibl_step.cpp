@@ -9,7 +9,10 @@
 #include <graphics/shader_program.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
+#include <imgui.h>
 #include <mango/profile.hpp>
+#include <mango/render_system.hpp>
+#include <mango/scene_ecs.hpp>
 #include <rendering/steps/ibl_step.hpp>
 #include <util/helpers.hpp>
 
@@ -113,7 +116,7 @@ bool ibl_step::create()
 
     m_current_rotation_scale = glm::mat3(1.0f);
     m_render_level           = 0.0f;
-    m_intensity              = 30000.0f;
+    m_intensity              = mango::default_environment_intensity;
 
     texture_configuration texture_config;
     texture_config.m_generate_mipmaps        = 1;
@@ -169,6 +172,12 @@ void ibl_step::update(float dt)
 }
 
 void ibl_step::attach() {}
+
+void ibl_step::configure(const ibl_step_configuration& configuration)
+{
+    m_render_level = configuration.get_render_level();
+    MANGO_ASSERT(m_render_level > 0.0f && m_render_level < 8.1f, "Shadow Map Resolution has to be between 0.0 and 8.0f!");
+}
 
 void ibl_step::execute(command_buffer_ptr& command_buffer)
 {
@@ -314,5 +323,22 @@ void ibl_step::bind_image_based_light_maps(command_buffer_ptr& command_buffer)
         command_buffer->bind_texture(6, default_ibl_texture, 6);    // TODO Paul: Binding and location...
         command_buffer->bind_texture(7, m_brdf_integration_lut, 7); // TODO Paul: Binding and location...
     }
-    command_buffer->bind_single_uniform(9, &m_intensity, sizeof(m_intensity));
+}
+
+void ibl_step::on_ui_widget()
+{
+    // Render Level 0.0 - 8.0
+    bool should_render = !(m_render_level < -1e-5f);
+    static float tmp   = 0.0f;
+    ImGui::Checkbox("Render IBL Visualization##ibl_step", &should_render);
+    if (!should_render)
+    {
+        m_render_level = -1.0f;
+    }
+    else
+    {
+        m_render_level = tmp;
+        ImGui::SliderFloat("Blur Level##ibl_step", &m_render_level, 0.0f, 8.0f);
+        tmp = m_render_level;
+    }
 }

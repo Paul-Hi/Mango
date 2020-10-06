@@ -27,6 +27,8 @@ namespace mango
 
         virtual bool create() override;
         virtual void configure(const render_configuration& configuration) override;
+        virtual void setup_ibl_step(const ibl_step_configuration& configuration) override;
+        virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) override;
         virtual void begin_render() override;
         virtual void finish_render(float dt) override;
         virtual void set_viewport(int32 x, int32 y, int32 width, int32 height) override;
@@ -38,7 +40,6 @@ namespace mango
         void draw_mesh(const vertex_array_ptr& vertex_array, const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
         void set_view_projection_matrix(const glm::mat4& view_projection) override;
         void set_environment_texture(const texture_ptr& hdr_texture) override;
-        void set_environment_settings(float render_level, float intensity) override;
         void submit_light(light_type type, light_data* data) override;
         void on_ui_widget() override;
 
@@ -85,12 +86,19 @@ namespace mango
         shader_program_ptr m_composing_pass;
 
         //! \brief The prealocated size for all uniforms.
-        //! \details The buffer is filled every frame. 1 MiB should be enough for now.
+        //! \details The buffer has 3 parts and is filled every frame. 1 MiB should be enough for now.
         const int32 uniform_buffer_size = 1048576;
-        int32 m_frame_uniform_offset;     //!< The current offset in the uniform memory to write to.
-        g_int m_uniform_buffer_alignment; //!< The alignment of the structures in the uniform buffer. Gets queried from OpenGL.
+        //! \brief The size of one frame in the uniform buffer. Used for triple buffering.
+        const int32 frame_size       = uniform_buffer_size / 3 - 512; // TODO Paul: We give some padding for large uniform alignments here...
+        int32 m_current_buffer_part  = 0;                             //!< The current part of the uniform buffer in use [0, 1, 2].
+        int32 m_current_buffer_start = 0;                             //!< The pointer to the start of the current part of the uniform buffer in use.
+        int32 m_frame_uniform_offset;                                 //!< The current offset in the uniform memory to write to.
+        int32 m_last_offset;                                          //!< The last frames offset in the uniform memory.
+        g_int m_uniform_buffer_alignment;                             //!< The alignment of the structures in the uniform buffer. Gets queried from OpenGL.
         //! \brief The mapped memory to be filled with all uniforms blocks per frame.
         void* m_mapped_uniform_memory;
+        //! \brief Sync objects for gpu <-> cpu synchronization.
+        g_sync m_frame_buffer_sync[3];
 
         //! \brief The uniform buffer mapping the gpu buffer to the scene uniforms.
         buffer_ptr m_frame_uniform_buffer;
@@ -132,7 +140,8 @@ namespace mango
 
         //! \brief Uniform buffer structure for the lighting pass of the deferred pipeline.
         struct lighting_pass_uniforms
-        {            std140_mat4 inverse_view_projection; //!< Inverse camera view projection matrix.
+        {
+            std140_mat4 inverse_view_projection; //!< Inverse camera view projection matrix.
             std140_mat4 view;                    //!< Camera view matrix.
             std140_vec3 camera_position;         //!< Camera position.
             std140_vec4 camera_params;           //!< Camera near and far plane depth value. (zw) unused atm.
@@ -141,7 +150,8 @@ namespace mango
             {
                 //  TODO Paul: Size hardcoded.
                 std140_mat4 view_projections[4]; //!< The 4 view projection matrices of the different cascades.
-                std140_vec3 cascade_splits;      //!< The 3 cascade splits.
+                std140_vec4 far_planes;          //!< The 4 far planes of the different cascade views.
+                std140_vec4 cascade_info;        //!< The 3 cascade splits. w component is the cascade shadow map resolution.
                 std140_vec3 direction;           //!< The direction to the light.
                 std140_vec3 color;               //!< The light color.
                 g_float intensity;               //!< The intensity of the directional light in lumen
@@ -182,9 +192,6 @@ namespace mango
 
         //! \brief The current \a lighting_pass_uniforms.
         lighting_pass_uniforms m_lp_uniforms;
-
-        //! \brief The shadow offset for the cascade projections.
-        float m_shadow_map_offset = 0.0f; // TODO Paul: This does not belong here.
 
         //! \brief Binds the uniform buffer of the lighting pass.
         //! \param[in,out] camera The \a camera_data of the current camera.

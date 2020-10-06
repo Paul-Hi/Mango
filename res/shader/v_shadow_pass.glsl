@@ -13,8 +13,15 @@ layout(binding = 0, std140) uniform scene_vertex_uniforms
     bool has_tangents;
 };
 
+
+out shader_shared
+{
+    vec2 shared_texcoord;
+} vs_out;
+
 void main()
 {
+    vs_out.shared_texcoord = v_texcoord;
     vec4 v_pos = model_matrix * vec4(v_position, 1.0);
     gl_Position = v_pos;
 }

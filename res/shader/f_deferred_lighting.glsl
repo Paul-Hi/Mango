@@ -4,7 +4,7 @@ const float PI = 3.1415926535897932384626433832795;
 const float INV_PI = 1.0 / PI;
 
 #define saturate(x) clamp(x, 0.0, 1.0)
-#define cascades 4
+#define max_cascades 4
 
 out vec4 frag_color;
 
@@ -30,8 +30,9 @@ layout(binding = 0, std140) uniform lighting_pass_uniforms
     vec4 camera_position; // this is a vec3, but there are annoying bugs with some drivers.
     vec4 camera_params; // near, far, (zw) unused
 
-    mat4 directional_view_projection_matrices[cascades];
-    vec4 cascade_splits; // middle splits for 3 cascades only xy -.-
+    mat4 directional_view_projection_matrices[max_cascades];
+    vec4 directional_far_planes;
+    vec4 cascade_info; // splits are xyz, w is the shadow map resolution
     vec4 directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
     vec4 directional_color; // this is a vec3, but there are annoying bugs with some drivers.
     float directional_intensity;
@@ -52,6 +53,8 @@ layout(binding = 0, std140) uniform lighting_pass_uniforms
 };
 
 layout (location = 9) uniform float ibl_intensity; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
+layout (location = 10) uniform float shadow_cascade_interpolation_range = 0.5; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
+layout (location = 11) uniform float maximum_penumbra = 3.0; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
 
 float D_GGX(in float n_dot_h, in float roughness);
 float V_SmithGGXCorrelated(in float n_dot_v, in float n_dot_l, in float roughness);
@@ -90,32 +93,60 @@ vec3 get_occlusion_roughness_metallic()
 
 void debug_views(in float depth);
 
-vec4 shadow_map_coords(in vec3 world_pos) // xy texcoords, z depth, w cascade idx
+// interpolation_mode: 0 -> no interpolation | 1 -> interpolation from cascade_id to cascade_id + 1 - shadow_cascade_interpolation_range | 2 -> interpolation from cascade_id - 1  + shadow_cascade_interpolation_range to cascade_id
+int compute_cascade_id(in float view_depth, out float interpolation_factor, out int interpolation_mode) // xy texcoords, z depth
 {
-    vec4 result;
-    vec4 view_pos = view * vec4(world_pos, 1.0);
-
-    for(int i = 0; i < cascades - 1; ++i)
+    interpolation_mode = 0;
+    int cascade_id = 0;
+    int num_cascades = 1;
+    int count = 0;
+    if(cascade_info.x > 0.0)
     {
-        if(abs(view_pos.z) > cascade_splits[i])
+        num_cascades += 1;
+        if(cascade_info.y > 0.0)
         {
-            result.w = i + 1;
+            num_cascades += 1;
+            if(cascade_info.z > 0.0)
+                num_cascades += 1;
+        }
+    }
+    for(int i = 1; i <= num_cascades; ++i)
+    {
+        int cascade_i= i - 1;
+        float i_value = cascade_i < num_cascades - 1 ? cascade_info[cascade_i] : camera_params.y;
+        if(view_depth <= i_value)
+        {
+            cascade_id = i - 1;
+            float i_minus_one_value = cascade_i > 0 ? cascade_info[cascade_i - 1] : camera_params.x;
+            float mid = (i_value + i_minus_one_value) * 0.5;
+            if(view_depth > mid && view_depth > i_value - shadow_cascade_interpolation_range)
+            {
+                interpolation_mode = 1;
+                interpolation_factor = (i_value - view_depth) / shadow_cascade_interpolation_range;
+            }
+            if(view_depth < mid && view_depth < i_minus_one_value + shadow_cascade_interpolation_range)
+            {
+                interpolation_mode = 2;
+                interpolation_factor = (view_depth - i_minus_one_value) / shadow_cascade_interpolation_range;
+            }
+            break;
         }
     }
 
-    vec4 projected = directional_view_projection_matrices[int(result.w)] * vec4(world_pos, 1.0);
-    vec3 shadow_coords = projected.xyz / projected.w;
-    shadow_coords = shadow_coords * 0.5 + 0.5;
-    result.xyz = shadow_coords;
+    interpolation_factor = (1.0 - interpolation_factor);
 
-    return result;
+    if(cascade_id == 0 && interpolation_mode == 2)
+        interpolation_mode = 0;
+    if(cascade_id == num_cascades - 1 && interpolation_mode == 1)
+        interpolation_mode = 0;
+
+    return cascade_id;
 }
 
-float dynamic_bias(in float depth, in float cascade_id)
+float linearize_depth(in float d, in float near, in float far)
 {
-    float bias = 0.002 - (cascade_id * 0.00065); // for now
-    float slope_bias = max(abs(dFdx(depth)), abs(dFdy(depth)));
-    return bias + slope_bias * bias;
+    float depth = 2.0 * d - 1.0;
+    return 2.0 * near * far / (far + near - depth * (far - near));
 }
 
 float interleaved_gradient_noise(in vec2 screen_pos)
@@ -136,19 +167,21 @@ vec2 sample_vogel_disc(in int idx, in int num_samples, in float phi)
     return vec2(cosine * r, sine * r);
 }
 
-float sample_blocker_distance(in vec4 shadow_uv, in sampler2DArray lookup, in int sample_count, in float gradient_noise, in float light_size)
+float sample_blocker_distance(in vec3 shadow_coords, in int cascade_id, in sampler2DArray lookup, in int sample_count, in float gradient_noise, in float light_size)
 {
     float avg_blocker_depth = 0.0;
     int blocker_count = 0;
-    float max_width = (6.0 - shadow_uv.w) / 4096.0;
+    float max_width = (maximum_penumbra * 4.0) / cascade_info.w;
+    float d_l = linearize_depth(shadow_coords.z, 1e-5, directional_far_planes[cascade_id]);
 
     for(int i = 0; i < sample_count; ++i)
     {
         vec2 sample_uv = sample_vogel_disc(i, sample_count, gradient_noise);
-        sample_uv = shadow_uv.xy + sample_uv * max_width;
+        sample_uv = shadow_coords.xy + sample_uv * max_width;
 
-        float z = texture(lookup, vec3(sample_uv, int(shadow_uv.w))).x;
-        if(z < shadow_uv.z)
+        float z = texture(lookup, vec3(sample_uv, cascade_id)).x;
+        float c_l = linearize_depth(z, 1e-5, directional_far_planes[cascade_id]);
+        if(c_l < d_l)
         {
             avg_blocker_depth += z;
             blocker_count++;
@@ -158,42 +191,102 @@ float sample_blocker_distance(in vec4 shadow_uv, in sampler2DArray lookup, in in
     if(blocker_count > 0)
     {
         avg_blocker_depth /= float(blocker_count);
-        return light_size * (shadow_uv.z - avg_blocker_depth) / avg_blocker_depth;
+        float c_l = linearize_depth(avg_blocker_depth, 1e-5, directional_far_planes[cascade_id]);
+        return light_size * (d_l - c_l) / c_l;
     }
     else
         return 0.0;
 }
 
-float pcss(in vec4 shadow_uv, in sampler2DArray lookup)
+float pcss(in vec3 shadow_coords, in int cascade_id, in sampler2DArray lookup)
 {
-    int num_samples = 16;
-    int num_blocker_samples = 8;
+    int num_samples = int(maximum_penumbra * 3.0);
+    int num_blocker_samples = int(maximum_penumbra * 1.5);
     float gradient_noise = interleaved_gradient_noise(gl_FragCoord.xy);
-    float penumbra = sample_blocker_distance(shadow_uv,lookup, num_blocker_samples, gradient_noise, 2.0);
-    penumbra = clamp(penumbra, 0.05, 0.95) + 0.05;
+    float penumbra = saturate(sample_blocker_distance(shadow_coords, cascade_id, lookup, num_blocker_samples, gradient_noise, 2.0));
     float shadow = 0.0;
-    if(penumbra < 1e-5) return shadow;
-    float max_penumbra = (6.0 - shadow_uv.w) / 4096.0;
+    float max_penumbra = maximum_penumbra / cascade_info.w;
+    float d_l = linearize_depth(shadow_coords.z, 1e-5, directional_far_planes[cascade_id]);
+    num_samples += int(penumbra * 12.0);
 
     for(int i = 0; i < num_samples; ++i)
     {
         vec2 sample_uv = sample_vogel_disc(i, num_samples, gradient_noise);
-        sample_uv = shadow_uv.xy + sample_uv * penumbra * max_penumbra;
+        sample_uv = shadow_coords.xy + sample_uv * max(max_penumbra * penumbra, 1.0 / cascade_info.w);
 
-        float z = texture(lookup, vec3(sample_uv, int(shadow_uv.w))).x;
-        float bias = dynamic_bias(z, shadow_uv.w);
-        shadow += (z < (shadow_uv.z - bias)) ? 0.01 : 1.0;
+        float z = texture(lookup, vec3(sample_uv, cascade_id)).x;
+        float c_l = linearize_depth(z, 1e-5, directional_far_planes[cascade_id]);
+        shadow += (c_l < d_l) ? 0.0 : 1.0;
     }
     shadow /= float(num_samples);
     return shadow;
 }
 
-float directional_shadow(in vec4 shadow_uv, in sampler2DArray lookup)
+float directional_shadow(in sampler2DArray lookup, in vec3 world_pos, in int cascade_id, in float interpolation_factor, in int interpolation_mode)
 {
-    if(shadow_uv.z > 1.0)
-        return 1.0;
 
-    return pcss(shadow_uv, lookup);
+    vec3 bias = get_normal() * 0.1;
+    world_pos += bias;
+    float shadow = 1.0;
+
+
+    if(interpolation_mode == 0)
+    {
+        vec4 projected = directional_view_projection_matrices[cascade_id] * vec4(world_pos, 1.0);
+        vec3 shadow_coords = projected.xyz / projected.w;
+        shadow_coords = shadow_coords * 0.5 + 0.5;
+
+        if(shadow_coords.z > 1.0)
+            return shadow;
+
+        shadow = pcss(shadow_coords, cascade_id, lookup);
+    }
+    else if(interpolation_mode == 1)
+    {
+        vec4 projected = directional_view_projection_matrices[cascade_id] * vec4(world_pos, 1.0);
+        vec3 shadow_coords = projected.xyz / projected.w;
+        shadow_coords = shadow_coords * 0.5 + 0.5;
+
+        if(shadow_coords.z > 1.0)
+            return shadow;
+
+        float pcss_shadows = pcss(shadow_coords, cascade_id, lookup);
+
+        vec4 projected2 = directional_view_projection_matrices[cascade_id + 1] * vec4(world_pos, 1.0);
+        vec3 shadow_coords2 = projected2.xyz / projected2.w;
+        shadow_coords2 = shadow_coords2 * 0.5 + 0.5;
+
+        if(shadow_coords2.z > 1.0)
+            return pcss(shadow_coords, cascade_id, lookup);
+
+        float pcss_shadows2 = pcss(shadow_coords2, cascade_id + 1, lookup);
+
+        shadow = mix(pcss_shadows, pcss_shadows2, interpolation_factor * 0.5);
+    }
+    else if(interpolation_mode == 2)
+    {
+        vec4 projected = directional_view_projection_matrices[cascade_id] * vec4(world_pos, 1.0);
+        vec3 shadow_coords = projected.xyz / projected.w;
+        shadow_coords = shadow_coords * 0.5 + 0.5;
+
+        if(shadow_coords.z > 1.0)
+            return shadow;
+
+        float pcss_shadows = pcss(shadow_coords, cascade_id, lookup);
+
+        vec4 projected2 = directional_view_projection_matrices[cascade_id - 1] * vec4(world_pos, 1.0);
+        vec3 shadow_coords2 = projected2.xyz / projected2.w;
+        shadow_coords2 = shadow_coords2 * 0.5 + 0.5;
+
+        if(shadow_coords2.z > 1.0)
+            return pcss(shadow_coords, cascade_id, lookup);
+
+        float pcss_shadows2 = pcss(shadow_coords2, cascade_id - 1, lookup);
+
+        shadow = mix(pcss_shadows, pcss_shadows2, interpolation_factor * 0.5);
+    }
+
+    return shadow;
 }
 
 void main()
@@ -267,12 +360,10 @@ void main()
 
 vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor)
 {
-    float roughness = sqrt(perceptual_roughness);
-
     const float DFG_TEXTURE_SIZE = 256.0; // TODO Paul: Hardcoded -.-
 
     n_dot_v = clamp(n_dot_v , 0.5 / DFG_TEXTURE_SIZE, 1.0 - 0.5 / DFG_TEXTURE_SIZE);
-    vec3 dfg = textureLod(brdf_integration_lut, saturate(vec2(n_dot_v, roughness)), 0.0).xyz;
+    vec3 dfg = textureLod(brdf_integration_lut, saturate(vec2(n_dot_v, perceptual_roughness)), 0.0).xyz;
     // irradiance
     vec3 irradiance  = texture(irradiance_map, normal).rgb;
     vec3 diffuse     = irradiance * real_albedo;
@@ -302,6 +393,10 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     vec3 light_col        = directional_color.rgb;
     float roughness       = (perceptual_roughness * perceptual_roughness);
 
+    // adjust roughness to approximate small disk
+    float lightRoughness = 0.1 * 696340.0 / 14960000.0; // sun radius / sun distance * 0.1 -> some approximation.
+    float specular_roughness = saturate(lightRoughness + roughness);
+
     vec3 lighting = vec3(0.0);
 
     vec3 halfway  = normalize(light_dir + view_dir);
@@ -309,14 +404,14 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     float n_dot_h = saturate(dot(normal, halfway));
     float l_dot_h = saturate(dot(light_dir, halfway));
 
-    float D = D_GGX(n_dot_h, roughness);
+    float D = D_GGX(n_dot_h, specular_roughness);
     vec3 F  = F_Schlick(l_dot_h, f0, 1.0);
-    float V = V_SmithGGXCorrelated(n_dot_v, n_dot_l, roughness);
+    float V = V_SmithGGXCorrelated(n_dot_v, n_dot_l, specular_roughness);
 
     // Fr energy compensation
     vec3 Fr = D * V * F * (1.0 / PI);
 
-    vec3 Fd = real_albedo * Fd_BurleyRenormalized(n_dot_v, n_dot_l, l_dot_h, perceptual_roughness) * (1.0 / PI);
+    vec3 Fd = real_albedo * Fd_BurleyRenormalized(n_dot_v, n_dot_l, l_dot_h, roughness) * (1.0 / PI);
 
     vec3 diffuse = n_dot_l * Fd;
     vec3 specular = n_dot_l * Fr;
@@ -325,15 +420,19 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
 
     if(cast_shadows)
     {
-        vec4 shadow_data = shadow_map_coords(world_pos);
-        float shadow = cast_shadows ? directional_shadow(shadow_data, shadow_map) : 1.0;
+        vec4 view_pos = view * vec4(world_pos, 1.0);
+        int interpolation_mode;
+        float interpolation_factor;
+        int cascade_id = compute_cascade_id(abs(view_pos.z), interpolation_factor, interpolation_mode);
+        float shadow = cast_shadows ? directional_shadow(shadow_map, world_pos, cascade_id, interpolation_factor, interpolation_mode) : 1.0;
         lighting = lighting * shadow;
         if(show_cascades)
         {
-            if(shadow_data.w == 0) lighting.gb *= vec2(0.25);
-            if(shadow_data.w == 1) lighting.rb *= vec2(0.25);
-            if(shadow_data.w == 2) lighting.rg *= vec2(0.25);
-            if(shadow_data.w == 3) lighting.g  *= 0.25;
+            if(cascade_id == 0) lighting.gb *= vec2(0.25);
+            if(cascade_id == 1) lighting.rb *= vec2(0.25);
+            if(cascade_id == 2) lighting.rg *= vec2(0.25);
+            if(cascade_id == 3) lighting.b  *= 0.125;
+            if(interpolation_mode != 0) lighting *= 0.5;
         }
     }
 

@@ -30,9 +30,6 @@ namespace mango
         void* map(int64 offset, int64 length, buffer_access access) override;
         void unmap() override;
 
-        void lock() override;
-        void request_wait() override;
-
       private:
         //! \brief The persistent data, if persistent mapping is requested.
         void* m_persistent_data;
@@ -45,9 +42,6 @@ namespace mango
 
         //! \brief The access flags specified for the \a buffer.
         g_bitfield m_access_flags;
-
-        //! \brief Object used for cpu <-> gpu sync.
-        g_sync m_sync;
     };
 } // namespace mango
 

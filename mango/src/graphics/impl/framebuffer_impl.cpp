@@ -89,6 +89,7 @@ void framebuffer_impl::resize(int32 width, int32 height)
         config.m_texture_mag_filter      = m_color_attachment0->mag_filter();
         config.m_texture_wrap_s          = m_color_attachment0->wrap_s();
         config.m_texture_wrap_t          = m_color_attachment0->wrap_t();
+        config.m_layers                  = m_color_attachment0->layers();
         auto internal                    = m_color_attachment0->get_internal_format();
         auto form                        = m_color_attachment0->get_format();
         auto c_type                      = m_color_attachment0->component_type();
@@ -105,6 +106,7 @@ void framebuffer_impl::resize(int32 width, int32 height)
         config.m_texture_mag_filter      = m_color_attachment1->mag_filter();
         config.m_texture_wrap_s          = m_color_attachment1->wrap_s();
         config.m_texture_wrap_t          = m_color_attachment1->wrap_t();
+        config.m_layers                  = m_color_attachment1->layers();
         auto internal                    = m_color_attachment1->get_internal_format();
         auto form                        = m_color_attachment1->get_format();
         auto c_type                      = m_color_attachment1->component_type();
@@ -121,6 +123,7 @@ void framebuffer_impl::resize(int32 width, int32 height)
         config.m_texture_mag_filter      = m_color_attachment2->mag_filter();
         config.m_texture_wrap_s          = m_color_attachment2->wrap_s();
         config.m_texture_wrap_t          = m_color_attachment2->wrap_t();
+        config.m_layers                  = m_color_attachment2->layers();
         auto internal                    = m_color_attachment2->get_internal_format();
         auto form                        = m_color_attachment2->get_format();
         auto c_type                      = m_color_attachment2->component_type();
@@ -137,6 +140,7 @@ void framebuffer_impl::resize(int32 width, int32 height)
         config.m_texture_mag_filter      = m_color_attachment3->mag_filter();
         config.m_texture_wrap_s          = m_color_attachment3->wrap_s();
         config.m_texture_wrap_t          = m_color_attachment3->wrap_t();
+        config.m_layers                  = m_color_attachment3->layers();
         auto internal                    = m_color_attachment3->get_internal_format();
         auto form                        = m_color_attachment3->get_format();
         auto c_type                      = m_color_attachment3->component_type();
@@ -153,6 +157,7 @@ void framebuffer_impl::resize(int32 width, int32 height)
         config.m_texture_mag_filter      = m_depth_attachment->mag_filter();
         config.m_texture_wrap_s          = m_depth_attachment->wrap_s();
         config.m_texture_wrap_t          = m_depth_attachment->wrap_t();
+        config.m_layers                  = m_depth_attachment->layers();
         auto internal                    = m_depth_attachment->get_internal_format();
         auto form                        = m_depth_attachment->get_format();
         auto c_type                      = m_depth_attachment->component_type();
@@ -169,6 +174,7 @@ void framebuffer_impl::resize(int32 width, int32 height)
         config.m_texture_mag_filter      = m_stencil_attachment->mag_filter();
         config.m_texture_wrap_s          = m_stencil_attachment->wrap_s();
         config.m_texture_wrap_t          = m_stencil_attachment->wrap_t();
+        config.m_layers                  = m_stencil_attachment->layers();
         auto internal                    = m_stencil_attachment->get_internal_format();
         auto form                        = m_stencil_attachment->get_format();
         auto c_type                      = m_stencil_attachment->component_type();
@@ -185,6 +191,7 @@ void framebuffer_impl::resize(int32 width, int32 height)
         config.m_texture_mag_filter      = m_depth_stencil_attachment->mag_filter();
         config.m_texture_wrap_s          = m_depth_stencil_attachment->wrap_s();
         config.m_texture_wrap_t          = m_depth_stencil_attachment->wrap_t();
+        config.m_layers                  = m_depth_stencil_attachment->layers();
         auto internal                    = m_depth_stencil_attachment->get_internal_format();
         auto form                        = m_depth_stencil_attachment->get_format();
         auto c_type                      = m_depth_stencil_attachment->component_type();

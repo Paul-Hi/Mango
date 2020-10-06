@@ -11,10 +11,10 @@
 #include <graphics/command_buffer.hpp>
 #include <mango/application.hpp>
 #include <mango/assert.hpp>
+#include <mango/profile.hpp>
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <ui/ui_system_impl.hpp>
-#include <mango/profile.hpp>
 
 using namespace mango;
 
@@ -58,23 +58,32 @@ int32 application::run(int32 t_argc, char** t_argv)
         ws->poll_events();
         m_should_close = m_should_close || ws->should_close();
 
-        float frame_time = static_cast<float>(m_frame_timer->elapsedMicroseconds().count()) * 0.000001f; // We need the resolution. TODO Paul: We could wrap this with some kind of 'high res clock'.
+        m_frametime = static_cast<float>(m_frame_timer->elapsedMicroseconds().count()) * 0.000001f; // We need the resolution. TODO Paul: We could wrap this with some kind of 'high res clock'.
+        // Debug every second
+        static float fps_lock = 0.0f;
+        fps_lock += m_frametime;
+        if (fps_lock >= 1.0f)
+        {
+            fps_lock -= 1.0f;
+            MANGO_LOG_DEBUG("Frame Time: {0} ms", m_frametime * 1000.0f);
+            MANGO_LOG_DEBUG("Framerate: {0} fps", 1.0f / m_frametime);
+        }
         m_frame_timer->restart();
 
         // update
-        update(frame_time);
-        scene->update(frame_time);
-        ws->update(frame_time);
-        is->update(frame_time);
-        rs->update(frame_time);
-        uis->update(frame_time);
+        update(m_frametime);
+        scene->update(m_frametime);
+        ws->update(m_frametime);
+        is->update(m_frametime);
+        rs->update(m_frametime);
+        uis->update(m_frametime);
 
         // render
         rs->begin_render();
         //
         scene->render();
         //
-        rs->finish_render(frame_time); // needs frame time for auto exposure.
+        rs->finish_render(m_frametime); // needs frame time for auto exposure.
         //
         uis->draw_ui();
 

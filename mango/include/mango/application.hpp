@@ -136,7 +136,7 @@ namespace mango
         //! \brief Closes the \a application.
         //! \details This can be overriden by the inheriting application.
         //! Returns a default name for the application if not set.
-        void close()
+        inline void close()
         {
             m_should_close = true;
         }
@@ -145,6 +145,13 @@ namespace mango
         //! \return A weak pointer to the context.
         weak_ptr<context> get_context();
 
+        //! \brief Returns the current mango frametime.
+        //! \return The frametime.
+        inline float frame_time()
+        {
+            return m_frametime;
+        }
+
       private:
         //! \brief The context of the application.
         shared_ptr<context_impl> m_context;
@@ -152,6 +159,8 @@ namespace mango
         shared_ptr<timer> m_frame_timer;
         //! \brief Specifies if the application was closed.
         bool m_should_close;
+        //! \brief The current frametime.
+        float m_frametime;
     };
 
 } // namespace mango

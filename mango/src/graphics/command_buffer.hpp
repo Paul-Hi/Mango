@@ -126,13 +126,16 @@ namespace mango
         //! \param[in] barrier_bit The \a memory_barrier_bit to add the barrier to.
         void add_memory_barrier(memory_barrier_bit barrier_bit);
 
-        //! \brief Locks a \a buffer after a modification.
-        //! \param[in] buffer The pointer to the \a buffer to lock.
-        void lock_buffer(buffer_ptr buffer);
+        //! \brief Places a GPU sync.
+        //! \param[in,out] sync The sync object.
+        void fence_sync(g_sync sync);
 
-        //! \brief Waits for a \a buffer after a series of gl calls.
-        //! \param[in] buffer The pointer to the \a buffer to wait for.
-        void wait_for_buffer(buffer_ptr buffer);
+        //! \brief Waits for a sync signal by the GPU.
+        //! \param[in,out] sync The sync object.
+        void client_wait_sync(g_sync sync);
+
+        //! \brief Waits blocking for a the GPU to finish.
+        void client_wait();
 
         //! \brief Calukates the mipmaps for the \a texture.
         //! \details This is used to recalculate the mipmaps after the pixels where changed by a compute shader.
@@ -219,6 +222,13 @@ namespace mango
         inline graphics_state& get_state()
         {
             return m_building_state;
+        }
+
+        //! \brief Checks if the \a command_buffer is empty.
+        //! \return True if no commands are qeued, else False.
+        inline bool empty()
+        {
+            return m_first != nullptr;
         }
 
       private:

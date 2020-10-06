@@ -41,7 +41,8 @@ namespace mango
     {
         MODE_OPAQUE,
         MODE_MASK,
-        MODE_BLEND
+        MODE_BLEND,
+        MODE_DITHER
     };
 
     //! \brief Structure to store material properties, textures etc.

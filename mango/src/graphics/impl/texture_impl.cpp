@@ -55,6 +55,8 @@ void texture_impl::set_data(format internal_format, int32 width, int32 height, f
     MANGO_ASSERT(width > 0, "Texture width is invalid!");
     MANGO_ASSERT(height > 0, "Texture height is invalid!");
     // TODO Paul: Evtl. assert that internal format, pixel format and type fit.
+    if(mipmaps() > 1 && m_width != width || m_height != height)
+        m_generate_mipmaps = calculate_mip_count(width, height);
     m_width           = width;
     m_height          = height;
     m_format          = pixel_format;

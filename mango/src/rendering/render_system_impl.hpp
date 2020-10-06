@@ -59,6 +59,8 @@ namespace mango
 
         virtual bool create() override;
         virtual void configure(const render_configuration& configuration) override;
+        virtual void setup_ibl_step(const ibl_step_configuration& configuration)  override;
+        virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) override;
 
         //! \brief Retrieves the \a command_buffer of a \a render_system.
         //! \details The \a command_buffer should be created and destroyed by the \a render_system.
@@ -121,11 +123,6 @@ namespace mango
         //! \param[in] hdr_texture The pointer to the hdr \a texture to use as an environment.
         virtual void set_environment_texture(const texture_ptr& hdr_texture);
 
-        //! \brief Sets data for environment rendering.
-        //! \param[in] render_level The level from the hdr \a texture to render. -1 means no rendering.
-        //! \param[in] intensity The intensity of the environment in cd/m^2.
-        virtual void set_environment_settings(float render_level, float intensity);
-
         //! \brief Submits a light to the \a render_system.
         //! \param[in] type The submitted \a light_type.
         //! \param[in] data The \a light_data describing the submitted light.
@@ -145,7 +142,7 @@ namespace mango
 
         //! \brief Custom UI function.
         //! \details This can be called by any \a ui_widget and displays settings and debug information for the active \a render_system.
-        //! This does not draw any window, so it needs one surrounduing it.
+        //! This does not draw any window, so it needs one surrounding it.
         virtual void on_ui_widget();
 
       protected:

@@ -134,6 +134,7 @@ void ui_system_impl::configure(const ui_configuration& configuration)
 void ui_system_impl::update(float dt)
 {
     PROFILE_ZONE;
+    MANGO_UNUSED(dt);
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -153,8 +154,7 @@ void ui_system_impl::update(float dt)
     w_flags |= ImGuiWindowFlags_NoBackground;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::Begin("DockSpace", &dockspace_enabled, w_flags);
-    ImGui::PopStyleVar();
-    ImGui::PopStyleVar(2);
+    ImGui::PopStyleVar(3);
 
     // real dock space
     if (dockspace_enabled)
@@ -216,7 +216,7 @@ void ui_system_impl::update(float dt)
 
     // Hardware Info
     if (widgets[ui_widget::hardware_info] && hardware_info_enabled && !cinema_view)
-        hardware_info_widget(m_shared_context, hardware_info_enabled, dt);
+        hardware_info_widget(m_shared_context, hardware_info_enabled);
 
     // Custom
     custom_enabled |= custom.always_open;
