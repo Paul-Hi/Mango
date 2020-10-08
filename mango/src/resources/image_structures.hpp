@@ -15,7 +15,7 @@ namespace mango
     struct image_configuration
     {
         string name;                  //!< The name of the image. Used to store it and retrieve it later on.
-        bool is_standard_color_space; //!< True if the picture is in standard color space (SRGB etc.) , else false.
+        bool is_standard_color_space; //!< True if the picture is in standard color space (srgb etc.) , else false.
         bool is_hdr;                  //!< True if the picture has high dynamic range , else false.
     };
 

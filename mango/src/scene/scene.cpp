@@ -179,9 +179,9 @@ entity scene::create_entities_from_model(const string& path, entity gltf_root)
         const tinygltf::Buffer& t_buffer = m.buffers[buffer_view.buffer];
 
         buffer_configuration buffer_config;
-        buffer_config.m_access = buffer_access::NONE;
+        buffer_config.m_access = buffer_access::none;
         buffer_config.m_size   = buffer_view.byteLength;
-        buffer_config.m_target = (buffer_view.target == 0 || buffer_view.target == GL_ARRAY_BUFFER) ? buffer_target::VERTEX_BUFFER : buffer_target::INDEX_BUFFER;
+        buffer_config.m_target = (buffer_view.target == 0 || buffer_view.target == GL_ARRAY_BUFFER) ? buffer_target::vertex_buffer : buffer_target::index_buffer;
 
         const unsigned char* buffer_start = t_buffer.data.data() + buffer_view.byteOffset;
         const void* buffer_data           = static_cast<const void*>(buffer_start);
@@ -248,21 +248,21 @@ entity scene::create_environment_from_hdr(const string& path)
     texture_configuration tex_config;
     tex_config.m_generate_mipmaps        = 1;
     tex_config.m_is_standard_color_space = false;
-    tex_config.m_texture_min_filter      = texture_parameter::FILTER_LINEAR;
-    tex_config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
-    tex_config.m_texture_wrap_s          = texture_parameter::WRAP_CLAMP_TO_EDGE;
-    tex_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
+    tex_config.m_texture_min_filter      = texture_parameter::filter_linear;
+    tex_config.m_texture_mag_filter      = texture_parameter::filter_linear;
+    tex_config.m_texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
+    tex_config.m_texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
 
     texture_ptr hdr_texture = texture::create(tex_config);
 
-    format f        = format::RGB;
-    format internal = format::RGB32F;
-    format type     = format::FLOAT;
+    format f        = format::rgb;
+    format internal = format::rgb32f;
+    format type     = format::t_float;
 
     if (hdr_image->number_components == 4)
     {
-        f        = format::RGBA;
-        internal = format::RGBA32F;
+        f        = format::rgba;
+        internal = format::rgba32f;
     }
 
     hdr_texture->set_data(internal, hdr_image->width, hdr_image->height, f, type, hdr_image->data);
@@ -616,7 +616,7 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
         else
         {
             p.first      = 0;
-            p.type_index = index_type::NONE;
+            p.type_index = index_type::none;
             // p.count has to be set later.
             has_indices = false;
         }
@@ -741,10 +741,10 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     texture_configuration config;
     config.m_generate_mipmaps        = 1;
     config.m_is_standard_color_space = true;
-    config.m_texture_min_filter      = texture_parameter::FILTER_LINEAR_MIPMAP_LINEAR;
-    config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
-    config.m_texture_wrap_s          = texture_parameter::WRAP_REPEAT;
-    config.m_texture_wrap_t          = texture_parameter::WRAP_REPEAT;
+    config.m_texture_min_filter      = texture_parameter::filter_linear_mipmap_linear;
+    config.m_texture_mag_filter      = texture_parameter::filter_linear;
+    config.m_texture_wrap_s          = texture_parameter::wrap_repeat;
+    config.m_texture_wrap_t          = texture_parameter::wrap_repeat;
 
     if (pbr.baseColorTexture.index < 0)
     {
@@ -775,31 +775,31 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
         texture_ptr base_color           = texture::create(config);
 
-        format f        = format::RGBA;
-        format internal = format::SRGB8_ALPHA8;
+        format f        = format::rgba;
+        format internal = format::srgb8_alpha8;
 
         if (image.component == 1)
         {
-            f = format::RED;
+            f = format::red;
         }
         else if (image.component == 2)
         {
-            f = format::RG;
+            f = format::rg;
         }
         else if (image.component == 3)
         {
-            f        = format::RGB;
-            internal = format::SRGB8;
+            f        = format::rgb;
+            internal = format::srgb8;
         }
 
-        format type = format::UNSIGNED_BYTE;
+        format type = format::t_unsigned_byte;
         if (image.bits == 16)
         {
-            type = format::UNSIGNED_SHORT;
+            type = format::t_unsigned_short;
         }
         else if (image.bits == 32)
         {
-            type = format::UNSIGNED_INT;
+            type = format::t_unsigned_int;
         }
 
         base_color->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
@@ -835,31 +835,31 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
         texture_ptr o_r_m                = texture::create(config);
 
-        format f        = format::RGBA;
-        format internal = format::RGBA8;
+        format f        = format::rgba;
+        format internal = format::rgba8;
 
         if (image.component == 1)
         {
-            f = format::RED;
+            f = format::red;
         }
         else if (image.component == 2)
         {
-            f = format::RG;
+            f = format::rg;
         }
         else if (image.component == 3)
         {
-            f        = format::RGB;
-            internal = format::RGB8;
+            f        = format::rgb;
+            internal = format::rgb8;
         }
 
-        format type = format::UNSIGNED_BYTE;
+        format type = format::t_unsigned_byte;
         if (image.bits == 16)
         {
-            type = format::UNSIGNED_SHORT;
+            type = format::t_unsigned_short;
         }
         else if (image.bits == 32)
         {
-            type = format::UNSIGNED_INT;
+            type = format::t_unsigned_int;
         }
 
         o_r_m->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
@@ -898,31 +898,31 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
             texture_ptr occlusion            = texture::create(config);
 
-            format f        = format::RGBA;
-            format internal = format::RGBA8;
+            format f        = format::rgba;
+            format internal = format::rgba8;
 
             if (image.component == 1)
             {
-                f = format::RED;
+                f = format::red;
             }
             else if (image.component == 2)
             {
-                f = format::RG;
+                f = format::rg;
             }
             else if (image.component == 3)
             {
-                f        = format::RGB;
-                internal = format::RGB8;
+                f        = format::rgb;
+                internal = format::rgb8;
             }
 
-            format type = format::UNSIGNED_BYTE;
+            format type = format::t_unsigned_byte;
             if (image.bits == 16)
             {
-                type = format::UNSIGNED_SHORT;
+                type = format::t_unsigned_short;
             }
             else if (image.bits == 32)
             {
-                type = format::UNSIGNED_INT;
+                type = format::t_unsigned_int;
             }
 
             occlusion->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
@@ -954,31 +954,31 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
         texture_ptr normal_t             = texture::create(config);
 
-        format f        = format::RGBA;
-        format internal = format::RGBA8;
+        format f        = format::rgba;
+        format internal = format::rgba8;
 
         if (image.component == 1)
         {
-            f = format::RED;
+            f = format::red;
         }
         else if (image.component == 2)
         {
-            f = format::RG;
+            f = format::rg;
         }
         else if (image.component == 3)
         {
-            f        = format::RGB;
-            internal = format::RGB8;
+            f        = format::rgb;
+            internal = format::rgb8;
         }
 
-        format type = format::UNSIGNED_BYTE;
+        format type = format::t_unsigned_byte;
         if (image.bits == 16)
         {
-            type = format::UNSIGNED_SHORT;
+            type = format::t_unsigned_short;
         }
         else if (image.bits == 32)
         {
-            type = format::UNSIGNED_INT;
+            type = format::t_unsigned_int;
         }
 
         normal_t->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
@@ -1014,31 +1014,31 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
         texture_ptr emissive_color       = texture::create(config);
 
-        format f        = format::RGBA;
-        format internal = format::SRGB8_ALPHA8;
+        format f        = format::rgba;
+        format internal = format::srgb8_alpha8;
 
         if (image.component == 1)
         {
-            f = format::RED;
+            f = format::red;
         }
         else if (image.component == 2)
         {
-            f = format::RG;
+            f = format::rg;
         }
         else if (image.component == 3)
         {
-            f        = format::RGB;
-            internal = format::SRGB8;
+            f        = format::rgb;
+            internal = format::srgb8;
         }
 
-        format type = format::UNSIGNED_BYTE;
+        format type = format::t_unsigned_byte;
         if (image.bits == 16)
         {
-            type = format::UNSIGNED_SHORT;
+            type = format::t_unsigned_short;
         }
         else if (image.bits == 32)
         {
-            type = format::UNSIGNED_INT;
+            type = format::t_unsigned_int;
         }
 
         emissive_color->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
@@ -1048,17 +1048,17 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     // transparency
     if (p_m.alphaMode.compare("OPAQUE") == 0)
     {
-        material.component_material->alpha_rendering = alpha_mode::MODE_OPAQUE;
+        material.component_material->alpha_rendering = alpha_mode::mode_opaque;
         material.component_material->alpha_cutoff    = 1.0f;
     }
     if (p_m.alphaMode.compare("MASK") == 0)
     {
-        material.component_material->alpha_rendering = alpha_mode::MODE_MASK;
+        material.component_material->alpha_rendering = alpha_mode::mode_mask;
         material.component_material->alpha_cutoff    = static_cast<float>(p_m.alphaCutoff);
     }
     if (p_m.alphaMode.compare("BLEND") == 0)
     {
-        material.component_material->alpha_rendering = alpha_mode::MODE_BLEND;
+        material.component_material->alpha_rendering = alpha_mode::mode_blend;
         material.component_material->alpha_cutoff    = 1.0f;
         MANGO_LOG_WARN("Alpha blending currently not supported!");
     }

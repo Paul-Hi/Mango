@@ -32,7 +32,7 @@ namespace mango
         //! \param[in] command_buffer The \a command_buffer to add the clear command to.
         inline void clear_shadow_buffer(command_buffer_ptr& command_buffer)
         {
-            command_buffer->clear_framebuffer(clear_buffer_mask::DEPTH_BUFFER, attachment_mask::DEPTH_BUFFER, 0.0f, 0.0f, 0.0f, 1.0f, m_shadow_buffer);
+            command_buffer->clear_framebuffer(clear_buffer_mask::depth_buffer, attachment_mask::depth_buffer, 0.0f, 0.0f, 0.0f, 1.0f, m_shadow_buffer);
         }
 
         //! \brief Returns the queue to submit commands used to render shadow casters.

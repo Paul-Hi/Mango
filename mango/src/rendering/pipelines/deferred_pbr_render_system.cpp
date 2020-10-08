@@ -81,22 +81,22 @@ bool deferred_pbr_render_system::create()
     texture_configuration attachment_config;
     attachment_config.m_generate_mipmaps        = 1;
     attachment_config.m_is_standard_color_space = false;
-    attachment_config.m_texture_min_filter      = texture_parameter::FILTER_NEAREST;
-    attachment_config.m_texture_mag_filter      = texture_parameter::FILTER_NEAREST;
-    attachment_config.m_texture_wrap_s          = texture_parameter::WRAP_CLAMP_TO_EDGE;
-    attachment_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
+    attachment_config.m_texture_min_filter      = texture_parameter::filter_nearest;
+    attachment_config.m_texture_mag_filter      = texture_parameter::filter_nearest;
+    attachment_config.m_texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
+    attachment_config.m_texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
 
     framebuffer_configuration gbuffer_config;
     gbuffer_config.m_color_attachment0 = texture::create(attachment_config);
-    gbuffer_config.m_color_attachment0->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_INT_8_8_8_8, nullptr);
+    gbuffer_config.m_color_attachment0->set_data(format::rgba8, w, h, format::rgba, format::t_unsigned_int_8_8_8_8, nullptr);
     gbuffer_config.m_color_attachment1 = texture::create(attachment_config);
-    gbuffer_config.m_color_attachment1->set_data(format::RGB10_A2, w, h, format::RGBA, format::UNSIGNED_INT_10_10_10_2, nullptr);
+    gbuffer_config.m_color_attachment1->set_data(format::rgb10_a2, w, h, format::rgba, format::t_unsigned_int_10_10_10_2, nullptr);
     gbuffer_config.m_color_attachment2 = texture::create(attachment_config);
-    gbuffer_config.m_color_attachment2->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_INT_8_8_8_8, nullptr);
+    gbuffer_config.m_color_attachment2->set_data(format::rgba8, w, h, format::rgba, format::t_unsigned_int_8_8_8_8, nullptr);
     gbuffer_config.m_color_attachment3 = texture::create(attachment_config);
-    gbuffer_config.m_color_attachment3->set_data(format::RGBA8, w, h, format::RGBA, format::UNSIGNED_INT_8_8_8_8, nullptr);
+    gbuffer_config.m_color_attachment3->set_data(format::rgba8, w, h, format::rgba, format::t_unsigned_int_8_8_8_8, nullptr);
     gbuffer_config.m_depth_attachment = texture::create(attachment_config);
-    gbuffer_config.m_depth_attachment->set_data(format::DEPTH_COMPONENT32F, w, h, format::DEPTH_COMPONENT, format::FLOAT, nullptr);
+    gbuffer_config.m_depth_attachment->set_data(format::depth_component32f, w, h, format::depth_component, format::t_float, nullptr);
 
     gbuffer_config.m_width  = w;
     gbuffer_config.m_height = h;
@@ -110,10 +110,10 @@ bool deferred_pbr_render_system::create()
     framebuffer_configuration hdr_buffer_config;
     attachment_config.m_generate_mipmaps  = calculate_mip_count(w, h);
     hdr_buffer_config.m_color_attachment0 = texture::create(attachment_config);
-    hdr_buffer_config.m_color_attachment0->set_data(format::RGBA32F, w, h, format::RGBA, format::FLOAT, nullptr);
+    hdr_buffer_config.m_color_attachment0->set_data(format::rgba32f, w, h, format::rgba, format::t_float, nullptr);
     attachment_config.m_generate_mipmaps = 1;
     hdr_buffer_config.m_depth_attachment = texture::create(attachment_config);
-    hdr_buffer_config.m_depth_attachment->set_data(format::DEPTH_COMPONENT32F, w, h, format::DEPTH_COMPONENT, format::FLOAT, nullptr);
+    hdr_buffer_config.m_depth_attachment->set_data(format::depth_component32f, w, h, format::depth_component, format::t_float, nullptr);
 
     hdr_buffer_config.m_width  = w;
     hdr_buffer_config.m_height = h;
@@ -127,9 +127,9 @@ bool deferred_pbr_render_system::create()
 
     framebuffer_configuration backbuffer_config;
     backbuffer_config.m_color_attachment0 = texture::create(attachment_config);
-    backbuffer_config.m_color_attachment0->set_data(format::RGB8, w, h, format::RGB, format::UNSIGNED_INT, nullptr);
+    backbuffer_config.m_color_attachment0->set_data(format::rgb8, w, h, format::rgb, format::t_unsigned_int, nullptr);
     backbuffer_config.m_depth_attachment = texture::create(attachment_config);
-    backbuffer_config.m_depth_attachment->set_data(format::DEPTH_COMPONENT32F, w, h, format::DEPTH_COMPONENT, format::FLOAT, nullptr);
+    backbuffer_config.m_depth_attachment->set_data(format::depth_component32f, w, h, format::depth_component, format::t_float, nullptr);
 
     backbuffer_config.m_width  = w;
     backbuffer_config.m_height = h;
@@ -150,13 +150,13 @@ bool deferred_pbr_render_system::create()
     // scene geometry pass
     shader_configuration shader_config;
     shader_config.m_path = "res/shader/v_scene_gltf.glsl";
-    shader_config.m_type = shader_type::VERTEX_SHADER;
+    shader_config.m_type = shader_type::vertex_shader;
     shader_ptr d_vertex  = shader::create(shader_config);
     if (!check_creation(d_vertex.get(), "geometry pass vertex shader", "Render System"))
         return false;
 
     shader_config.m_path  = "res/shader/f_scene_gltf.glsl";
-    shader_config.m_type  = shader_type::FRAGMENT_SHADER;
+    shader_config.m_type  = shader_type::fragment_shader;
     shader_ptr d_fragment = shader::create(shader_config);
     if (!check_creation(d_fragment.get(), "geometry pass fragment shader", "Render System"))
         return false;
@@ -167,13 +167,13 @@ bool deferred_pbr_render_system::create()
 
     // lighting pass
     shader_config.m_path = "res/shader/v_screen_space_triangle.glsl";
-    shader_config.m_type = shader_type::VERTEX_SHADER;
+    shader_config.m_type = shader_type::vertex_shader;
     d_vertex             = shader::create(shader_config);
     if (!check_creation(d_vertex.get(), "screen space triangle vertex shader", "Render System"))
         return false;
 
     shader_config.m_path = "res/shader/f_deferred_lighting.glsl";
-    shader_config.m_type = shader_type::FRAGMENT_SHADER;
+    shader_config.m_type = shader_type::fragment_shader;
     d_fragment           = shader::create(shader_config);
     if (!check_creation(d_fragment.get(), "lighting pass fragment shader", "Render System"))
         return false;
@@ -184,7 +184,7 @@ bool deferred_pbr_render_system::create()
 
     // composing pass
     shader_config.m_path = "res/shader/f_composing.glsl";
-    shader_config.m_type = shader_type::FRAGMENT_SHADER;
+    shader_config.m_type = shader_type::fragment_shader;
     d_fragment           = shader::create(shader_config);
     if (!check_creation(d_fragment.get(), "composing pass fragment shader", "Render System"))
         return false;
@@ -195,7 +195,7 @@ bool deferred_pbr_render_system::create()
 
     // luminance compute for auto exposure
     shader_config.m_path                  = "res/shader/c_construct_luminance_buffer.glsl";
-    shader_config.m_type                  = shader_type::COMPUTE_SHADER;
+    shader_config.m_type                  = shader_type::compute_shader;
     shader_ptr construct_luminance_buffer = shader::create(shader_config);
     if (!check_creation(construct_luminance_buffer.get(), "luminance construction compute shader", "Render System"))
         return false;
@@ -205,7 +205,7 @@ bool deferred_pbr_render_system::create()
         return false;
 
     shader_config.m_path               = "res/shader/c_luminance_buffer_reduction.glsl";
-    shader_config.m_type               = shader_type::COMPUTE_SHADER;
+    shader_config.m_type               = shader_type::compute_shader;
     shader_ptr reduce_luminance_buffer = shader::create(shader_config);
     if (!check_creation(reduce_luminance_buffer.get(), "luminance reduction compute shader", "Render System"))
         return false;
@@ -215,12 +215,12 @@ bool deferred_pbr_render_system::create()
         return false;
 
     buffer_configuration b_config;
-    b_config.m_access            = buffer_access::MAPPED_ACCESS_READ_WRITE;
+    b_config.m_access            = buffer_access::mapped_access_read_write;
     b_config.m_size              = 256 * sizeof(uint32) + sizeof(float);
-    b_config.m_target            = buffer_target::SHADER_STORAGE_BUFFER;
+    b_config.m_target            = buffer_target::shader_storage_buffer;
     m_luminance_histogram_buffer = buffer::create(b_config);
 
-    m_luminance_data_mapping = static_cast<luminance_data*>(m_luminance_histogram_buffer->map(0, b_config.m_size, buffer_access::MAPPED_ACCESS_WRITE));
+    m_luminance_data_mapping = static_cast<luminance_data*>(m_luminance_histogram_buffer->map(0, b_config.m_size, buffer_access::mapped_access_write));
     if (!check_mapping(m_luminance_data_mapping, "luminance data", "Render System"))
         return false;
 
@@ -236,12 +236,12 @@ bool deferred_pbr_render_system::create()
     if (!check_creation(default_texture.get(), "default texture", "Render System"))
         return false;
     g_ubyte albedo[3] = { 127, 127, 127 };
-    default_texture->set_data(format::RGB8, 1, 1, format::RGB, format::UNSIGNED_BYTE, albedo);
+    default_texture->set_data(format::rgb8, 1, 1, format::rgb, format::t_unsigned_byte, albedo);
     attachment_config.m_layers = 3;
     default_texture_array      = texture::create(attachment_config);
     if (!check_creation(default_texture_array.get(), "default texture array", "Render System"))
         return false;
-    default_texture_array->set_data(format::RGB8, 1, 1, format::RGB, format::UNSIGNED_BYTE, albedo);
+    default_texture_array->set_data(format::rgb8, 1, 1, format::rgb, format::t_unsigned_byte, albedo);
 
     for (int32 i = 0; i < 9; ++i)
         m_lighting_pass_data.debug_views.debug[i] = false;
@@ -304,10 +304,10 @@ void deferred_pbr_render_system::begin_render()
     m_hardware_stats.last_frame.materials  = 0;
 
     // TODO Paul: This should not be done here, this is pretty bad!
-    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH_STENCIL, attachment_mask::ALL, 0.1f, 0.1f, 0.1f, 1.0f);
-    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_gbuffer);
-    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_hdr_buffer);
-    m_command_buffer->clear_framebuffer(clear_buffer_mask::COLOR_AND_DEPTH, attachment_mask::ALL_DRAW_BUFFERS_AND_DEPTH, 0.0f, 0.0f, 0.0f, 1.0f, m_backbuffer);
+    m_command_buffer->clear_framebuffer(clear_buffer_mask::color_and_depth_stencil, attachment_mask::all, 0.1f, 0.1f, 0.1f, 1.0f);
+    m_command_buffer->clear_framebuffer(clear_buffer_mask::color_and_depth, attachment_mask::all_draw_buffers_and_depth, 0.0f, 0.0f, 0.0f, 1.0f, m_gbuffer);
+    m_command_buffer->clear_framebuffer(clear_buffer_mask::color_and_depth, attachment_mask::all_draw_buffers_and_depth, 0.0f, 0.0f, 0.0f, 1.0f, m_hdr_buffer);
+    m_command_buffer->clear_framebuffer(clear_buffer_mask::color_and_depth, attachment_mask::all_draw_buffers_and_depth, 0.0f, 0.0f, 0.0f, 1.0f, m_backbuffer);
     if (m_pipeline_steps[mango::render_step::shadow_map])
     {
         auto step = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map]);
@@ -356,14 +356,14 @@ void deferred_pbr_render_system::finish_render(float dt)
     // geometry pass
     {
         m_command_buffer->set_depth_test(true);
-        m_command_buffer->set_depth_func(compare_operation::LESS);
+        m_command_buffer->set_depth_func(compare_operation::less);
         m_command_buffer->set_face_culling(true);
-        m_command_buffer->set_cull_face(polygon_face::FACE_BACK);
+        m_command_buffer->set_cull_face(polygon_face::face_back);
         m_command_buffer->bind_framebuffer(m_gbuffer);
         m_command_buffer->bind_shader_program(m_scene_geometry_pass);
 
         if (m_wireframe)
-            m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::LINE);
+            m_command_buffer->set_polygon_mode(polygon_face::face_front_and_back, polygon_mode::line);
 
         m_command_buffer->attach(m_render_queue);
     }
@@ -375,13 +375,13 @@ void deferred_pbr_render_system::finish_render(float dt)
     {
         m_command_buffer->bind_framebuffer(m_hdr_buffer); // bind hdr.
         m_command_buffer->bind_shader_program(m_lighting_pass);
-        m_command_buffer->set_polygon_mode(polygon_face::FACE_FRONT_AND_BACK, polygon_mode::FILL);
+        m_command_buffer->set_polygon_mode(polygon_face::face_front_and_back, polygon_mode::fill);
 
-        m_command_buffer->bind_texture(0, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0), 0);
-        m_command_buffer->bind_texture(1, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT1), 1);
-        m_command_buffer->bind_texture(2, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT2), 2);
-        m_command_buffer->bind_texture(3, m_gbuffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT3), 3);
-        m_command_buffer->bind_texture(4, m_gbuffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 4);
+        m_command_buffer->bind_texture(0, m_gbuffer->get_attachment(framebuffer_attachment::color_attachment0), 0);
+        m_command_buffer->bind_texture(1, m_gbuffer->get_attachment(framebuffer_attachment::color_attachment1), 1);
+        m_command_buffer->bind_texture(2, m_gbuffer->get_attachment(framebuffer_attachment::color_attachment2), 2);
+        m_command_buffer->bind_texture(3, m_gbuffer->get_attachment(framebuffer_attachment::color_attachment3), 3);
+        m_command_buffer->bind_texture(4, m_gbuffer->get_attachment(framebuffer_attachment::depth_attachment), 4);
         if (m_pipeline_steps[mango::render_step::shadow_map])
         {
             std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->bind_shadow_data(m_command_buffer, m_frame_uniform_buffer);
@@ -402,7 +402,7 @@ void deferred_pbr_render_system::finish_render(float dt)
         // TODO Paul: Check if the binding is better for performance or not.
         m_command_buffer->bind_vertex_array(default_vao);
 
-        m_command_buffer->draw_arrays(primitive_topology::TRIANGLES, 0, 3);
+        m_command_buffer->draw_arrays(primitive_topology::triangles, 0, 3);
         m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done, on glCalls.
     }
 
@@ -410,8 +410,8 @@ void deferred_pbr_render_system::finish_render(float dt)
     if (m_pipeline_steps[mango::render_step::ibl] && !m_lighting_pass_data.debug_view_enabled)
     {
         shared_ptr<ibl_step> imgbl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
-        m_command_buffer->set_depth_func(compare_operation::LESS_EQUAL);
-        m_command_buffer->set_cull_face(polygon_face::FACE_FRONT);
+        m_command_buffer->set_depth_func(compare_operation::less_equal);
+        m_command_buffer->set_cull_face(polygon_face::face_front);
         m_pipeline_steps[mango::render_step::ibl]->execute(m_command_buffer, m_frame_uniform_buffer);
     }
 
@@ -419,9 +419,9 @@ void deferred_pbr_render_system::finish_render(float dt)
     if (camera.camera_info && camera.camera_info->physical.adaptive_exposure && !m_lighting_pass_data.debug_view_enabled)
     {
         m_command_buffer->bind_shader_program(m_construct_luminance_buffer);
-        auto tex = m_hdr_buffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0);
+        auto tex = m_hdr_buffer->get_attachment(framebuffer_attachment::color_attachment0);
         m_command_buffer->calculate_mipmaps(tex);
-        m_command_buffer->add_memory_barrier(memory_barrier_bit::SHADER_IMAGE_ACCESS_BARRIER_BIT);
+        m_command_buffer->add_memory_barrier(memory_barrier_bit::shader_image_access_barrier_bit);
         int32 mip_level  = 0;
         int32 tex_width  = tex->get_width();
         int32 tex_height = tex->get_height();
@@ -431,17 +431,17 @@ void deferred_pbr_render_system::finish_render(float dt)
         }
         tex_width >>= mip_level;
         tex_height >>= mip_level;
-        m_command_buffer->bind_image_texture(0, tex, mip_level, false, 0, base_access::READ_ONLY, format::RGBA32F);
-        m_command_buffer->bind_buffer(1, m_luminance_histogram_buffer, buffer_target::SHADER_STORAGE_BUFFER);
+        m_command_buffer->bind_image_texture(0, tex, mip_level, false, 0, base_access::read_only, format::rgba32f);
+        m_command_buffer->bind_buffer(1, m_luminance_histogram_buffer, buffer_target::shader_storage_buffer);
         glm::vec2 params = glm::vec2(-8.0f, 1.0f / 40.0f); // min -8.0, max +32.0
         m_command_buffer->bind_single_uniform(1, &(params), sizeof(params));
 
         m_command_buffer->dispatch_compute(tex_width / 16, tex_height / 16, 1);
 
-        m_command_buffer->add_memory_barrier(memory_barrier_bit::SHADER_STORAGE_BARRIER_BIT);
+        m_command_buffer->add_memory_barrier(memory_barrier_bit::shader_storage_barrier_bit);
 
         m_command_buffer->bind_shader_program(m_reduce_luminance_buffer);
-        m_command_buffer->bind_buffer(0, m_luminance_histogram_buffer, buffer_target::SHADER_STORAGE_BUFFER);
+        m_command_buffer->bind_buffer(0, m_luminance_histogram_buffer, buffer_target::shader_storage_buffer);
 
         // time coefficient with tau = 1.1;
         float tau              = 0.75f;
@@ -451,15 +451,15 @@ void deferred_pbr_render_system::finish_render(float dt)
 
         m_command_buffer->dispatch_compute(1, 1, 1);
 
-        m_command_buffer->add_memory_barrier(memory_barrier_bit::SHADER_STORAGE_BARRIER_BIT);
+        m_command_buffer->add_memory_barrier(memory_barrier_bit::shader_storage_barrier_bit);
 
         apply_auto_exposure(camera); // for next frame.
     }
 
     // composite
     {
-        m_command_buffer->set_depth_func(compare_operation::LESS);
-        m_command_buffer->set_cull_face(polygon_face::FACE_BACK);
+        m_command_buffer->set_depth_func(compare_operation::less);
+        m_command_buffer->set_cull_face(polygon_face::face_back);
         m_command_buffer->bind_framebuffer(m_backbuffer); // bind backbuffer.
         m_command_buffer->bind_shader_program(m_composing_pass);
         float camera_exposure = 1.0f;
@@ -478,12 +478,12 @@ void deferred_pbr_render_system::finish_render(float dt)
         int32 b_val = m_lighting_pass_data.debug_view_enabled ? 1 : (m_lighting_pass_data.debug_options.draw_shadow_maps ? 2 : 0);
         m_command_buffer->bind_single_uniform(2, &(b_val), sizeof(b_val));
 
-        m_command_buffer->bind_texture(0, m_hdr_buffer->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0), 0);
+        m_command_buffer->bind_texture(0, m_hdr_buffer->get_attachment(framebuffer_attachment::color_attachment0), 0);
 
         // TODO Paul: Check if the binding is better for performance or not.
         m_command_buffer->bind_vertex_array(default_vao);
 
-        m_command_buffer->draw_arrays(primitive_topology::TRIANGLES, 0, 3);
+        m_command_buffer->draw_arrays(primitive_topology::triangles, 0, 3);
         m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done, on glCalls.
     }
 
@@ -657,7 +657,7 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     MANGO_ASSERT(count >= 0, "The index count has to be greater than 0!");
     MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
 
-    if (type == index_type::NONE)
+    if (type == index_type::none)
     {
         m_render_queue->draw_arrays(topology, first, count, instance_count);
         if (caster_queue)

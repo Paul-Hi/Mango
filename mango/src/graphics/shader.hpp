@@ -33,11 +33,11 @@ namespace mango
         const char* m_path;
 
         //! \brief The type of the shader described by the source.
-        shader_type m_type = shader_type::NONE;
+        shader_type m_type = shader_type::none;
 
         bool is_valid() const
         {
-            return nullptr != m_path && m_type != shader_type::NONE;
+            return nullptr != m_path && m_type != shader_type::none;
         }
     };
 

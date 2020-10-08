@@ -322,58 +322,58 @@ void command_buffer::bind_single_uniform(int32 location, void* uniform_value, in
 
             switch (u.type)
             {
-            case shader_resource_type::FLOAT:
+            case shader_resource_type::fsingle:
             {
                 glUniform1f(m_location, *static_cast<float*>(data));
                 break;
             }
-            case shader_resource_type::FVEC2:
+            case shader_resource_type::fvec2:
             {
                 float* vec = static_cast<g_float*>(data);
                 glUniform2f(m_location, vec[0], vec[1]);
                 break;
             }
-            case shader_resource_type::FVEC3:
+            case shader_resource_type::fvec3:
             {
                 float* vec = static_cast<g_float*>(data);
                 glUniform3f(m_location, vec[0], vec[1], vec[2]);
                 break;
             }
-            case shader_resource_type::FVEC4:
+            case shader_resource_type::fvec4:
             {
                 float* vec = static_cast<g_float*>(data);
                 glUniform4f(m_location, vec[0], vec[1], vec[2], vec[3]);
                 break;
             }
-            case shader_resource_type::INT:
+            case shader_resource_type::isingle:
             {
                 glUniform1i(m_location, *static_cast<g_int*>(data));
                 break;
             }
-            case shader_resource_type::IVEC2:
+            case shader_resource_type::ivec2:
             {
                 int* vec = static_cast<g_int*>(data);
                 glUniform2i(m_location, vec[0], vec[1]);
                 break;
             }
-            case shader_resource_type::IVEC3:
+            case shader_resource_type::ivec3:
             {
                 int* vec = static_cast<g_int*>(data);
                 glUniform3i(m_location, vec[0], vec[1], vec[2]);
                 break;
             }
-            case shader_resource_type::IVEC4:
+            case shader_resource_type::ivec4:
             {
                 int* vec = static_cast<g_int*>(data);
                 glUniform4i(m_location, vec[0], vec[1], vec[2], vec[3]);
                 break;
             }
-            case shader_resource_type::MAT3:
+            case shader_resource_type::mat3:
             {
                 glUniformMatrix3fv(m_location, m_count, GL_FALSE, static_cast<g_float*>(data));
                 break;
             }
-            case shader_resource_type::MAT4:
+            case shader_resource_type::mat4:
             {
                 glUniformMatrix4fv(m_location, m_count, GL_FALSE, static_cast<g_float*>(data));
                 break;
@@ -705,7 +705,7 @@ void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment
             NAMED_PROFILE_ZONE("Clear Framebuffer");
             GL_NAMED_PROFILE_ZONE("Clear Framebuffer");
             // TODO Paul: Check if these clear functions do always clear correct *fv, *uiv ..... etc.
-            if ((m_buffer_mask & clear_buffer_mask::COLOR_BUFFER) != clear_buffer_mask::NONE)
+            if ((m_buffer_mask & clear_buffer_mask::color_buffer) != clear_buffer_mask::none)
             {
                 if (nullptr == m_framebuffer)
                 {
@@ -718,14 +718,14 @@ void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment
                     const float rgb[4] = { m_r, m_g, m_b, m_a };
                     for (int32 i = 0; i < 4; ++i)
                     {
-                        if (m_framebuffer->get_attachment(static_cast<framebuffer_attachment>(i)) && (m_attachment_mask & static_cast<attachment_mask>(1 << i)) != attachment_mask::NONE)
+                        if (m_framebuffer->get_attachment(static_cast<framebuffer_attachment>(i)) && (m_attachment_mask & static_cast<attachment_mask>(1 << i)) != attachment_mask::none)
                         {
                             glClearNamedFramebufferfv(m_framebuffer->get_name(), GL_COLOR, i, rgb);
                         }
                     }
                 }
             }
-            if ((m_buffer_mask & clear_buffer_mask::DEPTH_BUFFER) != clear_buffer_mask::NONE)
+            if ((m_buffer_mask & clear_buffer_mask::depth_buffer) != clear_buffer_mask::none)
             {
                 // The initial value is 1.
                 const g_float d = 1.0f; // TODO Paul: Parameter!
@@ -733,12 +733,12 @@ void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment
                 {
                     glClearNamedFramebufferfv(0, GL_DEPTH, 0, &d);
                 }
-                else if (m_framebuffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT) && (m_attachment_mask & attachment_mask::DEPTH_BUFFER) != attachment_mask::NONE)
+                else if (m_framebuffer->get_attachment(framebuffer_attachment::depth_attachment) && (m_attachment_mask & attachment_mask::depth_buffer) != attachment_mask::none)
                 {
                     glClearNamedFramebufferfv(m_framebuffer->get_name(), GL_DEPTH, 0, &d);
                 }
             }
-            if ((m_buffer_mask & clear_buffer_mask::STENCIL_BUFFER) != clear_buffer_mask::NONE)
+            if ((m_buffer_mask & clear_buffer_mask::stencil_buffer) != clear_buffer_mask::none)
             {
                 // The initial value is 0.
                 const g_int s = 1; // TODO Paul: Parameter!
@@ -746,12 +746,12 @@ void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment
                 {
                     glClearNamedFramebufferiv(0, GL_STENCIL, 0, &s);
                 }
-                else if (m_framebuffer->get_attachment(framebuffer_attachment::STENCIL_ATTACHMENT) && (m_attachment_mask & attachment_mask::STENCIL_BUFFER) != attachment_mask::NONE)
+                else if (m_framebuffer->get_attachment(framebuffer_attachment::stencil_attachment) && (m_attachment_mask & attachment_mask::stencil_buffer) != attachment_mask::none)
                 {
                     glClearNamedFramebufferiv(m_framebuffer->get_name(), GL_STENCIL, 0, &s);
                 }
             }
-            if ((m_buffer_mask & clear_buffer_mask::DEPTH_STENCIL_BUFFER) != clear_buffer_mask::NONE)
+            if ((m_buffer_mask & clear_buffer_mask::depth_stencil_buffer) != clear_buffer_mask::none)
             {
                 // The initial value is 1.
                 const g_float d = 1.0f; // TODO Paul: Parameter!
@@ -761,7 +761,7 @@ void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment
                 {
                     glClearNamedFramebufferfi(0, GL_DEPTH_STENCIL, 0, d, s);
                 }
-                else if (m_framebuffer->get_attachment(framebuffer_attachment::DEPTH_STENCIL_ATTACHMENT) && (m_attachment_mask & attachment_mask::DEPTH_STENCIL_BUFFER) != attachment_mask::NONE)
+                else if (m_framebuffer->get_attachment(framebuffer_attachment::depth_stencil_attachment) && (m_attachment_mask & attachment_mask::depth_stencil_buffer) != attachment_mask::none)
                 {
                     glClearNamedFramebufferfi(m_framebuffer->get_name(), GL_DEPTH_STENCIL, 0, d, s);
                 }

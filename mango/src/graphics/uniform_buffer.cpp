@@ -29,13 +29,13 @@ bool uniform_buffer::init(int64 frame_size, buffer_technique technique)
     m_current_buffer_start = 0;
     m_current_buffer_part  = 0;
 
-    buffer_configuration uniform_buffer_config(m_uniform_buffer_size, buffer_target::UNIFORM_BUFFER, buffer_access::MAPPED_ACCESS_WRITE);
+    buffer_configuration uniform_buffer_config(m_uniform_buffer_size, buffer_target::uniform_buffer, buffer_access::mapped_access_write);
     m_uniform_buffer = buffer::create(uniform_buffer_config);
 
     if (!check_creation(m_uniform_buffer.get(), "Uniform buffer", "Render System"))
         return false;
 
-    m_mapping = m_uniform_buffer->map(0, m_uniform_buffer->byte_length(), buffer_access::MAPPED_ACCESS_WRITE);
+    m_mapping = m_uniform_buffer->map(0, m_uniform_buffer->byte_length(), buffer_access::mapped_access_write);
 
     if (!check_mapping(m_uniform_buffer.get(), "Uniform Mapping", "Render System"))
         return false;

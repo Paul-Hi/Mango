@@ -109,7 +109,7 @@ namespace mango
         texture_parameter m_texture_wrap_s;
         //! \brief The wrapping procedure in t direction for texture coordinates not in [0, 1].
         texture_parameter m_texture_wrap_t;
-        //! \brief Specifies if the \a texture should be interpreted as SRGB etc.
+        //! \brief Specifies if the \a texture should be interpreted as srgb etc.
         bool m_is_standard_color_space;
         //! \brief Number of mipmap levels.
         int32 m_generate_mipmaps;

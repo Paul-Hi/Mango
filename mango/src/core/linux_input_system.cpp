@@ -21,7 +21,7 @@ linux_input_system::linux_input_system(const shared_ptr<context_impl>& context)
     m_platform_data                       = std::make_shared<platform_data>();
     m_platform_data->native_window_handle = nullptr;
     m_last_scroll_offset                  = glm::vec2(0.0f);
-    m_last_mods                           = modifier::NONE;
+    m_last_mods                           = modifier::none;
 }
 
 linux_input_system::~linux_input_system() {}

@@ -23,15 +23,15 @@ graphics_state::graphics_state()
     m_internal_state.viewport.y            = 0;
     m_internal_state.viewport.width        = 0;
     m_internal_state.viewport.height       = 0;
-    m_internal_state.poly_mode.face        = polygon_face::FACE_FRONT_AND_BACK;
-    m_internal_state.poly_mode.mode        = polygon_mode::FILL;
+    m_internal_state.poly_mode.face        = polygon_face::face_front_and_back;
+    m_internal_state.poly_mode.mode        = polygon_mode::fill;
     m_internal_state.depth_test.enabled    = false;
-    m_internal_state.depth_test.depth_func = compare_operation::LESS;
+    m_internal_state.depth_test.depth_func = compare_operation::less;
     m_internal_state.face_culling.enabled  = false;
-    m_internal_state.face_culling.face     = polygon_face::FACE_BACK;
+    m_internal_state.face_culling.face     = polygon_face::face_back;
     m_internal_state.blending.enabled      = false;
-    m_internal_state.blending.src          = blend_factor::ONE;
-    m_internal_state.blending.dest         = blend_factor::ZERO;
+    m_internal_state.blending.src          = blend_factor::one;
+    m_internal_state.blending.dest         = blend_factor::zero;
 }
 
 bool graphics_state::set_viewport(int32 x, int32 y, int32 width, int32 height)

@@ -26,7 +26,7 @@ namespace mango
         //! \param[in] mag_filter The filter \a texture_parameter of the \a texture for magnification.
         //! \param[in] wrap_s The \a texture_parameter for texture wrapping in s direction.
         //! \param[in] wrap_t The \a texture_parameter for texture wrapping in t direction.
-        //! \param[in] standard_color_space True if \a texture is SRGB, else false.
+        //! \param[in] standard_color_space True if \a texture is srgb, else false.
         //! \param[in] generate_mipmaps The number of mipmaps of the \a texture. Has to be greater than 1.
         //! \param[in] is_cubemap True if \a texture is cubemap, else false.
         //! \param[in] layers Number of layers in this \a texture. Has to be greater than 1.
@@ -45,14 +45,14 @@ namespace mango
         }
 
         //! \brief The filter to use for \a texture minification.
-        texture_parameter m_texture_min_filter = texture_parameter::FILTER_LINEAR;
+        texture_parameter m_texture_min_filter = texture_parameter::filter_linear;
         //! \brief The filter to use for \a texture magnification.
-        texture_parameter m_texture_mag_filter = texture_parameter::FILTER_LINEAR;
+        texture_parameter m_texture_mag_filter = texture_parameter::filter_linear;
         //! \brief The wrapping procedure in s direction for texture coordinates not in [0, 1].
-        texture_parameter m_texture_wrap_s = texture_parameter::WRAP_REPEAT;
+        texture_parameter m_texture_wrap_s = texture_parameter::wrap_repeat;
         //! \brief The wrapping procedure in t direction for texture coordinates not in [0, 1].
-        texture_parameter m_texture_wrap_t = texture_parameter::WRAP_REPEAT;
-        //! \brief Specifies if the \a texture should be interpreted as SRGB etc.
+        texture_parameter m_texture_wrap_t = texture_parameter::wrap_repeat;
+        //! \brief Specifies if the \a texture should be interpreted as srgb etc.
         bool m_is_standard_color_space = true;
         //! \brief Specifies if a mipchain should be generated.
         int32 m_generate_mipmaps = 1;
@@ -67,7 +67,7 @@ namespace mango
 
         bool is_valid() const
         {
-            return m_texture_mag_filter < texture_parameter::FILTER_NEAREST_MIPMAP_NEAREST && m_generate_mipmaps > 0; // Eventually we should check that the min and mag filtering options fit.
+            return m_texture_mag_filter < texture_parameter::filter_nearest_mipmap_nearest && m_generate_mipmaps > 0; // Eventually we should check that the min and mag filtering options fit.
         }
     };
 
@@ -125,16 +125,16 @@ namespace mango
         virtual int32 layers() = 0;
 
         //! \brief Sets the data of the \a texture.
-        //! \param[in] internal_format The internal \a texture \a format to use. Has to be \a R8, \a R16, \a R16F, \a R32F, \a R8I, \a R16I, \a R32I, \a R8UI, \a R16UI, \a R32UI, \a RG8, \a RG16,
-        //! \a RG16F, \a RG32F, \a RG8I, \a RG16I, \a RG32I, \a RG8UI, \a RG16UI, \a RG32UI, \a RGB32F, \a RGB32I, \a RGB32UI, \a RGBA8, \a RGBA16, \a RGBA16F, \a RGBA32F, \a RGBA8I, \a RGBA16I,
-        //! \a RGBA32I, \a RGBA8UI, \a RGBA16UI, \a RGBA32UI, \a RGB4, \a RGB5, \a RGB8, \a RGB10, \a RGB12, \a RGB16, \a RGBA2, \a RGBA4, \a RGB5_A1, \a RGB10_A2 or \a RGBA12.
+        //! \param[in] internal_format The internal \a texture \a format to use. Has to be \a r8, \a r16, \a r16f, \a r32f, \a r8i, \a r16i, \a r32i, \a r8ui, \a r16ui, \a r32ui, \a rg8, \a rg16,
+        //! \a rg16f, \a rg32f, \a rg8i, \a rg16i, \a rg32i, \a rg8ui, \a rg16ui, \a rg32ui, \a rgb32f, \a rgb32i, \a rgb32ui, \a rgba8, \a rgba16, \a rgba16f, \a rgba32f, \a rgba8i, \a rgba16i,
+        //! \a rgba32i, \a rgba8ui, \a rgba16ui, \a rgba32ui, \a rgb4, \a rgb5, \a rgb8, \a rgb10, \a rgb12, \a rgb16, \a rgba2, \a rgba4, \a rgb5_a1, \a rgb10_a2 or \a rgba12.
         //! \param[in] width The width of the \a texture. Has to be a positive value.
         //! \param[in] height The height of the \a texture. Has to be a positive value.
-        //! \param[in] pixel_format The pixel \a format. Has to be \a RED, \a GREEN, \a BLUE, \a RG, \a RGB, \a BGR, \a RGBA, \a BGRA, \a RED_INTEGER, \a GREEN_INTEGER,
-        //! \a BLUE_INTEGER, \a RG_INTEGER, \a RGB_INTEGER, \a BGR_INTEGER, \a RGBA_INTEGER or \a BGRA_INTEGER.
-        //! \param[in] type The type of the data. Has to be \a \a UNSIGNED_BYTE, \a BYTE, \a UNSIGNED_SHORT, \a SHORT, \a UNSIGNED_INT, \a INT, \a FLOAT, \a UNSIGNED_BYTE_3_3_2,
-        //! \a UNSIGNED_BYTE_2_3_3_REV, \a UNSIGNED_SHORT_5_6_5, \a UNSIGNED_SHORT_5_6_5_REV, \a UNSIGNED_SHORT_4_4_4_4, \a UNSIGNED_SHORT_4_4_4_4_REV, \a UNSIGNED_SHORT_5_5_5_1,
-        //! \a UNSIGNED_SHORT_1_5_5_5_REV, \a UNSIGNED_INT_8_8_8_8, \a UNSIGNED_INT_8_8_8_8_REV, \a UNSIGNED_INT_10_10_10_2 or \a UNSIGNED_INT_2_10_10_10_REV.
+        //! \param[in] pixel_format The pixel \a format. Has to be \a red, \a green, \a blue, \a rg, \a rgb, \a bgr, \a rgba, \a bgra, \a red_integer, \a green_integer,
+        //! \a blue_integer, \a rg_integer, \a rgb_integer, \a bgr_integer, \a rgba_integer or \a bgra_integer.
+        //! \param[in] type the type of the data. has to be \a \a unsigned_byte, \a byte, \a unsigned_short, \a short, \a unsigned_int, \a int, \a float, \a unsigned_byte_3_3_2,
+        //! \a unsigned_byte_2_3_3_rev, \a unsigned_short_5_6_5, \a unsigned_short_5_6_5_rev, \a unsigned_short_4_4_4_4, \a unsigned_short_4_4_4_4_rev, \a unsigned_short_5_5_5_1,
+        //! \a unsigned_short_1_5_5_5_rev, \a unsigned_int_8_8_8_8, \a unsigned_int_8_8_8_8_rev, \a unsigned_int_10_10_10_2 or \a unsigned_int_2_10_10_10_rev.
         //! \param[in] data The data to set the \a texture memory specified before to.
         //! \param[in] layer The layer of the \a texture to set the data. Has to be a positive value.
         virtual void set_data(format internal_format, int32 width, int32 height, format pixel_format, format type, const void* data,  int32 layer = 0) = 0;

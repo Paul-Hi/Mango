@@ -25,19 +25,19 @@ bool shadow_map_step::create()
 
     shader_configuration shader_config;
     shader_config.m_path          = "res/shader/v_shadow_pass.glsl";
-    shader_config.m_type          = shader_type::VERTEX_SHADER;
+    shader_config.m_type          = shader_type::vertex_shader;
     shader_ptr shadow_pass_vertex = shader::create(shader_config);
     if (!check_creation(shadow_pass_vertex.get(), "shadow pass vertex shader", "Render System"))
         return false;
 
     shader_config.m_path            = "res/shader/g_shadow_pass.glsl";
-    shader_config.m_type            = shader_type::GEOMETRY_SHADER;
+    shader_config.m_type            = shader_type::geometry_shader;
     shader_ptr shadow_pass_geometry = shader::create(shader_config);
     if (!check_creation(shadow_pass_geometry.get(), "shadow pass geometry shader", "Render System"))
         return false;
 
     shader_config.m_path            = "res/shader/f_shadow_pass.glsl";
-    shader_config.m_type            = shader_type::FRAGMENT_SHADER;
+    shader_config.m_type            = shader_type::fragment_shader;
     shader_ptr shadow_pass_fragment = shader::create(shader_config);
     if (!check_creation(shadow_pass_fragment.get(), "shadow pass fragment shader", "Render System"))
         return false;
@@ -49,15 +49,15 @@ bool shadow_map_step::create()
     texture_configuration shadow_map_config;
     shadow_map_config.m_generate_mipmaps        = 1;
     shadow_map_config.m_is_standard_color_space = false;
-    shadow_map_config.m_texture_min_filter      = texture_parameter::FILTER_LINEAR;
-    shadow_map_config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
-    shadow_map_config.m_texture_wrap_s          = texture_parameter::WRAP_CLAMP_TO_EDGE;
-    shadow_map_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
+    shadow_map_config.m_texture_min_filter      = texture_parameter::filter_linear;
+    shadow_map_config.m_texture_mag_filter      = texture_parameter::filter_linear;
+    shadow_map_config.m_texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
+    shadow_map_config.m_texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
     shadow_map_config.m_layers                  = max_shadow_mapping_cascades;
 
     framebuffer_configuration fb_config;
     fb_config.m_depth_attachment = texture::create(shadow_map_config);
-    fb_config.m_depth_attachment->set_data(format::DEPTH_COMPONENT24, m_shadow_data.resolution, m_shadow_data.resolution, format::DEPTH_COMPONENT, format::FLOAT, nullptr);
+    fb_config.m_depth_attachment->set_data(format::depth_component24, m_shadow_data.resolution, m_shadow_data.resolution, format::depth_component, format::t_float, nullptr);
     fb_config.m_width  = m_shadow_data.resolution;
     fb_config.m_height = m_shadow_data.resolution;
 
@@ -211,7 +211,7 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
 void shadow_map_step::bind_shadow_data(command_buffer_ptr& command_buffer, uniform_buffer_ptr frame_uniform_buffer)
 {
     PROFILE_ZONE;
-    command_buffer->bind_texture(8, m_shadow_buffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT), 8); // TODO Paul: Location, Binding?
+    command_buffer->bind_texture(8, m_shadow_buffer->get_attachment(framebuffer_attachment::depth_attachment), 8); // TODO Paul: Location, Binding?
     bind_uniform_buffer_cmd cmd = frame_uniform_buffer->bind_uniform_buffer(UB_SLOT_SHADOW_DATA, sizeof(shadow_data), &m_shadow_data);
     command_buffer->submit<bind_uniform_buffer_cmd>(cmd);
 }

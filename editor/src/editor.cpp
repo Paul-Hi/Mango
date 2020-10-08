@@ -108,8 +108,8 @@ bool editor::create()
         shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
         MANGO_ASSERT(mango_is, "Input System is expired!");
 
-        bool no_rotation         = mango_is->get_mouse_button(mouse_button::MOUSE_BUTTON_LEFT) == input_action::RELEASE;
-        bool no_panning          = mango_is->get_mouse_button(mouse_button::MOUSE_BUTTON_RIGHT) == input_action::RELEASE;
+        bool no_rotation         = mango_is->get_mouse_button(mouse_button::mouse_button_left) == input_action::release;
+        bool no_panning          = mango_is->get_mouse_button(mouse_button::mouse_button_right) == input_action::release;
         glm::vec2 diff           = glm::vec2(x_position, y_position) - m_last_mouse_position;
         bool offset_not_relevant = glm::length(diff) < 1.0f; // In pixels.
 

@@ -89,23 +89,23 @@ namespace mango
     //! \details Same as OpenGL.
     enum class primitive_topology : uint8
     {
-        POINTS,
-        LINES,
-        LINE_LOOP,
-        LINE_STRIP,
-        TRIANGLES,
-        TRIANGLE_STRIP,
-        TRIANGLE_FAN,
-        QUADS
+        points,
+        lines,
+        line_loop,
+        line_strip,
+        triangles,
+        triangle_strip,
+        triangle_fan,
+        quads
     };
 
     //! \brief The data type in index buffers.
     enum class index_type : uint32
     {
-        NONE   = 0x0000,
-        UBYTE  = 0x1401,
-        USHORT = 0x1403,
-        UINT   = 0x1405
+        none   = 0x0000,
+        ubyte  = 0x1401,
+        ushort = 0x1403,
+        uint   = 0x1405
     };
 
 //! \brief Pi.

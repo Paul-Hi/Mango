@@ -61,7 +61,7 @@ namespace mango
         {
             GL_NAMED_PROFILE_ZONE("Bind Uniform Buffer");
             MANGO_ASSERT(m_buffer, "Uniform Buffer does not exist anymore.");
-            m_buffer->bind(buffer_target::UNIFORM_BUFFER, m_slot, m_offset, m_size);
+            m_buffer->bind(buffer_target::uniform_buffer, m_slot, m_offset, m_size);
         }
     };
 
