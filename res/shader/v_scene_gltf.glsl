@@ -1,13 +1,21 @@
 #version 430 core
 
-layout(location = 0) in vec3 v_position;
-layout(location = 1) in vec3 v_normal;
-layout(location = 2) in vec2 v_texcoord;
-layout(location = 3) in vec4 v_tangent;
+// Vertex Input.
+layout(location = 0) in vec3 vertex_data_position;
+layout(location = 1) in vec3 vertex_data_normal;
+layout(location = 2) in vec2 vertex_data_texcoord;
+layout(location = 3) in vec4 vertex_data_tangent;
 
-layout(location = 0) uniform mat4 view_projection_matrix;
+// Uniform Buffer Renderer.
+layout(binding = 0, std140) uniform renderer_data
+{
+    mat4 view_matrix;
+    mat4 projection_matrix;
+    mat4 view_projection_matrix;
+};
 
-layout(binding = 0, std140) uniform scene_vertex_uniforms
+// Uniform Buffer Model.
+layout(binding = 1, std140) uniform model_data
 {
     mat4 model_matrix;
     mat3 normal_matrix;
@@ -15,35 +23,67 @@ layout(binding = 0, std140) uniform scene_vertex_uniforms
     bool has_tangents;
 };
 
-out shader_shared
+// Shared Shader Data.
+out shared_data
 {
-    vec3 shared_vertex_position;
-    vec2 shared_texcoord;
-    vec3 shared_normal;
-    vec3 shared_tangent;
-    vec3 shared_bitangent;
+    vec3 position;
+    vec2 texcoord;
+    vec3 normal;
+    vec3 tangent;
+    vec3 bitangent;
 } vs_out;
+
+vec4 get_world_position()
+{
+    return model_matrix * vec4(vertex_data_position, 1.0);
+}
+
+vec2 get_texture_coordinates()
+{
+    return vertex_data_texcoord;
+}
+
+void get_normal_tangent_bitangent(out vec3 normal, out vec3 tangent, out vec3 bitangent)
+{
+    if(has_normals)
+        normal = normal_matrix * normalize(vertex_data_normal);
+    if(has_tangents)
+    {
+        tangent = normal_matrix * normalize(vertex_data_tangent.xyz);
+
+        if(has_normals)
+        {
+            bitangent = cross(normal, tangent);
+            if(vertex_data_tangent.w == -1.0) // TODO Paul: Check this convention.
+                bitangent *= -1.0;
+        }
+    }
+}
+
+// Passing relevant data to next shader.
+void pass_shared_data()
+{
+    // Perspective Division
+    vec4 world_position = get_world_position();
+    vs_out.position = world_position.xyz / world_position.w;
+
+    // Texture Coordinates
+    vs_out.texcoord = get_texture_coordinates();
+
+    // Normals, Tangents, Bitangents
+    get_normal_tangent_bitangent(vs_out.normal, vs_out.tangent, vs_out.bitangent);
+
+}
+
+// Returns the gl_Position.
+vec4 get_gl_position()
+{
+    vec4 world_position = get_world_position();
+    return view_projection_matrix * world_position;
+}
 
 void main()
 {
-    vec4 v_pos = model_matrix * vec4(v_position, 1.0);
-    vs_out.shared_vertex_position = v_pos.xyz / v_pos.w;
-
-    vs_out.shared_texcoord = v_texcoord;
-
-    if(has_normals)
-        vs_out.shared_normal = normal_matrix * normalize(v_normal);
-
-    if(has_tangents)
-    {
-        vs_out.shared_tangent = normal_matrix * normalize(v_tangent.xyz);
-        if(has_normals)
-        {
-            vs_out.shared_bitangent = cross(vs_out.shared_normal, vs_out.shared_tangent);
-            if(v_tangent.w == -1.0) // TODO Paul: Check this convention.
-                vs_out.shared_bitangent *= -1.0;
-        }
-    }
-
-    gl_Position = view_projection_matrix * v_pos;
+    pass_shared_data();
+    gl_Position = get_gl_position();
 }

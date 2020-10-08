@@ -66,8 +66,10 @@ namespace mango
         //! \param[in] index The \a buffer index to bind the \a buffer to.
         //! \param[in] buffer The \a buffer to bind.
         //! \param[in] target The target of the \a buffer to bind.
+        //! \param[in] offset The offset in the \a buffer to start the binding from.
+        //! \param[in] size The size to bind.
         //! \return True if state changed, else false.
-        bool bind_buffer(g_uint index, buffer_ptr buffer, buffer_target target);
+        bool bind_buffer(g_uint index, buffer_ptr buffer, buffer_target target, int64 offset, int64 size);
 
         //! \brief Binds a \a texture for drawing.
         //! \param[in] binding The binding location to bind the \a texture too. Has to be a positive value.

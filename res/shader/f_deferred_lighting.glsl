@@ -22,21 +22,20 @@ layout(location = 7, binding = 7) uniform sampler2D brdf_integration_lut;
 
 layout(location = 8, binding = 8) uniform sampler2DArray shadow_map;
 
-
-layout(binding = 0, std140) uniform lighting_pass_uniforms
+// Uniform Buffer Lighting Pass.
+layout(binding = 3, std140) uniform lighting_pass_data
 {
     mat4 inverse_view_projection;
     mat4 view;
     vec4 camera_position; // this is a vec3, but there are annoying bugs with some drivers.
     vec4 camera_params; // near, far, (zw) unused
 
-    mat4 directional_view_projection_matrices[max_cascades];
-    vec4 directional_far_planes;
-    vec4 cascade_info; // splits are xyz, w is the shadow map resolution
-    vec4 directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
-    vec4 directional_color; // this is a vec3, but there are annoying bugs with some drivers.
+    vec4  directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
+    vec4  directional_color; // this is a vec3, but there are annoying bugs with some drivers.
     float directional_intensity;
-    bool cast_shadows;
+    bool  cast_shadows;
+
+    float ambient_intensity;
 
     bool debug_view_enabled;
     bool debug_views_position;
@@ -52,9 +51,17 @@ layout(binding = 0, std140) uniform lighting_pass_uniforms
     bool draw_shadow_maps;
 };
 
-layout (location = 9) uniform float ibl_intensity; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
-layout (location = 10) uniform float shadow_cascade_interpolation_range = 0.5; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
-layout (location = 11) uniform float maximum_penumbra = 3.0; // TODO Paul: This should probably be put in the lighting uniform buffer as well.
+// Uniform Buffer Shadow.
+layout(binding = 4, std140) uniform shadow_data
+{
+    mat4  view_projection_matrices[max_cascades];
+    float split_depth[max_cascades + 1];
+    vec4  far_planes;
+    int   resolution;
+    int   cascade_count;
+    float shadow_cascade_interpolation_range;
+    float maximum_penumbra;
+} shadow_map_data;
 
 float D_GGX(in float n_dot_h, in float roughness);
 float V_SmithGGXCorrelated(in float n_dot_v, in float n_dot_l, in float roughness);
@@ -93,41 +100,29 @@ vec3 get_occlusion_roughness_metallic()
 
 void debug_views(in float depth);
 
-// interpolation_mode: 0 -> no interpolation | 1 -> interpolation from cascade_id to cascade_id + 1 - shadow_cascade_interpolation_range | 2 -> interpolation from cascade_id - 1  + shadow_cascade_interpolation_range to cascade_id
+// interpolation_mode: 0 -> no interpolation | 1 -> interpolation from cascade_id to cascade_id + 1 - shadow_map_data.shadow_cascade_interpolation_range | 2 -> interpolation from cascade_id - 1  + shadow_map_data.shadow_cascade_interpolation_range to cascade_id
 int compute_cascade_id(in float view_depth, out float interpolation_factor, out int interpolation_mode) // xy texcoords, z depth
 {
     interpolation_mode = 0;
     int cascade_id = 0;
-    int num_cascades = 1;
-    int count = 0;
-    if(cascade_info.x > 0.0)
-    {
-        num_cascades += 1;
-        if(cascade_info.y > 0.0)
-        {
-            num_cascades += 1;
-            if(cascade_info.z > 0.0)
-                num_cascades += 1;
-        }
-    }
+    int num_cascades = shadow_map_data.cascade_count;
     for(int i = 1; i <= num_cascades; ++i)
     {
-        int cascade_i= i - 1;
-        float i_value = cascade_i < num_cascades - 1 ? cascade_info[cascade_i] : camera_params.y;
+        float i_value = shadow_map_data.split_depth[i];
         if(view_depth <= i_value)
         {
             cascade_id = i - 1;
-            float i_minus_one_value = cascade_i > 0 ? cascade_info[cascade_i - 1] : camera_params.x;
+            float i_minus_one_value = shadow_map_data.split_depth[i - 1];
             float mid = (i_value + i_minus_one_value) * 0.5;
-            if(view_depth > mid && view_depth > i_value - shadow_cascade_interpolation_range)
+            if(view_depth > mid && view_depth > i_value - shadow_map_data.shadow_cascade_interpolation_range)
             {
                 interpolation_mode = 1;
-                interpolation_factor = (i_value - view_depth) / shadow_cascade_interpolation_range;
+                interpolation_factor = (i_value - view_depth) / shadow_map_data.shadow_cascade_interpolation_range;
             }
-            if(view_depth < mid && view_depth < i_minus_one_value + shadow_cascade_interpolation_range)
+            if(view_depth < mid && view_depth < i_minus_one_value + shadow_map_data.shadow_cascade_interpolation_range)
             {
                 interpolation_mode = 2;
-                interpolation_factor = (view_depth - i_minus_one_value) / shadow_cascade_interpolation_range;
+                interpolation_factor = (view_depth - i_minus_one_value) / shadow_map_data.shadow_cascade_interpolation_range;
             }
             break;
         }
@@ -171,8 +166,8 @@ float sample_blocker_distance(in vec3 shadow_coords, in int cascade_id, in sampl
 {
     float avg_blocker_depth = 0.0;
     int blocker_count = 0;
-    float max_width = (maximum_penumbra * 4.0) / cascade_info.w;
-    float d_l = linearize_depth(shadow_coords.z, 1e-5, directional_far_planes[cascade_id]);
+    float max_width = (shadow_map_data.maximum_penumbra * 4.0) / shadow_map_data.resolution;
+    float d_l = linearize_depth(shadow_coords.z, 1e-5, shadow_map_data.far_planes[cascade_id]);
 
     for(int i = 0; i < sample_count; ++i)
     {
@@ -180,7 +175,7 @@ float sample_blocker_distance(in vec3 shadow_coords, in int cascade_id, in sampl
         sample_uv = shadow_coords.xy + sample_uv * max_width;
 
         float z = texture(lookup, vec3(sample_uv, cascade_id)).x;
-        float c_l = linearize_depth(z, 1e-5, directional_far_planes[cascade_id]);
+        float c_l = linearize_depth(z, 1e-5, shadow_map_data.far_planes[cascade_id]);
         if(c_l < d_l)
         {
             avg_blocker_depth += z;
@@ -191,7 +186,7 @@ float sample_blocker_distance(in vec3 shadow_coords, in int cascade_id, in sampl
     if(blocker_count > 0)
     {
         avg_blocker_depth /= float(blocker_count);
-        float c_l = linearize_depth(avg_blocker_depth, 1e-5, directional_far_planes[cascade_id]);
+        float c_l = linearize_depth(avg_blocker_depth, 1e-5, shadow_map_data.far_planes[cascade_id]);
         return light_size * (d_l - c_l) / c_l;
     }
     else
@@ -200,22 +195,22 @@ float sample_blocker_distance(in vec3 shadow_coords, in int cascade_id, in sampl
 
 float pcss(in vec3 shadow_coords, in int cascade_id, in sampler2DArray lookup)
 {
-    int num_samples = int(maximum_penumbra * 3.0);
-    int num_blocker_samples = int(maximum_penumbra * 1.5);
+    int num_samples = int(shadow_map_data.maximum_penumbra * 3.0);
+    int num_blocker_samples = int(shadow_map_data.maximum_penumbra * 1.5);
     float gradient_noise = interleaved_gradient_noise(gl_FragCoord.xy);
     float penumbra = saturate(sample_blocker_distance(shadow_coords, cascade_id, lookup, num_blocker_samples, gradient_noise, 2.0));
     float shadow = 0.0;
-    float max_penumbra = maximum_penumbra / cascade_info.w;
-    float d_l = linearize_depth(shadow_coords.z, 1e-5, directional_far_planes[cascade_id]);
+    float max_penumbra = shadow_map_data.maximum_penumbra / shadow_map_data.resolution;
+    float d_l = linearize_depth(shadow_coords.z, 1e-5, shadow_map_data.far_planes[cascade_id]);
     num_samples += int(penumbra * 12.0);
 
     for(int i = 0; i < num_samples; ++i)
     {
         vec2 sample_uv = sample_vogel_disc(i, num_samples, gradient_noise);
-        sample_uv = shadow_coords.xy + sample_uv * max(max_penumbra * penumbra, 1.0 / cascade_info.w);
+        sample_uv = shadow_coords.xy + sample_uv * max(max_penumbra * penumbra, 1.0 / shadow_map_data.resolution);
 
         float z = texture(lookup, vec3(sample_uv, cascade_id)).x;
-        float c_l = linearize_depth(z, 1e-5, directional_far_planes[cascade_id]);
+        float c_l = linearize_depth(z, 1e-5, shadow_map_data.far_planes[cascade_id]);
         shadow += (c_l < d_l) ? 0.0 : 1.0;
     }
     shadow /= float(num_samples);
@@ -232,7 +227,7 @@ float directional_shadow(in sampler2DArray lookup, in vec3 world_pos, in int cas
 
     if(interpolation_mode == 0)
     {
-        vec4 projected = directional_view_projection_matrices[cascade_id] * vec4(world_pos, 1.0);
+        vec4 projected = shadow_map_data.view_projection_matrices[cascade_id] * vec4(world_pos, 1.0);
         vec3 shadow_coords = projected.xyz / projected.w;
         shadow_coords = shadow_coords * 0.5 + 0.5;
 
@@ -243,7 +238,7 @@ float directional_shadow(in sampler2DArray lookup, in vec3 world_pos, in int cas
     }
     else if(interpolation_mode == 1)
     {
-        vec4 projected = directional_view_projection_matrices[cascade_id] * vec4(world_pos, 1.0);
+        vec4 projected = shadow_map_data.view_projection_matrices[cascade_id] * vec4(world_pos, 1.0);
         vec3 shadow_coords = projected.xyz / projected.w;
         shadow_coords = shadow_coords * 0.5 + 0.5;
 
@@ -252,7 +247,7 @@ float directional_shadow(in sampler2DArray lookup, in vec3 world_pos, in int cas
 
         float pcss_shadows = pcss(shadow_coords, cascade_id, lookup);
 
-        vec4 projected2 = directional_view_projection_matrices[cascade_id + 1] * vec4(world_pos, 1.0);
+        vec4 projected2 = shadow_map_data.view_projection_matrices[cascade_id + 1] * vec4(world_pos, 1.0);
         vec3 shadow_coords2 = projected2.xyz / projected2.w;
         shadow_coords2 = shadow_coords2 * 0.5 + 0.5;
 
@@ -265,7 +260,7 @@ float directional_shadow(in sampler2DArray lookup, in vec3 world_pos, in int cas
     }
     else if(interpolation_mode == 2)
     {
-        vec4 projected = directional_view_projection_matrices[cascade_id] * vec4(world_pos, 1.0);
+        vec4 projected = shadow_map_data.view_projection_matrices[cascade_id] * vec4(world_pos, 1.0);
         vec3 shadow_coords = projected.xyz / projected.w;
         shadow_coords = shadow_coords * 0.5 + 0.5;
 
@@ -274,7 +269,7 @@ float directional_shadow(in sampler2DArray lookup, in vec3 world_pos, in int cas
 
         float pcss_shadows = pcss(shadow_coords, cascade_id, lookup);
 
-        vec4 projected2 = directional_view_projection_matrices[cascade_id - 1] * vec4(world_pos, 1.0);
+        vec4 projected2 = shadow_map_data.view_projection_matrices[cascade_id - 1] * vec4(world_pos, 1.0);
         vec3 shadow_coords2 = projected2.xyz / projected2.w;
         shadow_coords2 = shadow_coords2 * 0.5 + 0.5;
 
@@ -381,7 +376,7 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     vec3 energy_compensation = 1.0 + f0 * (1.0 / dfg.y - 1.0);
     specular_ibl *= energy_compensation;
 
-    return (diffuse_ibl * occlusion_factor + specular_ibl) * ibl_intensity;
+    return (diffuse_ibl * occlusion_factor + specular_ibl) * ambient_intensity;
 }
 
 vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor, in vec3 world_pos)

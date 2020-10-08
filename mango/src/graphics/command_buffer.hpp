@@ -24,7 +24,10 @@ namespace mango
 
         //! \brief Executes the command.
         //! \param[in] state The current state of the graphics pipeline. Used to fill missing information.
-        virtual void execute(graphics_state& state) = 0;
+        virtual void execute(graphics_state& state)
+        {
+            MANGO_UNUSED(state);
+        };
     };
 
     //! \brief Builds, holds and executes a linked list of commands.
@@ -100,7 +103,9 @@ namespace mango
         //! \param[in] index The \a buffer index to bind the \a buffer to.
         //! \param[in] buffer The \a buffer to bind.
         //! \param[in] target The target of the \a buffer to bind.
-        void bind_buffer(int32 index, buffer_ptr buffer, buffer_target target);
+        //! \param[in] offset The offset in the \a buffer to start the binding from.
+        //! \param[in] size The size to bind.
+        void bind_buffer(int32 index, buffer_ptr buffer, buffer_target target, int64 offset = 0, int64 size = MAX_INT64);
 
         //! \brief Binds a \a texture for drawing.
         //! \param[in] binding The binding location to bind the \a texture to. Has to be a positive value.
@@ -232,7 +237,6 @@ namespace mango
         }
 
       private:
-
         //! \brief Returns the unique head of the \a command_buffer.
         //! \return The unique_ptr to the \a command_buffer head.
         inline unique_ptr<command> head()

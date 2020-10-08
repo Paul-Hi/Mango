@@ -27,6 +27,7 @@ namespace mango
         struct
         {
             int32 draw_calls;    //!< The number of draw calls.
+            int32 models;        //!< The number of models.
             int32 meshes;        //!< The number of meshes.
             int32 primitives;    //!< The number of primitives.
             int32 materials;     //!< The number of materials.
@@ -59,7 +60,7 @@ namespace mango
 
         virtual bool create() override;
         virtual void configure(const render_configuration& configuration) override;
-        virtual void setup_ibl_step(const ibl_step_configuration& configuration)  override;
+        virtual void setup_ibl_step(const ibl_step_configuration& configuration) override;
         virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) override;
 
         //! \brief Retrieves the \a command_buffer of a \a render_system.
@@ -99,25 +100,25 @@ namespace mango
         //! \return The current set base \a render_pipeline of the \a render_system.
         virtual render_pipeline get_base_render_pipeline();
 
-        //! \brief Sets some model info for the next draw calls.
-        //! \param[in] model_matrix The model matrix for the next draw calls.
-        //! \param[in] has_normals Specifies if the next mesh has normals as a vertex attribute
-        //! \param[in] has_tangents Specifies if the next mesh has tangents as a vertex attribute
-        virtual void set_model_info(const glm::mat4& model_matrix, bool has_normals, bool has_tangents);
+        //! \brief Begin rendering a model.
+        //! \details This has to be called before using a material and drawing a mesh.
+        //! \param[in] model_matrix The model matrix for the model.
+        //! \param[in] has_normals Specifies if the model has normals as a vertex attribute.
+        //! \param[in] has_tangents Specifies if the model has tangents as a vertex attribute.
+        virtual void begin_model(const glm::mat4& model_matrix, bool has_normals, bool has_tangents);
 
-        //! \brief Schedules drawing of a \a mesh with \a material.
+        //! \brief Use a material.
+        //! \param[in] mat The \a material to use.
+        virtual void use_material(const material_ptr& mat);
+
+        //! \brief Schedules drawing of a \a mesh.
         //! \param[in] vertex_array The \a vertex_array_ptr for the next draw call.
-        //! \param[in] mat The \a material for the next draw call.
         //! \param[in] topology The topology used for drawing the bound vertex data.
         //! \param[in] first The first index to start drawing from. Has to be a positive value.
         //! \param[in] count The number of indices to draw. Has to be a positive value.
         //! \param[in] type The \a index_type of the values in the index buffer.
         //! \param[in] instance_count The number of instances to draw. Has to be a positive value. For normal drawing pass 1.
-        virtual void draw_mesh(const vertex_array_ptr& vertex_array, const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count = 1);
-
-        //! \brief Sets the view projection matrix for the next draw calls.
-        //! \param[in] view_projection The view projection for the next draw calls.
-        virtual void set_view_projection_matrix(const glm::mat4& view_projection);
+        virtual void draw_mesh(const vertex_array_ptr& vertex_array, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count = 1);
 
         //! \brief Sets the \a texture for a environment.
         //! \param[in] hdr_texture The pointer to the hdr \a texture to use as an environment.
@@ -154,7 +155,6 @@ namespace mango
 
         //! \brief The hardware stats.
         hardware_stats m_hardware_stats;
-
 
       private:
         //! \brief A shared pointer to the currently used internal \a render_system.

@@ -122,13 +122,14 @@ namespace mango
                     transform_component* transform = transformations.get_component_for_entity(e);
                     if (transform)
                     {
-                        m_rs->set_model_info(transform->world_transformation_matrix, c.has_normals, c.has_tangents);
+                        m_rs->begin_model(transform->world_transformation_matrix, c.has_normals, c.has_tangents);
 
                         for (int32 i = 0; i < static_cast<int32>(c.primitives.size()); ++i)
                         {
                             auto m = c.materials[i];
                             auto p = c.primitives[i];
-                            m_rs->draw_mesh(p.vertex_array_object, m.component_material, p.topology, p.first, p.count, p.type_index, p.instance_count);
+                            m_rs->use_material(m.component_material);
+                            m_rs->draw_mesh(p.vertex_array_object, p.topology, p.first, p.count, p.type_index, p.instance_count);
                         }
                     }
                 },

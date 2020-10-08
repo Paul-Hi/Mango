@@ -391,7 +391,7 @@ void command_buffer::bind_single_uniform(int32 location, void* uniform_value, in
     }
 }
 
-void command_buffer::bind_buffer(int32 index, buffer_ptr buffer, buffer_target target)
+void command_buffer::bind_buffer(int32 index, buffer_ptr buffer, buffer_target target, int64 offset, int64 size)
 {
     PROFILE_ZONE;
     MANGO_ASSERT(index >= 0, "Buffer index has to be greater than 0!");
@@ -401,23 +401,27 @@ void command_buffer::bind_buffer(int32 index, buffer_ptr buffer, buffer_target t
         int32 m_index;
         buffer_ptr m_buffer;
         buffer_target m_target;
-        bind_buffer_buffer_cmd(int32 index, buffer_ptr buffer, buffer_target target)
+        int64 m_offset;
+        int64 m_size;
+        bind_buffer_buffer_cmd(int32 index, buffer_ptr buffer, buffer_target target, int64 offset = 0, int64 size = MAX_INT64)
             : m_index(index)
             , m_buffer(buffer)
             , m_target(target)
+            , m_offset(offset)
+            , m_size(size)
         {
         }
         void execute(graphics_state&) override
         {
             NAMED_PROFILE_ZONE("Bind Buffer");
             GL_NAMED_PROFILE_ZONE("Bind Buffer");
-            m_buffer->bind(m_target, m_index);
+            m_buffer->bind(m_target, m_index, m_offset, m_size);
         }
     };
 
-    if (m_building_state.bind_buffer(index, buffer, target))
+    if (m_building_state.bind_buffer(index, buffer, target, offset, size))
     {
-        submit<bind_buffer_buffer_cmd>(index, buffer, target);
+        submit<bind_buffer_buffer_cmd>(index, buffer, target, offset, size);
     }
 }
 

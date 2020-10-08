@@ -5,17 +5,26 @@ layout(triangle_strip, max_vertices = 12) out;
 
 #define max_cascades 4
 
-layout(location = 0) uniform mat4 view_projection_matrices[max_cascades];
-layout(location = 4) uniform int cascade_count;
+// Uniform Buffer Shadow.
+layout(binding = 4, std140) uniform shadow_data
+{
+    mat4  view_projection_matrices[max_cascades];
+    float split_depth[max_cascades + 1];
+    vec4  far_planes;
+    int   resolution;
+    int   cascade_count;
+    float shadow_cascade_interpolation_range;
+    float maximum_penumbra;
+};
 
 in shader_shared
 {
-    vec2 shared_texcoord;
+    vec2 texcoord;
 } gs_in[];
 
-out shader_shared
+out shared_data
 {
-    vec2 shared_texcoord;
+    vec2 texcoord;
 } gs_out;
 
 void main()
@@ -29,7 +38,7 @@ void main()
         {
             vec4 pos = view_projection_matrix * gl_in[i].gl_Position;
             gl_Position = pos;
-            gs_out.shared_texcoord = gs_in[i].shared_texcoord;
+            gs_out.texcoord = gs_in[i].texcoord;
             EmitVertex();
         }
         EndPrimitive();

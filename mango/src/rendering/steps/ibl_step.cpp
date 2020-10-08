@@ -114,9 +114,8 @@ bool ibl_step::create()
 
     m_cube_geometry->bind_index_buffer(ib);
 
-    m_current_rotation_scale = glm::mat3(1.0f);
-    m_render_level           = 0.0f;
-    m_intensity              = mango::default_environment_intensity;
+    m_ibl_data.current_rotation_scale = glm::mat3(1.0f);
+    m_ibl_data.render_level           = 0.0f;
 
     texture_configuration texture_config;
     texture_config.m_generate_mipmaps        = 1;
@@ -175,26 +174,24 @@ void ibl_step::attach() {}
 
 void ibl_step::configure(const ibl_step_configuration& configuration)
 {
-    m_render_level = configuration.get_render_level();
-    MANGO_ASSERT(m_render_level > 0.0f && m_render_level < 8.1f, "Shadow Map Resolution has to be between 0.0 and 8.0f!");
+    m_ibl_data.render_level = configuration.get_render_level();
+    MANGO_ASSERT(m_ibl_data.render_level > 0.0f && m_ibl_data.render_level < 8.1f, "Shadow Map Resolution has to be between 0.0 and 8.0f!");
 }
 
-void ibl_step::execute(command_buffer_ptr& command_buffer)
+void ibl_step::execute(command_buffer_ptr& command_buffer, uniform_buffer_ptr frame_uniform_buffer)
 {
     PROFILE_ZONE;
-    if (m_render_level < 0.0f)
+    if (m_ibl_data.render_level < 0.0f)
         return;
 
     command_buffer->bind_shader_program(m_draw_environment);
     command_buffer->bind_vertex_array(m_cube_geometry);
-    command_buffer->bind_single_uniform(0, &const_cast<glm::mat4&>(m_view_projection), sizeof(glm::mat4));
-    command_buffer->bind_single_uniform(1, &m_current_rotation_scale, sizeof(m_current_rotation_scale));
+    bind_uniform_buffer_cmd cmd = frame_uniform_buffer->bind_uniform_buffer(UB_SLOT_IBL_DATA, sizeof(ibl_data), &m_ibl_data);
+    command_buffer->submit<bind_uniform_buffer_cmd>(cmd);
     if (m_cubemap)
-        command_buffer->bind_texture(0, m_prefiltered_specular, 2);
+        command_buffer->bind_texture(0, m_prefiltered_specular, 0);
     else
-        command_buffer->bind_texture(0, default_ibl_texture, 2);
-    command_buffer->bind_single_uniform(3, &m_intensity, sizeof(m_intensity));
-    command_buffer->bind_single_uniform(4, &m_render_level, sizeof(m_render_level));
+        command_buffer->bind_texture(0, default_ibl_texture, 0);
 
     command_buffer->draw_elements(primitive_topology::TRIANGLE_STRIP, 0, 18, index_type::UBYTE);
 
@@ -328,17 +325,17 @@ void ibl_step::bind_image_based_light_maps(command_buffer_ptr& command_buffer)
 void ibl_step::on_ui_widget()
 {
     // Render Level 0.0 - 8.0
-    bool should_render = !(m_render_level < -1e-5f);
+    bool should_render = !(m_ibl_data.render_level < -1e-5f);
     static float tmp   = 0.0f;
     ImGui::Checkbox("Render IBL Visualization##ibl_step", &should_render);
     if (!should_render)
     {
-        m_render_level = -1.0f;
+        m_ibl_data.render_level = -1.0f;
     }
     else
     {
-        m_render_level = tmp;
-        ImGui::SliderFloat("Blur Level##ibl_step", &m_render_level, 0.0f, 8.0f);
-        tmp = m_render_level;
+        m_ibl_data.render_level = tmp;
+        ImGui::SliderFloat("Blur Level##ibl_step", &static_cast<float>(m_ibl_data.render_level), 0.0f, 8.0f);
+        tmp = m_ibl_data.render_level;
     }
 }

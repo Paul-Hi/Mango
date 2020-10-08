@@ -31,6 +31,7 @@ namespace mango
     MANGO_GRAPHICS_OBJECT_IMPL(vertex_array)
     MANGO_GRAPHICS_OBJECT(framebuffer)
     MANGO_GRAPHICS_OBJECT_IMPL(framebuffer)
+    MANGO_GRAPHICS_OBJECT(uniform_buffer)
 
 #undef MANGO_GRAPHICS_OBJECT
 #undef MANGO_GRAPHICS_OBJECT_IMPL
@@ -137,20 +138,110 @@ namespace mango
         //! \cond NO_COND
         std140_bool(const bool& b)
         {
+            pad = 0;
             v = b ? 1 : 0;
         }
         std140_bool()
-            : v(0)
+            : pad(0)
         {
         }
-
-        bool value()
+        operator bool&()
         {
-            return v == 1 ? true : false;
+            return v;
+        }
+        void operator=(const bool& o)
+        {
+            pad = 0;
+            v = o;
         }
 
       private:
-        uint32 v;
+        union
+        {
+            bool v;
+            int32 pad;
+        };
+        //! \endcond
+    };
+
+    //! \brief An integer in the glsl std140 layout.
+    struct std140_int
+    {
+        //! \cond NO_COND
+        std140_int(const int& i)
+        {
+            v = i;
+        }
+        std140_int()
+            : v(0)
+        {
+        }
+        operator int32&()
+        {
+            return v;
+        }
+        void operator=(const int& o)
+        {
+            v = o;
+        }
+
+      private:
+        int32 v;
+        //! \endcond
+    };
+
+    //! \brief A float in the glsl std140 layout.
+    struct std140_float
+    {
+        //! \cond NO_COND
+        std140_float(const float& f)
+        {
+            v = f;
+        }
+        std140_float()
+            : v(0)
+        {
+        }
+        operator float&()
+        {
+            return v;
+        }
+        void operator=(const float& o)
+        {
+            v = o;
+        }
+
+      private:
+        float v;
+        //! \endcond
+    };
+
+    //! \brief A float in the glsl std140 layout for arrays.
+    struct std140_float_array
+    {
+        //! \cond NO_COND
+        std140_float_array(const float& f)
+        {
+            v = f;
+        }
+        std140_float_array()
+            : v(0)
+        {
+        }
+        operator float&()
+        {
+            return v;
+        }
+        void operator=(const float& o)
+        {
+            v = o;
+        }
+
+      private:
+        float v;
+        float p0;
+        float p1;
+        float p2;
         //! \endcond
     };
 
@@ -158,18 +249,29 @@ namespace mango
     struct std140_vec2
     {
         //! \cond NO_COND
-        float x;
-        float y;
         std140_vec2(const glm::vec2& vec)
+            : v(vec)
         {
-            x = vec.x;
-            y = vec.y;
         }
         std140_vec2()
-            : x()
-            , y()
+            : v(glm::vec2(0.0f))
         {
         }
+        operator glm::vec2&()
+        {
+            return v;
+        }
+        void operator=(const glm::vec2& o)
+        {
+            v = o;
+        }
+        float& operator[](int i)
+        {
+            return v[i];
+        }
+
+      private:
+        glm::vec2 v;
         //! \endcond
     };
 
@@ -177,30 +279,30 @@ namespace mango
     struct std140_vec3
     {
         //! \cond NO_COND
-        float x;
-        float y;
-        float z;
         std140_vec3(const glm::vec3& vec)
+            : v(vec)
         {
-            x  = vec.x;
-            y  = vec.y;
-            z  = vec.z;
-            _w = 0.0f;
         }
         std140_vec3()
-            : x()
-            , y()
-            , z()
-            , _w()
+            : v(glm::vec3(0.0f))
         {
         }
-        inline glm::vec3 value()
+        operator glm::vec3&()
         {
-            return glm::vec3(x, y, z);
+            return v;
+        }
+        void operator=(const glm::vec3& o)
+        {
+            v = o;
+        }
+        float& operator[](int i)
+        {
+            return v[i];
         }
 
       private:
-        float _w = 0.0f;
+        glm::vec3 v;
+        float pad;
         //! \endcond
     };
 
@@ -208,28 +310,29 @@ namespace mango
     struct std140_vec4
     {
         //! \cond NO_COND
-        float x;
-        float y;
-        float z;
-        float w;
         std140_vec4(const glm::vec4& vec)
+            : v(vec)
         {
-            x = vec.x;
-            y = vec.y;
-            z = vec.z;
-            w = vec.w;
         }
         std140_vec4()
-            : x(0.0f)
-            , y(0.0f)
-            , z(0.0f)
-            , w(0.0f)
+            : v(glm::vec4(0.0f))
         {
         }
-        inline glm::vec4 value()
+        operator glm::vec4&()
         {
-            return glm::vec4(x, y, z, w);
+            return v;
         }
+        void operator=(const glm::vec4& o)
+        {
+            v = o;
+        }
+        float& operator[](int i)
+        {
+            return v[i];
+        }
+
+      private:
+        glm::vec4 v;
         //! \endcond
     };
 
@@ -237,9 +340,6 @@ namespace mango
     struct std140_mat3
     {
         //! \cond NO_COND
-        std140_vec3 r0;
-        std140_vec3 r1;
-        std140_vec3 r2;
         std140_mat3(const glm::mat3& mat)
             : r0(mat[0])
             , r1(mat[1])
@@ -252,14 +352,37 @@ namespace mango
             , r2()
         {
         }
-        inline glm::mat3 value()
+        operator glm::mat3&()
         {
             auto mat = glm::mat3();
-            mat[0] = r0.value();
-            mat[1] = r1.value();
-            mat[2] = r2.value();
+            mat[0]   = r0;
+            mat[1]   = r1;
+            mat[2]   = r2;
             return mat;
         }
+        void operator=(const glm::mat3& o)
+        {
+            r0 = o[0];
+            r1 = o[1];
+            r2 = o[2];
+        }
+        glm::vec3& operator[](int i)
+        {
+            switch (i)
+            {
+            case 0:
+                return r0;
+            case 1:
+                return r1;
+            case 2:
+                return r2;
+            }
+        }
+
+      private:
+        std140_vec3 r0;
+        std140_vec3 r1;
+        std140_vec3 r2;
         //! \endcond
     };
 
@@ -267,10 +390,6 @@ namespace mango
     struct std140_mat4
     {
         //! \cond NO_COND
-        std140_vec4 r0;
-        std140_vec4 r1;
-        std140_vec4 r2;
-        std140_vec4 r3;
         std140_mat4(const glm::mat4& mat)
             : r0(mat[0])
             , r1(mat[1])
@@ -285,15 +404,42 @@ namespace mango
             , r3()
         {
         }
-        inline glm::mat4 value()
+        operator glm::mat4&()
         {
             auto mat = glm::mat4();
-            mat[0] = r0.value();
-            mat[1] = r1.value();
-            mat[2] = r2.value();
-            mat[3] = r3.value();
+            mat[0]   = r0;
+            mat[1]   = r1;
+            mat[2]   = r2;
+            mat[3]   = r3;
             return mat;
         }
+        void operator=(const glm::mat4& o)
+        {
+            r0 = o[0];
+            r1 = o[1];
+            r2 = o[2];
+            r3 = o[3];
+        }
+        glm::vec4& operator[](int i)
+        {
+            switch (i)
+            {
+            case 0:
+                return r0;
+            case 1:
+                return r1;
+            case 2:
+                return r2;
+            case 3:
+                return r3;
+            }
+        }
+
+      private:
+        std140_vec4 r0;
+        std140_vec4 r1;
+        std140_vec4 r2;
+        std140_vec4 r3;
         //! \endcond
     };
 

@@ -8,12 +8,14 @@
 #define MANGO_DEFERRED_PBR_RENDER_SYSTEM_HPP
 
 #include <graphics/framebuffer.hpp>
+#include <graphics/uniform_buffer.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <rendering/steps/pipeline_step.hpp>
 
 namespace mango
 {
     struct camera_data;
+    struct environment_data;
 
     //! \brief A \a render_system using a deferred base pipeline supporting physically based rendering.
     //! \details This system supports physically based materials with and without textures.
@@ -36,9 +38,9 @@ namespace mango
         virtual void destroy() override;
         virtual render_pipeline get_base_render_pipeline() override;
 
-        void set_model_info(const glm::mat4& model_matrix, bool has_normals, bool has_tangents) override;
-        void draw_mesh(const vertex_array_ptr& vertex_array, const material_ptr& mat, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
-        void set_view_projection_matrix(const glm::mat4& view_projection) override;
+        void begin_model(const glm::mat4& model_matrix, bool has_normals, bool has_tangents) override;
+        void use_material(const material_ptr& mat) override;
+        void draw_mesh(const vertex_array_ptr& vertex_array, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
         void set_environment_texture(const texture_ptr& hdr_texture) override;
         void submit_light(light_type type, light_data* data) override;
         void on_ui_widget() override;
@@ -85,26 +87,19 @@ namespace mango
         //! \details Takes the output in the hdr_buffer and does the final composing to get it to the screen.
         shader_program_ptr m_composing_pass;
 
-        //! \brief The prealocated size for all uniforms.
-        //! \details The buffer has 3 parts and is filled every frame. 1 MiB should be enough for now.
-        const int32 uniform_buffer_size = 1048576;
-        //! \brief The size of one frame in the uniform buffer. Used for triple buffering.
-        const int32 frame_size       = uniform_buffer_size / 3 - 512; // TODO Paul: We give some padding for large uniform alignments here...
-        int32 m_current_buffer_part  = 0;                             //!< The current part of the uniform buffer in use [0, 1, 2].
-        int32 m_current_buffer_start = 0;                             //!< The pointer to the start of the current part of the uniform buffer in use.
-        int32 m_frame_uniform_offset;                                 //!< The current offset in the uniform memory to write to.
-        int32 m_last_offset;                                          //!< The last frames offset in the uniform memory.
-        g_int m_uniform_buffer_alignment;                             //!< The alignment of the structures in the uniform buffer. Gets queried from OpenGL.
-        //! \brief The mapped memory to be filled with all uniforms blocks per frame.
-        void* m_mapped_uniform_memory;
-        //! \brief Sync objects for gpu <-> cpu synchronization.
-        g_sync m_frame_buffer_sync[3];
-
         //! \brief The uniform buffer mapping the gpu buffer to the scene uniforms.
-        buffer_ptr m_frame_uniform_buffer;
+        uniform_buffer_ptr m_frame_uniform_buffer;
 
-        //! \brief Uniform struct for the geometry passes vertex shader.
-        struct scene_vertex_uniforms
+        //! \brief Uniform buffer struct for renderer data.
+        struct renderer_data
+        {
+            std140_mat4 view_matrix; //!< The view matrix.
+            std140_mat4 projection_matrix; //!< The projection matrix.
+            std140_mat4 view_projection_matrix; //!< The view projection matrix.
+        } m_renderer_data;
+
+        //! \brief Uniform buffer struct for model data.
+        struct model_data
         {
             std140_mat4 model_matrix;  //!< The model matrix.
             std140_mat3 normal_matrix; //!< The normal matrix.
@@ -112,17 +107,17 @@ namespace mango
             std140_bool has_normals;  //!< Specifies if the next mesh has normals as a vertex attribute.
             std140_bool has_tangents; //!< Specifies if the next mesh has tangents as a vertex attribute.
 
-            g_float padding0; //!< Padding needed for st140 layout.
-            g_float padding1; //!< Padding needed for st140 layout.
+            std140_float padding0; //!< Padding needed for st140 layout.
+            std140_float padding1; //!< Padding needed for st140 layout.
         };
 
-        //! \brief Uniform struct for the geometry passes fragment shader to implement \a materials.
-        struct scene_material_uniforms
+        //! \brief Uniform buffer struct for material data.
+        struct material_data
         {
             std140_vec4 base_color;     //!< The base color (rgba). Also used as reflection color for metallic surfaces.
             std140_vec3 emissive_color; //!< The emissive color of the material if existent, else (0, 0, 0).
-            g_float metallic;           //!< The metallic value of the material.
-            g_float roughness;          //!< The roughness of the material.
+            std140_float metallic;      //!< The metallic value of the material.
+            std140_float roughness;     //!< The roughness of the material.
 
             std140_bool base_color_texture;         //!< Specifies, if the the base color texture is enabled.
             std140_bool roughness_metallic_texture; //!< Specifies, if the component texture is enabled for the metallic value and the roughness value.
@@ -131,15 +126,15 @@ namespace mango
             std140_bool normal_texture;             //!< Specifies, if the normal texture is enabled.
             std140_bool emissive_color_texture;     //!< Specifies, if the the emissive color texture is enabled.
 
-            g_int alpha_mode;     //!< Specifies the alpha mode to render the material with.
-            g_float alpha_cutoff; //!< Specifies the alpha cutoff value to render the material with.
+            std140_int alpha_mode;     //!< Specifies the alpha mode to render the material with.
+            std140_float alpha_cutoff; //!< Specifies the alpha cutoff value to render the material with.
 
-            g_float padding0; //!< Padding needed for st140 layout.
-            g_float padding1; //!< Padding needed for st140 layout.
+            std140_float padding0; //!< Padding needed for st140 layout.
+            std140_float padding1; //!< Padding needed for st140 layout.
         };
 
         //! \brief Uniform buffer structure for the lighting pass of the deferred pipeline.
-        struct lighting_pass_uniforms
+        struct lighting_pass_data
         {
             std140_mat4 inverse_view_projection; //!< Inverse camera view projection matrix.
             std140_mat4 view;                    //!< Camera view matrix.
@@ -148,20 +143,20 @@ namespace mango
 
             struct
             {
-                //  TODO Paul: Size hardcoded.
-                std140_mat4 view_projections[4]; //!< The 4 view projection matrices of the different cascades.
-                std140_vec4 far_planes;          //!< The 4 far planes of the different cascade views.
-                std140_vec4 cascade_info;        //!< The 3 cascade splits. w component is the cascade shadow map resolution.
-                std140_vec3 direction;           //!< The direction to the light.
-                std140_vec3 color;               //!< The light color.
-                g_float intensity;               //!< The intensity of the directional light in lumen
-                std140_bool cast_shadows;        //!< True, if shadows can be casted.
-            } directional;                       //!< Data for the directional light (onyl one)
+                std140_vec3 direction;    //!< The direction to the light.
+                std140_vec3 color;        //!< The light color.
+                std140_float intensity;   //!< The intensity of the directional light in lumen.
+                std140_bool cast_shadows; //!< True, if shadows can be casted.
+            } directional;                //!< Data for the directional light (only one)
+            struct
+            {
+                std140_float intensity; //!< The intensity of the directional light in cd/m^2.
+            } ambient;                  //!< Data for the ambient/ibl light (only one)
             // struct
             // {
             //     std140_vec3 position;
             //     std140_vec3 color;
-            //     g_float intensity;
+            //     std140_float intensity;
             // } spherical[16];
 
             std140_bool debug_view_enabled; //!< True, if any debug view is enabled.
@@ -186,16 +181,15 @@ namespace mango
                 std140_bool draw_shadow_maps; //!< Draw the cascade shadow maps.
             } debug_options;                  //!< The debug options.
 
-            float padding0; //!< padding.
-            float padding1; //!< padding.
-        };
+            std140_float padding0; //!< padding.
+        } m_lighting_pass_data;
 
-        //! \brief The current \a lighting_pass_uniforms.
-        lighting_pass_uniforms m_lp_uniforms;
+        void bind_renderer_data_buffer(camera_data& camera);
 
         //! \brief Binds the uniform buffer of the lighting pass.
         //! \param[in,out] camera The \a camera_data of the current camera.
-        void bind_lighting_pass_uniform_buffer(camera_data& camera);
+        //! \param[in,out] environment The \a environment_data of the current environment.
+        void bind_lighting_pass_buffer(camera_data& camera, environment_data& environment);
 
         //! \brief Calculates automatic exposure and adapts physical camera parameters.
         //! \param[in,out] camera The \a camera_data of the current camera.
