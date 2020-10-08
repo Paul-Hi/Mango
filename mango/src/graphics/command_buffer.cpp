@@ -569,14 +569,14 @@ void command_buffer::add_memory_barrier(memory_barrier_bit barrier_bit)
     submit<add_memory_barrier_cmd>(barrier_bit);
 }
 
-void command_buffer::fence_sync(g_sync sync)
+void command_buffer::fence_sync(g_sync& sync)
 {
     PROFILE_ZONE;
     class fence_sync_cmd : public command
     {
       public:
-        g_sync m_sync;
-        fence_sync_cmd(g_sync sync)
+        g_sync& m_sync;
+        fence_sync_cmd(g_sync& sync)
             : m_sync(sync)
         {
         }
@@ -596,14 +596,14 @@ void command_buffer::fence_sync(g_sync sync)
     submit<fence_sync_cmd>(sync);
 }
 
-void command_buffer::client_wait_sync(g_sync sync)
+void command_buffer::client_wait_sync(g_sync& sync)
 {
     PROFILE_ZONE;
     class client_wait_sync_cmd : public command
     {
       public:
-        g_sync m_sync;
-        client_wait_sync_cmd(g_sync sync)
+        g_sync& m_sync;
+        client_wait_sync_cmd(g_sync& sync)
             : m_sync(sync)
         {
         }
@@ -615,7 +615,7 @@ void command_buffer::client_wait_sync(g_sync sync)
             if (!glIsSync(m_sync))
                 return;
             int32 waiting_time = 1;
-            g_enum wait_return = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, waiting_time);
+            g_enum wait_return = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, 0);
             int32 count        = -1;
             while (wait_return != GL_ALREADY_SIGNALED && wait_return != GL_CONDITION_SATISFIED)
             {

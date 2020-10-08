@@ -133,11 +133,11 @@ namespace mango
 
         //! \brief Places a GPU sync.
         //! \param[in,out] sync The sync object.
-        void fence_sync(g_sync sync);
+        void fence_sync(g_sync& sync);
 
         //! \brief Waits for a sync signal by the GPU.
         //! \param[in,out] sync The sync object.
-        void client_wait_sync(g_sync sync);
+        void client_wait_sync(g_sync& sync);
 
         //! \brief Waits blocking for a the GPU to finish.
         void client_wait();

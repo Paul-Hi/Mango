@@ -22,7 +22,7 @@ bool uniform_buffer::init(int64 frame_size, buffer_technique technique)
     m_frame_size += off;
     MANGO_LOG_DEBUG("Frame Size: {0} Byte!", m_frame_size);
 
-    m_uniform_buffer_size  = m_frame_size + static_cast<int8>(m_technique) * m_frame_size;
+    m_uniform_buffer_size  = m_frame_size + (static_cast<int8>(m_technique) + 1) * m_frame_size;
     m_global_offset        = 0;
     m_local_offset         = 0;
     m_last_offset          = 0;
@@ -56,7 +56,7 @@ void uniform_buffer::end_frame(command_buffer_ptr& command_buffer)
     PROFILE_ZONE;
     command_buffer->fence_sync(m_buffer_sync_objects[m_current_buffer_part]);
     m_current_buffer_part++;
-    m_current_buffer_part %= static_cast<int8>(m_technique);
+    m_current_buffer_part %= (static_cast<int8>(m_technique) + 1);
     m_current_buffer_start = m_current_buffer_part * m_frame_size;
     m_global_offset        = m_current_buffer_start;
     m_last_offset          = m_local_offset;
