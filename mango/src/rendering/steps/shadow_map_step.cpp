@@ -203,9 +203,6 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
 
         m_shadow_data.view_projection_matrices[casc] = projection * view;
     }
-
-    m_shadow_data.cascade_count = m_shadow_data.cascade_count;
-    m_shadow_data.resolution    = m_shadow_data.resolution;
 }
 
 void shadow_map_step::bind_shadow_data(command_buffer_ptr& command_buffer, uniform_buffer_ptr frame_uniform_buffer)

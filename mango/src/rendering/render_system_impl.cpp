@@ -94,10 +94,10 @@ void render_system_impl::set_viewport(int32 x, int32 y, int32 width, int32 heigh
     m_current_render_system->set_viewport(x, y, width, height);
 }
 
-void render_system_impl::begin_model(const glm::mat4& model_matrix, bool has_normals, bool has_tangents)
+void render_system_impl::begin_mesh(const glm::mat4& model_matrix, bool has_normals, bool has_tangents)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->begin_model(model_matrix, has_normals, has_tangents);
+    m_current_render_system->begin_mesh(model_matrix, has_normals, has_tangents);
 }
 
 void render_system_impl::use_material(const material_ptr& mat)

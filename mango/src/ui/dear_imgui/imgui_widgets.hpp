@@ -76,9 +76,8 @@ namespace mango
         if (ImGui::CollapsingHeader("Renderer Stats"))
         {
             ImGui::Text("API Version: %s", stats.api_version.c_str());
-            ImGui::Text("Rendered Models: %d", stats.last_frame.models);
-            ImGui::Text("Draw Calls: %d", stats.last_frame.draw_calls);
             ImGui::Text("Rendered Meshes: %d", stats.last_frame.meshes);
+            ImGui::Text("Draw Calls: %d", stats.last_frame.draw_calls);
             ImGui::Text("Rendered Primitives: %d", stats.last_frame.primitives);
             ImGui::Text("Rendered Materials: %d", stats.last_frame.materials);
             ImGui::Text("Canvas Size: (%d x %d) px", stats.last_frame.canvas_width, stats.last_frame.canvas_height);

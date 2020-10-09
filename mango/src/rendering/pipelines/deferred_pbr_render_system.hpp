@@ -38,7 +38,7 @@ namespace mango
         virtual void destroy() override;
         virtual render_pipeline get_base_render_pipeline() override;
 
-        void begin_model(const glm::mat4& model_matrix, bool has_normals, bool has_tangents) override;
+        void begin_mesh(const glm::mat4& model_matrix, bool has_normals, bool has_tangents) override;
         void use_material(const material_ptr& mat) override;
         void draw_mesh(const vertex_array_ptr& vertex_array, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
         void set_environment_texture(const texture_ptr& hdr_texture) override;

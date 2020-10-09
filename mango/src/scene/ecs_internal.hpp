@@ -122,7 +122,7 @@ namespace mango
                     transform_component* transform = transformations.get_component_for_entity(e);
                     if (transform)
                     {
-                        m_rs->begin_model(transform->world_transformation_matrix, c.has_normals, c.has_tangents);
+                        m_rs->begin_mesh(transform->world_transformation_matrix, c.has_normals, c.has_tangents);
 
                         for (int32 i = 0; i < static_cast<int32>(c.primitives.size()); ++i)
                         {

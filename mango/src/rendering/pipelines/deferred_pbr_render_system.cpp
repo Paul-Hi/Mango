@@ -298,7 +298,6 @@ void deferred_pbr_render_system::begin_render()
 {
     PROFILE_ZONE;
     m_hardware_stats.last_frame.draw_calls = 0;
-    m_hardware_stats.last_frame.models     = 0;
     m_hardware_stats.last_frame.meshes     = 0;
     m_hardware_stats.last_frame.primitives = 0;
     m_hardware_stats.last_frame.materials  = 0;
@@ -530,7 +529,7 @@ render_pipeline deferred_pbr_render_system::get_base_render_pipeline()
     return render_pipeline::deferred_pbr;
 }
 
-void deferred_pbr_render_system::begin_model(const glm::mat4& model_matrix, bool has_normals, bool has_tangents)
+void deferred_pbr_render_system::begin_mesh(const glm::mat4& model_matrix, bool has_normals, bool has_tangents)
 {
     PROFILE_ZONE;
 
@@ -544,7 +543,7 @@ void deferred_pbr_render_system::begin_model(const glm::mat4& model_matrix, bool
         std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_caster_queue()->submit<bind_uniform_buffer_cmd>(cmd);
     }
 
-    m_hardware_stats.last_frame.models++;
+    m_hardware_stats.last_frame.meshes++;
 }
 
 void deferred_pbr_render_system::use_material(const material_ptr& mat)
@@ -670,13 +669,14 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
             caster_queue->draw_elements(topology, first, count, type, instance_count);
     }
 
-    m_hardware_stats.last_frame.meshes++;
     m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls. Wrong, shadow map render calls not counted.
     m_hardware_stats.last_frame.primitives++;
     m_hardware_stats.last_frame.materials++;
 
     m_render_queue->set_face_culling(true);
     m_render_queue->bind_vertex_array(nullptr);
+
+#ifdef MANGO_DEBUG
     // This needs to be done.
     // TODO Paul: State synchronization is not perfect.
     m_render_queue->bind_texture(0, nullptr, 0);
@@ -684,16 +684,19 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     m_render_queue->bind_texture(2, nullptr, 2);
     m_render_queue->bind_texture(3, nullptr, 3);
     m_render_queue->bind_texture(4, nullptr, 4);
+#endif // MANGO_DEBUG
 
     if (caster_queue)
     {
         caster_queue->set_face_culling(true);
         caster_queue->bind_vertex_array(nullptr);
+#ifdef MANGO_DEBUG
         caster_queue->bind_texture(0, nullptr, 0);
         caster_queue->bind_texture(1, nullptr, 1);
         caster_queue->bind_texture(2, nullptr, 2);
         caster_queue->bind_texture(3, nullptr, 3);
         caster_queue->bind_texture(4, nullptr, 4);
+#endif // MANGO_DEBUG
     }
 }
 
@@ -752,8 +755,8 @@ void deferred_pbr_render_system::bind_renderer_data_buffer(camera_data& camera)
 
     if (camera.camera_info && camera.transform)
     {
-        m_renderer_data.view_matrix = camera.camera_info->view;
-        m_renderer_data.projection_matrix = camera.camera_info->projection;
+        m_renderer_data.view_matrix            = camera.camera_info->view;
+        m_renderer_data.projection_matrix      = camera.camera_info->projection;
         m_renderer_data.view_projection_matrix = camera.camera_info->view_projection;
     }
     else
@@ -820,6 +823,11 @@ void deferred_pbr_render_system::on_ui_widget()
                 auto step_ibl = std::make_shared<ibl_step>();
                 step_ibl->create();
                 m_pipeline_steps[mango::render_step::ibl] = std::static_pointer_cast<pipeline_step>(step_ibl);
+
+                auto scene = m_shared_context->get_current_scene();
+                auto env   = scene->get_active_environment_data();
+                if (env.environment_info)
+                    step_ibl->load_from_hdr(env.environment_info->hdr_texture);
             }
             else
             {

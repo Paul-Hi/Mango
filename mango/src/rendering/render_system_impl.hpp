@@ -27,7 +27,6 @@ namespace mango
         struct
         {
             int32 draw_calls;    //!< The number of draw calls.
-            int32 models;        //!< The number of models.
             int32 meshes;        //!< The number of meshes.
             int32 primitives;    //!< The number of primitives.
             int32 materials;     //!< The number of materials.
@@ -100,12 +99,12 @@ namespace mango
         //! \return The current set base \a render_pipeline of the \a render_system.
         virtual render_pipeline get_base_render_pipeline();
 
-        //! \brief Begin rendering a model.
-        //! \details This has to be called before using a material and drawing a mesh.
-        //! \param[in] model_matrix The model matrix for the model.
-        //! \param[in] has_normals Specifies if the model has normals as a vertex attribute.
-        //! \param[in] has_tangents Specifies if the model has tangents as a vertex attribute.
-        virtual void begin_model(const glm::mat4& model_matrix, bool has_normals, bool has_tangents);
+        //! \brief Begin rendering a mesh.
+        //! \details This has to be called before using a material and drawing a primitive.
+        //! \param[in] model_matrix The model matrix for the mesh.
+        //! \param[in] has_normals Specifies if the mesh has normals as a vertex attribute.
+        //! \param[in] has_tangents Specifies if the mesh has tangents as a vertex attribute.
+        virtual void begin_mesh(const glm::mat4& model_matrix, bool has_normals, bool has_tangents);
 
         //! \brief Use a material.
         //! \param[in] mat The \a material to use.
