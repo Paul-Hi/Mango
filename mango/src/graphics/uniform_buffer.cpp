@@ -45,25 +45,28 @@ bool uniform_buffer::init(int64 frame_size, buffer_technique technique)
 
 uniform_buffer::~uniform_buffer() {}
 
-void uniform_buffer::begin_frame(command_buffer_ptr& command_buffer)
+g_sync* uniform_buffer::prepare()
 {
     PROFILE_ZONE;
-    command_buffer->client_wait_sync(m_buffer_sync_objects[m_current_buffer_part]);
+    // command_buffer->client_wait_sync(m_buffer_sync_objects[m_current_buffer_part]);
+    return &m_buffer_sync_objects[m_current_buffer_part];
 }
 
-void uniform_buffer::end_frame(command_buffer_ptr& command_buffer)
+g_sync* uniform_buffer::end_frame()
 {
     PROFILE_ZONE;
-    command_buffer->fence_sync(m_buffer_sync_objects[m_current_buffer_part]);
+    // command_buffer->fence_sync(m_buffer_sync_objects[m_current_buffer_part]);
+    g_sync* sync_to_place = &m_buffer_sync_objects[m_current_buffer_part];
     m_current_buffer_part++;
     m_current_buffer_part %= (static_cast<int8>(m_technique) + 1);
     m_current_buffer_start = m_current_buffer_part * m_frame_size;
     m_global_offset        = m_current_buffer_start;
     m_last_offset          = m_local_offset;
     m_local_offset         = 0;
+    return sync_to_place;
 }
 
-bind_uniform_buffer_cmd uniform_buffer::bind_uniform_buffer(int32 slot, int64 size, void* data)
+int64 uniform_buffer::write_data(int64 size, void* data)
 {
     PROFILE_ZONE;
     int64 to_add = m_uniform_buffer_alignment;
@@ -73,9 +76,8 @@ bind_uniform_buffer_cmd uniform_buffer::bind_uniform_buffer(int32 slot, int64 si
     MANGO_ASSERT(m_local_offset < m_frame_size - to_add, "Frame size is too small.");
     memcpy(static_cast<g_byte*>(m_mapping) + m_global_offset, data, size);
 
-    bind_uniform_buffer_cmd cmd(m_uniform_buffer, m_global_offset, size, slot);
-
     m_local_offset += to_add;
     m_global_offset += to_add;
-    return cmd;
+
+    return m_global_offset - to_add;
 }

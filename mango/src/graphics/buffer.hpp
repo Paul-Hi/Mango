@@ -80,13 +80,6 @@ namespace mango
         //! \param[in] data The data to set the memory specified before to. ATTENTION: This is only one value, that gets replicated.
         virtual void set_data(format internal_format, int64 offset, int64 size, format pixel_format, format type, const void* data) = 0;
 
-        //! \brief Binds the \a buffer to a specific target.
-        //! \param[in] target The \a buffer_target to bind the \a buffer to.
-        //! \param[in] index The buffer index to bind the \a buffer to. Has to be a positive value.
-        //! \param[in] offset The offset in the \a buffer to start the binding from. Has to be a positive value.
-        //! \param[in] size The size to bind. Has to be a positive value. Leave empty if the \a buffer should be bound from offset to end.
-        virtual void bind(buffer_target target, int32 index, int64 offset = 0, int64 size = MAX_INT64) = 0;
-
         //! \brief Maps part of the \a buffer and returns it.
         //! \details On creation a flag with \a buffer_access::MAPPED_ACCESS_* has to be specified.
         //! We do always map persistent if we map.

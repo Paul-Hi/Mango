@@ -24,22 +24,18 @@ namespace mango
         //! \brief Configures the \a shadow_map_step.
         //! \param[in] configuration The \a shadow_step_configuration to use.
         void configure(const shadow_step_configuration& configuration);
-        void execute(command_buffer_ptr& command_buffer, uniform_buffer_ptr frame_uniform_buffer) override;
+        void execute(uniform_buffer_ptr frame_uniform_buffer) override;
 
         void destroy() override;
 
-        //! \brief Clears the shadow map buffer.
-        //! \param[in] command_buffer The \a command_buffer to add the clear command to.
-        inline void clear_shadow_buffer(command_buffer_ptr& command_buffer)
+        inline framebuffer_ptr get_shadow_buffer()
         {
-            command_buffer->clear_framebuffer(clear_buffer_mask::depth_buffer, attachment_mask::depth_buffer, 0.0f, 0.0f, 0.0f, 1.0f, m_shadow_buffer);
+            return m_shadow_buffer;
         }
 
-        //! \brief Returns the queue to submit commands used to render shadow casters.
-        //! \return The casters queue.
-        inline command_buffer_ptr get_caster_queue()
+        inline command_buffer_ptr<max_key> get_shadow_commands()
         {
-            return m_caster_queue;
+            return m_shadow_command_buffer;
         }
 
         //! \brief Updates the cascades for CSM.
@@ -55,16 +51,10 @@ namespace mango
         //! \brief The maximum number of cascades.
         static const int32 max_shadow_mapping_cascades = 4; // TODO Paul: We should move this.
 
-        //! \brief Binds the shadow maps and data.
-        //!\param[in] command_buffer The \a command_buffer to add the binding commands to.
-        //!\param[in] frame_uniform_buffer The \a uniform_buffer to manage uniform buffer memory.
-        void bind_shadow_data(command_buffer_ptr& command_buffer, uniform_buffer_ptr frame_uniform_buffer);
-
         void on_ui_widget() override;
 
       private:
-        //! \brief Queue to store caster render commands into.
-        command_buffer_ptr m_caster_queue;
+        command_buffer_ptr<max_key> m_shadow_command_buffer;
         //! \brief The framebuffer storing all shadow maps.
         framebuffer_ptr m_shadow_buffer;
         //! \brief Program to execute the shadow mapping pass.

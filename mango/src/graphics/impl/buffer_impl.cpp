@@ -96,48 +96,6 @@ void buffer_impl::set_data(format internal_format, int64 offset, int64 size, for
     glClearNamedBufferSubData(m_name, gl_internal_f, static_cast<g_intptr>(offset), static_cast<g_sizeiptr>(size), gl_pixel_f, gl_type, data);
 }
 
-void buffer_impl::bind(buffer_target target, int32 index, int64 offset, int64 size)
-{
-    g_enum gl_target = GL_ARRAY_BUFFER; // Use this as default.
-
-    if (target == buffer_target::index_buffer)
-    {
-        gl_target = GL_ELEMENT_ARRAY_BUFFER;
-    }
-    else if (target == buffer_target::uniform_buffer)
-    {
-        gl_target = GL_UNIFORM_BUFFER;
-    }
-    else if (target == buffer_target::shader_storage_buffer)
-    {
-        gl_target = GL_SHADER_STORAGE_BUFFER;
-    }
-    else if (target == buffer_target::texture_buffer)
-    {
-        gl_target = GL_TEXTURE_BUFFER;
-    }
-    else if (target == buffer_target::none)
-    {
-        gl_target = m_target;
-    }
-
-    if (m_target != gl_target)
-    {
-        MANGO_LOG_WARN("Target changed in bind! This may lead to errors!");
-    }
-
-    MANGO_ASSERT(index >= 0, "Cannot bind buffer with negative index!");
-    MANGO_ASSERT(is_created(), "Buffer not created!");
-    MANGO_ASSERT(offset < m_size, "Can not bind data outside the buffer!");
-    MANGO_ASSERT(offset >= 0, "Can not bind data outside the buffer! Negative offset!");
-
-    size = (size == MAX_INT64) ? m_size - offset : size;
-    MANGO_ASSERT(size > 0, "Negative size is not possible!");
-    MANGO_ASSERT(offset + size <= m_size, "Can not bind data outside the buffer!");
-
-    glBindBufferRange(gl_target, static_cast<g_uint>(index), m_name, static_cast<g_intptr>(offset), static_cast<g_sizeiptr>(size));
-}
-
 void* buffer_impl::map(int64 offset, int64 length, buffer_access)
 {
     MANGO_ASSERT(is_created(), "Buffer not created!");

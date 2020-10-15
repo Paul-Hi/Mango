@@ -21,7 +21,7 @@ bool shadow_map_step::create()
 {
     PROFILE_ZONE;
 
-    m_caster_queue = command_buffer::create();
+    m_shadow_command_buffer = command_buffer<max_key>::create(524288); // 0.5 MiB?
 
     shader_configuration shader_config;
     shader_config.m_path          = "res/shader/v_shadow_pass.glsl";
@@ -91,18 +91,35 @@ void shadow_map_step::configure(const shadow_step_configuration& configuration)
     m_dirty_cascades = true;
 }
 
-void shadow_map_step::execute(command_buffer_ptr& command_buffer, uniform_buffer_ptr frame_uniform_buffer)
+void shadow_map_step::execute(uniform_buffer_ptr frame_uniform_buffer)
 {
     PROFILE_ZONE;
-    command_buffer->bind_framebuffer(m_shadow_buffer);
-    command_buffer->bind_shader_program(m_shadow_pass);
-    command_buffer->set_viewport(0, 0, m_shadow_data.resolution, m_shadow_data.resolution);
-    command_buffer->set_face_culling(false);
-    command_buffer->set_polygon_offset(1.1f, 4.0f);
-    bind_uniform_buffer_cmd cmd = frame_uniform_buffer->bind_uniform_buffer(UB_SLOT_SHADOW_DATA, sizeof(shadow_data), &m_shadow_data);
-    command_buffer->submit<bind_uniform_buffer_cmd>(cmd);
-    command_buffer->attach(m_caster_queue);
-    command_buffer->set_polygon_offset(0.0f, 0.0f);
+
+    bind_framebuffer_command* bf = m_shadow_command_buffer->create<bind_framebuffer_command>(command_keys::max_key_to_start);
+    bf->framebuffer_name         = m_shadow_buffer->get_name();
+
+    bind_shader_program_command* bsp = m_shadow_command_buffer->append<bind_shader_program_command, bind_framebuffer_command>(bf);
+    bsp->shader_program_name         = m_shadow_pass->get_name();
+
+    set_viewport_command* sv = m_shadow_command_buffer->append<set_viewport_command, bind_shader_program_command>(bsp);
+    sv->x                    = 0;
+    sv->y                    = 0;
+    sv->width                = m_shadow_data.resolution;
+    sv->height               = m_shadow_data.resolution;
+
+    set_face_culling_command* sfc = m_shadow_command_buffer->append<set_face_culling_command, set_viewport_command>(sv);
+    sfc->enabled                  = false;
+
+    set_polygon_offset_command* spo = m_shadow_command_buffer->append<set_polygon_offset_command, set_face_culling_command>(sfc);
+    spo->factor                     = 1.1f;
+    spo->units                      = 4.0f;
+
+    bind_buffer_command* bb = m_shadow_command_buffer->append<bind_buffer_command, set_polygon_offset_command>(spo);
+    bb->target              = buffer_target::uniform_buffer;
+    bb->index               = UB_SLOT_SHADOW_DATA;
+    bb->size                = sizeof(shadow_data);
+    bb->buffer_name         = frame_uniform_buffer->buffer_name();
+    bb->offset              = frame_uniform_buffer->write_data(sizeof(shadow_data), &m_shadow_data);
 }
 
 void shadow_map_step::destroy() {}
@@ -158,9 +175,11 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         glm::vec3 current_frustum_corners[8];
         for (int32 i = 0; i < 4; ++i)
         {
-            glm::vec3 corner_ray           = frustum_corners[i + 4] - frustum_corners[i];
-            glm::vec3 near_ray             = corner_ray * static_cast<float>((m_shadow_data.split_depth[casc] - m_shadow_data.cascade_interpolation_range) / m_shadow_data.split_depth[m_shadow_data.cascade_count]);
-            glm::vec3 far_ray              = corner_ray * static_cast<float>((m_shadow_data.split_depth[casc + 1] + m_shadow_data.cascade_interpolation_range) / m_shadow_data.split_depth[m_shadow_data.cascade_count]);
+            glm::vec3 corner_ray = frustum_corners[i + 4] - frustum_corners[i];
+            glm::vec3 near_ray =
+                corner_ray * static_cast<float>((m_shadow_data.split_depth[casc] - m_shadow_data.cascade_interpolation_range) / m_shadow_data.split_depth[m_shadow_data.cascade_count]);
+            glm::vec3 far_ray =
+                corner_ray * static_cast<float>((m_shadow_data.split_depth[casc + 1] + m_shadow_data.cascade_interpolation_range) / m_shadow_data.split_depth[m_shadow_data.cascade_count]);
             current_frustum_corners[i]     = frustum_corners[i] + near_ray;
             current_frustum_corners[i + 4] = frustum_corners[i] + far_ray;
             center += current_frustum_corners[i];
@@ -203,14 +222,6 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
 
         m_shadow_data.view_projection_matrices[casc] = projection * view;
     }
-}
-
-void shadow_map_step::bind_shadow_data(command_buffer_ptr& command_buffer, uniform_buffer_ptr frame_uniform_buffer)
-{
-    PROFILE_ZONE;
-    command_buffer->bind_texture(8, m_shadow_buffer->get_attachment(framebuffer_attachment::depth_attachment), 8); // TODO Paul: Location, Binding?
-    bind_uniform_buffer_cmd cmd = frame_uniform_buffer->bind_uniform_buffer(UB_SLOT_SHADOW_DATA, sizeof(shadow_data), &m_shadow_data);
-    command_buffer->submit<bind_uniform_buffer_cmd>(cmd);
 }
 
 void shadow_map_step::on_ui_widget()

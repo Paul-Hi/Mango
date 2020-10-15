@@ -58,8 +58,13 @@ namespace mango
         //! \brief The hdr buffer of the deferred pipeline. Used for auto exposure.
         framebuffer_ptr m_hdr_buffer;
 
-        //! \brief Render queue used to store rendering related commands.
-        command_buffer_ptr m_render_queue;
+        command_buffer_ptr<min_key> m_begin_render_commands;
+        command_buffer_ptr<min_key> m_global_binding_commands;
+        command_buffer_ptr<max_key> m_gbuffer_commands;
+        command_buffer_ptr<min_key> m_lighting_pass_commands;
+        command_buffer_ptr<min_key> m_exposure_commands;
+        command_buffer_ptr<min_key> m_composite_commands;
+        command_buffer_ptr<min_key> m_finish_render_commands;
 
         //! \brief The \a shader_program for the deferred geometry pass.
         //! \details This fills the g-buffer for later use in the lighting pass.
@@ -96,6 +101,10 @@ namespace mango
             std140_mat4 view_matrix; //!< The view matrix.
             std140_mat4 projection_matrix; //!< The projection matrix.
             std140_mat4 view_projection_matrix; //!< The view projection matrix.
+            std140_float camera_exposure; //!< The exposure value of the camera.
+            std140_float padding0; //!< Padding.
+            std140_float padding1; //!< Padding.
+            std140_float padding2; //!< Padding.
         } m_renderer_data;
 
         //! \brief Uniform buffer struct for model data.
@@ -184,7 +193,7 @@ namespace mango
             std140_float padding0; //!< padding.
         } m_lighting_pass_data;
 
-        void bind_renderer_data_buffer(camera_data& camera);
+        void bind_renderer_data_buffer(camera_data& camera, float camera_exposure);
 
         //! \brief Binds the uniform buffer of the lighting pass.
         //! \param[in,out] camera The \a camera_data of the current camera.

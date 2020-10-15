@@ -71,7 +71,13 @@ bool deferred_pbr_render_system::create()
     int32 w = ws->get_width();
     int32 h = ws->get_height();
 
-    m_render_queue = command_buffer::create();
+    m_begin_render_commands   = command_buffer<min_key>::create(512);
+    m_global_binding_commands = command_buffer<min_key>::create(128);
+    m_gbuffer_commands        = command_buffer<max_key>::create(524288); // 0.5 MiB?
+    m_lighting_pass_commands  = command_buffer<min_key>::create(512);
+    m_exposure_commands       = command_buffer<min_key>::create(512);
+    m_composite_commands      = command_buffer<min_key>::create(256);
+    m_finish_render_commands  = command_buffer<min_key>::create(256);
 
     m_hardware_stats.last_frame.canvas_x      = 0;
     m_hardware_stats.last_frame.canvas_y      = 0;
@@ -303,199 +309,417 @@ void deferred_pbr_render_system::begin_render()
     m_hardware_stats.last_frame.materials  = 0;
 
     // TODO Paul: This should not be done here, this is pretty bad!
-    m_command_buffer->clear_framebuffer(clear_buffer_mask::color_and_depth_stencil, attachment_mask::all, 0.1f, 0.1f, 0.1f, 1.0f);
-    m_command_buffer->clear_framebuffer(clear_buffer_mask::color_and_depth, attachment_mask::all_draw_buffers_and_depth, 0.0f, 0.0f, 0.0f, 1.0f, m_gbuffer);
-    m_command_buffer->clear_framebuffer(clear_buffer_mask::color_and_depth, attachment_mask::all_draw_buffers_and_depth, 0.0f, 0.0f, 0.0f, 1.0f, m_hdr_buffer);
-    m_command_buffer->clear_framebuffer(clear_buffer_mask::color_and_depth, attachment_mask::all_draw_buffers_and_depth, 0.0f, 0.0f, 0.0f, 1.0f, m_backbuffer);
+    clear_framebuffer_command* cf = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::min_key_no_sort);
+    cf->framebuffer_name          = 0; // default framebuffer
+    cf->buffer_mask               = clear_buffer_mask::color_and_depth;
+    cf->fb_attachment_mask        = attachment_mask::draw_buffer0 | attachment_mask::depth_buffer;
+    cf->r = cf->g = cf->b = 0.1f;
+    cf->a = cf->depth = 1.0f;
+    cf->stencil       = 1;
+
+    cf                     = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::min_key_no_sort);
+    cf->framebuffer_name   = m_gbuffer->get_name();
+    cf->buffer_mask        = clear_buffer_mask::color_and_depth;
+    cf->fb_attachment_mask = attachment_mask::all_draw_buffers_and_depth;
+    cf->r = cf->g = cf->b = 0.0f;
+    cf->a = cf->depth = 1.0f;
+
+    cf                     = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::min_key_no_sort);
+    cf->framebuffer_name   = m_hdr_buffer->get_name();
+    cf->buffer_mask        = clear_buffer_mask::color_and_depth;
+    cf->fb_attachment_mask = attachment_mask::draw_buffer0 | attachment_mask::depth_buffer;
+    cf->r = cf->g = cf->b = 0.0f;
+    cf->a = cf->depth = 1.0f;
+
+    cf                     = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::min_key_no_sort);
+    cf->framebuffer_name   = m_backbuffer->get_name();
+    cf->buffer_mask        = clear_buffer_mask::color_and_depth;
+    cf->fb_attachment_mask = attachment_mask::draw_buffer0 | attachment_mask::depth_buffer;
+    cf->r = cf->g = cf->b = 0.0f;
+    cf->a = cf->depth = 1.0f;
+
     if (m_pipeline_steps[mango::render_step::shadow_map])
     {
-        auto step = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map]);
-        step->clear_shadow_buffer(m_command_buffer);
+        auto step                     = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map]);
+        framebuffer_ptr shadow_buffer = step->get_shadow_buffer();
+        cf                            = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::min_key_no_sort);
+        cf->framebuffer_name          = shadow_buffer->get_name();
+        cf->buffer_mask               = clear_buffer_mask::depth_buffer;
+        cf->fb_attachment_mask        = attachment_mask::depth_buffer;
+        cf->depth                     = 1.0f;
     }
 
-    // TODO Paul: Is there a better way?
-    m_frame_uniform_buffer->begin_frame(m_command_buffer);
-
+    // gbuffer pass setup
     {
-        GL_NAMED_PROFILE_ZONE("Deferred Renderer Begin");
-        m_command_buffer->execute();
+        set_depth_test_command* sdt      = m_gbuffer_commands->create<set_depth_test_command>(command_keys::max_key_to_start);
+        sdt->enabled                     = true;
+        set_depth_func_command* sdf      = m_gbuffer_commands->append<set_depth_func_command, set_depth_test_command>(sdt);
+        sdf->compare_operation           = compare_operation::less;
+        set_cull_face_command* scf       = m_gbuffer_commands->append<set_cull_face_command, set_depth_func_command>(sdf);
+        scf->face                        = polygon_face::face_back;
+        set_polygon_offset_command* spo  = m_gbuffer_commands->append<set_polygon_offset_command, set_cull_face_command>(scf);
+        spo->factor                      = 0.0f;
+        spo->units                       = 0.0f;
+        bind_framebuffer_command* bf     = m_gbuffer_commands->append<bind_framebuffer_command, set_polygon_offset_command>(spo);
+        bf->framebuffer_name             = m_gbuffer->get_name();
+        bind_shader_program_command* bsp = m_gbuffer_commands->append<bind_shader_program_command, bind_framebuffer_command>(bf);
+        bsp->shader_program_name         = m_scene_geometry_pass->get_name();
+        set_viewport_command* sv         = m_gbuffer_commands->append<set_viewport_command, bind_shader_program_command>(bsp);
+        sv->x                            = m_hardware_stats.last_frame.canvas_x;
+        sv->y                            = m_hardware_stats.last_frame.canvas_y;
+        sv->width                        = m_hardware_stats.last_frame.canvas_width;
+        sv->height                       = m_hardware_stats.last_frame.canvas_height;
+        if (m_wireframe)
+        {
+            set_polygon_mode_command* spm = m_gbuffer_commands->append<set_polygon_mode_command, set_viewport_command>(sv);
+            spm->face                     = polygon_face::face_front_and_back;
+            spm->mode                     = polygon_mode::line;
+        }
+    }
+
+    // lighting pass setup
+    if (m_lighting_pass_commands->dirty())
+    {
+        bind_framebuffer_command* bf     = m_lighting_pass_commands->create<bind_framebuffer_command>(command_keys::min_key_no_sort);
+        bf->framebuffer_name             = m_hdr_buffer->get_name(); // lighting goes into hdr buffer.
+        bind_shader_program_command* bsp = m_lighting_pass_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+        bsp->shader_program_name         = m_lighting_pass->get_name();
+        set_polygon_mode_command* spm    = m_lighting_pass_commands->create<set_polygon_mode_command>(command_keys::min_key_no_sort);
+        spm->face                        = polygon_face::face_front_and_back;
+        spm->mode                        = polygon_mode::fill;
+        bind_texture_command* bt         = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt->binding                      = 0;
+        bt->sampler_location             = 0;
+        bt->texture_name                 = m_gbuffer->get_attachment(framebuffer_attachment::color_attachment0)->get_name();
+        bt                               = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt->binding                      = 1;
+        bt->sampler_location             = 1;
+        bt->texture_name                 = m_gbuffer->get_attachment(framebuffer_attachment::color_attachment1)->get_name();
+        bt                               = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt->binding                      = 2;
+        bt->sampler_location             = 2;
+        bt->texture_name                 = m_gbuffer->get_attachment(framebuffer_attachment::color_attachment2)->get_name();
+        bt                               = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt->binding                      = 3;
+        bt->sampler_location             = 3;
+        bt->texture_name                 = m_gbuffer->get_attachment(framebuffer_attachment::color_attachment3)->get_name();
+        bt                               = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt->binding                      = 4;
+        bt->sampler_location             = 4;
+        bt->texture_name                 = m_gbuffer->get_attachment(framebuffer_attachment::depth_attachment)->get_name();
     }
 }
 
 void deferred_pbr_render_system::finish_render(float dt)
 {
     PROFILE_ZONE;
-    auto scene  = m_shared_context->get_current_scene();
-    auto camera = scene->get_active_camera_data();
-    auto env    = scene->get_active_environment_data();
+    auto scene           = m_shared_context->get_current_scene();
+    auto camera          = scene->get_active_camera_data();
+    auto env             = scene->get_active_environment_data();
+    auto step_shadow_map = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map]);
+    auto step_ibl        = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
+    command_buffer_ptr<max_key> shadow_command_buffer;
+    command_buffer_ptr<min_key> ibl_command_buffer;
+    if (step_shadow_map)
+        shadow_command_buffer = step_shadow_map->get_shadow_commands();
+    if (step_ibl)
+        ibl_command_buffer = step_ibl->get_ibl_commands();
 
-    if (m_pipeline_steps[mango::render_step::shadow_map])
+    apply_auto_exposure(camera); // with last frames data.
+
+    float camera_exposure = 1.0f;
+    if (camera.camera_info)
     {
-        if (m_lighting_pass_data.directional.intensity > 1e-5f && !m_lighting_pass_data.debug_view_enabled && camera.camera_info && m_lighting_pass_data.directional.cast_shadows)
-        {
-            std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])
-                ->update_cascades(dt, camera.camera_info->z_near, camera.camera_info->z_far, camera.camera_info->view_projection, m_lighting_pass_data.directional.direction);
-
-            m_pipeline_steps[mango::render_step::shadow_map]->execute(m_command_buffer, m_frame_uniform_buffer);
-        }
-        else
-            std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_caster_queue()->clear();
+        // Calculate the exposure from the physical camera parameters.
+        camera.camera_info->physical.aperture      = glm::clamp(camera.camera_info->physical.aperture, min_aperture, max_aperture);
+        camera.camera_info->physical.shutter_speed = glm::clamp(camera.camera_info->physical.shutter_speed, min_shutter_speed, max_shutter_speed);
+        camera.camera_info->physical.iso           = glm::clamp(camera.camera_info->physical.iso, min_iso, max_iso);
+        float ape                                  = camera.camera_info->physical.aperture;
+        float shu                                  = camera.camera_info->physical.shutter_speed;
+        float iso                                  = camera.camera_info->physical.iso;
+        float e                                    = ((ape * ape) * 100.0f) / (shu * iso);
+        camera_exposure                            = 1.0f / (1.2f * e);
     }
 
-    // reset viewport to be sure.
-    auto x = m_hardware_stats.last_frame.canvas_x;
-    auto y = m_hardware_stats.last_frame.canvas_y;
-    auto w = m_hardware_stats.last_frame.canvas_width;
-    auto h = m_hardware_stats.last_frame.canvas_height;
-    m_command_buffer->set_viewport(x, y, w, h);
-
-    // bind the renderer uniform buffer.
-    bind_renderer_data_buffer(camera);
-
-    // geometry pass
-    {
-        m_command_buffer->set_depth_test(true);
-        m_command_buffer->set_depth_func(compare_operation::less);
-        m_command_buffer->set_face_culling(true);
-        m_command_buffer->set_cull_face(polygon_face::face_back);
-        m_command_buffer->bind_framebuffer(m_gbuffer);
-        m_command_buffer->bind_shader_program(m_scene_geometry_pass);
-
-        if (m_wireframe)
-            m_command_buffer->set_polygon_mode(polygon_face::face_front_and_back, polygon_mode::line);
-
-        m_command_buffer->attach(m_render_queue);
-    }
-
+    // Bind the renderer uniform buffer.
+    bind_renderer_data_buffer(camera, camera_exposure);
     // Bind lighting pass uniform buffer.
     bind_lighting_pass_buffer(camera, env);
 
-    // lighting pass
+    if (step_shadow_map)
     {
-        m_command_buffer->bind_framebuffer(m_hdr_buffer); // bind hdr.
-        m_command_buffer->bind_shader_program(m_lighting_pass);
-        m_command_buffer->set_polygon_mode(polygon_face::face_front_and_back, polygon_mode::fill);
+        if (m_lighting_pass_data.directional.intensity > 1e-5f && !m_lighting_pass_data.debug_view_enabled && camera.camera_info && m_lighting_pass_data.directional.cast_shadows)
+        {
+            step_shadow_map->update_cascades(dt, camera.camera_info->z_near, camera.camera_info->z_far, camera.camera_info->view_projection, m_lighting_pass_data.directional.direction);
 
-        m_command_buffer->bind_texture(0, m_gbuffer->get_attachment(framebuffer_attachment::color_attachment0), 0);
-        m_command_buffer->bind_texture(1, m_gbuffer->get_attachment(framebuffer_attachment::color_attachment1), 1);
-        m_command_buffer->bind_texture(2, m_gbuffer->get_attachment(framebuffer_attachment::color_attachment2), 2);
-        m_command_buffer->bind_texture(3, m_gbuffer->get_attachment(framebuffer_attachment::color_attachment3), 3);
-        m_command_buffer->bind_texture(4, m_gbuffer->get_attachment(framebuffer_attachment::depth_attachment), 4);
-        if (m_pipeline_steps[mango::render_step::shadow_map])
-        {
-            std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->bind_shadow_data(m_command_buffer, m_frame_uniform_buffer);
+            // render shadow maps
+            step_shadow_map->execute(m_frame_uniform_buffer);
         }
         else
-            m_command_buffer->bind_texture(8, default_texture_array, 8);
-        if (m_pipeline_steps[mango::render_step::ibl])
+            shadow_command_buffer->invalidate();
+    }
+
+    // lighting pass
+    if (m_lighting_pass_commands->dirty())
+    {
+        // m_lighting_pass_commands
+        g_uint irradiance_map_name       = default_texture->get_name();
+        g_uint prefiltered_specular_name = default_texture->get_name();
+        g_uint brdf_lookup_name          = default_texture->get_name();
+        g_uint shadow_map_name           = default_texture_array->get_name();
+
+        if (step_ibl)
         {
-            std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl])->bind_image_based_light_maps(m_command_buffer);
+            irradiance_map_name       = step_ibl->get_irradiance_map()->get_name();
+            prefiltered_specular_name = step_ibl->get_prefiltered_specular()->get_name();
+            brdf_lookup_name          = step_ibl->get_brdf_lookup()->get_name();
         }
-        else
+        if (step_shadow_map)
         {
-            m_command_buffer->bind_texture(5, default_texture, 5);
-            m_command_buffer->bind_texture(6, default_texture, 6);
-            m_command_buffer->bind_texture(7, default_texture, 7);
+            shadow_map_name = step_shadow_map->get_shadow_buffer()->get_attachment(framebuffer_attachment::depth_attachment)->get_name();
         }
+        bind_texture_command* bt = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt->binding              = 5;
+        bt->sampler_location     = 5;
+        bt->texture_name         = irradiance_map_name;
+        bt                       = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt->binding              = 6;
+        bt->sampler_location     = 6;
+        bt->texture_name         = prefiltered_specular_name;
+        bt                       = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt->binding              = 7;
+        bt->sampler_location     = 7;
+        bt->texture_name         = brdf_lookup_name;
+        bt                       = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt->binding              = 8;
+        bt->sampler_location     = 8;
+        bt->texture_name         = shadow_map_name;
 
         // TODO Paul: Check if the binding is better for performance or not.
-        m_command_buffer->bind_vertex_array(default_vao);
+        bind_vertex_array_command* bva = m_lighting_pass_commands->create<bind_vertex_array_command>(command_keys::min_key_no_sort);
+        bva->vertex_array_name         = default_vao->get_name();
 
-        m_command_buffer->draw_arrays(primitive_topology::triangles, 0, 3);
+        draw_arrays_command* da = m_lighting_pass_commands->create<draw_arrays_command>(command_keys::min_key_no_sort);
+        da->topology            = primitive_topology::triangles;
+        da->first               = 0;
+        da->count               = 3;
+        da->instance_count      = 1;
+
         m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done, on glCalls.
     }
 
     // environment drawing
-    if (m_pipeline_steps[mango::render_step::ibl] && !m_lighting_pass_data.debug_view_enabled)
+    if (step_ibl && !m_lighting_pass_data.debug_view_enabled)
     {
-        shared_ptr<ibl_step> imgbl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
-        m_command_buffer->set_depth_func(compare_operation::less_equal);
-        m_command_buffer->set_cull_face(polygon_face::face_front);
-        m_pipeline_steps[mango::render_step::ibl]->execute(m_command_buffer, m_frame_uniform_buffer);
+        step_ibl->execute(m_frame_uniform_buffer);
     }
 
     // auto exposure compute shaders
     if (camera.camera_info && camera.camera_info->physical.adaptive_exposure && !m_lighting_pass_data.debug_view_enabled)
     {
-        m_command_buffer->bind_shader_program(m_construct_luminance_buffer);
-        auto tex = m_hdr_buffer->get_attachment(framebuffer_attachment::color_attachment0);
-        m_command_buffer->calculate_mipmaps(tex);
-        m_command_buffer->add_memory_barrier(memory_barrier_bit::shader_image_access_barrier_bit);
-        int32 mip_level  = 0;
-        int32 tex_width  = tex->get_width();
-        int32 tex_height = tex->get_height();
-        while (tex_width >> mip_level > 512 && tex_height >> mip_level > 512) // we can make it smaller, when we have some better focussing.
+        bind_shader_program_command* bsp = m_exposure_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+        bsp->shader_program_name         = m_construct_luminance_buffer->get_name();
+
+        texture_ptr hdr_result        = m_hdr_buffer->get_attachment(framebuffer_attachment::color_attachment0);
+        calculate_mipmaps_command* cm = m_exposure_commands->create<calculate_mipmaps_command>(command_keys::min_key_no_sort);
+        cm->texture_name              = hdr_result->get_name();
+
+        add_memory_barrier_command* amb = m_exposure_commands->create<add_memory_barrier_command>(command_keys::min_key_no_sort);
+        amb->barrier_bit                = memory_barrier_bit::shader_image_access_barrier_bit;
+
+        int32 mip_level = 0;
+        int32 hr_width  = hdr_result->get_width();
+        int32 hr_height = hdr_result->get_height();
+        while (hr_width >> mip_level > 512 && hr_height >> mip_level > 512) // we can make it smaller, when we have some better focussing.
         {
             ++mip_level;
         }
-        tex_width >>= mip_level;
-        tex_height >>= mip_level;
-        m_command_buffer->bind_image_texture(0, tex, mip_level, false, 0, base_access::read_only, format::rgba32f);
-        m_command_buffer->bind_buffer(1, m_luminance_histogram_buffer, buffer_target::shader_storage_buffer);
-        glm::vec2 params = glm::vec2(-8.0f, 1.0f / 40.0f); // min -8.0, max +32.0
-        m_command_buffer->bind_single_uniform(1, &(params), sizeof(params));
+        hr_width >>= mip_level;
+        hr_height >>= mip_level;
 
-        m_command_buffer->dispatch_compute(tex_width / 16, tex_height / 16, 1);
+        bind_image_texture_command* bit = m_exposure_commands->create<bind_image_texture_command>(command_keys::min_key_no_sort);
+        bit->binding                    = 0;
+        bit->texture_name               = hdr_result->get_name();
+        bit->level                      = mip_level;
+        bit->layered                    = false;
+        bit->layer                      = 0;
+        bit->access                     = base_access::read_only;
+        bit->element_format             = format::rgba32f;
 
-        m_command_buffer->add_memory_barrier(memory_barrier_bit::shader_storage_barrier_bit);
+        bind_buffer_command* bb = m_exposure_commands->create<bind_buffer_command>(command_keys::min_key_no_sort);
+        bb->index               = SSB_SLOT_EXPOSURE;
+        bb->buffer_name         = m_luminance_histogram_buffer->get_name();
+        bb->offset              = 0;
+        bb->target              = buffer_target::shader_storage_buffer;
+        bb->size                = m_luminance_histogram_buffer->byte_length();
 
-        m_command_buffer->bind_shader_program(m_reduce_luminance_buffer);
-        m_command_buffer->bind_buffer(0, m_luminance_histogram_buffer, buffer_target::shader_storage_buffer);
+        glm::vec2 params                 = glm::vec2(-8.0f, 1.0f / 40.0f); // min -8.0, max +32.0
+        bind_single_uniform_command* bsu = m_exposure_commands->create<bind_single_uniform_command>(command_keys::min_key_no_sort, sizeof(params));
+        bsu->count                       = 1;
+        bsu->location                    = 1;
+        bsu->type                        = shader_resource_type::fvec2;
+        bsu->uniform_value               = m_exposure_commands->map_spare<bind_single_uniform_command>();
+        memcpy(bsu->uniform_value, &params, sizeof(params));
+
+        dispatch_compute_command* dc = m_exposure_commands->create<dispatch_compute_command>(command_keys::min_key_no_sort);
+        dc->num_x_groups             = hr_width / 16;
+        dc->num_y_groups             = hr_height / 16;
+        dc->num_z_groups             = 1;
+
+        amb              = m_exposure_commands->create<add_memory_barrier_command>(command_keys::min_key_no_sort);
+        amb->barrier_bit = memory_barrier_bit::shader_image_access_barrier_bit;
+
+        bsp                      = m_exposure_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+        bsp->shader_program_name = m_reduce_luminance_buffer->get_name();
+
+        bb              = m_exposure_commands->create<bind_buffer_command>(command_keys::min_key_no_sort);
+        bb->index       = SSB_SLOT_EXPOSURE;
+        bb->buffer_name = m_luminance_histogram_buffer->get_name();
+        bb->offset      = 0;
+        bb->target      = buffer_target::shader_storage_buffer;
+        bb->size        = m_luminance_histogram_buffer->byte_length();
 
         // time coefficient with tau = 1.1;
         float tau              = 0.75f;
         float time_coefficient = 1.0f - expf(-dt * tau);
-        glm::vec4 red_params   = glm::vec4(time_coefficient, tex_width * tex_height, -8.0f, 40.0f); // min -8.0, max +32.0
-        m_command_buffer->bind_single_uniform(0, &(red_params), sizeof(red_params));
+        glm::vec4 red_params   = glm::vec4(time_coefficient, hr_width * hr_height, -8.0f, 40.0f); // min -8.0, max +32.0
+        bsu                    = m_exposure_commands->create<bind_single_uniform_command>(command_keys::min_key_no_sort, sizeof(red_params));
+        bsu->count             = 1;
+        bsu->location          = 0;
+        bsu->type              = shader_resource_type::fvec4;
+        bsu->uniform_value     = m_exposure_commands->map_spare<bind_single_uniform_command>();
+        memcpy(bsu->uniform_value, &red_params, sizeof(red_params));
 
-        m_command_buffer->dispatch_compute(1, 1, 1);
+        dc               = m_exposure_commands->create<dispatch_compute_command>(command_keys::min_key_no_sort);
+        dc->num_x_groups = dc->num_y_groups = dc->num_z_groups = 1;
 
-        m_command_buffer->add_memory_barrier(memory_barrier_bit::shader_storage_barrier_bit);
-
-        apply_auto_exposure(camera); // for next frame.
+        amb              = m_exposure_commands->create<add_memory_barrier_command>(command_keys::min_key_no_sort);
+        amb->barrier_bit = memory_barrier_bit::shader_image_access_barrier_bit;
     }
 
     // composite
+    if (m_composite_commands->dirty())
     {
-        m_command_buffer->set_depth_func(compare_operation::less);
-        m_command_buffer->set_cull_face(polygon_face::face_back);
-        m_command_buffer->bind_framebuffer(m_backbuffer); // bind backbuffer.
-        m_command_buffer->bind_shader_program(m_composing_pass);
-        float camera_exposure = 1.0f;
-        if (camera.camera_info)
-        {
-            camera.camera_info->physical.aperture      = glm::clamp(camera.camera_info->physical.aperture, min_aperture, max_aperture);
-            camera.camera_info->physical.shutter_speed = glm::clamp(camera.camera_info->physical.shutter_speed, min_shutter_speed, max_shutter_speed);
-            camera.camera_info->physical.iso           = glm::clamp(camera.camera_info->physical.iso, min_iso, max_iso);
-            float ape                                  = camera.camera_info->physical.aperture;
-            float shu                                  = camera.camera_info->physical.shutter_speed;
-            float iso                                  = camera.camera_info->physical.iso;
-            float e                                    = ((ape * ape) * 100.0f) / (shu * iso);
-            camera_exposure                            = 1.0f / (1.2f * e);
-        }
-        m_command_buffer->bind_single_uniform(1, &camera_exposure, sizeof(camera_exposure));
-        int32 b_val = m_lighting_pass_data.debug_view_enabled ? 1 : (m_lighting_pass_data.debug_options.draw_shadow_maps ? 2 : 0);
-        m_command_buffer->bind_single_uniform(2, &(b_val), sizeof(b_val));
+        set_depth_test_command* sdt      = m_composite_commands->create<set_depth_test_command>(command_keys::max_key_to_start);
+        sdt->enabled                     = true;
+        set_depth_func_command* sdf      = m_composite_commands->append<set_depth_func_command, set_depth_test_command>(sdt);
+        sdf->compare_operation           = compare_operation::less;
+        set_face_culling_command* sfc    = m_composite_commands->append<set_face_culling_command, set_depth_func_command>(sdf);
+        sfc->enabled                     = true;
+        set_cull_face_command* scf       = m_composite_commands->append<set_cull_face_command, set_face_culling_command>(sfc);
+        scf->face                        = polygon_face::face_back;
+        bind_framebuffer_command* bf     = m_composite_commands->append<bind_framebuffer_command, set_cull_face_command>(scf);
+        bf->framebuffer_name             = m_backbuffer->get_name();
+        bind_shader_program_command* bsp = m_composite_commands->append<bind_shader_program_command, bind_framebuffer_command>(bf);
+        bsp->shader_program_name         = m_composing_pass->get_name();
 
-        m_command_buffer->bind_texture(0, m_hdr_buffer->get_attachment(framebuffer_attachment::color_attachment0), 0);
+        bind_texture_command* bt = m_composite_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt->binding              = 0;
+        bt->sampler_location     = 0;
+        bt->texture_name         = m_hdr_buffer->get_attachment(framebuffer_attachment::color_attachment0)->get_name();
 
         // TODO Paul: Check if the binding is better for performance or not.
-        m_command_buffer->bind_vertex_array(default_vao);
+        bind_vertex_array_command* bva = m_composite_commands->create<bind_vertex_array_command>(command_keys::min_key_no_sort);
+        bva->vertex_array_name         = default_vao->get_name();
 
-        m_command_buffer->draw_arrays(primitive_topology::triangles, 0, 3);
+        draw_arrays_command* da = m_composite_commands->create<draw_arrays_command>(command_keys::min_key_no_sort);
+        da->topology            = primitive_topology::triangles;
+        da->first               = 0;
+        da->count               = 3;
+        da->instance_count      = 1;
+
         m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done, on glCalls.
     }
 
-    m_command_buffer->bind_framebuffer(nullptr);
-    m_command_buffer->bind_vertex_array(nullptr);
-    // We need to unbind the program so we can make changes to the textures.
-    m_command_buffer->bind_shader_program(nullptr);
+    bind_framebuffer_command* bf     = m_finish_render_commands->create<bind_framebuffer_command>(command_keys::min_key_no_sort);
+    bf->framebuffer_name             = 0;
+    bind_vertex_array_command* bva   = m_finish_render_commands->create<bind_vertex_array_command>(command_keys::min_key_no_sort);
+    bva->vertex_array_name           = 0;
+    bind_shader_program_command* bsp = m_finish_render_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+    bsp->shader_program_name         = 0;
 
-    m_frame_uniform_buffer->end_frame(m_command_buffer);
+    // TODO Paul: Is there a better way?
+    g_sync* frame_sync_prepare = m_frame_uniform_buffer->prepare();
 
+    client_wait_sync_command* cws = m_finish_render_commands->create<client_wait_sync_command>(command_keys::min_key_no_sort);
+    cws->sync                     = frame_sync_prepare;
+    // TODO Paul: Is there a better way?
+    g_sync* frame_sync_end = m_frame_uniform_buffer->end_frame();
+    fence_sync_command* fs = m_finish_render_commands->create<fence_sync_command>(command_keys::min_key_no_sort);
+    fs->sync               = frame_sync_end;
+
+    // execute commands
     {
-        GL_NAMED_PROFILE_ZONE("Deferred Renderer Finish");
-        m_command_buffer->execute();
+        {
+            NAMED_PROFILE_ZONE("Sort Command Buffers")
+            // m_begin_render_commands->sort(); // They do not need to be sorted.
+            // m_global_binding_commands->sort(); // They do not need to be sorted atm.
+            // This has to sort the commands so that the max_key_to_start is executed before the objects get rendered (and these would be perfect from front to back).
+            if (shadow_command_buffer)
+                shadow_command_buffer->sort();
+            // This has to sort the commands so that the max_key_to_start is executed before the objects get rendered (and these would be perfect by material and from front to back).
+            m_gbuffer_commands->sort();
+            // m_lighting_pass_commands->sort(); // They do not need to be sorted atm.
+            // ibl_command_buffer->sort(); // They do not need to be sorted atm.
+            // m_exposure_commands->sort(); // They do not need to be sorted atm.
+            // m_composite_commands->sort(); // They do not need to be sorted atm.
+            // m_finish_render_commands->sort(); // They do not need to be sorted.
+        }
+        {
+            NAMED_PROFILE_ZONE("Deferred Renderer Begin")
+            GL_NAMED_PROFILE_ZONE("Deferred Renderer Begin");
+            m_begin_render_commands->execute();
+            m_begin_render_commands->invalidate();
+        }
+        {
+            NAMED_PROFILE_ZONE("Global Bindings Commands Execute")
+            GL_NAMED_PROFILE_ZONE("Global Bindings Execute");
+            m_global_binding_commands->execute();
+            m_global_binding_commands->invalidate();
+        }
+        if (shadow_command_buffer)
+        {
+            NAMED_PROFILE_ZONE("Shadow Commands Execute")
+            GL_NAMED_PROFILE_ZONE("Shadow Commands Execute");
+            shadow_command_buffer->execute();
+            shadow_command_buffer->invalidate();
+        }
+        {
+            NAMED_PROFILE_ZONE("GBuffer Commands Execute")
+            GL_NAMED_PROFILE_ZONE("GBuffer Commands Execute");
+            m_gbuffer_commands->execute();
+            m_gbuffer_commands->invalidate();
+        }
+        {
+            NAMED_PROFILE_ZONE("Lighting Commands Execute")
+            GL_NAMED_PROFILE_ZONE("Lighting Commands Execute");
+            m_lighting_pass_commands->execute();
+        }
+        if (ibl_command_buffer)
+        {
+            NAMED_PROFILE_ZONE("IBL Commands Execute")
+            GL_NAMED_PROFILE_ZONE("IBL Commands Execute");
+            ibl_command_buffer->execute();
+            ibl_command_buffer->invalidate();
+        }
+        {
+            NAMED_PROFILE_ZONE("Exposure Commands Execute")
+            GL_NAMED_PROFILE_ZONE("Exposure Commands Execute");
+            m_exposure_commands->execute();
+            m_exposure_commands->invalidate();
+        }
+        {
+            NAMED_PROFILE_ZONE("Composite Commands Execute")
+            GL_NAMED_PROFILE_ZONE("Composite Commands Execute");
+            m_composite_commands->execute();
+            m_composite_commands->invalidate();
+        }
+        {
+            NAMED_PROFILE_ZONE("Deferred Renderer Finish")
+            GL_NAMED_PROFILE_ZONE("Deferred Renderer Finish");
+            m_finish_render_commands->execute();
+            m_finish_render_commands->invalidate();
+        }
     }
 }
 
@@ -506,7 +730,6 @@ void deferred_pbr_render_system::set_viewport(int32 x, int32 y, int32 width, int
     MANGO_ASSERT(y >= 0, "Viewport y position has to be positive!");
     MANGO_ASSERT(width >= 0, "Viewport width has to be positive!");
     MANGO_ASSERT(height >= 0, "Viewport height has to be positive!");
-    m_command_buffer->set_viewport(x, y, width, height);
     m_gbuffer->resize(width, height);
     m_backbuffer->resize(width, height);
     m_hdr_buffer->resize(width, height);
@@ -535,12 +758,24 @@ void deferred_pbr_render_system::begin_mesh(const glm::mat4& model_matrix, bool 
 
     model_data d{ model_matrix, glm::transpose(glm::inverse(model_matrix)), has_normals, has_tangents, 0, 0 };
 
-    bind_uniform_buffer_cmd cmd = m_frame_uniform_buffer->bind_uniform_buffer(UB_SLOT_MODEL_DATA, sizeof(model_data), &d);
+    int64 offset = m_frame_uniform_buffer->write_data(sizeof(d), &d);
 
-    m_render_queue->submit<bind_uniform_buffer_cmd>(cmd);
+    bind_buffer_command* bb = m_gbuffer_commands->create<bind_buffer_command>(command_keys::max_key_material_front_to_back);
+    bb->target              = buffer_target::uniform_buffer;
+    bb->index               = UB_SLOT_MODEL_DATA;
+    bb->size                = sizeof(model_data);
+    bb->buffer_name         = m_frame_uniform_buffer->buffer_name();
+    bb->offset              = offset;
+
     if (m_pipeline_steps[mango::render_step::shadow_map])
     {
-        std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_caster_queue()->submit<bind_uniform_buffer_cmd>(cmd);
+        auto shadow_command_buffer = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_shadow_commands();
+        bb                         = shadow_command_buffer->create<bind_buffer_command>(command_keys::max_key_front_to_back);
+        bb->target                 = buffer_target::uniform_buffer;
+        bb->index                  = UB_SLOT_MODEL_DATA;
+        bb->size                   = sizeof(model_data);
+        bb->buffer_name            = m_frame_uniform_buffer->buffer_name();
+        bb->offset                 = offset;
     }
 
     m_hardware_stats.last_frame.meshes++;
@@ -550,10 +785,10 @@ void deferred_pbr_render_system::use_material(const material_ptr& mat)
 {
     PROFILE_ZONE;
 
-    command_buffer_ptr caster_queue;
+    command_buffer_ptr<max_key> shadow_command_buffer;
     if (m_pipeline_steps[mango::render_step::shadow_map])
     {
-        caster_queue = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_caster_queue();
+        shadow_command_buffer = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_shadow_commands();
     }
 
     material_data d;
@@ -564,78 +799,115 @@ void deferred_pbr_render_system::use_material(const material_ptr& mat)
     d.roughness      = (g_float)mat->roughness;
     if (mat->use_base_color_texture)
     {
-        d.base_color_texture = true;
-        m_render_queue->bind_texture(0, mat->base_color_texture, 0);
-        if (caster_queue)
-            caster_queue->bind_texture(0, mat->base_color_texture, 0);
+        d.base_color_texture     = true;
+        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+        bt->binding = bt->sampler_location = 0;
+        bt->texture_name                   = mat->base_color_texture->get_name();
+
+        if (shadow_command_buffer)
+        {
+            bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
+            bt->binding = bt->sampler_location = 0;
+            bt->texture_name                   = mat->base_color_texture->get_name();
+        }
     }
     else
     {
-        d.base_color_texture = false;
-        m_render_queue->bind_texture(0, default_texture, 0);
-        if (caster_queue)
-            caster_queue->bind_texture(0, default_texture, 0);
+        d.base_color_texture     = false;
+        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+        bt->binding = bt->sampler_location = 0;
+        bt->texture_name                   = default_texture->get_name();
+
+        if (shadow_command_buffer)
+        {
+            bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
+            bt->binding = bt->sampler_location = 0;
+            bt->texture_name                   = default_texture->get_name();
+        }
     }
     if (mat->use_roughness_metallic_texture)
     {
         d.roughness_metallic_texture = true;
-        m_render_queue->bind_texture(1, mat->roughness_metallic_texture, 1);
+        bind_texture_command* bt     = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+        bt->binding = bt->sampler_location = 1;
+        bt->texture_name                   = mat->roughness_metallic_texture->get_name();
     }
     else
     {
         d.roughness_metallic_texture = false;
-        m_render_queue->bind_texture(1, default_texture, 2);
+        bind_texture_command* bt     = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+        bt->binding = bt->sampler_location = 1;
+        bt->texture_name                   = default_texture->get_name();
     }
     if (mat->use_occlusion_texture)
     {
-        d.occlusion_texture = true;
-        m_render_queue->bind_texture(2, mat->occlusion_texture, 2);
-        d.packed_occlusion = false;
+        d.occlusion_texture      = true;
+        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+        bt->binding = bt->sampler_location = 2;
+        bt->texture_name                   = mat->occlusion_texture->get_name();
+        d.packed_occlusion                 = false;
     }
     else
     {
-        d.occlusion_texture = false;
-        m_render_queue->bind_texture(2, default_texture, 2);
+        d.occlusion_texture      = false;
+        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+        bt->binding = bt->sampler_location = 2;
+        bt->texture_name                   = default_texture->get_name();
         // eventually it is packed
         d.packed_occlusion = mat->packed_occlusion && mat->use_packed_occlusion;
     }
     if (mat->use_normal_texture)
     {
-        d.normal_texture = true;
-        m_render_queue->bind_texture(3, mat->normal_texture, 3);
+        d.normal_texture         = true;
+        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+        bt->binding = bt->sampler_location = 3;
+        bt->texture_name                   = mat->normal_texture->get_name();
     }
     else
     {
-        d.normal_texture = false;
-        m_render_queue->bind_texture(3, default_texture, 3);
+        d.normal_texture         = false;
+        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+        bt->binding = bt->sampler_location = 3;
+        bt->texture_name                   = default_texture->get_name();
     }
     if (mat->use_emissive_color_texture)
     {
         d.emissive_color_texture = true;
-        m_render_queue->bind_texture(4, mat->emissive_color_texture, 4);
+        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+        bt->binding = bt->sampler_location = 4;
+        bt->texture_name                   = mat->emissive_color_texture->get_name();
     }
     else
     {
         d.emissive_color_texture = false;
-        m_render_queue->bind_texture(4, default_texture, 4);
+        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+        bt->binding = bt->sampler_location = 4;
+        bt->texture_name                   = default_texture->get_name();
     }
 
     d.alpha_mode   = static_cast<g_int>(mat->alpha_rendering);
     d.alpha_cutoff = static_cast<g_float>(mat->alpha_cutoff);
 
-    if (mat->double_sided)
-    {
-        m_render_queue->set_face_culling(false);
-        if (caster_queue)
-            caster_queue->set_face_culling(false);
-    }
+    set_face_culling_command* sfc = m_gbuffer_commands->create<set_face_culling_command>(command_keys::max_key_material_front_to_back);
+    sfc->enabled                  = !mat->double_sided;
 
-    bind_uniform_buffer_cmd cmd = m_frame_uniform_buffer->bind_uniform_buffer(UB_SLOT_MATERIAL_DATA, sizeof(material_data), &d);
+    int64 offset = m_frame_uniform_buffer->write_data(sizeof(d), &d);
 
-    m_render_queue->submit<bind_uniform_buffer_cmd>(cmd);
-    if (m_pipeline_steps[mango::render_step::shadow_map])
+    bind_buffer_command* bb = m_gbuffer_commands->create<bind_buffer_command>(command_keys::max_key_material_front_to_back);
+    bb->target              = buffer_target::uniform_buffer;
+    bb->index               = UB_SLOT_MATERIAL_DATA;
+    bb->size                = sizeof(material_data);
+    bb->buffer_name         = m_frame_uniform_buffer->buffer_name();
+    bb->offset              = offset;
+
+    if (shadow_command_buffer)
     {
-        std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_caster_queue()->submit<bind_uniform_buffer_cmd>(cmd);
+        bb              = shadow_command_buffer->create<bind_buffer_command>(command_keys::max_key_front_to_back);
+        bb->target      = buffer_target::uniform_buffer;
+        bb->index       = UB_SLOT_MATERIAL_DATA;
+        bb->size        = sizeof(material_data);
+        bb->buffer_name = m_frame_uniform_buffer->buffer_name();
+        bb->offset      = offset;
     }
 }
 
@@ -643,13 +915,19 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
 {
     PROFILE_ZONE;
 
-    m_render_queue->bind_vertex_array(vertex_array);
-
-    command_buffer_ptr caster_queue;
+    command_buffer_ptr<max_key> shadow_command_buffer;
     if (m_pipeline_steps[mango::render_step::shadow_map])
     {
-        caster_queue = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_caster_queue();
-        caster_queue->bind_vertex_array(vertex_array);
+        shadow_command_buffer = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_shadow_commands();
+    }
+
+    bind_vertex_array_command* bva = m_gbuffer_commands->create<bind_vertex_array_command>(command_keys::max_key_material_front_to_back);
+    bva->vertex_array_name         = vertex_array->get_name();
+
+    if (shadow_command_buffer)
+    {
+        bva                    = shadow_command_buffer->create<bind_vertex_array_command>(command_keys::max_key_front_to_back);
+        bva->vertex_array_name = vertex_array->get_name();
     }
 
     MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
@@ -658,44 +936,98 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
 
     if (type == index_type::none)
     {
-        m_render_queue->draw_arrays(topology, first, count, instance_count);
-        if (caster_queue)
-            caster_queue->draw_arrays(topology, first, count, instance_count);
+        draw_arrays_command* da = m_gbuffer_commands->create<draw_arrays_command>(command_keys::max_key_material_front_to_back);
+        da->topology            = topology;
+        da->first               = first;
+        da->count               = count;
+        da->instance_count      = instance_count;
+        m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
+        m_hardware_stats.last_frame.primitives++;
+        m_hardware_stats.last_frame.materials++;
+        if (shadow_command_buffer)
+        {
+            da                 = shadow_command_buffer->create<draw_arrays_command>(command_keys::max_key_front_to_back);
+            da->topology       = topology;
+            da->first          = first;
+            da->count          = count;
+            da->instance_count = instance_count;
+            m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
+        }
     }
     else
     {
-        m_render_queue->draw_elements(topology, first, count, type, instance_count);
-        if (caster_queue)
-            caster_queue->draw_elements(topology, first, count, type, instance_count);
+        draw_elements_command* de = m_gbuffer_commands->create<draw_elements_command>(command_keys::max_key_material_front_to_back);
+        de->topology              = topology;
+        de->first                 = first;
+        de->count                 = count;
+        de->type                  = type;
+        de->instance_count        = instance_count;
+        m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
+        m_hardware_stats.last_frame.primitives++;
+        m_hardware_stats.last_frame.materials++;
+        if (shadow_command_buffer)
+        {
+            de                 = shadow_command_buffer->create<draw_elements_command>(command_keys::max_key_front_to_back);
+            de->topology       = topology;
+            de->first          = first;
+            de->count          = count;
+            de->type           = type;
+            de->instance_count = instance_count;
+            m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
+        }
     }
 
-    m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls. Wrong, shadow map render calls not counted.
-    m_hardware_stats.last_frame.primitives++;
-    m_hardware_stats.last_frame.materials++;
-
-    m_render_queue->set_face_culling(true);
-    m_render_queue->bind_vertex_array(nullptr);
+    bva                    = m_gbuffer_commands->create<bind_vertex_array_command>(command_keys::max_key_material_front_to_back);
+    bva->vertex_array_name = 0;
 
 #ifdef MANGO_DEBUG
     // This needs to be done.
     // TODO Paul: State synchronization is not perfect.
-    m_render_queue->bind_texture(0, nullptr, 0);
-    m_render_queue->bind_texture(1, nullptr, 1);
-    m_render_queue->bind_texture(2, nullptr, 2);
-    m_render_queue->bind_texture(3, nullptr, 3);
-    m_render_queue->bind_texture(4, nullptr, 4);
+    bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+    bt->binding = bt->sampler_location = 0;
+    bt->texture_name                   = 0;
+
+    bt          = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+    bt->binding = bt->sampler_location = 1;
+    bt->texture_name                   = 0;
+
+    bt          = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+    bt->binding = bt->sampler_location = 2;
+    bt->texture_name                   = 0;
+
+    bt          = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+    bt->binding = bt->sampler_location = 3;
+    bt->texture_name                   = 0;
+
+    bt          = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
+    bt->binding = bt->sampler_location = 4;
+    bt->texture_name                   = 0;
 #endif // MANGO_DEBUG
 
-    if (caster_queue)
+    if (shadow_command_buffer)
     {
-        caster_queue->set_face_culling(true);
-        caster_queue->bind_vertex_array(nullptr);
+        bva                    = shadow_command_buffer->create<bind_vertex_array_command>(command_keys::max_key_front_to_back);
+        bva->vertex_array_name = 0;
 #ifdef MANGO_DEBUG
-        caster_queue->bind_texture(0, nullptr, 0);
-        caster_queue->bind_texture(1, nullptr, 1);
-        caster_queue->bind_texture(2, nullptr, 2);
-        caster_queue->bind_texture(3, nullptr, 3);
-        caster_queue->bind_texture(4, nullptr, 4);
+        bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
+        bt->binding = bt->sampler_location = 0;
+        bt->texture_name                   = 0;
+
+        bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
+        bt->binding = bt->sampler_location = 1;
+        bt->texture_name                   = 0;
+
+        bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
+        bt->binding = bt->sampler_location = 2;
+        bt->texture_name                   = 0;
+
+        bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
+        bt->binding = bt->sampler_location = 3;
+        bt->texture_name                   = 0;
+
+        bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
+        bt->binding = bt->sampler_location = 4;
+        bt->texture_name                   = 0;
 #endif // MANGO_DEBUG
     }
 }
@@ -744,12 +1076,15 @@ void deferred_pbr_render_system::bind_lighting_pass_buffer(camera_data& camera, 
 
     m_lighting_pass_data.directional.cast_shadows = m_lighting_pass_data.directional.cast_shadows && (m_pipeline_steps[mango::render_step::shadow_map] != nullptr);
 
-    bind_uniform_buffer_cmd cmd = m_frame_uniform_buffer->bind_uniform_buffer(UB_SLOT_LIGHTING_PASS_DATA, sizeof(lighting_pass_data), &m_lighting_pass_data);
-
-    m_command_buffer->submit<bind_uniform_buffer_cmd>(cmd);
+    bind_buffer_command* bb = m_global_binding_commands->create<bind_buffer_command>(command_keys::min_key_no_sort);
+    bb->target              = buffer_target::uniform_buffer;
+    bb->index               = UB_SLOT_LIGHTING_PASS_DATA;
+    bb->size                = sizeof(lighting_pass_data);
+    bb->buffer_name         = m_frame_uniform_buffer->buffer_name();
+    bb->offset              = m_frame_uniform_buffer->write_data(sizeof(lighting_pass_data), &m_lighting_pass_data);
 }
 
-void deferred_pbr_render_system::bind_renderer_data_buffer(camera_data& camera)
+void deferred_pbr_render_system::bind_renderer_data_buffer(camera_data& camera, float camera_exposure)
 {
     PROFILE_ZONE;
 
@@ -758,15 +1093,19 @@ void deferred_pbr_render_system::bind_renderer_data_buffer(camera_data& camera)
         m_renderer_data.view_matrix            = camera.camera_info->view;
         m_renderer_data.projection_matrix      = camera.camera_info->projection;
         m_renderer_data.view_projection_matrix = camera.camera_info->view_projection;
+        m_renderer_data.camera_exposure        = camera_exposure;
     }
     else
     {
         MANGO_LOG_ERROR("Renderer Data not complete! No active camera! Attempting to use last valid data!");
     }
 
-    bind_uniform_buffer_cmd cmd = m_frame_uniform_buffer->bind_uniform_buffer(UB_SLOT_RENDERER_FRAME, sizeof(renderer_data), &m_renderer_data);
-
-    m_command_buffer->submit<bind_uniform_buffer_cmd>(cmd);
+    bind_buffer_command* bb = m_global_binding_commands->create<bind_buffer_command>(command_keys::min_key_no_sort);
+    bb->target              = buffer_target::uniform_buffer;
+    bb->index               = UB_SLOT_RENDERER_FRAME;
+    bb->size                = sizeof(renderer_data);
+    bb->buffer_name         = m_frame_uniform_buffer->buffer_name();
+    bb->offset              = m_frame_uniform_buffer->write_data(sizeof(renderer_data), &m_renderer_data);
 }
 
 void deferred_pbr_render_system::apply_auto_exposure(camera_data& camera)
@@ -818,6 +1157,7 @@ void deferred_pbr_render_system::on_ui_widget()
         ImGui::Checkbox("IBL##deferred_pbr", &has_ibl);
         if (has_ibl != change_flag)
         {
+            m_lighting_pass_commands->invalidate();
             if (has_ibl)
             {
                 auto step_ibl = std::make_shared<ibl_step>();
@@ -844,6 +1184,7 @@ void deferred_pbr_render_system::on_ui_widget()
         ImGui::Checkbox("Directional Shadows##deferred_pbr", &has_shadow_map);
         if (has_shadow_map != change_flag)
         {
+            m_lighting_pass_commands->invalidate();
             if (has_shadow_map)
             {
                 auto step_shadow_map = std::make_shared<shadow_map_step>();

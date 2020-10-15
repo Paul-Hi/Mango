@@ -86,8 +86,6 @@ namespace mango
         }
 
         void set_data(format internal_format, int32 width, int32 height, format pixel_format, format type, const void* data, int32 layer) override;
-        void bind_texture_unit(int32 unit) override;
-        void unbind() override;
         void release() override;
 
       private:

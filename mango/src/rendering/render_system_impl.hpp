@@ -62,16 +62,6 @@ namespace mango
         virtual void setup_ibl_step(const ibl_step_configuration& configuration) override;
         virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) override;
 
-        //! \brief Retrieves the \a command_buffer of a \a render_system.
-        //! \details The \a command_buffer should be created and destroyed by the \a render_system.
-        //! Also this specific \a command_buffer should not be executed externally. This would lead to undefined behavior.
-        //! \return The \a command_buffer of the \a render_system.
-        inline command_buffer_ptr get_command_buffer()
-        {
-            MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-            return m_current_render_system->m_command_buffer;
-        }
-
         //! \brief Does all the setup and has to be called before rendering the scene.
         //! \details Adds setup and clear calls to the \a command_buffer.
         virtual void begin_render();
@@ -148,9 +138,6 @@ namespace mango
       protected:
         //! \brief Mangos internal context for shared usage in all \a render_systems.
         shared_ptr<context_impl> m_shared_context;
-
-        //! \brief The \a command_buffer for the \a render_system.
-        command_buffer_ptr m_command_buffer;
 
         //! \brief The hardware stats.
         hardware_stats m_hardware_stats;

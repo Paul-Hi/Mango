@@ -48,28 +48,14 @@ namespace mango
         bool set_polygon_mode(polygon_face face, polygon_mode mode);
 
         //! \brief Binds a \a vertex_array for drawing.
-        //! \param[in] vertex_array A pointer to the \a vertex_array to bind.
+        //! \param[in] name The name of the \a vertex_array to bind.
         //! \return True if state changed, else false.
-        bool bind_vertex_array(vertex_array_ptr vertex_array);
+        bool bind_vertex_array(g_uint name);
 
         //! \brief Binds a \a shader_program for drawing.
-        //! \param[in] shader_program A pointer to the \a shader_program to bind.
+        //! \param[in] name The name of the \a shader_program to bind.
         //! \return True if state changed, else false.
-        bool bind_shader_program(shader_program_ptr shader_program);
-
-        //! \brief Binds a non buffered uniform.
-        //! \details This gets reset after every draw call.
-        //! \return True if state changed, else false.
-        bool bind_single_uniform();
-
-        //! \brief Binds an \a buffer for drawing.
-        //! \param[in] index The \a buffer index to bind the \a buffer to.
-        //! \param[in] buffer The \a buffer to bind.
-        //! \param[in] target The target of the \a buffer to bind.
-        //! \param[in] offset The offset in the \a buffer to start the binding from.
-        //! \param[in] size The size to bind.
-        //! \return True if state changed, else false.
-        bool bind_buffer(g_uint index, buffer_ptr buffer, buffer_target target, int64 offset, int64 size);
+        bool bind_shader_program(g_uint name);
 
         //! \brief Binds a \a texture for drawing.
         //! \param[in] binding The binding location to bind the \a texture too. Has to be a positive value.
@@ -78,9 +64,9 @@ namespace mango
         bool bind_texture(int32 binding, g_uint name);
 
         //! \brief Binds a \a framebuffer for drawing.
-        //! \param[in] framebuffer The pointer to the \a framebuffer to bind.
+        //! \param[in] name The name of the \a framebuffer to bind.
         //! \return True if state changed, else false.
-        bool bind_framebuffer(framebuffer_ptr framebuffer);
+        bool bind_framebuffer(g_uint name);
 
         //! \brief Enables or disables face culling.
         //! \param[in] enabled True if face culling should be enabled, else false.
@@ -114,9 +100,10 @@ namespace mango
         //! \brief Structure to cache the state of the graphics pipeline.
         struct internal_state
         {
-            shader_program_ptr shader_program; //!< Cached shader program.
-            framebuffer_ptr framebuffer;       //!< Cached framebuffer.
-            vertex_array_ptr vertex_array;     //!< Cached vertex array.
+            g_uint shader_program; //!< Cached shader program.
+            g_uint framebuffer;    //!< Cached framebuffer.
+            g_uint vertex_array;   //!< Cached vertex array.
+
 
             std::array<g_uint, max_texture_bindings> m_active_texture_bindings; //!< Bindings from binding points to texture names.
 

@@ -18,7 +18,6 @@ namespace mango
         shader_program_impl();
         ~shader_program_impl();
 
-        void use() override;
         const uniform_binding_data& get_single_bindings() override;
 
         //! \brief Initializes a graphics pipeline.

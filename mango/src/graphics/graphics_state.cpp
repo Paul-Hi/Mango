@@ -8,17 +8,17 @@
 #include <graphics/shader_program.hpp>
 #include <graphics/vertex_array.hpp>
 #include <mango/assert.hpp>
-#include <map>
 #include <mango/profile.hpp>
+#include <map>
 
 using namespace mango;
 
 graphics_state::graphics_state()
 {
     PROFILE_ZONE;
-    m_internal_state.shader_program        = nullptr;
-    m_internal_state.framebuffer           = nullptr;
-    m_internal_state.vertex_array          = nullptr;
+    m_internal_state.shader_program        = 0;
+    m_internal_state.framebuffer           = 0;
+    m_internal_state.vertex_array          = 0;
     m_internal_state.viewport.x            = 0;
     m_internal_state.viewport.y            = 0;
     m_internal_state.viewport.width        = 0;
@@ -87,46 +87,27 @@ bool graphics_state::set_polygon_mode(polygon_face face, polygon_mode mode)
     return false;
 }
 
-bool graphics_state::bind_vertex_array(vertex_array_ptr vertex_array)
+bool graphics_state::bind_vertex_array(g_uint name)
 {
     PROFILE_ZONE;
-    if (m_internal_state.vertex_array != vertex_array)
+    if (m_internal_state.vertex_array != name)
     {
-        m_internal_state.vertex_array = vertex_array;
+        m_internal_state.vertex_array = name;
         return true;
     }
     return false;
 }
 
-bool graphics_state::bind_shader_program(shader_program_ptr shader_program)
+bool graphics_state::bind_shader_program(g_uint name)
 {
     PROFILE_ZONE;
-    if (m_internal_state.shader_program != shader_program)
+    if (m_internal_state.shader_program != name)
     {
-        m_internal_state.shader_program = shader_program;
+        m_internal_state.shader_program = name;
         m_internal_state.m_active_texture_bindings.fill(0);
         return true;
     }
     return false;
-}
-
-bool graphics_state::bind_single_uniform()
-{
-    PROFILE_ZONE;
-    // TODO Paul
-    return true;
-}
-
-bool graphics_state::bind_buffer(g_uint index, buffer_ptr buffer, buffer_target target, int64 offset, int64 size)
-{
-    PROFILE_ZONE;
-    MANGO_UNUSED(index);
-    MANGO_UNUSED(buffer);
-    MANGO_UNUSED(target);
-    MANGO_UNUSED(offset);
-    MANGO_UNUSED(size);
-    // TODO Paul
-    return true;
 }
 
 bool graphics_state::bind_texture(int32 binding, g_uint name)
@@ -144,12 +125,12 @@ bool graphics_state::bind_texture(int32 binding, g_uint name)
     return false;
 }
 
-bool graphics_state::bind_framebuffer(framebuffer_ptr framebuffer)
+bool graphics_state::bind_framebuffer(g_uint name)
 {
     PROFILE_ZONE;
-    if (m_internal_state.framebuffer != framebuffer)
+    if (m_internal_state.framebuffer != name)
     {
-        m_internal_state.framebuffer = framebuffer;
+        m_internal_state.framebuffer = name;
         return true;
     }
     return false;

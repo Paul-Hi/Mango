@@ -45,9 +45,6 @@ namespace mango
         //! \return A pointer to the new \a shader_program.
         static shader_program_ptr create_compute_pipeline(shader_ptr compute_shader);
 
-        //! \brief Use the \a shader_program.
-        virtual void use() = 0;
-
         //! \brief Retrieves the binding data for the \a shader_program.
         //! \details For this to work there has to be a consistence in the uniform locations.
         //! \return The \a uniform_binding_data of all \a shaders in the \a shader_program.

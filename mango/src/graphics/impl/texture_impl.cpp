@@ -105,15 +105,3 @@ void texture_impl::set_data(format internal_format, int32 width, int32 height, f
         }
     }
 }
-
-void texture_impl::bind_texture_unit(int32 unit)
-{
-    MANGO_ASSERT(is_created(), "Texture not created!");
-    glBindTextureUnit(static_cast<g_uint>(unit), m_name);
-}
-
-void texture_impl::unbind()
-{
-    MANGO_ASSERT(is_created(), "Texture not created!");
-    glBindTextureUnit(0, 0);
-}

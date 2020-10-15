@@ -157,7 +157,6 @@ namespace mango
             PROFILE_ZONE;
             lights.for_each(
                 [this, &lights](light_component& c, int32&) {
-                    auto cmdb = m_rs->get_command_buffer();
                     m_rs->submit_light(c.type_of_light, c.data.get());
                 },
                 false);

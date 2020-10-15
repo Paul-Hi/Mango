@@ -139,13 +139,6 @@ namespace mango
         //! \param[in] layer The layer of the \a texture to set the data. Has to be a positive value.
         virtual void set_data(format internal_format, int32 width, int32 height, format pixel_format, format type, const void* data,  int32 layer = 0) = 0;
 
-        //! \brief Binds the \a texture to a specific unit.
-        //! \param[in] unit The unit to bind the \a texture to. Has to be a positive value.
-        virtual void bind_texture_unit(int32 unit) = 0;
-
-        //! \brief Unbinds the \a texture.
-        virtual void unbind() = 0;
-
         //! \brief Releases the \a texture.
         virtual void release() = 0;
 

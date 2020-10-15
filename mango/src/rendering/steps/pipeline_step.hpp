@@ -23,9 +23,8 @@ namespace mango
         virtual void attach() = 0;
 
         //! \brief Executes the command by inserting commands into the given \a render \a command_buffer.
-        //! \param[in] command_buffer The buffer given by the \a render to execute into.
         //!\param[in] frame_uniform_buffer The \a uniform_buffer to manage uniform buffer memory.
-        virtual void execute(command_buffer_ptr& command_buffer, uniform_buffer_ptr frame_uniform_buffer) = 0;
+        virtual void execute(uniform_buffer_ptr frame_uniform_buffer) = 0;
 
         //! \brief Custom UI function.
         //! \details This can be called by any \a ui_widget and displays settings for the active \a pipeline_step.

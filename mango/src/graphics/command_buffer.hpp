@@ -10,256 +10,390 @@
 #include <graphics/graphics_common.hpp>
 #include <graphics/graphics_state.hpp>
 #include <mango/assert.hpp>
+#include <memory/linear_allocator.hpp>
 
 namespace mango
 {
-    //! \brief The base for each command in the \a command_buffer.
-    class command
+    using package = void*;
+    typedef void (*execute_function)(const void*);
+
+#define BEGIN_COMMAND(name) \
+    struct name##_command   \
+    {                       \
+        static const execute_function execute
+#define END_COMMAND(name) \
+    }                     \
+    ;                     \
+    static_assert(std::is_pod<name##_command>::value == true, #name "must be a POD.")
+
+    // commands
+
+    BEGIN_COMMAND(set_viewport);
+    int32 x;
+    int32 y;
+    int32 width;
+    int32 height;
+    END_COMMAND(set_viewport);
+
+    BEGIN_COMMAND(set_depth_test);
+    bool enabled;
+    END_COMMAND(set_depth_test);
+
+    BEGIN_COMMAND(set_depth_func);
+    compare_operation compare_operation;
+    END_COMMAND(set_depth_func);
+
+    BEGIN_COMMAND(set_polygon_mode);
+    polygon_face face;
+    polygon_mode mode;
+    END_COMMAND(set_polygon_mode);
+
+    BEGIN_COMMAND(bind_vertex_array);
+    g_uint vertex_array_name;
+    END_COMMAND(bind_vertex_array);
+
+    BEGIN_COMMAND(bind_shader_program);
+    g_uint shader_program_name;
+    END_COMMAND(bind_shader_program);
+
+    BEGIN_COMMAND(bind_single_uniform);
+    int32 location;
+    shader_resource_type type;
+    void* uniform_value;
+    int32 count;
+    END_COMMAND(bind_single_uniform);
+
+    BEGIN_COMMAND(bind_buffer);
+    int32 index;
+    g_uint buffer_name;
+    buffer_target target;
+    int64 offset;
+    int64 size;
+    END_COMMAND(bind_buffer);
+
+    BEGIN_COMMAND(bind_texture);
+    int32 binding;
+    g_uint texture_name;
+    int32 sampler_location;
+    END_COMMAND(bind_texture);
+
+    BEGIN_COMMAND(bind_image_texture);
+    int32 binding;
+    g_uint texture_name;
+    int32 level;
+    bool layered;
+    int32 layer;
+    base_access access;
+    format element_format;
+    END_COMMAND(bind_image_texture);
+
+    BEGIN_COMMAND(bind_framebuffer);
+    g_uint framebuffer_name;
+    END_COMMAND(bind_framebuffer);
+
+    BEGIN_COMMAND(add_memory_barrier);
+    memory_barrier_bit barrier_bit;
+    END_COMMAND(add_memory_barrier);
+
+    // do not copy data to cmd->sync
+    BEGIN_COMMAND(fence_sync);
+    g_sync* sync;
+    END_COMMAND(fence_sync);
+
+    BEGIN_COMMAND(client_wait_sync);
+    g_sync* sync;
+    END_COMMAND(client_wait_sync);
+
+    BEGIN_COMMAND(finish_gpu);
+    END_COMMAND(finish_gpu);
+
+    BEGIN_COMMAND(calculate_mipmaps);
+    g_uint texture_name;
+    END_COMMAND(calculate_mipmaps);
+
+    BEGIN_COMMAND(clear_framebuffer);
+    g_uint framebuffer_name;
+    clear_buffer_mask buffer_mask;
+    attachment_mask fb_attachment_mask;
+    g_float r;
+    g_float g;
+    g_float b;
+    g_float a;
+    g_float depth;
+    g_int stencil;
+    END_COMMAND(clear_framebuffer);
+
+    BEGIN_COMMAND(draw_arrays);
+    primitive_topology topology;
+    int32 first;
+    int32 count;
+    int32 instance_count;
+    END_COMMAND(draw_arrays);
+
+    BEGIN_COMMAND(draw_elements);
+    primitive_topology topology;
+    int32 first;
+    int32 count;
+    index_type type;
+    int32 instance_count;
+    END_COMMAND(draw_elements);
+
+    BEGIN_COMMAND(dispatch_compute);
+    int32 num_x_groups;
+    int32 num_y_groups;
+    int32 num_z_groups;
+    END_COMMAND(dispatch_compute);
+
+    BEGIN_COMMAND(set_face_culling);
+    bool enabled;
+    END_COMMAND(set_face_culling);
+
+    BEGIN_COMMAND(set_cull_face);
+    polygon_face face;
+    END_COMMAND(set_cull_face);
+
+    BEGIN_COMMAND(set_blending);
+    bool enabled;
+    END_COMMAND(set_blending);
+
+    BEGIN_COMMAND(set_blend_factors);
+    blend_factor source;
+    blend_factor destination;
+    END_COMMAND(set_blend_factors);
+
+    BEGIN_COMMAND(set_polygon_offset);
+    float factor;
+    float units;
+    END_COMMAND(set_polygon_offset);
+
+    // ---
+    // keys
+
+    using min_key    = int8;
+    using small_key  = int16;
+    using medium_key = int32;
+    using max_key    = int64;
+    namespace command_keys
     {
-      public:
-        //! \brief The pointer to the next element. Used for creating a linked list.
-        unique_ptr<command> m_next = nullptr;
+        const min_key min_key_no_sort                = -1;
+        const max_key max_key_to_start               = 0;
+        const max_key max_key_front_to_back          = 1;
+        const max_key max_key_back_to_front          = 1;
+        const max_key max_key_material_front_to_back = 1;
+    } // namespace command_keys
 
-        virtual ~command() = default;
+    // ---
 
-        //! \brief Executes the command.
-        //! \param[in] state The current state of the graphics pipeline. Used to fill missing information.
-        virtual void execute(graphics_state& state)
-        {
-            MANGO_UNUSED(state);
-        };
-    };
-
-    //! \brief Builds, holds and executes a linked list of commands.
-    //! \details The \a command_buffer creates \a commands and adds them to an internal linked list, which can be executed.
+    template <typename K>
     class command_buffer
     {
       public:
-        //! \brief Creates a new \a command_buffer and returns a pointer to it.
-        //! \return A pointer to the newly created \a command_buffer.
-        static command_buffer_ptr create()
+        using key = K;
+
+        ~command_buffer()
         {
-            return std::make_shared<command_buffer>();
+            delete[] m_keys;
+            delete[] m_packages;
+            delete[] m_indices;
+            m_allocator.reset();
+        }
+
+        static command_buffer_ptr<K> create(int64 size)
+        {
+            return std::make_shared<command_buffer<K>>(size);
+        }
+
+        template <typename T>
+        T* create(key k, int64 spare_memory_size = 0)
+        {
+            package p = package_create<T>(spare_memory_size);
+
+            m_keys[m_idx]     = k;
+            m_packages[m_idx] = p;
+            m_indices[m_idx]  = m_idx;
+            m_idx++;
+
+            write_next(nullptr);
+            write_execute_function(T::execute);
+
+            return read_command<T>();
+        }
+
+        template <typename T, typename U>
+        T* append(U* command, int64 spare_memory_size = 0)
+        {
+            package p = package_create<T>(spare_memory_size);
+
+            write_next(command, p);
+
+            write_next(nullptr);
+            write_execute_function(T::execute);
+
+            return read_command<T>();
+        }
+
+        template <typename T>
+        void* map_spare()
+        {
+            return read_spare<T>();
+        }
+
+        class sort_indices
+        {
+          private:
+            key* sorting_array;
+
+          public:
+            sort_indices(key* arr)
+                : sorting_array(arr)
+            {
+            }
+            bool operator()(key i, key j) const
+            {
+                return sorting_array[i] < sorting_array[j];
+            }
         };
 
-        command_buffer();
-        ~command_buffer();
-
-        //! \brief Clears the \a command_buffer.
-        //! \details Removes all added commands from the internal linked list.
-        void clear();
-
-        //! \brief Executes all commands in the \a command_buffer since the lase call to execute().
-        //! \details Does traverse the internal linked list and clears it while doing this.
-        void execute();
-
-        //! \brief Sets the viewport size.
-        //! \param[in] x The x position of the viewport. Has to be a positive value.
-        //! \param[in] y The y position of the viewport. Has to be a positive value.
-        //! \param[in] width The width of the viewport. Has to be a positive value.
-        //! \param[in] height The height of the viewport. Has to be a positive value.
-        void set_viewport(int32 x, int32 y, int32 width, int32 height);
-
-        //! \brief Clears attachments of a framebuffer.
-        //! \param[in] buffer_mask The mask describes which buffers should be cleared.
-        //! \param[in] att_mask The mask describes which attachments should be cleared.
-        //! \param[in] r The red component to clear color attachments.
-        //! \param[in] g The green component to clear color attachments.
-        //! \param[in] b The blue component to clear color attachments.
-        //! \param[in] a The alpha component to clear color attachments.
-        //! \param[in] framebuffer The pointer to the \a framebuffer to clear. To clear the default framebuffer leave empty or pass nullptr.
-        void clear_framebuffer(clear_buffer_mask buffer_mask, attachment_mask att_mask, float r, float g, float b, float a, framebuffer_ptr framebuffer = nullptr);
-
-        //! \brief Enables or disables the depth test.
-        //! \param[in] enabled True if the depth test should be enabled, else false.
-        void set_depth_test(bool enabled);
-
-        //! \brief Sets the \a compare_operation for depth testing.
-        //! \param[in] op The \a compare_operation to use for depth testing.
-        void set_depth_func(compare_operation op);
-
-        //! \brief Sets the \a polygon_mode as well as the \a polygon_faces used for drawing.
-        //! \param[in] face The \a polygon_faces to draw.
-        //! \param[in] mode The \a polygon_mode used for drawing.
-        void set_polygon_mode(polygon_face face, polygon_mode mode);
-
-        //! \brief Binds a \a vertex_array for drawing.
-        //! \param[in] vertex_array A pointer to the \a vertex_array to bind.
-        void bind_vertex_array(vertex_array_ptr vertex_array);
-
-        //! \brief Binds a \a shader_program for drawing.
-        //! \param[in] shader_program A pointer to the \a shader_program to bind.
-        void bind_shader_program(shader_program_ptr shader_program);
-
-        //! \brief Binds a single \a uniform not included in uniform buffers for drawing.
-        //! \details The void* \a uniform_data should contain the value for the uniform not included in any uniform buffer object.
-        //! \param[in] location The uniform location to bind the value to. Has to be a positive value.
-        //! \param[in] uniform_value Pointer to a value.
-        //! \param[in] data_size Size of the value in bytes. Has to be a positive value.
-        //! \param[in] count The number, if an array of matrices should be uploaded.
-        void bind_single_uniform(int32 location, void* uniform_value, int64 data_size, int32 count = 1);
-
-        //! \brief Binds an \a buffer for drawing.
-        //! \param[in] index The \a buffer index to bind the \a buffer to.
-        //! \param[in] buffer The \a buffer to bind.
-        //! \param[in] target The target of the \a buffer to bind.
-        //! \param[in] offset The offset in the \a buffer to start the binding from.
-        //! \param[in] size The size to bind.
-        void bind_buffer(int32 index, buffer_ptr buffer, buffer_target target, int64 offset = 0, int64 size = MAX_INT64);
-
-        //! \brief Binds a \a texture for drawing.
-        //! \param[in] binding The binding location to bind the \a texture to. Has to be a positive value.
-        //! \param[in] texture A pointer to the \a texture to bind.
-        //! \param[in] uniform_location The location to bind the index integer value to. Has to be a positive value.
-        void bind_texture(int32 binding, texture_ptr texture, int32 uniform_location);
-
-        //! \brief Binds a \a texture as an image.
-        //! \param[in] binding The binding location to bind the \a texture to. Has to be a positive value.
-        //! \param[in] texture A pointer to the \a texture to bind.
-        //! \param[in] level The level of the image that should be bound. Has to be a positive value.
-        //! \param[in] layered Specifies whether a layered texture binding is to be established.
-        //! \param[in] layer Spezifies the layer if \a layered is false. Has to be a positive value.
-        //! \param[in] access The \a base_access type.
-        //! \param[in] element_format The format used for formatted stores.
-        void bind_image_texture(int32 binding, texture_ptr texture, int32 level, bool layered, int32 layer, base_access access, format element_format);
-
-        //! \brief Binds a \a framebuffer for drawing.
-        //! \param[in] framebuffer The pointer to the \a framebuffer to bind.
-        void bind_framebuffer(framebuffer_ptr framebuffer);
-
-        //! \brief Adds a memory barrier.
-        //! \param[in] barrier_bit The \a memory_barrier_bit to add the barrier to.
-        void add_memory_barrier(memory_barrier_bit barrier_bit);
-
-        //! \brief Places a GPU sync.
-        //! \param[in,out] sync The sync object.
-        void fence_sync(g_sync& sync);
-
-        //! \brief Waits for a sync signal by the GPU.
-        //! \param[in,out] sync The sync object.
-        void client_wait_sync(g_sync& sync);
-
-        //! \brief Waits blocking for a the GPU to finish.
-        void client_wait();
-
-        //! \brief Calukates the mipmaps for the \a texture.
-        //! \details This is used to recalculate the mipmaps after the pixels where changed by a compute shader.
-        //! \param[in] texture The pointer to the \a texture to calculate the mipmaps.
-        void calculate_mipmaps(texture_ptr texture);
-
-        //! \brief Draws arrays.
-        //! \details All the information not given in the argument list is retrieved from the state.
-        //! \param[in] topology The topology used for drawing the bound vertex data.
-        //! \param[in] first The first index to start drawing from. Has to be a positive value.
-        //! \param[in] count The number of vertices to draw. Has to be a positive value.
-        //! \param[in] instance_count The number of instances to draw. Has to be a positive value. For normal drawing pass 1.
-        void draw_arrays(primitive_topology topology, int32 first, int32 count, int32 instance_count = 1);
-
-        //! \brief Draws elements.
-        //! \details All the information not given in the argument list is retrieved from the state.
-        //! \param[in] topology The topology used for drawing the bound vertex data.
-        //! \param[in] first The first index to start drawing from. Has to be a positive value.
-        //! \param[in] count The number of indices to draw. Has to be a positive value.
-        //! \param[in] type The \a index_type of the values in the index buffer.
-        //! \param[in] instance_count The number of instances to draw. Has to be a positive value. For normal drawing pass 1.
-        void draw_elements(primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count = 1);
-
-        //! \brief Enables or disables face culling.
-        //! \param[in] enabled True if face culling should be enabled, else false.
-        void set_face_culling(bool enabled);
-
-        //! \brief Dispatches the bound compute \a shader.
-        //! \param[in] num_x_groups The number of work groups in x direction. Has to be a positive value.
-        //! \param[in] num_y_groups The number of work groups in y direction. Has to be a positive value.
-        //! \param[in] num_z_groups The number of work groups in z direction. Has to be a positive value.
-        void dispatch_compute(int32 num_x_groups, int32 num_y_groups, int32 num_z_groups);
-
-        //! \brief Sets the \a polygon_face for face culling.
-        //! \param[in] face The \a polygon_face to use for face culling.
-        void set_cull_face(polygon_face face);
-
-        //! \brief Enables or disables blending.
-        //! \param[in] enabled True if blending should be enabled, else false.
-        void set_blending(bool enabled);
-
-        //! \brief Sets the \a blend_factors for blending.
-        //! \param[in] source The \a blend_factor influencing the source value.
-        //! \param[in] destination The \a blend_factor influencing the destination value.
-        void set_blend_factors(blend_factor source, blend_factor destination);
-
-        //! \brief Sets the polygon offset.
-        //! \param[in] factor The factor to use.
-        //! \param[in] units The offset units to use or 0.0f, when disabled.
-        void set_polygon_offset(float factor, float units);
-
-        // void bind_texture_buffer(uint32 target, uint32 index, buffer_view_ptr buffer, ptr_size offset, ptr_size size);
-
-        //! \brief Submits a command to the \a command_buffer.
-        //! \details This is also used by the \a command_buffer internally.
-        //! \param[in] args The arguments required for creating a new \a command of type \a commandT.
-        template <typename commandT, typename... Args>
-        void submit(Args&&... args)
+        void sort()
         {
-            unique_ptr<command> new_command = mango::static_unique_pointer_cast<command>(mango::make_unique<commandT>(std::forward<Args>(args)...));
-
-            if (nullptr != m_first)
-            {
-                MANGO_ASSERT(nullptr != m_last, "Last command is null, while first command is not!");
-                MANGO_ASSERT(nullptr == m_last->m_next, "Last command has a successor!");
-                m_last->m_next = std::move(new_command);
-                m_last         = m_last->m_next.get();
-            }
-            else
-            {
-                MANGO_ASSERT(nullptr == m_last, "Last command is not null, but first command is!");
-                m_first = std::move(new_command);
-                m_last  = m_first.get();
-            }
+            std::stable_sort(&m_indices[0], m_indices + m_idx, sort_indices(m_keys));
         }
 
-        //! \brief Attaches another \a command_buffer to this one.
-        //! \details This does clear the other buffer.
-        //! \param[in] other Reference to another \a command_buffer.
-        void attach(command_buffer_ptr& other);
-
-        //! \brief Returns the current \a graphics_state for building the \a command queue.
-        //! \return The current building \a graphics_state.
-        inline graphics_state& get_state()
+        void execute()
         {
-            return m_building_state;
+            for (int64 i = 0; i < m_idx; ++i)
+            {
+                m_current = m_packages[m_indices[i]];
+                do
+                {
+                    const void* cmd = load_command();
+                    (*load_execute_function())(cmd);
+
+                    m_current = load_next();
+                } while (m_current != nullptr);
+            }
+            m_dirty = false;
         }
 
-        //! \brief Checks if the \a command_buffer is empty.
-        //! \return True if no commands are qeued, else False.
-        inline bool empty()
+        void invalidate()
         {
-            return m_first != nullptr;
+            clear();
+            m_dirty = true;
+        }
+
+        bool dirty()
+        {
+            return m_dirty;
+        }
+
+        command_buffer(int64 size)
+            : m_allocator(size)
+            , m_idx(0)
+            , m_dirty(true)
+        {
+            m_keys     = new key[size / 4];
+            m_packages = new package[size / 4];
+            m_indices  = new int64[size / 4];
+            m_allocator.init();
         }
 
       private:
-        //! \brief Returns the unique head of the \a command_buffer.
-        //! \return The unique_ptr to the \a command_buffer head.
-        inline unique_ptr<command> head()
+        void clear()
         {
-            return std::move(m_first);
+            m_idx = 0;
+            m_allocator.reset();
         }
 
-        //! \brief Building state to build the \a command_buffer.
-        //! \details This state is fictional and used for building up the \a commands.
-        //! It is used to avoid redundant pipeline changes and calls.
-        graphics_state m_building_state;
+        linear_allocator m_allocator;
+        key* m_keys;
+        package* m_packages;
+        int64* m_indices;
+        int64 m_idx;
+        bool m_dirty;
 
-        //! \brief Execution state used while executing the \a command_buffer.
-        //! \details This is the real state on the gpu used to mirror the state on the cpu while executing calls.
-        graphics_state m_execution_state;
+        package m_current;
 
-        //! \brief A unique_ptr to the first command.
-        unique_ptr<command> m_first;
+        static const int64 next_offset             = 0;
+        static const int64 execute_function_offset = next_offset + sizeof(package);
+        static const int64 command_offset          = execute_function_offset + sizeof(execute_function);
 
-        //! \brief Pointer to the last command.
-        command* m_last;
+        template <typename T>
+        package package_create(uint64 spare_memory)
+        {
+            void* mem = m_allocator.allocate(calculate_size<T>(spare_memory), 0);
+            MANGO_ASSERT(mem, "Command Buffer is too small!");
+            m_current = mem;
+            return m_current;
+        }
+
+        template <typename T>
+        int64 calculate_size(uint64 spare_memory)
+        {
+            return command_offset + sizeof(T) + spare_memory;
+        }
+
+        template <typename T>
+        T* read_command()
+        {
+            return reinterpret_cast<T*>(static_cast<int8*>(m_current) + command_offset);
+        }
+
+        template <typename T>
+        void write_next(T* command, package next)
+        {
+            *read_next(command) = next;
+        }
+
+        template <typename T>
+        package* read_next(T* command)
+        {
+            return reinterpret_cast<package*>(reinterpret_cast<int8*>(command) - command_offset + next_offset);
+        }
+
+        package* read_next()
+        {
+            return reinterpret_cast<package*>(static_cast<int8*>(m_current) + next_offset);
+        }
+
+        execute_function* read_execute_function()
+        {
+            return reinterpret_cast<execute_function*>(static_cast<int8*>(m_current) + execute_function_offset);
+        }
+
+        template <typename T>
+        void* read_spare()
+        {
+            return static_cast<int8*>(m_current) + command_offset + sizeof(T);
+        }
+
+        void write_next(package next)
+        {
+            *read_next() = next;
+        }
+
+        void write_execute_function(execute_function function)
+        {
+            *read_execute_function() = function;
+        }
+
+        // load
+
+        const package load_next()
+        {
+            m_current = *read_next();
+            return m_current;
+        }
+
+        const execute_function load_execute_function()
+        {
+            return *read_execute_function();
+        }
+
+        const void* load_command()
+        {
+            return (static_cast<int8*>(m_current) + command_offset);
+        }
     };
-
 } // namespace mango
 
 #endif // MANGO_COMMAND_BUFFER_HPP

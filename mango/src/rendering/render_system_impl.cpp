@@ -13,7 +13,6 @@ using namespace mango;
 render_system_impl::render_system_impl(const shared_ptr<context_impl>& context)
     : m_shared_context(context)
 {
-    m_command_buffer = command_buffer::create();
 }
 
 render_system_impl::~render_system_impl() {}
@@ -43,7 +42,6 @@ void render_system_impl::configure(const render_configuration& configuration)
             m_current_render_system = std::make_shared<deferred_pbr_render_system>(m_shared_context);
             success                 = m_current_render_system->create();
             MANGO_ASSERT(success, "Creation of the deferred pbr render system did fail!");
-            m_current_render_system->m_command_buffer = m_command_buffer;
             break;
         default:
             MANGO_LOG_ERROR("Render pipeline is unknown and the render system cannot be created!");

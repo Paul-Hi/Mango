@@ -22,6 +22,7 @@ namespace mango
 // Shared buffer binding points
 #define UB_SLOT_SHADOW_DATA 4
 #define UB_SLOT_IBL_DATA 4
+#define SSB_SLOT_EXPOSURE 4
 
     enum class buffer_technique : uint8
     {
@@ -29,40 +30,6 @@ namespace mango
         double_buffering,
         triple_buffering,
         count,
-    };
-
-    class bind_uniform_buffer_cmd : public command
-    {
-      public:
-        buffer_ptr m_buffer;
-        int64 m_offset;
-        int64 m_size;
-        int32 m_slot;
-        bind_uniform_buffer_cmd(buffer_ptr buffer, int64 offset, int64 size, int32 slot)
-            : m_buffer(buffer)
-            , m_offset(offset)
-            , m_size(size)
-            , m_slot(slot)
-        {
-        }
-
-        bind_uniform_buffer_cmd(const bind_uniform_buffer_cmd& other)
-        {
-            if (this != &other)
-            {
-                m_buffer = other.m_buffer;
-                m_offset = other.m_offset;
-                m_size   = other.m_size;
-                m_slot   = other.m_slot;
-            }
-        }
-
-        void execute(graphics_state&) override
-        {
-            GL_NAMED_PROFILE_ZONE("Bind Uniform Buffer");
-            MANGO_ASSERT(m_buffer, "Uniform Buffer does not exist anymore.");
-            m_buffer->bind(buffer_target::uniform_buffer, m_slot, m_offset, m_size);
-        }
     };
 
     class uniform_buffer
@@ -78,10 +45,15 @@ namespace mango
 
         bool init(int64 frame_size, buffer_technique technique);
 
-        void begin_frame(command_buffer_ptr& command_buffer);
-        void end_frame(command_buffer_ptr& command_buffer);
+        g_sync* prepare();
+        g_sync* end_frame();
 
-        bind_uniform_buffer_cmd bind_uniform_buffer(int32 slot, int64 size, void* data);
+        int64 write_data(int64 size, void* data);
+
+        inline g_uint buffer_name()
+        {
+            return m_uniform_buffer->get_name();
+        }
 
         inline float get_occupancy()
         {

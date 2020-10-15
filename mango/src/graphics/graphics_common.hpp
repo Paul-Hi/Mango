@@ -13,12 +13,16 @@
 namespace mango
 {
 //! \cond NO_COND
+#define MANGO_TEMPLATE_GRAPHICS_OBJECT(name) \
+    template <typename K>                    \
+    class name;                              \
+    template <typename K>                    \
+    using name##_ptr = shared_ptr<name<K>>;
 #define MANGO_GRAPHICS_OBJECT(name) \
     class name;                     \
     using name##_ptr = shared_ptr<name>;
 #define MANGO_GRAPHICS_OBJECT_IMPL(name) class name_impl;
-
-    MANGO_GRAPHICS_OBJECT(command_buffer)
+    MANGO_TEMPLATE_GRAPHICS_OBJECT(command_buffer)
     MANGO_GRAPHICS_OBJECT(buffer)
     MANGO_GRAPHICS_OBJECT_IMPL(buffer)
     MANGO_GRAPHICS_OBJECT(texture)
@@ -139,7 +143,7 @@ namespace mango
         std140_bool(const bool& b)
         {
             pad = 0;
-            v = b ? 1 : 0;
+            v   = b ? 1 : 0;
         }
         std140_bool()
             : pad(0)
@@ -152,7 +156,7 @@ namespace mango
         void operator=(const bool& o)
         {
             pad = 0;
-            v = o;
+            v   = o;
         }
 
       private:
@@ -257,7 +261,7 @@ namespace mango
             : v(glm::vec2(0.0f))
         {
         }
-        operator glm::vec2&()
+        operator glm::vec2 &()
         {
             return v;
         }
@@ -287,7 +291,7 @@ namespace mango
             : v(glm::vec3(0.0f))
         {
         }
-        operator glm::vec3&()
+        operator glm::vec3 &()
         {
             return v;
         }
@@ -318,7 +322,7 @@ namespace mango
             : v(glm::vec4(0.0f))
         {
         }
-        operator glm::vec4&()
+        operator glm::vec4 &()
         {
             return v;
         }
@@ -352,7 +356,7 @@ namespace mango
             , r2()
         {
         }
-        operator glm::mat3&()
+        operator glm::mat3 &()
         {
             auto mat = glm::mat3();
             mat[0]   = r0;
@@ -404,7 +408,7 @@ namespace mango
             , r3()
         {
         }
-        operator glm::mat4&()
+        operator glm::mat4 &()
         {
             auto mat = glm::mat4();
             mat[0]   = r0;
@@ -1135,6 +1139,26 @@ namespace mango
         shader_storage_buffer,
         texture_buffer
     };
+
+    inline g_enum buffer_target_to_gl(const buffer_target& target)
+    {
+        switch (target)
+        {
+        case buffer_target::vertex_buffer:
+            return GL_ARRAY_BUFFER;
+        case buffer_target::index_buffer:
+            return GL_ELEMENT_ARRAY_BUFFER;
+        case buffer_target::uniform_buffer:
+            return GL_UNIFORM_BUFFER;
+        case buffer_target::shader_storage_buffer:
+            return GL_SHADER_STORAGE_BUFFER;
+        case buffer_target::texture_buffer:
+            return GL_TEXTURE_BUFFER;
+        default:
+            MANGO_ASSERT(false, "Unknown buffer target!");
+            return GL_NONE;
+        }
+    }
 
     //! \brief A set of access bits used for accessing buffers.
     enum class buffer_access : uint8

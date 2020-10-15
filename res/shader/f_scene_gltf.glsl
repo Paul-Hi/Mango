@@ -29,6 +29,7 @@ layout(binding = 0, std140) uniform renderer_data
     mat4 view_matrix;
     mat4 projection_matrix;
     mat4 view_projection_matrix;
+    float camera_exposure;
 };
 
 // Uniform Buffer Model.

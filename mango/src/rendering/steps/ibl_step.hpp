@@ -23,7 +23,7 @@ namespace mango
         //! \brief Configures the \a ibl_step.
         //! \param[in] configuration The \a ibl_step_configuration to use.
         void configure(const ibl_step_configuration& configuration);
-        void execute(command_buffer_ptr& command_buffer, uniform_buffer_ptr frame_uniform_buffer) override;
+        void execute(uniform_buffer_ptr frame_uniform_buffer) override;
 
         void destroy() override;
 
@@ -32,13 +32,19 @@ namespace mango
         //! \param[in] hdr_texture The texture with the hdr image data.
         void load_from_hdr(const texture_ptr& hdr_texture);
 
-        //! \brief Submits the texture binding \a commands and additional uniform calls to the given \a command_buffer.
-        //! \param[in] command_buffer The \a command_buffer to submit the \a commands to.
-        void bind_image_based_light_maps(command_buffer_ptr& command_buffer);
+        inline command_buffer_ptr<min_key> get_ibl_commands()
+        {
+            return m_ibl_command_buffer;
+        }
+
+        texture_ptr get_irradiance_map();
+        texture_ptr get_prefiltered_specular();
+        texture_ptr get_brdf_lookup();
 
         void on_ui_widget() override;
 
       private:
+        command_buffer_ptr<min_key> m_ibl_command_buffer;
         //! \brief Cubemap texture.
         texture_ptr m_cubemap;
         //! \brief Irradiance map.

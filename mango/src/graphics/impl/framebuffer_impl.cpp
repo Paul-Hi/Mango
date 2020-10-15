@@ -232,15 +232,3 @@ texture_ptr framebuffer_impl::get_attachment(framebuffer_attachment attachment)
         return nullptr;
     }
 }
-
-void framebuffer_impl::bind()
-{
-    MANGO_ASSERT(is_created(), "Framebuffer not created!");
-    glBindFramebuffer(GL_FRAMEBUFFER, m_name);
-}
-
-void framebuffer_impl::unbind()
-{
-    MANGO_ASSERT(is_created(), "Framebuffer not created!");
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
