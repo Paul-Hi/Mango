@@ -243,11 +243,13 @@ void ibl_step::execute(uniform_buffer_ptr frame_uniform_buffer)
     de->type                  = index_type::ubyte;
     de->instance_count        = 1;
 
+#ifdef MANGO_DEBUG
     bva                    = m_ibl_command_buffer->create<bind_vertex_array_command>(command_keys::min_key_no_sort);
     bva->vertex_array_name = 0;
 
     bsp                      = m_ibl_command_buffer->create<bind_shader_program_command>(command_keys::min_key_no_sort);
     bsp->shader_program_name = 0;
+#endif // MANGO_DEBUG
 }
 
 void ibl_step::destroy() {}

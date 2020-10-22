@@ -104,8 +104,8 @@ namespace mango
     g_sync* sync;
     END_COMMAND(client_wait_sync);
 
-    BEGIN_COMMAND(finish_gpu);
-    END_COMMAND(finish_gpu);
+    BEGIN_COMMAND(end_frame);
+    END_COMMAND(end_frame);
 
     BEGIN_COMMAND(calculate_mipmaps);
     g_uint texture_name;
@@ -169,17 +169,67 @@ namespace mango
     // ---
     // keys
 
-    using min_key    = int8;
-    using small_key  = int16;
-    using medium_key = int32;
-    using max_key    = int64;
+    using min_key    = uint8;
+    using small_key  = uint16;
+    using medium_key = uint32;
+    using max_key    = uint64;
     namespace command_keys
     {
-        const min_key min_key_no_sort                = -1;
-        const max_key max_key_to_start               = 0;
-        const max_key max_key_front_to_back          = 1;
-        const max_key max_key_back_to_front          = 1;
-        const max_key max_key_material_front_to_back = 1;
+        template <typename T>
+        T create_key(T template_key)
+        {
+            return template_key;
+        }
+
+        // min_key_no_sort
+        // -1
+
+        // max_key_material_front_to_back
+        // 0 - 1 { To Front, Standard, To Back}
+        // 32 - 39 MaterialID - 8-Bit
+        // 40 - 63 Depth - 24 Bit
+
+        // max_key_back_to_front
+        // 0 - 1 { To Front, Standard, To Back}
+        // 32 - 55 (1.0 - Depth) - 24 Bit
+        // 56 - 63 MaterialID - 8-Bit
+
+        enum class base_mode : uint8
+        {
+            to_front = 0,
+            standard = 1, // set by default
+            to_back  = 2,
+        };
+
+#define GETMASK(index, size) (((1 << (size)) - 1) << (index))
+#define READFROM(data, index, size) (((data)&GETMASK((index), (size))) >> (index))
+#define WRITETO(data, index, size, value) ((data) = ((data) & (~GETMASK((index), (size)))) | ((value) << (index)))
+
+        inline void add_base_mode(max_key& key, base_mode bm)
+        {
+            uint64 key_mask  = ~(((1ull << 2) - 1) << 62);
+            uint64 mode_mask = ((1ull << 2) - 1);
+            uint64 new_bm    = uint64(bm) & mode_mask;
+            key              = (key & key_mask) | (new_bm << 62);
+        }
+
+        inline void add_depth(max_key& key, float depth)
+        {
+            MANGO_UNUSED(key);
+            MANGO_UNUSED(depth);
+        }
+
+        inline void add_material(max_key& key, int8 material_id)
+        {
+            uint64 key_mask  = ~(((1ull << 8) - 1) << 24);
+            uint64 mode_mask = ((1ull << 8) - 1);
+            uint64 m_id      = uint64(material_id) & mode_mask;
+            key              = (key & key_mask) | (m_id << 24);
+        }
+
+        const min_key min_key_no_sort                = 0;
+        const max_key max_key_material_front_to_back = 4611686018427387904ull;
+        const max_key max_key_back_to_front          = 4611686018427387904ull;
     } // namespace command_keys
 
     // ---

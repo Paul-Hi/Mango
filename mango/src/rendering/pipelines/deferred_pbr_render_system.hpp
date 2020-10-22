@@ -39,6 +39,7 @@ namespace mango
         virtual render_pipeline get_base_render_pipeline() override;
 
         void begin_mesh(const glm::mat4& model_matrix, bool has_normals, bool has_tangents) override;
+        void end_mesh() override;
         void use_material(const material_ptr& mat) override;
         void draw_mesh(const vertex_array_ptr& vertex_array, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
         void set_environment_texture(const texture_ptr& hdr_texture) override;
@@ -98,13 +99,13 @@ namespace mango
         //! \brief Uniform buffer struct for renderer data.
         struct renderer_data
         {
-            std140_mat4 view_matrix; //!< The view matrix.
-            std140_mat4 projection_matrix; //!< The projection matrix.
+            std140_mat4 view_matrix;            //!< The view matrix.
+            std140_mat4 projection_matrix;      //!< The projection matrix.
             std140_mat4 view_projection_matrix; //!< The view projection matrix.
-            std140_float camera_exposure; //!< The exposure value of the camera.
-            std140_float padding0; //!< Padding.
-            std140_float padding1; //!< Padding.
-            std140_float padding2; //!< Padding.
+            std140_float camera_exposure;       //!< The exposure value of the camera.
+            std140_float padding0;              //!< Padding.
+            std140_float padding1;              //!< Padding.
+            std140_float padding2;              //!< Padding.
         } m_renderer_data;
 
         //! \brief Uniform buffer struct for model data.
@@ -192,6 +193,32 @@ namespace mango
 
             std140_float padding0; //!< padding.
         } m_lighting_pass_data;
+
+        struct model_cache
+        {
+            int64 model_data_offset;
+            int64 material_data_offset;
+            int8 material_id;
+            g_uint base_color_texture_name;
+            g_uint roughness_metallic_texture_name;
+            g_uint occlusion_texture_name;
+            g_uint normal_texture_name;
+            g_uint emissive_color_texture_name;
+            bool face_culling;
+
+            inline bool valid()
+            {
+                return model_data_offset >= 0 && material_data_offset >= 0;
+            }
+
+            inline int8 create_material_id(material_data& mat_data)
+            {
+                int8 v = int8(float(mat_data.metallic) * 10.0f);
+                v += face_culling ? 0 : 100;
+                return v;
+            }
+
+        } m_active_model;
 
         void bind_renderer_data_buffer(camera_data& camera, float camera_exposure);
 

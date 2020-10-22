@@ -136,6 +136,17 @@ bool graphics_state::bind_framebuffer(g_uint name)
     return false;
 }
 
+bool graphics_state::bind_buffer(int32 slot, int64 offset)
+{
+    PROFILE_ZONE;
+    if (m_internal_state.buffer_offsets[slot] != offset)
+    {
+        m_internal_state.buffer_offsets[slot] = offset;
+        return true;
+    }
+    return false;
+}
+
 bool graphics_state::set_face_culling(bool enabled)
 {
     PROFILE_ZONE;

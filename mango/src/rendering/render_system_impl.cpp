@@ -98,6 +98,12 @@ void render_system_impl::begin_mesh(const glm::mat4& model_matrix, bool has_norm
     m_current_render_system->begin_mesh(model_matrix, has_normals, has_tangents);
 }
 
+void render_system_impl::end_mesh()
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->end_mesh();
+}
+
 void render_system_impl::use_material(const material_ptr& mat)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");

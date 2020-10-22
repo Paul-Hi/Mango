@@ -95,7 +95,9 @@ void shadow_map_step::execute(uniform_buffer_ptr frame_uniform_buffer)
 {
     PROFILE_ZONE;
 
-    bind_framebuffer_command* bf = m_shadow_command_buffer->create<bind_framebuffer_command>(command_keys::max_key_to_start);
+    max_key k = command_keys::create_key(command_keys::max_key_material_front_to_back);
+    command_keys::add_base_mode(k, command_keys::base_mode::to_front);
+    bind_framebuffer_command* bf = m_shadow_command_buffer->create<bind_framebuffer_command>(k);
     bf->framebuffer_name         = m_shadow_buffer->get_name();
 
     bind_shader_program_command* bsp = m_shadow_command_buffer->append<bind_shader_program_command, bind_framebuffer_command>(bf);

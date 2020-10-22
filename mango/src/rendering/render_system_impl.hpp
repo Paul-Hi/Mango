@@ -91,10 +91,14 @@ namespace mango
 
         //! \brief Begin rendering a mesh.
         //! \details This has to be called before using a material and drawing a primitive.
-        //! \param[in] model_matrix The model matrix for the mesh.
-        //! \param[in] has_normals Specifies if the mesh has normals as a vertex attribute.
-        //! \param[in] has_tangents Specifies if the mesh has tangents as a vertex attribute.
+        //! \param[in] model_matrix The model matrix to use.
+        //! \param[in] has_normals Specifies if the following mesh primitives have normals as a vertex attribute.
+        //! \param[in] has_tangents Specifies if the following mesh primitives have tangents as a vertex attribute.
         virtual void begin_mesh(const glm::mat4& model_matrix, bool has_normals, bool has_tangents);
+
+        //! \brief End the model rendering.
+        //! \details Should be called after all mesh primitives are drawn.
+        virtual void end_mesh();
 
         //! \brief Use a material.
         //! \param[in] mat The \a material to use.

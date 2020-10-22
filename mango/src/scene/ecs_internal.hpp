@@ -131,6 +131,7 @@ namespace mango
                             m_rs->use_material(m.component_material);
                             m_rs->draw_mesh(p.vertex_array_object, p.topology, p.first, p.count, p.type_index, p.instance_count);
                         }
+                        m_rs->end_mesh();
                     }
                 },
                 false);

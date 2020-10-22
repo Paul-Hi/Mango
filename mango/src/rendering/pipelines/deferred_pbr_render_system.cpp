@@ -303,6 +303,7 @@ void deferred_pbr_render_system::setup_shadow_map_step(const shadow_step_configu
 void deferred_pbr_render_system::begin_render()
 {
     PROFILE_ZONE;
+    m_active_model.material_id             = 0;
     m_hardware_stats.last_frame.draw_calls = 0;
     m_hardware_stats.last_frame.meshes     = 0;
     m_hardware_stats.last_frame.primitives = 0;
@@ -351,7 +352,9 @@ void deferred_pbr_render_system::begin_render()
 
     // gbuffer pass setup
     {
-        set_depth_test_command* sdt      = m_gbuffer_commands->create<set_depth_test_command>(command_keys::max_key_to_start);
+        max_key k = command_keys::create_key(command_keys::max_key_material_front_to_back);
+        command_keys::add_base_mode(k, command_keys::base_mode::to_front);
+        set_depth_test_command* sdt      = m_gbuffer_commands->create<set_depth_test_command>(k);
         sdt->enabled                     = true;
         set_depth_func_command* sdf      = m_gbuffer_commands->append<set_depth_func_command, set_depth_test_command>(sdt);
         sdf->compare_operation           = compare_operation::less;
@@ -600,17 +603,17 @@ void deferred_pbr_render_system::finish_render(float dt)
     // composite
     if (m_composite_commands->dirty())
     {
-        set_depth_test_command* sdt      = m_composite_commands->create<set_depth_test_command>(command_keys::max_key_to_start);
+        set_depth_test_command* sdt      = m_composite_commands->create<set_depth_test_command>(command_keys::min_key_no_sort);
         sdt->enabled                     = true;
-        set_depth_func_command* sdf      = m_composite_commands->append<set_depth_func_command, set_depth_test_command>(sdt);
+        set_depth_func_command* sdf      = m_composite_commands->create<set_depth_func_command>(command_keys::min_key_no_sort);
         sdf->compare_operation           = compare_operation::less;
-        set_face_culling_command* sfc    = m_composite_commands->append<set_face_culling_command, set_depth_func_command>(sdf);
+        set_face_culling_command* sfc    = m_composite_commands->create<set_face_culling_command>(command_keys::min_key_no_sort);
         sfc->enabled                     = true;
-        set_cull_face_command* scf       = m_composite_commands->append<set_cull_face_command, set_face_culling_command>(sfc);
+        set_cull_face_command* scf       = m_composite_commands->create<set_cull_face_command>(command_keys::min_key_no_sort);
         scf->face                        = polygon_face::face_back;
-        bind_framebuffer_command* bf     = m_composite_commands->append<bind_framebuffer_command, set_cull_face_command>(scf);
+        bind_framebuffer_command* bf     = m_composite_commands->create<bind_framebuffer_command>(command_keys::min_key_no_sort);
         bf->framebuffer_name             = m_backbuffer->get_name();
-        bind_shader_program_command* bsp = m_composite_commands->append<bind_shader_program_command, bind_framebuffer_command>(bf);
+        bind_shader_program_command* bsp = m_composite_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
         bsp->shader_program_name         = m_composing_pass->get_name();
 
         bind_texture_command* bt = m_composite_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
@@ -633,10 +636,12 @@ void deferred_pbr_render_system::finish_render(float dt)
 
     bind_framebuffer_command* bf     = m_finish_render_commands->create<bind_framebuffer_command>(command_keys::min_key_no_sort);
     bf->framebuffer_name             = 0;
+#ifdef MANGO_DEBUG
     bind_vertex_array_command* bva   = m_finish_render_commands->create<bind_vertex_array_command>(command_keys::min_key_no_sort);
     bva->vertex_array_name           = 0;
     bind_shader_program_command* bsp = m_finish_render_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
     bsp->shader_program_name         = 0;
+#endif // MANGO_DEBUG
 
     // TODO Paul: Is there a better way?
     g_sync* frame_sync_prepare = m_frame_uniform_buffer->prepare();
@@ -647,6 +652,8 @@ void deferred_pbr_render_system::finish_render(float dt)
     g_sync* frame_sync_end = m_frame_uniform_buffer->end_frame();
     fence_sync_command* fs = m_finish_render_commands->create<fence_sync_command>(command_keys::min_key_no_sort);
     fs->sync               = frame_sync_end;
+
+    m_finish_render_commands->create<end_frame_command>(command_keys::min_key_no_sort);
 
     // execute commands
     {
@@ -758,26 +765,14 @@ void deferred_pbr_render_system::begin_mesh(const glm::mat4& model_matrix, bool 
 
     model_data d{ model_matrix, glm::transpose(glm::inverse(model_matrix)), has_normals, has_tangents, 0, 0 };
 
-    int64 offset = m_frame_uniform_buffer->write_data(sizeof(d), &d);
+    int64 offset                     = m_frame_uniform_buffer->write_data(sizeof(d), &d);
+    m_active_model.model_data_offset = offset;
+}
 
-    bind_buffer_command* bb = m_gbuffer_commands->create<bind_buffer_command>(command_keys::max_key_material_front_to_back);
-    bb->target              = buffer_target::uniform_buffer;
-    bb->index               = UB_SLOT_MODEL_DATA;
-    bb->size                = sizeof(model_data);
-    bb->buffer_name         = m_frame_uniform_buffer->buffer_name();
-    bb->offset              = offset;
-
-    if (m_pipeline_steps[mango::render_step::shadow_map])
-    {
-        auto shadow_command_buffer = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_shadow_commands();
-        bb                         = shadow_command_buffer->create<bind_buffer_command>(command_keys::max_key_front_to_back);
-        bb->target                 = buffer_target::uniform_buffer;
-        bb->index                  = UB_SLOT_MODEL_DATA;
-        bb->size                   = sizeof(model_data);
-        bb->buffer_name            = m_frame_uniform_buffer->buffer_name();
-        bb->offset                 = offset;
-    }
-
+void deferred_pbr_render_system::end_mesh()
+{
+    m_active_model.model_data_offset    = -1;
+    m_active_model.material_data_offset = -1;
     m_hardware_stats.last_frame.meshes++;
 }
 
@@ -799,121 +794,76 @@ void deferred_pbr_render_system::use_material(const material_ptr& mat)
     d.roughness      = (g_float)mat->roughness;
     if (mat->use_base_color_texture)
     {
-        d.base_color_texture     = true;
-        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-        bt->binding = bt->sampler_location = 0;
-        bt->texture_name                   = mat->base_color_texture->get_name();
-
-        if (shadow_command_buffer)
-        {
-            bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
-            bt->binding = bt->sampler_location = 0;
-            bt->texture_name                   = mat->base_color_texture->get_name();
-        }
+        d.base_color_texture                   = true;
+        m_active_model.base_color_texture_name = mat->base_color_texture->get_name();
     }
     else
     {
-        d.base_color_texture     = false;
-        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-        bt->binding = bt->sampler_location = 0;
-        bt->texture_name                   = default_texture->get_name();
-
-        if (shadow_command_buffer)
-        {
-            bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
-            bt->binding = bt->sampler_location = 0;
-            bt->texture_name                   = default_texture->get_name();
-        }
+        d.base_color_texture                   = false;
+        m_active_model.base_color_texture_name = default_texture->get_name();
     }
     if (mat->use_roughness_metallic_texture)
     {
-        d.roughness_metallic_texture = true;
-        bind_texture_command* bt     = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-        bt->binding = bt->sampler_location = 1;
-        bt->texture_name                   = mat->roughness_metallic_texture->get_name();
+        d.roughness_metallic_texture                   = true;
+        m_active_model.roughness_metallic_texture_name = mat->roughness_metallic_texture->get_name();
     }
     else
     {
-        d.roughness_metallic_texture = false;
-        bind_texture_command* bt     = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-        bt->binding = bt->sampler_location = 1;
-        bt->texture_name                   = default_texture->get_name();
+        d.roughness_metallic_texture                   = false;
+        m_active_model.roughness_metallic_texture_name = default_texture->get_name();
     }
     if (mat->use_occlusion_texture)
     {
-        d.occlusion_texture      = true;
-        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-        bt->binding = bt->sampler_location = 2;
-        bt->texture_name                   = mat->occlusion_texture->get_name();
-        d.packed_occlusion                 = false;
+        d.occlusion_texture                   = true;
+        m_active_model.occlusion_texture_name = mat->occlusion_texture->get_name();
+        d.packed_occlusion                    = false;
     }
     else
     {
-        d.occlusion_texture      = false;
-        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-        bt->binding = bt->sampler_location = 2;
-        bt->texture_name                   = default_texture->get_name();
+        d.occlusion_texture                   = false;
+        m_active_model.occlusion_texture_name = default_texture->get_name();
         // eventually it is packed
         d.packed_occlusion = mat->packed_occlusion && mat->use_packed_occlusion;
     }
     if (mat->use_normal_texture)
     {
-        d.normal_texture         = true;
-        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-        bt->binding = bt->sampler_location = 3;
-        bt->texture_name                   = mat->normal_texture->get_name();
+        d.normal_texture                   = true;
+        m_active_model.normal_texture_name = mat->normal_texture->get_name();
     }
     else
     {
-        d.normal_texture         = false;
-        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-        bt->binding = bt->sampler_location = 3;
-        bt->texture_name                   = default_texture->get_name();
+        d.normal_texture                   = false;
+        m_active_model.normal_texture_name = default_texture->get_name();
     }
     if (mat->use_emissive_color_texture)
     {
-        d.emissive_color_texture = true;
-        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-        bt->binding = bt->sampler_location = 4;
-        bt->texture_name                   = mat->emissive_color_texture->get_name();
+        d.emissive_color_texture                   = true;
+        m_active_model.emissive_color_texture_name = mat->emissive_color_texture->get_name();
     }
     else
     {
-        d.emissive_color_texture = false;
-        bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-        bt->binding = bt->sampler_location = 4;
-        bt->texture_name                   = default_texture->get_name();
+        d.emissive_color_texture                   = false;
+        m_active_model.emissive_color_texture_name = default_texture->get_name();
     }
 
     d.alpha_mode   = static_cast<g_int>(mat->alpha_rendering);
     d.alpha_cutoff = static_cast<g_float>(mat->alpha_cutoff);
 
-    set_face_culling_command* sfc = m_gbuffer_commands->create<set_face_culling_command>(command_keys::max_key_material_front_to_back);
-    sfc->enabled                  = !mat->double_sided;
+    m_active_model.face_culling = !mat->double_sided;
 
-    int64 offset = m_frame_uniform_buffer->write_data(sizeof(d), &d);
+    int64 offset                        = m_frame_uniform_buffer->write_data(sizeof(d), &d);
+    m_active_model.material_data_offset = offset;
 
-    bind_buffer_command* bb = m_gbuffer_commands->create<bind_buffer_command>(command_keys::max_key_material_front_to_back);
-    bb->target              = buffer_target::uniform_buffer;
-    bb->index               = UB_SLOT_MATERIAL_DATA;
-    bb->size                = sizeof(material_data);
-    bb->buffer_name         = m_frame_uniform_buffer->buffer_name();
-    bb->offset              = offset;
-
-    if (shadow_command_buffer)
-    {
-        bb              = shadow_command_buffer->create<bind_buffer_command>(command_keys::max_key_front_to_back);
-        bb->target      = buffer_target::uniform_buffer;
-        bb->index       = UB_SLOT_MATERIAL_DATA;
-        bb->size        = sizeof(material_data);
-        bb->buffer_name = m_frame_uniform_buffer->buffer_name();
-        bb->offset      = offset;
-    }
+    m_active_model.material_id = m_active_model.create_material_id(d);
 }
 
 void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
 {
     PROFILE_ZONE;
+
+    MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
+    MANGO_ASSERT(count >= 0, "The index count has to be greater than 0!");
+    MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
 
     command_buffer_ptr<max_key> shadow_command_buffer;
     if (m_pipeline_steps[mango::render_step::shadow_map])
@@ -921,111 +871,188 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
         shadow_command_buffer = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map])->get_shadow_commands();
     }
 
-    bind_vertex_array_command* bva = m_gbuffer_commands->create<bind_vertex_array_command>(command_keys::max_key_material_front_to_back);
-    bva->vertex_array_name         = vertex_array->get_name();
+    if (!m_active_model.valid())
+        return;
 
-    if (shadow_command_buffer)
+    // key
+    max_key k = command_keys::create_key(command_keys::max_key_material_front_to_back);
+    command_keys::add_material(k, m_active_model.material_id);
+
+    // Normal GBuffer rendering
     {
-        bva                    = shadow_command_buffer->create<bind_vertex_array_command>(command_keys::max_key_front_to_back);
-        bva->vertex_array_name = vertex_array->get_name();
-    }
+        // material data buffer
+        bind_buffer_command* bb = m_gbuffer_commands->create<bind_buffer_command>(k);
+        bb->target              = buffer_target::uniform_buffer;
+        bb->index               = UB_SLOT_MATERIAL_DATA;
+        bb->size                = sizeof(material_data);
+        bb->buffer_name         = m_frame_uniform_buffer->buffer_name();
+        bb->offset              = m_active_model.material_data_offset;
 
-    MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
-    MANGO_ASSERT(count >= 0, "The index count has to be greater than 0!");
-    MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
+        // model data buffer
+        bb              = m_gbuffer_commands->append<bind_buffer_command, bind_buffer_command>(bb);
+        bb->target      = buffer_target::uniform_buffer;
+        bb->index       = UB_SLOT_MODEL_DATA;
+        bb->size        = sizeof(model_data);
+        bb->buffer_name = m_frame_uniform_buffer->buffer_name();
+        bb->offset      = m_active_model.model_data_offset;
 
-    if (type == index_type::none)
-    {
-        draw_arrays_command* da = m_gbuffer_commands->create<draw_arrays_command>(command_keys::max_key_material_front_to_back);
-        da->topology            = topology;
-        da->first               = first;
-        da->count               = count;
-        da->instance_count      = instance_count;
-        m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
-        m_hardware_stats.last_frame.primitives++;
-        m_hardware_stats.last_frame.materials++;
-        if (shadow_command_buffer)
+        // material textures
+        bind_texture_command* bt = m_gbuffer_commands->append<bind_texture_command, bind_buffer_command>(bb);
+        bt->binding = bt->sampler_location = 0;
+        bt->texture_name                   = m_active_model.base_color_texture_name;
+
+        bt          = m_gbuffer_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 1;
+        bt->texture_name                   = m_active_model.roughness_metallic_texture_name;
+
+        bt          = m_gbuffer_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 2;
+        bt->texture_name                   = m_active_model.occlusion_texture_name;
+
+        bt          = m_gbuffer_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 3;
+        bt->texture_name                   = m_active_model.normal_texture_name;
+
+        bt          = m_gbuffer_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 4;
+        bt->texture_name                   = m_active_model.emissive_color_texture_name;
+
+        set_face_culling_command* sfc = m_gbuffer_commands->append<set_face_culling_command, bind_texture_command>(bt);
+        sfc->enabled                  = m_active_model.face_culling;
+
+        bind_vertex_array_command* bva = m_gbuffer_commands->append<bind_vertex_array_command, set_face_culling_command>(sfc);
+        bva->vertex_array_name         = vertex_array->get_name();
+
+        if (type == index_type::none)
         {
-            da                 = shadow_command_buffer->create<draw_arrays_command>(command_keys::max_key_front_to_back);
-            da->topology       = topology;
-            da->first          = first;
-            da->count          = count;
-            da->instance_count = instance_count;
+            draw_arrays_command* da = m_gbuffer_commands->append<draw_arrays_command, bind_vertex_array_command>(bva);
+            da->topology            = topology;
+            da->first               = first;
+            da->count               = count;
+            da->instance_count      = instance_count;
             m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
-        }
-    }
-    else
-    {
-        draw_elements_command* de = m_gbuffer_commands->create<draw_elements_command>(command_keys::max_key_material_front_to_back);
-        de->topology              = topology;
-        de->first                 = first;
-        de->count                 = count;
-        de->type                  = type;
-        de->instance_count        = instance_count;
-        m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
-        m_hardware_stats.last_frame.primitives++;
-        m_hardware_stats.last_frame.materials++;
-        if (shadow_command_buffer)
-        {
-            de                 = shadow_command_buffer->create<draw_elements_command>(command_keys::max_key_front_to_back);
-            de->topology       = topology;
-            de->first          = first;
-            de->count          = count;
-            de->type           = type;
-            de->instance_count = instance_count;
-            m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
-        }
-    }
-
-    bva                    = m_gbuffer_commands->create<bind_vertex_array_command>(command_keys::max_key_material_front_to_back);
-    bva->vertex_array_name = 0;
-
+            m_hardware_stats.last_frame.primitives++;
+            m_hardware_stats.last_frame.materials++;
 #ifdef MANGO_DEBUG
-    // This needs to be done.
-    // TODO Paul: State synchronization is not perfect.
-    bind_texture_command* bt = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-    bt->binding = bt->sampler_location = 0;
-    bt->texture_name                   = 0;
-
-    bt          = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-    bt->binding = bt->sampler_location = 1;
-    bt->texture_name                   = 0;
-
-    bt          = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-    bt->binding = bt->sampler_location = 2;
-    bt->texture_name                   = 0;
-
-    bt          = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-    bt->binding = bt->sampler_location = 3;
-    bt->texture_name                   = 0;
-
-    bt          = m_gbuffer_commands->create<bind_texture_command>(command_keys::max_key_material_front_to_back);
-    bt->binding = bt->sampler_location = 4;
-    bt->texture_name                   = 0;
+            bva                    = m_gbuffer_commands->append<bind_vertex_array_command, draw_arrays_command>(da);
+            bva->vertex_array_name = 0;
 #endif // MANGO_DEBUG
-
-    if (shadow_command_buffer)
-    {
-        bva                    = shadow_command_buffer->create<bind_vertex_array_command>(command_keys::max_key_front_to_back);
-        bva->vertex_array_name = 0;
+        }
+        else
+        {
+            draw_elements_command* de = m_gbuffer_commands->append<draw_elements_command, bind_vertex_array_command>(bva);
+            de->topology              = topology;
+            de->first                 = first;
+            de->count                 = count;
+            de->type                  = type;
+            de->instance_count        = instance_count;
+            m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
+            m_hardware_stats.last_frame.primitives++;
+            m_hardware_stats.last_frame.materials++;
 #ifdef MANGO_DEBUG
-        bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
+            bva                    = m_gbuffer_commands->append<bind_vertex_array_command, draw_elements_command>(de);
+            bva->vertex_array_name = 0;
+#endif // MANGO_DEBUG
+        }
+
+#ifdef MANGO_DEBUG
+        // This needs to be done.
+        // TODO Paul: State synchronization is not perfect.
+        bt          = m_gbuffer_commands->append<bind_texture_command, bind_vertex_array_command>(bva);
         bt->binding = bt->sampler_location = 0;
         bt->texture_name                   = 0;
 
-        bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
+        bt          = m_gbuffer_commands->append<bind_texture_command, bind_texture_command>(bt);
         bt->binding = bt->sampler_location = 1;
         bt->texture_name                   = 0;
 
-        bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
+        bt          = m_gbuffer_commands->append<bind_texture_command, bind_texture_command>(bt);
         bt->binding = bt->sampler_location = 2;
         bt->texture_name                   = 0;
 
-        bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
+        bt          = m_gbuffer_commands->append<bind_texture_command, bind_texture_command>(bt);
         bt->binding = bt->sampler_location = 3;
         bt->texture_name                   = 0;
 
-        bt          = shadow_command_buffer->create<bind_texture_command>(command_keys::max_key_front_to_back);
+        bt          = m_gbuffer_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 4;
+        bt->texture_name                   = 0;
+#endif // MANGO_DEBUG
+    }
+
+    // Same for shadow buffer
+    if (shadow_command_buffer)
+    {
+        // material data buffer
+        bind_buffer_command* bb = shadow_command_buffer->create<bind_buffer_command>(k);
+        bb->target              = buffer_target::uniform_buffer;
+        bb->index               = UB_SLOT_MATERIAL_DATA;
+        bb->size                = sizeof(material_data);
+        bb->buffer_name         = m_frame_uniform_buffer->buffer_name();
+        bb->offset              = m_active_model.material_data_offset;
+
+        // model data buffer
+        bb              = shadow_command_buffer->append<bind_buffer_command, bind_buffer_command>(bb);
+        bb->target      = buffer_target::uniform_buffer;
+        bb->index       = UB_SLOT_MODEL_DATA;
+        bb->size        = sizeof(model_data);
+        bb->buffer_name = m_frame_uniform_buffer->buffer_name();
+        bb->offset      = m_active_model.model_data_offset;
+
+        // material textures
+        bind_texture_command* bt = shadow_command_buffer->append<bind_texture_command, bind_buffer_command>(bb);
+        bt->binding = bt->sampler_location = 0;
+        bt->texture_name                   = m_active_model.base_color_texture_name;
+
+        bind_vertex_array_command* bva = shadow_command_buffer->append<bind_vertex_array_command, bind_texture_command>(bt);
+        bva->vertex_array_name         = vertex_array->get_name();
+
+        if (type == index_type::none)
+        {
+            draw_arrays_command* da = shadow_command_buffer->append<draw_arrays_command, bind_vertex_array_command>(bva);
+            da->topology            = topology;
+            da->first               = first;
+            da->count               = count;
+            da->instance_count      = instance_count;
+            m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
+#ifdef MANGO_DEBUG
+            bva                    = shadow_command_buffer->append<bind_vertex_array_command, draw_arrays_command>(da);
+            bva->vertex_array_name = 0;
+#endif // MANGO_DEBUG
+        }
+        else
+        {
+            draw_elements_command* de = shadow_command_buffer->append<draw_elements_command, bind_vertex_array_command>(bva);
+            de->topology              = topology;
+            de->first                 = first;
+            de->count                 = count;
+            de->type                  = type;
+            de->instance_count        = instance_count;
+            m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
+#ifdef MANGO_DEBUG
+            bva                    = shadow_command_buffer->append<bind_vertex_array_command, draw_elements_command>(de);
+            bva->vertex_array_name = 0;
+#endif // MANGO_DEBUG
+        }
+
+#ifdef MANGO_DEBUG
+        bt          = shadow_command_buffer->append<bind_texture_command, bind_vertex_array_command>(bva);
+        bt->binding = bt->sampler_location = 0;
+        bt->texture_name                   = 0;
+
+        bt          = shadow_command_buffer->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 1;
+        bt->texture_name                   = 0;
+
+        bt          = shadow_command_buffer->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 2;
+        bt->texture_name                   = 0;
+
+        bt          = shadow_command_buffer->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 3;
+        bt->texture_name                   = 0;
+
+        bt          = shadow_command_buffer->append<bind_texture_command, bind_texture_command>(bt);
         bt->binding = bt->sampler_location = 4;
         bt->texture_name                   = 0;
 #endif // MANGO_DEBUG
