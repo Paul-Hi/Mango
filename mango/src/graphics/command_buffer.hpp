@@ -43,6 +43,10 @@ namespace mango
     compare_operation compare_operation;
     END_COMMAND(set_depth_func);
 
+    BEGIN_COMMAND(set_depth_write);
+    bool enabled;
+    END_COMMAND(set_depth_write);
+
     BEGIN_COMMAND(set_polygon_mode);
     polygon_face face;
     polygon_mode mode;
@@ -215,8 +219,10 @@ namespace mango
 
         inline void add_depth(max_key& key, float depth)
         {
-            MANGO_UNUSED(key);
-            MANGO_UNUSED(depth);
+            uint64 key_mask  = ~(((1ull << 24) - 1) << 8);
+            uint64 mode_mask = ((1ull << 24) - 1);
+            uint64 m_id      = uint64(depth * 8388607.0f) & mode_mask; // TODO Paul: Depth should be converted!
+            key              = (key & key_mask) | (m_id << 8);
         }
 
         inline void add_material(max_key& key, int8 material_id)
@@ -370,7 +376,7 @@ namespace mango
         template <typename T>
         package package_create(uint64 spare_memory)
         {
-            void* mem = m_allocator.allocate(calculate_size<T>(spare_memory), 0);
+            void* mem = m_allocator.allocate(calculate_size<T>(spare_memory));
             MANGO_ASSERT(mem, "Command Buffer is too small!");
             m_current = mem;
             return m_current;

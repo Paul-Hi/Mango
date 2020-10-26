@@ -11,23 +11,19 @@
 
 namespace mango
 {
-    class linear_allocator : allocator
+    class linear_allocator : public allocator
     {
       public:
         linear_allocator(const int64 size);
         ~linear_allocator();
 
-        void init() override;
-
-        void* allocate(const int64 size, const int64 alignment) override;
-
-        void free_memory(void *) override;
-
-        void reset();
+        void reset() override;
 
       private:
-        void* m_start;
         int64 m_offset;
+
+        virtual int64 allocate_unaligned(const int64 size) override;
+        void free_memory_unaligned(void* mem) override;
     };
 } // namespace mango
 

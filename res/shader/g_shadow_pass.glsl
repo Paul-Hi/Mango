@@ -17,7 +17,7 @@ layout(binding = 4, std140) uniform shadow_data
     float maximum_penumbra;
 };
 
-in shader_shared
+in shared_data
 {
     vec2 texcoord;
 } gs_in[];

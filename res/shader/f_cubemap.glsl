@@ -36,7 +36,7 @@ layout(binding = 3, std140) uniform lighting_pass_data
 };
 
 // Uniform Buffer IBL.
-layout(binding = 4, std140) uniform ibl_data
+layout(binding = 5, std140) uniform ibl_data
 {
     mat3 current_rotation_scale;
     float render_level;

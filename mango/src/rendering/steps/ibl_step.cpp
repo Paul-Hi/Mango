@@ -215,6 +215,13 @@ void ibl_step::execute(uniform_buffer_ptr frame_uniform_buffer)
     set_cull_face_command* scf = m_ibl_command_buffer->create<set_cull_face_command>(command_keys::min_key_no_sort);
     scf->face                  = polygon_face::face_front;
 
+    set_polygon_mode_command* spm = m_ibl_command_buffer->create<set_polygon_mode_command>(command_keys::min_key_no_sort);
+    spm->face                     = polygon_face::face_front_and_back;
+    spm->mode                     = polygon_mode::fill;
+
+    set_blending_command* bl = m_ibl_command_buffer->create<set_blending_command>(command_keys::min_key_no_sort);
+    bl->enabled              = false;
+
     bind_shader_program_command* bsp = m_ibl_command_buffer->create<bind_shader_program_command>(command_keys::min_key_no_sort);
     bsp->shader_program_name         = m_draw_environment->get_name();
 

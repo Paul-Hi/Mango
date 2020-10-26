@@ -187,6 +187,7 @@ entity scene::create_entities_from_model(const string& path, entity gltf_root)
         const void* buffer_data           = static_cast<const void*>(buffer_start);
         buffer_config.m_data              = buffer_data;
         buffer_ptr buf                    = buffer::create(buffer_config);
+        // TODO Paul: Interleaved buffers could be loaded two times ... BAD.
 
         index_to_buffer_data.insert({ i, buf });
     }

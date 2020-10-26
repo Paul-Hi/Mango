@@ -51,6 +51,24 @@ void set_depth_test(const void* data)
 }
 const execute_function set_depth_test_command::execute = &set_depth_test;
 
+void set_depth_write(const void* data)
+{
+    NAMED_PROFILE_ZONE("Set Depth Test");
+    const set_depth_write_command* cmd = static_cast<const set_depth_write_command*>(data);
+    if (!m_current_state.set_depth_write(cmd->enabled))
+        return;
+    GL_NAMED_PROFILE_ZONE("Set Depth Write");
+    if (cmd->enabled)
+    {
+        glDepthMask(GL_TRUE);
+    }
+    else
+    {
+        glDepthMask(GL_FALSE);
+    }
+}
+const execute_function set_depth_write_command::execute = &set_depth_write;
+
 void set_depth_func(const void* data)
 {
     NAMED_PROFILE_ZONE("Set Depth Func");

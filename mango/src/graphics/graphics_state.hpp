@@ -36,6 +36,11 @@ namespace mango
         //! \return True if state changed, else false.
         bool set_depth_test(bool enabled);
 
+        //! \brief Enables or disables the depth writing.
+        //! \param[in] enabled True if the depth writing should be enabled, else false.
+        //! \return True if state changed, else false.
+        bool set_depth_write(bool enabled);
+
         //! \brief Sets the \a compare_operation for depth testing.
         //! \param[in] op The \a compare_operation to use for depth testing.
         //! \return True if state changed, else false.
@@ -142,6 +147,8 @@ namespace mango
                 bool enabled;                 //!< Enabled or disabled.
                 compare_operation depth_func; //!< Compare operation.
             } depth_test;                     //!< Cached depth test.
+
+            bool depth_write; //!< Cached depth write.
 
             struct
             {

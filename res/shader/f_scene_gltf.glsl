@@ -132,6 +132,8 @@ vec3 get_normal()
         vec3 mapped_normal = normalize(texture(sampler_normal, fs_in.texcoord).rgb * 2.0 - 1.0);
         normal = normalize(tbn * mapped_normal.rgb);
     }
+    if(!gl_FrontFacing)
+        normal *= -1.0;
     return normal * 0.5 + 0.5;
 }
 

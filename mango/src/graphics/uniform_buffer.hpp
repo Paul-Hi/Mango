@@ -18,10 +18,10 @@ namespace mango
 
 #define UB_SLOT_MODEL_DATA 1
 #define UB_SLOT_MATERIAL_DATA 2
+#define UB_SLOT_IBL_DATA 5
 
 // Shared buffer binding points
 #define UB_SLOT_SHADOW_DATA 4
-#define UB_SLOT_IBL_DATA 4
 #define SSB_SLOT_EXPOSURE 4
 
     enum class buffer_technique : uint8

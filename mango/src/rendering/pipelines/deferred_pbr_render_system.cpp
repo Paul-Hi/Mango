@@ -74,6 +74,7 @@ bool deferred_pbr_render_system::create()
     m_begin_render_commands   = command_buffer<min_key>::create(512);
     m_global_binding_commands = command_buffer<min_key>::create(128);
     m_gbuffer_commands        = command_buffer<max_key>::create(524288); // 0.5 MiB?
+    m_transparent_commands    = command_buffer<max_key>::create(524288); // 0.5 MiB?
     m_lighting_pass_commands  = command_buffer<min_key>::create(512);
     m_exposure_commands       = command_buffer<min_key>::create(512);
     m_composite_commands      = command_buffer<min_key>::create(256);
@@ -169,6 +170,17 @@ bool deferred_pbr_render_system::create()
 
     m_scene_geometry_pass = shader_program::create_graphics_pipeline(d_vertex, nullptr, nullptr, nullptr, d_fragment);
     if (!check_creation(m_scene_geometry_pass.get(), "geometry pass shader program", "Render System"))
+        return false;
+
+    // transparent pass
+    shader_config.m_path = "res/shader/f_scene_transparent_gltf.glsl";
+    shader_config.m_type = shader_type::fragment_shader;
+    d_fragment           = shader::create(shader_config);
+    if (!check_creation(d_fragment.get(), "transparent pass fragment shader", "Render System"))
+        return false;
+
+    m_transparent_pass = shader_program::create_graphics_pipeline(d_vertex, nullptr, nullptr, nullptr, d_fragment);
+    if (!check_creation(m_transparent_pass.get(), "transparent pass shader program", "Render System"))
         return false;
 
     // lighting pass
@@ -372,9 +384,11 @@ void deferred_pbr_render_system::begin_render()
         sv->y                            = m_hardware_stats.last_frame.canvas_y;
         sv->width                        = m_hardware_stats.last_frame.canvas_width;
         sv->height                       = m_hardware_stats.last_frame.canvas_height;
+        set_blending_command* bl         = m_gbuffer_commands->append<set_blending_command, set_viewport_command>(sv);
+        bl->enabled                      = false;
         if (m_wireframe)
         {
-            set_polygon_mode_command* spm = m_gbuffer_commands->append<set_polygon_mode_command, set_viewport_command>(sv);
+            set_polygon_mode_command* spm = m_gbuffer_commands->append<set_polygon_mode_command, set_blending_command>(bl);
             spm->face                     = polygon_face::face_front_and_back;
             spm->mode                     = polygon_mode::line;
         }
@@ -411,6 +425,74 @@ void deferred_pbr_render_system::begin_render()
         bt->sampler_location             = 4;
         bt->texture_name                 = m_gbuffer->get_attachment(framebuffer_attachment::depth_attachment)->get_name();
     }
+
+    // transparent pass setup
+    {
+        max_key k = command_keys::create_key(command_keys::max_key_back_to_front);
+        command_keys::add_base_mode(k, command_keys::base_mode::to_front);
+        set_depth_test_command* sdt      = m_transparent_commands->create<set_depth_test_command>(k);
+        sdt->enabled                     = true;
+        set_depth_write_command* sdw     = m_transparent_commands->append<set_depth_write_command, set_depth_test_command>(sdt);
+        sdw->enabled                     = false;
+        set_polygon_offset_command* spo  = m_transparent_commands->append<set_polygon_offset_command, set_depth_write_command>(sdw);
+        spo->factor                      = 0.0f;
+        spo->units                       = 0.0f;
+        bind_framebuffer_command* bf     = m_transparent_commands->append<bind_framebuffer_command, set_polygon_offset_command>(spo);
+        bf->framebuffer_name             = m_hdr_buffer->get_name(); // transparent lighting goes into hdr buffer.
+        bind_shader_program_command* bsp = m_transparent_commands->append<bind_shader_program_command, bind_framebuffer_command>(bf);
+        bsp->shader_program_name         = m_transparent_pass->get_name();
+        set_viewport_command* sv         = m_transparent_commands->append<set_viewport_command, bind_shader_program_command>(bsp);
+        sv->x                            = m_hardware_stats.last_frame.canvas_x;
+        sv->y                            = m_hardware_stats.last_frame.canvas_y;
+        sv->width                        = m_hardware_stats.last_frame.canvas_width;
+        sv->height                       = m_hardware_stats.last_frame.canvas_height;
+        set_blending_command* bl         = m_transparent_commands->append<set_blending_command, set_viewport_command>(sv);
+        bl->enabled                      = true;
+        set_blend_factors_command* blf   = m_transparent_commands->append<set_blend_factors_command, set_blending_command>(bl);
+        blf->source                      = blend_factor::one;
+        blf->destination                 = blend_factor::one_minus_src_alpha;
+
+        g_uint irradiance_map_name       = default_texture->get_name();
+        g_uint prefiltered_specular_name = default_texture->get_name();
+        g_uint brdf_lookup_name          = default_texture->get_name();
+        g_uint shadow_map_name           = default_texture_array->get_name();
+
+        auto step_shadow_map = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map]);
+        auto step_ibl        = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
+
+        if (step_ibl)
+        {
+            irradiance_map_name       = step_ibl->get_irradiance_map()->get_name();
+            prefiltered_specular_name = step_ibl->get_prefiltered_specular()->get_name();
+            brdf_lookup_name          = step_ibl->get_brdf_lookup()->get_name();
+        }
+        if (step_shadow_map)
+        {
+            shadow_map_name = step_shadow_map->get_shadow_buffer()->get_attachment(framebuffer_attachment::depth_attachment)->get_name();
+        }
+        bind_texture_command* bt = m_transparent_commands->append<bind_texture_command, set_blend_factors_command>(blf);
+        bt->binding              = 5;
+        bt->sampler_location     = 5;
+        bt->texture_name         = irradiance_map_name;
+        bt                       = m_transparent_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding              = 6;
+        bt->sampler_location     = 6;
+        bt->texture_name         = prefiltered_specular_name;
+        bt                       = m_transparent_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding              = 7;
+        bt->sampler_location     = 7;
+        bt->texture_name         = brdf_lookup_name;
+        bt                       = m_transparent_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding              = 8;
+        bt->sampler_location     = 8;
+        bt->texture_name         = shadow_map_name;
+        if (m_wireframe)
+        {
+            set_polygon_mode_command* spm = m_transparent_commands->append<set_polygon_mode_command, bind_texture_command>(bt);
+            spm->face                     = polygon_face::face_front_and_back;
+            spm->mode                     = polygon_mode::line;
+        }
+    }
 }
 
 void deferred_pbr_render_system::finish_render(float dt)
@@ -428,7 +510,8 @@ void deferred_pbr_render_system::finish_render(float dt)
     if (step_ibl)
         ibl_command_buffer = step_ibl->get_ibl_commands();
 
-    apply_auto_exposure(camera); // with last frames data.
+    if (camera.camera_info && camera.camera_info->physical.adaptive_exposure && !m_lighting_pass_data.debug_view_enabled)
+        apply_auto_exposure(camera); // with last frames data.
 
     float camera_exposure = 1.0f;
     if (camera.camera_info)
@@ -451,7 +534,7 @@ void deferred_pbr_render_system::finish_render(float dt)
 
     if (step_shadow_map)
     {
-        if (m_lighting_pass_data.directional.intensity > 1e-5f && !m_lighting_pass_data.debug_view_enabled && camera.camera_info && m_lighting_pass_data.directional.cast_shadows)
+        if (!m_lighting_pass_data.debug_view_enabled && camera.camera_info && m_lighting_pass_data.directional.cast_shadows)
         {
             step_shadow_map->update_cascades(dt, camera.camera_info->z_near, camera.camera_info->z_far, camera.camera_info->view_projection, m_lighting_pass_data.directional.direction);
 
@@ -605,8 +688,15 @@ void deferred_pbr_render_system::finish_render(float dt)
     {
         set_depth_test_command* sdt      = m_composite_commands->create<set_depth_test_command>(command_keys::min_key_no_sort);
         sdt->enabled                     = true;
+        set_depth_write_command* sdw     = m_composite_commands->create<set_depth_write_command>(command_keys::min_key_no_sort);
+        sdw->enabled                     = true;
         set_depth_func_command* sdf      = m_composite_commands->create<set_depth_func_command>(command_keys::min_key_no_sort);
         sdf->compare_operation           = compare_operation::less;
+        set_polygon_mode_command* spm    = m_composite_commands->create<set_polygon_mode_command>(command_keys::min_key_no_sort);
+        spm->face                        = polygon_face::face_front_and_back;
+        spm->mode                        = polygon_mode::fill;
+        set_blending_command* bl         = m_composite_commands->create<set_blending_command>(command_keys::min_key_no_sort);
+        bl->enabled                      = false;
         set_face_culling_command* sfc    = m_composite_commands->create<set_face_culling_command>(command_keys::min_key_no_sort);
         sfc->enabled                     = true;
         set_cull_face_command* scf       = m_composite_commands->create<set_cull_face_command>(command_keys::min_key_no_sort);
@@ -634,8 +724,8 @@ void deferred_pbr_render_system::finish_render(float dt)
         m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done, on glCalls.
     }
 
-    bind_framebuffer_command* bf     = m_finish_render_commands->create<bind_framebuffer_command>(command_keys::min_key_no_sort);
-    bf->framebuffer_name             = 0;
+    bind_framebuffer_command* bf = m_finish_render_commands->create<bind_framebuffer_command>(command_keys::min_key_no_sort);
+    bf->framebuffer_name         = 0;
 #ifdef MANGO_DEBUG
     bind_vertex_array_command* bva   = m_finish_render_commands->create<bind_vertex_array_command>(command_keys::min_key_no_sort);
     bva->vertex_array_name           = 0;
@@ -668,6 +758,7 @@ void deferred_pbr_render_system::finish_render(float dt)
             m_gbuffer_commands->sort();
             // m_lighting_pass_commands->sort(); // They do not need to be sorted atm.
             // ibl_command_buffer->sort(); // They do not need to be sorted atm.
+            m_transparent_commands->sort();
             // m_exposure_commands->sort(); // They do not need to be sorted atm.
             // m_composite_commands->sort(); // They do not need to be sorted atm.
             // m_finish_render_commands->sort(); // They do not need to be sorted.
@@ -710,6 +801,12 @@ void deferred_pbr_render_system::finish_render(float dt)
             ibl_command_buffer->invalidate();
         }
         {
+            NAMED_PROFILE_ZONE("Transparent Commands Execute")
+            GL_NAMED_PROFILE_ZONE("Transparent Commands Execute");
+            m_transparent_commands->execute();
+            m_transparent_commands->invalidate();
+        }
+        {
             NAMED_PROFILE_ZONE("Exposure Commands Execute")
             GL_NAMED_PROFILE_ZONE("Exposure Commands Execute");
             m_exposure_commands->execute();
@@ -719,7 +816,7 @@ void deferred_pbr_render_system::finish_render(float dt)
             NAMED_PROFILE_ZONE("Composite Commands Execute")
             GL_NAMED_PROFILE_ZONE("Composite Commands Execute");
             m_composite_commands->execute();
-            m_composite_commands->invalidate();
+            // m_composite_commands->invalidate();
         }
         {
             NAMED_PROFILE_ZONE("Deferred Renderer Finish")
@@ -767,6 +864,7 @@ void deferred_pbr_render_system::begin_mesh(const glm::mat4& model_matrix, bool 
 
     int64 offset                     = m_frame_uniform_buffer->write_data(sizeof(d), &d);
     m_active_model.model_data_offset = offset;
+    m_active_model.position          = glm::vec3(model_matrix[3]);
 }
 
 void deferred_pbr_render_system::end_mesh()
@@ -849,6 +947,7 @@ void deferred_pbr_render_system::use_material(const material_ptr& mat)
     d.alpha_mode   = static_cast<g_int>(mat->alpha_rendering);
     d.alpha_cutoff = static_cast<g_float>(mat->alpha_cutoff);
 
+    m_active_model.blend        = mat->alpha_rendering == alpha_mode::mode_blend;
     m_active_model.face_culling = !mat->double_sided;
 
     int64 offset                        = m_frame_uniform_buffer->write_data(sizeof(d), &d);
@@ -875,11 +974,151 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
         return;
 
     // key
-    max_key k = command_keys::create_key(command_keys::max_key_material_front_to_back);
-    command_keys::add_material(k, m_active_model.material_id);
 
-    // Normal GBuffer rendering
+    if (m_active_model.blend)
     {
+        auto scene     = m_shared_context->get_current_scene();
+        auto camera    = scene->get_active_camera_data();
+        max_key k      = command_keys::create_key(command_keys::max_key_back_to_front);
+        float distance = glm::distance(m_active_model.position, camera.transform->position);
+        float depth    = glm::clamp(distance / (camera.camera_info->z_far - camera.camera_info->z_near), 0.0f, 1.0f); // TODO Paul: Do the correct calculation...
+        command_keys::add_depth(k, 1.0 - depth);
+        // transparent rendering
+        // material data buffer
+        bind_buffer_command* bb = m_transparent_commands->create<bind_buffer_command>(k);
+        bb->target              = buffer_target::uniform_buffer;
+        bb->index               = UB_SLOT_MATERIAL_DATA;
+        bb->size                = sizeof(material_data);
+        bb->buffer_name         = m_frame_uniform_buffer->buffer_name();
+        bb->offset              = m_active_model.material_data_offset;
+
+        // model data buffer
+        bb              = m_transparent_commands->append<bind_buffer_command, bind_buffer_command>(bb);
+        bb->target      = buffer_target::uniform_buffer;
+        bb->index       = UB_SLOT_MODEL_DATA;
+        bb->size        = sizeof(model_data);
+        bb->buffer_name = m_frame_uniform_buffer->buffer_name();
+        bb->offset      = m_active_model.model_data_offset;
+
+        // material textures
+        bind_texture_command* bt = m_transparent_commands->append<bind_texture_command, bind_buffer_command>(bb);
+        bt->binding = bt->sampler_location = 0;
+        bt->texture_name                   = m_active_model.base_color_texture_name;
+
+        bt          = m_transparent_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 1;
+        bt->texture_name                   = m_active_model.roughness_metallic_texture_name;
+
+        bt          = m_transparent_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 2;
+        bt->texture_name                   = m_active_model.occlusion_texture_name;
+
+        bt          = m_transparent_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 3;
+        bt->texture_name                   = m_active_model.normal_texture_name;
+
+        bt          = m_transparent_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 4;
+        bt->texture_name                   = m_active_model.emissive_color_texture_name;
+
+        set_face_culling_command* sfc = m_transparent_commands->append<set_face_culling_command, bind_texture_command>(bt);
+        sfc->enabled                  = m_active_model.face_culling;
+
+        set_cull_face_command* scf = m_transparent_commands->append<set_cull_face_command, set_face_culling_command>(sfc);
+        scf->face                  = m_active_model.face_culling ? polygon_face::face_front : polygon_face::face_back;
+
+        bind_vertex_array_command* bva = m_transparent_commands->append<bind_vertex_array_command, set_cull_face_command>(scf);
+        bva->vertex_array_name         = vertex_array->get_name();
+
+        if (type == index_type::none)
+        {
+            draw_arrays_command* da = m_transparent_commands->append<draw_arrays_command, bind_vertex_array_command>(bva);
+            da->topology            = topology;
+            da->first               = first;
+            da->count               = count;
+            da->instance_count      = instance_count;
+            m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
+            m_hardware_stats.last_frame.primitives++;
+            m_hardware_stats.last_frame.materials++;
+
+            if (m_active_model.face_culling)
+            {
+                scf       = m_transparent_commands->append<set_cull_face_command, draw_arrays_command>(da);
+                scf->face = polygon_face::face_back;
+
+                da                 = m_transparent_commands->append<draw_arrays_command, set_cull_face_command>(scf);
+                da->topology       = topology;
+                da->first          = first;
+                da->count          = count;
+                da->instance_count = instance_count;
+                m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
+            }
+#ifdef MANGO_DEBUG
+            bva                    = m_transparent_commands->append<bind_vertex_array_command, draw_arrays_command>(da);
+            bva->vertex_array_name = 0;
+#endif // MANGO_DEBUG
+        }
+        else
+        {
+            draw_elements_command* de = m_transparent_commands->append<draw_elements_command, bind_vertex_array_command>(bva);
+            de->topology              = topology;
+            de->first                 = first;
+            de->count                 = count;
+            de->type                  = type;
+            de->instance_count        = instance_count;
+            m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
+            m_hardware_stats.last_frame.primitives++;
+            m_hardware_stats.last_frame.materials++;
+
+            if (m_active_model.face_culling)
+            {
+                scf       = m_transparent_commands->append<set_cull_face_command, draw_elements_command>(de);
+                scf->face = polygon_face::face_back;
+
+                de                 = m_transparent_commands->append<draw_elements_command, set_cull_face_command>(scf);
+                de->topology       = topology;
+                de->first          = first;
+                de->count          = count;
+                de->type           = type;
+                de->instance_count = instance_count;
+                m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done on glCalls.
+            }
+#ifdef MANGO_DEBUG
+            bva                    = m_transparent_commands->append<bind_vertex_array_command, draw_elements_command>(de);
+            bva->vertex_array_name = 0;
+#endif // MANGO_DEBUG
+        }
+
+#ifdef MANGO_DEBUG
+        // This needs to be done.
+        // TODO Paul: State synchronization is not perfect.
+        bt          = m_transparent_commands->append<bind_texture_command, bind_vertex_array_command>(bva);
+        bt->binding = bt->sampler_location = 0;
+        bt->texture_name                   = 0;
+
+        bt          = m_transparent_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 1;
+        bt->texture_name                   = 0;
+
+        bt          = m_transparent_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 2;
+        bt->texture_name                   = 0;
+
+        bt          = m_transparent_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 3;
+        bt->texture_name                   = 0;
+
+        bt          = m_transparent_commands->append<bind_texture_command, bind_texture_command>(bt);
+        bt->binding = bt->sampler_location = 4;
+        bt->texture_name                   = 0;
+#endif // MANGO_DEBUG
+    }
+    else
+    {
+        // Normal GBuffer rendering
+        max_key k = command_keys::create_key(command_keys::max_key_material_front_to_back);
+        command_keys::add_material(k, m_active_model.material_id);
+
         // material data buffer
         bind_buffer_command* bb = m_gbuffer_commands->create<bind_buffer_command>(k);
         bb->target              = buffer_target::uniform_buffer;
@@ -983,6 +1222,8 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     // Same for shadow buffer
     if (shadow_command_buffer)
     {
+        max_key k = command_keys::create_key(command_keys::max_key_material_front_to_back);
+        command_keys::add_material(k, m_active_model.material_id);
         // material data buffer
         bind_buffer_command* bb = shadow_command_buffer->create<bind_buffer_command>(k);
         bb->target              = buffer_target::uniform_buffer;
@@ -1109,6 +1350,9 @@ void deferred_pbr_render_system::bind_lighting_pass_buffer(camera_data& camera, 
     bb->size                = sizeof(lighting_pass_data);
     bb->buffer_name         = m_frame_uniform_buffer->buffer_name();
     bb->offset              = m_frame_uniform_buffer->write_data(sizeof(lighting_pass_data), &m_lighting_pass_data);
+
+    // cleanup lighting uniforms...
+    m_lighting_pass_data.directional.intensity = 0.0f;
 }
 
 void deferred_pbr_render_system::bind_renderer_data_buffer(camera_data& camera, float camera_exposure)

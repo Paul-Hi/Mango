@@ -62,6 +62,7 @@ namespace mango
         command_buffer_ptr<min_key> m_begin_render_commands;
         command_buffer_ptr<min_key> m_global_binding_commands;
         command_buffer_ptr<max_key> m_gbuffer_commands;
+        command_buffer_ptr<max_key> m_transparent_commands;
         command_buffer_ptr<min_key> m_lighting_pass_commands;
         command_buffer_ptr<min_key> m_exposure_commands;
         command_buffer_ptr<min_key> m_composite_commands;
@@ -70,6 +71,8 @@ namespace mango
         //! \brief The \a shader_program for the deferred geometry pass.
         //! \details This fills the g-buffer for later use in the lighting pass.
         shader_program_ptr m_scene_geometry_pass;
+
+        shader_program_ptr m_transparent_pass;
 
         //! \brief The \a shader_program for the lighting pass.
         //! \details Utilizes the g-buffer filled before. Outputs hdr.
@@ -199,11 +202,13 @@ namespace mango
             int64 model_data_offset;
             int64 material_data_offset;
             int8 material_id;
+            glm::vec3 position;
             g_uint base_color_texture_name;
             g_uint roughness_metallic_texture_name;
             g_uint occlusion_texture_name;
             g_uint normal_texture_name;
             g_uint emissive_color_texture_name;
+            bool blend;
             bool face_culling;
 
             inline bool valid()

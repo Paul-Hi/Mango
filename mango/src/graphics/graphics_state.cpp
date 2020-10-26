@@ -64,6 +64,17 @@ bool graphics_state::set_depth_test(bool enabled)
     return false;
 }
 
+bool graphics_state::set_depth_write(bool enabled)
+{
+    PROFILE_ZONE;
+    if (m_internal_state.depth_write != enabled)
+    {
+        m_internal_state.depth_write = enabled;
+        return true;
+    }
+    return false;
+}
+
 bool graphics_state::set_depth_func(compare_operation op)
 {
     PROFILE_ZONE;
