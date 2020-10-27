@@ -147,7 +147,7 @@ bool deferred_pbr_render_system::create()
         return false;
 
     // frame uniform buffer
-    m_frame_uniform_buffer = uniform_buffer::create();
+    m_frame_uniform_buffer = gpu_buffer::create();
     if (!check_creation(m_frame_uniform_buffer.get(), "framw uniform buffer", "Render System"))
         return false;
 
@@ -322,7 +322,7 @@ void deferred_pbr_render_system::begin_render()
     m_hardware_stats.last_frame.materials  = 0;
 
     // TODO Paul: This should not be done here, this is pretty bad!
-    clear_framebuffer_command* cf = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::min_key_no_sort);
+    clear_framebuffer_command* cf = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::no_sort);
     cf->framebuffer_name          = 0; // default framebuffer
     cf->buffer_mask               = clear_buffer_mask::color_and_depth;
     cf->fb_attachment_mask        = attachment_mask::draw_buffer0 | attachment_mask::depth_buffer;
@@ -330,21 +330,21 @@ void deferred_pbr_render_system::begin_render()
     cf->a = cf->depth = 1.0f;
     cf->stencil       = 1;
 
-    cf                     = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::min_key_no_sort);
+    cf                     = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::no_sort);
     cf->framebuffer_name   = m_gbuffer->get_name();
     cf->buffer_mask        = clear_buffer_mask::color_and_depth;
     cf->fb_attachment_mask = attachment_mask::all_draw_buffers_and_depth;
     cf->r = cf->g = cf->b = 0.0f;
     cf->a = cf->depth = 1.0f;
 
-    cf                     = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::min_key_no_sort);
+    cf                     = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::no_sort);
     cf->framebuffer_name   = m_hdr_buffer->get_name();
     cf->buffer_mask        = clear_buffer_mask::color_and_depth;
     cf->fb_attachment_mask = attachment_mask::draw_buffer0 | attachment_mask::depth_buffer;
     cf->r = cf->g = cf->b = 0.0f;
     cf->a = cf->depth = 1.0f;
 
-    cf                     = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::min_key_no_sort);
+    cf                     = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::no_sort);
     cf->framebuffer_name   = m_backbuffer->get_name();
     cf->buffer_mask        = clear_buffer_mask::color_and_depth;
     cf->fb_attachment_mask = attachment_mask::draw_buffer0 | attachment_mask::depth_buffer;
@@ -355,7 +355,7 @@ void deferred_pbr_render_system::begin_render()
     {
         auto step                     = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map]);
         framebuffer_ptr shadow_buffer = step->get_shadow_buffer();
-        cf                            = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::min_key_no_sort);
+        cf                            = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::no_sort);
         cf->framebuffer_name          = shadow_buffer->get_name();
         cf->buffer_mask               = clear_buffer_mask::depth_buffer;
         cf->fb_attachment_mask        = attachment_mask::depth_buffer;
@@ -364,7 +364,7 @@ void deferred_pbr_render_system::begin_render()
 
     // gbuffer pass setup
     {
-        max_key k = command_keys::create_key(command_keys::max_key_material_front_to_back);
+        max_key k = command_keys::create_key<max_key>(command_keys::key_template::max_key_material_front_to_back);
         command_keys::add_base_mode(k, command_keys::base_mode::to_front);
         set_depth_test_command* sdt      = m_gbuffer_commands->create<set_depth_test_command>(k);
         sdt->enabled                     = true;
@@ -397,30 +397,30 @@ void deferred_pbr_render_system::begin_render()
     // lighting pass setup
     if (m_lighting_pass_commands->dirty())
     {
-        bind_framebuffer_command* bf     = m_lighting_pass_commands->create<bind_framebuffer_command>(command_keys::min_key_no_sort);
+        bind_framebuffer_command* bf     = m_lighting_pass_commands->create<bind_framebuffer_command>(command_keys::no_sort);
         bf->framebuffer_name             = m_hdr_buffer->get_name(); // lighting goes into hdr buffer.
-        bind_shader_program_command* bsp = m_lighting_pass_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+        bind_shader_program_command* bsp = m_lighting_pass_commands->create<bind_shader_program_command>(command_keys::no_sort);
         bsp->shader_program_name         = m_lighting_pass->get_name();
-        set_polygon_mode_command* spm    = m_lighting_pass_commands->create<set_polygon_mode_command>(command_keys::min_key_no_sort);
+        set_polygon_mode_command* spm    = m_lighting_pass_commands->create<set_polygon_mode_command>(command_keys::no_sort);
         spm->face                        = polygon_face::face_front_and_back;
         spm->mode                        = polygon_mode::fill;
-        bind_texture_command* bt         = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bind_texture_command* bt         = m_lighting_pass_commands->create<bind_texture_command>(command_keys::no_sort);
         bt->binding                      = 0;
         bt->sampler_location             = 0;
         bt->texture_name                 = m_gbuffer->get_attachment(framebuffer_attachment::color_attachment0)->get_name();
-        bt                               = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt                               = m_lighting_pass_commands->create<bind_texture_command>(command_keys::no_sort);
         bt->binding                      = 1;
         bt->sampler_location             = 1;
         bt->texture_name                 = m_gbuffer->get_attachment(framebuffer_attachment::color_attachment1)->get_name();
-        bt                               = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt                               = m_lighting_pass_commands->create<bind_texture_command>(command_keys::no_sort);
         bt->binding                      = 2;
         bt->sampler_location             = 2;
         bt->texture_name                 = m_gbuffer->get_attachment(framebuffer_attachment::color_attachment2)->get_name();
-        bt                               = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt                               = m_lighting_pass_commands->create<bind_texture_command>(command_keys::no_sort);
         bt->binding                      = 3;
         bt->sampler_location             = 3;
         bt->texture_name                 = m_gbuffer->get_attachment(framebuffer_attachment::color_attachment3)->get_name();
-        bt                               = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt                               = m_lighting_pass_commands->create<bind_texture_command>(command_keys::no_sort);
         bt->binding                      = 4;
         bt->sampler_location             = 4;
         bt->texture_name                 = m_gbuffer->get_attachment(framebuffer_attachment::depth_attachment)->get_name();
@@ -428,7 +428,7 @@ void deferred_pbr_render_system::begin_render()
 
     // transparent pass setup
     {
-        max_key k = command_keys::create_key(command_keys::max_key_back_to_front);
+        max_key k = command_keys::create_key<max_key>(command_keys::key_template::max_key_back_to_front);
         command_keys::add_base_mode(k, command_keys::base_mode::to_front);
         set_depth_test_command* sdt      = m_transparent_commands->create<set_depth_test_command>(k);
         sdt->enabled                     = true;
@@ -564,28 +564,28 @@ void deferred_pbr_render_system::finish_render(float dt)
         {
             shadow_map_name = step_shadow_map->get_shadow_buffer()->get_attachment(framebuffer_attachment::depth_attachment)->get_name();
         }
-        bind_texture_command* bt = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bind_texture_command* bt = m_lighting_pass_commands->create<bind_texture_command>(command_keys::no_sort);
         bt->binding              = 5;
         bt->sampler_location     = 5;
         bt->texture_name         = irradiance_map_name;
-        bt                       = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt                       = m_lighting_pass_commands->create<bind_texture_command>(command_keys::no_sort);
         bt->binding              = 6;
         bt->sampler_location     = 6;
         bt->texture_name         = prefiltered_specular_name;
-        bt                       = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt                       = m_lighting_pass_commands->create<bind_texture_command>(command_keys::no_sort);
         bt->binding              = 7;
         bt->sampler_location     = 7;
         bt->texture_name         = brdf_lookup_name;
-        bt                       = m_lighting_pass_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bt                       = m_lighting_pass_commands->create<bind_texture_command>(command_keys::no_sort);
         bt->binding              = 8;
         bt->sampler_location     = 8;
         bt->texture_name         = shadow_map_name;
 
         // TODO Paul: Check if the binding is better for performance or not.
-        bind_vertex_array_command* bva = m_lighting_pass_commands->create<bind_vertex_array_command>(command_keys::min_key_no_sort);
+        bind_vertex_array_command* bva = m_lighting_pass_commands->create<bind_vertex_array_command>(command_keys::no_sort);
         bva->vertex_array_name         = default_vao->get_name();
 
-        draw_arrays_command* da = m_lighting_pass_commands->create<draw_arrays_command>(command_keys::min_key_no_sort);
+        draw_arrays_command* da = m_lighting_pass_commands->create<draw_arrays_command>(command_keys::no_sort);
         da->topology            = primitive_topology::triangles;
         da->first               = 0;
         da->count               = 3;
@@ -603,14 +603,14 @@ void deferred_pbr_render_system::finish_render(float dt)
     // auto exposure compute shaders
     if (camera.camera_info && camera.camera_info->physical.adaptive_exposure && !m_lighting_pass_data.debug_view_enabled)
     {
-        bind_shader_program_command* bsp = m_exposure_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+        bind_shader_program_command* bsp = m_exposure_commands->create<bind_shader_program_command>(command_keys::no_sort);
         bsp->shader_program_name         = m_construct_luminance_buffer->get_name();
 
         texture_ptr hdr_result        = m_hdr_buffer->get_attachment(framebuffer_attachment::color_attachment0);
-        calculate_mipmaps_command* cm = m_exposure_commands->create<calculate_mipmaps_command>(command_keys::min_key_no_sort);
+        calculate_mipmaps_command* cm = m_exposure_commands->create<calculate_mipmaps_command>(command_keys::no_sort);
         cm->texture_name              = hdr_result->get_name();
 
-        add_memory_barrier_command* amb = m_exposure_commands->create<add_memory_barrier_command>(command_keys::min_key_no_sort);
+        add_memory_barrier_command* amb = m_exposure_commands->create<add_memory_barrier_command>(command_keys::no_sort);
         amb->barrier_bit                = memory_barrier_bit::shader_image_access_barrier_bit;
 
         int32 mip_level = 0;
@@ -623,7 +623,7 @@ void deferred_pbr_render_system::finish_render(float dt)
         hr_width >>= mip_level;
         hr_height >>= mip_level;
 
-        bind_image_texture_command* bit = m_exposure_commands->create<bind_image_texture_command>(command_keys::min_key_no_sort);
+        bind_image_texture_command* bit = m_exposure_commands->create<bind_image_texture_command>(command_keys::no_sort);
         bit->binding                    = 0;
         bit->texture_name               = hdr_result->get_name();
         bit->level                      = mip_level;
@@ -632,7 +632,7 @@ void deferred_pbr_render_system::finish_render(float dt)
         bit->access                     = base_access::read_only;
         bit->element_format             = format::rgba32f;
 
-        bind_buffer_command* bb = m_exposure_commands->create<bind_buffer_command>(command_keys::min_key_no_sort);
+        bind_buffer_command* bb = m_exposure_commands->create<bind_buffer_command>(command_keys::no_sort);
         bb->index               = SSB_SLOT_EXPOSURE;
         bb->buffer_name         = m_luminance_histogram_buffer->get_name();
         bb->offset              = 0;
@@ -640,25 +640,25 @@ void deferred_pbr_render_system::finish_render(float dt)
         bb->size                = m_luminance_histogram_buffer->byte_length();
 
         glm::vec2 params                 = glm::vec2(-8.0f, 1.0f / 40.0f); // min -8.0, max +32.0
-        bind_single_uniform_command* bsu = m_exposure_commands->create<bind_single_uniform_command>(command_keys::min_key_no_sort, sizeof(params));
+        bind_single_uniform_command* bsu = m_exposure_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(params));
         bsu->count                       = 1;
         bsu->location                    = 1;
         bsu->type                        = shader_resource_type::fvec2;
         bsu->uniform_value               = m_exposure_commands->map_spare<bind_single_uniform_command>();
         memcpy(bsu->uniform_value, &params, sizeof(params));
 
-        dispatch_compute_command* dc = m_exposure_commands->create<dispatch_compute_command>(command_keys::min_key_no_sort);
+        dispatch_compute_command* dc = m_exposure_commands->create<dispatch_compute_command>(command_keys::no_sort);
         dc->num_x_groups             = hr_width / 16;
         dc->num_y_groups             = hr_height / 16;
         dc->num_z_groups             = 1;
 
-        amb              = m_exposure_commands->create<add_memory_barrier_command>(command_keys::min_key_no_sort);
+        amb              = m_exposure_commands->create<add_memory_barrier_command>(command_keys::no_sort);
         amb->barrier_bit = memory_barrier_bit::shader_image_access_barrier_bit;
 
-        bsp                      = m_exposure_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+        bsp                      = m_exposure_commands->create<bind_shader_program_command>(command_keys::no_sort);
         bsp->shader_program_name = m_reduce_luminance_buffer->get_name();
 
-        bb              = m_exposure_commands->create<bind_buffer_command>(command_keys::min_key_no_sort);
+        bb              = m_exposure_commands->create<bind_buffer_command>(command_keys::no_sort);
         bb->index       = SSB_SLOT_EXPOSURE;
         bb->buffer_name = m_luminance_histogram_buffer->get_name();
         bb->offset      = 0;
@@ -669,53 +669,53 @@ void deferred_pbr_render_system::finish_render(float dt)
         float tau              = 0.75f;
         float time_coefficient = 1.0f - expf(-dt * tau);
         glm::vec4 red_params   = glm::vec4(time_coefficient, hr_width * hr_height, -8.0f, 40.0f); // min -8.0, max +32.0
-        bsu                    = m_exposure_commands->create<bind_single_uniform_command>(command_keys::min_key_no_sort, sizeof(red_params));
+        bsu                    = m_exposure_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(red_params));
         bsu->count             = 1;
         bsu->location          = 0;
         bsu->type              = shader_resource_type::fvec4;
         bsu->uniform_value     = m_exposure_commands->map_spare<bind_single_uniform_command>();
         memcpy(bsu->uniform_value, &red_params, sizeof(red_params));
 
-        dc               = m_exposure_commands->create<dispatch_compute_command>(command_keys::min_key_no_sort);
+        dc               = m_exposure_commands->create<dispatch_compute_command>(command_keys::no_sort);
         dc->num_x_groups = dc->num_y_groups = dc->num_z_groups = 1;
 
-        amb              = m_exposure_commands->create<add_memory_barrier_command>(command_keys::min_key_no_sort);
+        amb              = m_exposure_commands->create<add_memory_barrier_command>(command_keys::no_sort);
         amb->barrier_bit = memory_barrier_bit::shader_image_access_barrier_bit;
     }
 
     // composite
     if (m_composite_commands->dirty())
     {
-        set_depth_test_command* sdt      = m_composite_commands->create<set_depth_test_command>(command_keys::min_key_no_sort);
+        set_depth_test_command* sdt      = m_composite_commands->create<set_depth_test_command>(command_keys::no_sort);
         sdt->enabled                     = true;
-        set_depth_write_command* sdw     = m_composite_commands->create<set_depth_write_command>(command_keys::min_key_no_sort);
+        set_depth_write_command* sdw     = m_composite_commands->create<set_depth_write_command>(command_keys::no_sort);
         sdw->enabled                     = true;
-        set_depth_func_command* sdf      = m_composite_commands->create<set_depth_func_command>(command_keys::min_key_no_sort);
+        set_depth_func_command* sdf      = m_composite_commands->create<set_depth_func_command>(command_keys::no_sort);
         sdf->compare_operation           = compare_operation::less;
-        set_polygon_mode_command* spm    = m_composite_commands->create<set_polygon_mode_command>(command_keys::min_key_no_sort);
+        set_polygon_mode_command* spm    = m_composite_commands->create<set_polygon_mode_command>(command_keys::no_sort);
         spm->face                        = polygon_face::face_front_and_back;
         spm->mode                        = polygon_mode::fill;
-        set_blending_command* bl         = m_composite_commands->create<set_blending_command>(command_keys::min_key_no_sort);
+        set_blending_command* bl         = m_composite_commands->create<set_blending_command>(command_keys::no_sort);
         bl->enabled                      = false;
-        set_face_culling_command* sfc    = m_composite_commands->create<set_face_culling_command>(command_keys::min_key_no_sort);
+        set_face_culling_command* sfc    = m_composite_commands->create<set_face_culling_command>(command_keys::no_sort);
         sfc->enabled                     = true;
-        set_cull_face_command* scf       = m_composite_commands->create<set_cull_face_command>(command_keys::min_key_no_sort);
+        set_cull_face_command* scf       = m_composite_commands->create<set_cull_face_command>(command_keys::no_sort);
         scf->face                        = polygon_face::face_back;
-        bind_framebuffer_command* bf     = m_composite_commands->create<bind_framebuffer_command>(command_keys::min_key_no_sort);
+        bind_framebuffer_command* bf     = m_composite_commands->create<bind_framebuffer_command>(command_keys::no_sort);
         bf->framebuffer_name             = m_backbuffer->get_name();
-        bind_shader_program_command* bsp = m_composite_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+        bind_shader_program_command* bsp = m_composite_commands->create<bind_shader_program_command>(command_keys::no_sort);
         bsp->shader_program_name         = m_composing_pass->get_name();
 
-        bind_texture_command* bt = m_composite_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+        bind_texture_command* bt = m_composite_commands->create<bind_texture_command>(command_keys::no_sort);
         bt->binding              = 0;
         bt->sampler_location     = 0;
         bt->texture_name         = m_hdr_buffer->get_attachment(framebuffer_attachment::color_attachment0)->get_name();
 
         // TODO Paul: Check if the binding is better for performance or not.
-        bind_vertex_array_command* bva = m_composite_commands->create<bind_vertex_array_command>(command_keys::min_key_no_sort);
+        bind_vertex_array_command* bva = m_composite_commands->create<bind_vertex_array_command>(command_keys::no_sort);
         bva->vertex_array_name         = default_vao->get_name();
 
-        draw_arrays_command* da = m_composite_commands->create<draw_arrays_command>(command_keys::min_key_no_sort);
+        draw_arrays_command* da = m_composite_commands->create<draw_arrays_command>(command_keys::no_sort);
         da->topology            = primitive_topology::triangles;
         da->first               = 0;
         da->count               = 3;
@@ -724,26 +724,26 @@ void deferred_pbr_render_system::finish_render(float dt)
         m_hardware_stats.last_frame.draw_calls++; // TODO Paul: This measurements should be done, on glCalls.
     }
 
-    bind_framebuffer_command* bf = m_finish_render_commands->create<bind_framebuffer_command>(command_keys::min_key_no_sort);
+    bind_framebuffer_command* bf = m_finish_render_commands->create<bind_framebuffer_command>(command_keys::no_sort);
     bf->framebuffer_name         = 0;
 #ifdef MANGO_DEBUG
-    bind_vertex_array_command* bva   = m_finish_render_commands->create<bind_vertex_array_command>(command_keys::min_key_no_sort);
+    bind_vertex_array_command* bva   = m_finish_render_commands->create<bind_vertex_array_command>(command_keys::no_sort);
     bva->vertex_array_name           = 0;
-    bind_shader_program_command* bsp = m_finish_render_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+    bind_shader_program_command* bsp = m_finish_render_commands->create<bind_shader_program_command>(command_keys::no_sort);
     bsp->shader_program_name         = 0;
 #endif // MANGO_DEBUG
 
     // TODO Paul: Is there a better way?
     g_sync* frame_sync_prepare = m_frame_uniform_buffer->prepare();
 
-    client_wait_sync_command* cws = m_finish_render_commands->create<client_wait_sync_command>(command_keys::min_key_no_sort);
+    client_wait_sync_command* cws = m_finish_render_commands->create<client_wait_sync_command>(command_keys::no_sort);
     cws->sync                     = frame_sync_prepare;
     // TODO Paul: Is there a better way?
     g_sync* frame_sync_end = m_frame_uniform_buffer->end_frame();
-    fence_sync_command* fs = m_finish_render_commands->create<fence_sync_command>(command_keys::min_key_no_sort);
+    fence_sync_command* fs = m_finish_render_commands->create<fence_sync_command>(command_keys::no_sort);
     fs->sync               = frame_sync_end;
 
-    m_finish_render_commands->create<end_frame_command>(command_keys::min_key_no_sort);
+    m_finish_render_commands->create<end_frame_command>(command_keys::no_sort);
 
     // execute commands
     {
@@ -973,16 +973,15 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     if (!m_active_model.valid())
         return;
 
-    // key
+    auto scene  = m_shared_context->get_current_scene();
+    auto camera = scene->get_active_camera_data();
 
     if (m_active_model.blend)
     {
-        auto scene     = m_shared_context->get_current_scene();
-        auto camera    = scene->get_active_camera_data();
-        max_key k      = command_keys::create_key(command_keys::max_key_back_to_front);
+        max_key k      = command_keys::create_key<max_key>(command_keys::key_template::max_key_back_to_front);
         float distance = glm::distance(m_active_model.position, camera.transform->position);
         float depth    = glm::clamp(distance / (camera.camera_info->z_far - camera.camera_info->z_near), 0.0f, 1.0f); // TODO Paul: Do the correct calculation...
-        command_keys::add_depth(k, 1.0 - depth);
+        command_keys::add_depth(k, 1.0f - depth, command_keys::key_template::max_key_back_to_front);
         // transparent rendering
         // material data buffer
         bind_buffer_command* bb = m_transparent_commands->create<bind_buffer_command>(k);
@@ -1116,8 +1115,11 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     else
     {
         // Normal GBuffer rendering
-        max_key k = command_keys::create_key(command_keys::max_key_material_front_to_back);
+        max_key k = command_keys::create_key<max_key>(command_keys::key_template::max_key_material_front_to_back);
         command_keys::add_material(k, m_active_model.material_id);
+        float distance = glm::distance(m_active_model.position, camera.transform->position);
+        float depth    = glm::clamp(distance / (camera.camera_info->z_far - camera.camera_info->z_near), 0.0f, 1.0f); // TODO Paul: Do the correct calculation...
+        command_keys::add_depth(k, depth, command_keys::key_template::max_key_material_front_to_back);
 
         // material data buffer
         bind_buffer_command* bb = m_gbuffer_commands->create<bind_buffer_command>(k);
@@ -1222,8 +1224,11 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
     // Same for shadow buffer
     if (shadow_command_buffer)
     {
-        max_key k = command_keys::create_key(command_keys::max_key_material_front_to_back);
+        max_key k = command_keys::create_key<max_key>(command_keys::key_template::max_key_material_front_to_back);
         command_keys::add_material(k, m_active_model.material_id);
+        float distance = glm::distance(m_active_model.position, camera.transform->position);
+        float depth    = glm::clamp(distance / (camera.camera_info->z_far - camera.camera_info->z_near), 0.0f, 1.0f); // TODO Paul: Do the correct calculation...
+        command_keys::add_depth(k, depth, command_keys::key_template::max_key_material_front_to_back);
         // material data buffer
         bind_buffer_command* bb = shadow_command_buffer->create<bind_buffer_command>(k);
         bb->target              = buffer_target::uniform_buffer;
@@ -1344,7 +1349,7 @@ void deferred_pbr_render_system::bind_lighting_pass_buffer(camera_data& camera, 
 
     m_lighting_pass_data.directional.cast_shadows = m_lighting_pass_data.directional.cast_shadows && (m_pipeline_steps[mango::render_step::shadow_map] != nullptr);
 
-    bind_buffer_command* bb = m_global_binding_commands->create<bind_buffer_command>(command_keys::min_key_no_sort);
+    bind_buffer_command* bb = m_global_binding_commands->create<bind_buffer_command>(command_keys::no_sort);
     bb->target              = buffer_target::uniform_buffer;
     bb->index               = UB_SLOT_LIGHTING_PASS_DATA;
     bb->size                = sizeof(lighting_pass_data);
@@ -1371,7 +1376,7 @@ void deferred_pbr_render_system::bind_renderer_data_buffer(camera_data& camera, 
         MANGO_LOG_ERROR("Renderer Data not complete! No active camera! Attempting to use last valid data!");
     }
 
-    bind_buffer_command* bb = m_global_binding_commands->create<bind_buffer_command>(command_keys::min_key_no_sort);
+    bind_buffer_command* bb = m_global_binding_commands->create<bind_buffer_command>(command_keys::no_sort);
     bb->target              = buffer_target::uniform_buffer;
     bb->index               = UB_SLOT_RENDERER_FRAME;
     bb->size                = sizeof(renderer_data);

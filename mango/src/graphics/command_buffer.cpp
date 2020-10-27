@@ -15,8 +15,10 @@
 
 using namespace mango;
 
+//! \brief Internal \a graphics_state to limit state changes.
 graphics_state m_current_state;
 
+//! \cond NO_COND
 void set_viewport(const void* data)
 {
     NAMED_PROFILE_ZONE("Set Viewport");
@@ -470,3 +472,5 @@ void set_polygon_offset(const void* data)
     }
 }
 const execute_function set_polygon_offset_command::execute = &set_polygon_offset;
+
+//! \endcond

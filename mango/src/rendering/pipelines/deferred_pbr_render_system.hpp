@@ -8,7 +8,7 @@
 #define MANGO_DEFERRED_PBR_RENDER_SYSTEM_HPP
 
 #include <graphics/framebuffer.hpp>
-#include <graphics/uniform_buffer.hpp>
+#include <graphics/gpu_buffer.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <rendering/steps/pipeline_step.hpp>
 
@@ -59,19 +59,29 @@ namespace mango
         //! \brief The hdr buffer of the deferred pipeline. Used for auto exposure.
         framebuffer_ptr m_hdr_buffer;
 
+        //! \brief The \a command_buffer storing commands to be executed first.
         command_buffer_ptr<min_key> m_begin_render_commands;
+        //! \brief The \a command_buffer storing commands regarding globally bound buffers.
         command_buffer_ptr<min_key> m_global_binding_commands;
+        //! \brief The \a command_buffer storing commands regarding rendering to the gbuffer.
         command_buffer_ptr<max_key> m_gbuffer_commands;
+        //! \brief The \a command_buffer storing commands to render transparent objects.
         command_buffer_ptr<max_key> m_transparent_commands;
+        //! \brief The \a command_buffer storing commands to issue lighting calculations for gbuffer objects.
         command_buffer_ptr<min_key> m_lighting_pass_commands;
+        //! \brief The \a command_buffer storing commands regarding automatic exposure calculations.
         command_buffer_ptr<min_key> m_exposure_commands;
+        //! \brief The \a command_buffer storing commands to composite everything.
         command_buffer_ptr<min_key> m_composite_commands;
+        //! \brief The \a command_buffer storing commands to be executed last.
         command_buffer_ptr<min_key> m_finish_render_commands;
 
         //! \brief The \a shader_program for the deferred geometry pass.
         //! \details This fills the g-buffer for later use in the lighting pass.
         shader_program_ptr m_scene_geometry_pass;
 
+        //! \brief The \a shader_program for the transparency pass.
+        //! \details This is a seperate forward pass.
         shader_program_ptr m_transparent_pass;
 
         //! \brief The \a shader_program for the lighting pass.
@@ -97,7 +107,7 @@ namespace mango
         shader_program_ptr m_composing_pass;
 
         //! \brief The uniform buffer mapping the gpu buffer to the scene uniforms.
-        uniform_buffer_ptr m_frame_uniform_buffer;
+        gpu_buffer_ptr m_frame_uniform_buffer;
 
         //! \brief Uniform buffer struct for renderer data.
         struct renderer_data
@@ -109,7 +119,7 @@ namespace mango
             std140_float padding0;              //!< Padding.
             std140_float padding1;              //!< Padding.
             std140_float padding2;              //!< Padding.
-        } m_renderer_data;
+        } m_renderer_data; //!< Current renderer_data.
 
         //! \brief Uniform buffer struct for model data.
         struct model_data
@@ -195,36 +205,48 @@ namespace mango
             } debug_options;                  //!< The debug options.
 
             std140_float padding0; //!< padding.
-        } m_lighting_pass_data;
+        } m_lighting_pass_data; //!< Current lighting_pass_data.
 
+        //! \brief Structure used to cache the \a commands regarding the rendering of the current model/mesh.
         struct model_cache
         {
-            int64 model_data_offset;
-            int64 material_data_offset;
-            int8 material_id;
-            glm::vec3 position;
-            g_uint base_color_texture_name;
-            g_uint roughness_metallic_texture_name;
-            g_uint occlusion_texture_name;
-            g_uint normal_texture_name;
-            g_uint emissive_color_texture_name;
-            bool blend;
-            bool face_culling;
+            int64 model_data_offset; //!< Caches the offset of the model_data.
+            int64 material_data_offset; //!< Caches the offset of the material_data.
+            int8 material_id; //!< Caches the material_id.
+            glm::vec3 position; //!< Caches the transform position (used for example for transparency sorting).
+            g_uint base_color_texture_name; //!< Caches the name of the materials base color texture, or the default one if not existent.
+            g_uint roughness_metallic_texture_name; //!< Caches the name of the materials roughness metallic texture, or the default one if not existent.
+            g_uint occlusion_texture_name; //!< Caches the name of the materials occlusion texture, or the default one if not existent.
+            g_uint normal_texture_name; //!< Caches the name of the materials normal texture, or the default one if not existent.
+            g_uint emissive_color_texture_name; //!< Caches the name of the materials emissive color texture, or the default one if not existent.
+            bool blend; //!< Caches if material needs blending.
+            bool face_culling; //!< Caches if faces have to be culled for rendering that material.
 
+            //! \brief Returns the validation state of the \a model_cache.
+            //! \return True if \a model_cache is valid, else False.
             inline bool valid()
             {
                 return model_data_offset >= 0 && material_data_offset >= 0;
             }
 
+            //! \brief Creates an id from the cache and the given \a material_data.
+            //! \details The resulting id can be used to sort \a commands by material. This is highly WIP.
+            //! \return An int8 to be interpreted as a material id.
             inline int8 create_material_id(material_data& mat_data)
             {
-                int8 v = int8(float(mat_data.metallic) * 10.0f);
+                // should create an id between 0 and 256 that should be as unique as possible.
+                // At the moment it depends 'just' on metallic and face culling properties.
+                // TODO Paul: ... Make it real.
+                int8 v = int8(float(mat_data.metallic) * 10.0f); // 0 - 10
                 v += face_culling ? 0 : 100;
                 return v;
             }
 
-        } m_active_model;
+        } m_active_model; //!< Active model_cache.
 
+        //! \brief Binds the uniform buffer of the renderer.
+        //! \param[in,out] camera The \a camera_data of the current camera.
+        //! \param[in] camera_exposure The current exposure value.
         void bind_renderer_data_buffer(camera_data& camera, float camera_exposure);
 
         //! \brief Binds the uniform buffer of the lighting pass.

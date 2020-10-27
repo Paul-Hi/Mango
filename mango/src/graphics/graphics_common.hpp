@@ -35,7 +35,7 @@ namespace mango
     MANGO_GRAPHICS_OBJECT_IMPL(vertex_array)
     MANGO_GRAPHICS_OBJECT(framebuffer)
     MANGO_GRAPHICS_OBJECT_IMPL(framebuffer)
-    MANGO_GRAPHICS_OBJECT(uniform_buffer)
+    MANGO_GRAPHICS_OBJECT(gpu_buffer)
 
 #undef MANGO_GRAPHICS_OBJECT
 #undef MANGO_GRAPHICS_OBJECT_IMPL
@@ -1140,6 +1140,9 @@ namespace mango
         texture_buffer
     };
 
+    //! \brief Converts a \a buffer_target to an OpenGl enumeration value.
+    //! \param[in] target The \a buffer_target to convert.
+    //! \return The gl enumeration specifying a \a buffer_target.
     inline g_enum buffer_target_to_gl(const buffer_target& target)
     {
         switch (target)

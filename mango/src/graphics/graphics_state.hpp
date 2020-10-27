@@ -106,16 +106,18 @@ namespace mango
         //! \return True if state changed, else false.
         bool set_polygon_offset(float factor, float units);
 
-        void end_frame() // Maybe not a good solution...
+        //! \brief Marks the end of one frame, so the buffer offsets can be reset.
+        void end_frame() // TODO Paul: Maybe not a good solution...
         {
-            for(int32 i = 0; i < max_buffer_slots; ++i)
+            for (int32 i = 0; i < max_buffer_slots; ++i)
                 m_internal_state.buffer_offsets[i] = -1;
         }
 
         //! \brief The maximum number of texture bindings (not really, just supported by the state).
         const static int32 max_texture_bindings = 16; // TODO Paul: We should really define these things somewhere else. And query from OpenGL.
 
-        const static int32 max_buffer_slots = 8; // This is just some approximation.
+        //! \brief The maximum number of buffer slot (not really, just supported by the state).
+        const static int32 max_buffer_slots = 8; // TODO Paul: We should really define these things somewhere else. And query from OpenGL.
 
         //! \brief Structure to cache the state of the graphics pipeline.
         struct internal_state
@@ -126,7 +128,7 @@ namespace mango
 
             std::array<g_uint, max_texture_bindings> m_active_texture_bindings; //!< Bindings from binding points to texture names.
 
-            int64 buffer_offsets[max_buffer_slots];
+            int64 buffer_offsets[max_buffer_slots]; //!< Buffer slot offsets per frame.
 
             struct
             {

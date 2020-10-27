@@ -23,7 +23,7 @@ namespace mango
         //! \brief Configures the \a ibl_step.
         //! \param[in] configuration The \a ibl_step_configuration to use.
         void configure(const ibl_step_configuration& configuration);
-        void execute(uniform_buffer_ptr frame_uniform_buffer) override;
+        void execute(gpu_buffer_ptr frame_uniform_buffer) override;
 
         void destroy() override;
 
@@ -32,18 +32,28 @@ namespace mango
         //! \param[in] hdr_texture The texture with the hdr image data.
         void load_from_hdr(const texture_ptr& hdr_texture);
 
+        //! \brief Returns a shared_ptr to the \a command_buffer of the ibl step.
+        //! \details The returned \a command_buffer gets executed by the rendering system.
+        //! \return A shared_ptr to the ibl step \a command_buffer.
         inline command_buffer_ptr<min_key> get_ibl_commands()
         {
             return m_ibl_command_buffer;
         }
 
+        //! \brief Returns the preconvoluted irradiance map of the currently loaded hdr image.
+        //! \return A shared_ptr to the preconvoluted irradiance \a texture.
         texture_ptr get_irradiance_map();
+        //! \brief Returns the prefiltered specular map of the currently loaded hdr image.
+        //! \return A shared_ptr to the prefiltered specular \a texture.
         texture_ptr get_prefiltered_specular();
+        //! \brief Returns the precalculated brdf lookup table of the currently loaded hdr image.
+        //! \return A shared_ptr to the precalculated brdf lookup table in the form of a \a texture.
         texture_ptr get_brdf_lookup();
 
         void on_ui_widget() override;
 
       private:
+        //! \brief The \a command_buffer storing all ibl step related commands.
         command_buffer_ptr<min_key> m_ibl_command_buffer;
         //! \brief Cubemap texture.
         texture_ptr m_cubemap;
@@ -92,7 +102,7 @@ namespace mango
             std140_float p0;                    //!< Padding.
             std140_float p1;                    //!< Padding.
             std140_float p2;                    //!< Padding.
-        } m_ibl_data;
+        } m_ibl_data; //!< Current ibl_data.
     };
 } // namespace mango
 

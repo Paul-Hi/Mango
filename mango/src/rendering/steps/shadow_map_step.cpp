@@ -91,11 +91,11 @@ void shadow_map_step::configure(const shadow_step_configuration& configuration)
     m_dirty_cascades = true;
 }
 
-void shadow_map_step::execute(uniform_buffer_ptr frame_uniform_buffer)
+void shadow_map_step::execute(gpu_buffer_ptr frame_uniform_buffer)
 {
     PROFILE_ZONE;
 
-    max_key k = command_keys::create_key(command_keys::max_key_material_front_to_back);
+    max_key k = command_keys::create_key<max_key>(command_keys::key_template::max_key_material_front_to_back);
     command_keys::add_base_mode(k, command_keys::base_mode::to_front);
     bind_framebuffer_command* bf = m_shadow_command_buffer->create<bind_framebuffer_command>(k);
     bf->framebuffer_name         = m_shadow_buffer->get_name();

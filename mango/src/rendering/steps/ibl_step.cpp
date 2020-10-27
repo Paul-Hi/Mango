@@ -135,11 +135,11 @@ bool ibl_step::create()
     command_buffer_ptr<min_key> compute_commands = command_buffer<min_key>::create(256);
 
     // build integration look up texture
-    bind_shader_program_command* bsp = compute_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+    bind_shader_program_command* bsp = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
     bsp->shader_program_name         = m_build_integration_lut->get_name();
 
     // bind output lut
-    bind_image_texture_command* bit = compute_commands->create<bind_image_texture_command>(command_keys::min_key_no_sort);
+    bind_image_texture_command* bit = compute_commands->create<bind_image_texture_command>(command_keys::no_sort);
     bit->binding                    = 0;
     bit->texture_name               = m_brdf_integration_lut->get_name();
     bit->level                      = 0;
@@ -150,7 +150,7 @@ bool ibl_step::create()
 
     // bind uniform
     glm::vec2 out                    = glm::vec2(m_brdf_integration_lut->get_width(), m_brdf_integration_lut->get_height());
-    bind_single_uniform_command* bsu = compute_commands->create<bind_single_uniform_command>(command_keys::min_key_no_sort, sizeof(out));
+    bind_single_uniform_command* bsu = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
     bsu->count                       = 1;
     bsu->location                    = 0;
     bsu->type                        = shader_resource_type::fvec2;
@@ -158,15 +158,15 @@ bool ibl_step::create()
     memcpy(bsu->uniform_value, &out, sizeof(out));
 
     // execute compute
-    dispatch_compute_command* dc = compute_commands->create<dispatch_compute_command>(command_keys::min_key_no_sort);
+    dispatch_compute_command* dc = compute_commands->create<dispatch_compute_command>(command_keys::no_sort);
     dc->num_x_groups             = m_brdf_integration_lut->get_width() / 8;
     dc->num_y_groups             = m_brdf_integration_lut->get_height() / 8;
     dc->num_z_groups             = 1;
 
-    add_memory_barrier_command* amb = compute_commands->create<add_memory_barrier_command>(command_keys::min_key_no_sort);
+    add_memory_barrier_command* amb = compute_commands->create<add_memory_barrier_command>(command_keys::no_sort);
     amb->barrier_bit                = memory_barrier_bit::shader_image_access_barrier_bit;
 
-    bsp                      = compute_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+    bsp                      = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
     bsp->shader_program_name = 0;
 
     {
@@ -201,41 +201,41 @@ void ibl_step::configure(const ibl_step_configuration& configuration)
     MANGO_ASSERT(m_ibl_data.render_level > 0.0f && m_ibl_data.render_level < 8.1f, "Shadow Map Resolution has to be between 0.0 and 8.0f!");
 }
 
-void ibl_step::execute(uniform_buffer_ptr frame_uniform_buffer)
+void ibl_step::execute(gpu_buffer_ptr frame_uniform_buffer)
 {
     PROFILE_ZONE;
     if (m_ibl_data.render_level < 0.0f)
         return;
 
-    set_depth_test_command* sdt = m_ibl_command_buffer->create<set_depth_test_command>(command_keys::min_key_no_sort);
+    set_depth_test_command* sdt = m_ibl_command_buffer->create<set_depth_test_command>(command_keys::no_sort);
     sdt->enabled                = true;
-    set_depth_func_command* sdf = m_ibl_command_buffer->create<set_depth_func_command>(command_keys::min_key_no_sort);
+    set_depth_func_command* sdf = m_ibl_command_buffer->create<set_depth_func_command>(command_keys::no_sort);
     sdf->compare_operation      = compare_operation::less_equal;
 
-    set_cull_face_command* scf = m_ibl_command_buffer->create<set_cull_face_command>(command_keys::min_key_no_sort);
+    set_cull_face_command* scf = m_ibl_command_buffer->create<set_cull_face_command>(command_keys::no_sort);
     scf->face                  = polygon_face::face_front;
 
-    set_polygon_mode_command* spm = m_ibl_command_buffer->create<set_polygon_mode_command>(command_keys::min_key_no_sort);
+    set_polygon_mode_command* spm = m_ibl_command_buffer->create<set_polygon_mode_command>(command_keys::no_sort);
     spm->face                     = polygon_face::face_front_and_back;
     spm->mode                     = polygon_mode::fill;
 
-    set_blending_command* bl = m_ibl_command_buffer->create<set_blending_command>(command_keys::min_key_no_sort);
+    set_blending_command* bl = m_ibl_command_buffer->create<set_blending_command>(command_keys::no_sort);
     bl->enabled              = false;
 
-    bind_shader_program_command* bsp = m_ibl_command_buffer->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+    bind_shader_program_command* bsp = m_ibl_command_buffer->create<bind_shader_program_command>(command_keys::no_sort);
     bsp->shader_program_name         = m_draw_environment->get_name();
 
-    bind_vertex_array_command* bva = m_ibl_command_buffer->create<bind_vertex_array_command>(command_keys::min_key_no_sort);
+    bind_vertex_array_command* bva = m_ibl_command_buffer->create<bind_vertex_array_command>(command_keys::no_sort);
     bva->vertex_array_name         = m_cube_geometry->get_name();
 
-    bind_buffer_command* bb = m_ibl_command_buffer->create<bind_buffer_command>(command_keys::min_key_no_sort);
+    bind_buffer_command* bb = m_ibl_command_buffer->create<bind_buffer_command>(command_keys::no_sort);
     bb->target              = buffer_target::uniform_buffer;
     bb->index               = UB_SLOT_IBL_DATA;
     bb->size                = sizeof(ibl_data);
     bb->buffer_name         = frame_uniform_buffer->buffer_name();
     bb->offset              = frame_uniform_buffer->write_data(sizeof(ibl_data), &m_ibl_data);
 
-    bind_texture_command* bt = m_ibl_command_buffer->create<bind_texture_command>(command_keys::min_key_no_sort);
+    bind_texture_command* bt = m_ibl_command_buffer->create<bind_texture_command>(command_keys::no_sort);
     bt->binding              = 0;
     bt->sampler_location     = 0;
     if (m_cubemap)
@@ -243,7 +243,7 @@ void ibl_step::execute(uniform_buffer_ptr frame_uniform_buffer)
     else
         bt->texture_name = default_ibl_texture->get_name();
 
-    draw_elements_command* de = m_ibl_command_buffer->create<draw_elements_command>(command_keys::min_key_no_sort);
+    draw_elements_command* de = m_ibl_command_buffer->create<draw_elements_command>(command_keys::no_sort);
     de->topology              = primitive_topology::triangle_strip;
     de->first                 = 0;
     de->count                 = 18;
@@ -251,10 +251,10 @@ void ibl_step::execute(uniform_buffer_ptr frame_uniform_buffer)
     de->instance_count        = 1;
 
 #ifdef MANGO_DEBUG
-    bva                    = m_ibl_command_buffer->create<bind_vertex_array_command>(command_keys::min_key_no_sort);
+    bva                    = m_ibl_command_buffer->create<bind_vertex_array_command>(command_keys::no_sort);
     bva->vertex_array_name = 0;
 
-    bsp                      = m_ibl_command_buffer->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+    bsp                      = m_ibl_command_buffer->create<bind_shader_program_command>(command_keys::no_sort);
     bsp->shader_program_name = 0;
 #endif // MANGO_DEBUG
 }
@@ -302,17 +302,17 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
     command_buffer_ptr<min_key> compute_commands = command_buffer<min_key>::create(4096);
 
     // equirectangular to cubemap
-    bind_shader_program_command* bsp = compute_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+    bind_shader_program_command* bsp = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
     bsp->shader_program_name         = m_equi_to_cubemap->get_name();
 
     // bind input hdr texture
-    bind_texture_command* bt = compute_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+    bind_texture_command* bt = compute_commands->create<bind_texture_command>(command_keys::no_sort);
     bt->binding              = 0;
     bt->sampler_location     = 0;
     bt->texture_name         = hdr_texture->get_name();
 
     // bind output cubemap
-    bind_image_texture_command* bit = compute_commands->create<bind_image_texture_command>(command_keys::min_key_no_sort);
+    bind_image_texture_command* bit = compute_commands->create<bind_image_texture_command>(command_keys::no_sort);
     bit->binding                    = 1;
     bit->texture_name               = m_cubemap->get_name();
     bit->level                      = 0;
@@ -323,7 +323,7 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
 
     // bind uniform
     glm::vec2 out                    = glm::vec2(m_cubemap->get_width(), m_cubemap->get_height());
-    bind_single_uniform_command* bsu = compute_commands->create<bind_single_uniform_command>(command_keys::min_key_no_sort, sizeof(out));
+    bind_single_uniform_command* bsu = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
     bsu->count                       = 1;
     bsu->location                    = 1;
     bsu->type                        = shader_resource_type::fvec2;
@@ -331,30 +331,30 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
     memcpy(bsu->uniform_value, &out, sizeof(out));
 
     // execute compute
-    dispatch_compute_command* dp = compute_commands->create<dispatch_compute_command>(command_keys::min_key_no_sort);
+    dispatch_compute_command* dp = compute_commands->create<dispatch_compute_command>(command_keys::no_sort);
     dp->num_x_groups             = m_cubemap->get_width() / 32;
     dp->num_y_groups             = m_cubemap->get_height() / 32;
     dp->num_z_groups             = 6;
 
     // We need to recalculate mipmaps
-    calculate_mipmaps_command* cm = compute_commands->create<calculate_mipmaps_command>(command_keys::min_key_no_sort);
+    calculate_mipmaps_command* cm = compute_commands->create<calculate_mipmaps_command>(command_keys::no_sort);
     cm->texture_name              = m_cubemap->get_name();
 
-    add_memory_barrier_command* amb = compute_commands->create<add_memory_barrier_command>(command_keys::min_key_no_sort);
+    add_memory_barrier_command* amb = compute_commands->create<add_memory_barrier_command>(command_keys::no_sort);
     amb->barrier_bit                = memory_barrier_bit::shader_image_access_barrier_bit;
 
     // build irradiance map
-    bsp                      = compute_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+    bsp                      = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
     bsp->shader_program_name = m_build_irradiance_map->get_name();
 
     // bind input cubemap
-    bt                   = compute_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+    bt                   = compute_commands->create<bind_texture_command>(command_keys::no_sort);
     bt->binding          = 0;
     bt->sampler_location = 0;
     bt->texture_name     = m_cubemap->get_name();
 
     // bind output irradiance map
-    bit                 = compute_commands->create<bind_image_texture_command>(command_keys::min_key_no_sort);
+    bit                 = compute_commands->create<bind_image_texture_command>(command_keys::no_sort);
     bit->binding        = 1;
     bit->texture_name   = m_irradiance_map->get_name();
     bit->level          = 0;
@@ -365,7 +365,7 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
 
     // bind uniform
     out                = glm::vec2(m_irradiance_map->get_width(), m_irradiance_map->get_height());
-    bsu                = compute_commands->create<bind_single_uniform_command>(command_keys::min_key_no_sort, sizeof(out));
+    bsu                = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
     bsu->count         = 1;
     bsu->location      = 1;
     bsu->type          = shader_resource_type::fvec2;
@@ -373,20 +373,20 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
     memcpy(bsu->uniform_value, &out, sizeof(out));
 
     // execute compute
-    dp               = compute_commands->create<dispatch_compute_command>(command_keys::min_key_no_sort);
+    dp               = compute_commands->create<dispatch_compute_command>(command_keys::no_sort);
     dp->num_x_groups = m_irradiance_map->get_width() / 32;
     dp->num_y_groups = m_irradiance_map->get_height() / 32;
     dp->num_z_groups = 6;
 
-    amb              = compute_commands->create<add_memory_barrier_command>(command_keys::min_key_no_sort);
+    amb              = compute_commands->create<add_memory_barrier_command>(command_keys::no_sort);
     amb->barrier_bit = memory_barrier_bit::shader_image_access_barrier_bit;
 
     // build prefiltered specular mipchain
-    bsp                      = compute_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+    bsp                      = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
     bsp->shader_program_name = m_build_specular_prefiltered_map->get_name();
 
     // bind input cubemap // TODO Paul: Needed again?
-    bt                   = compute_commands->create<bind_texture_command>(command_keys::min_key_no_sort);
+    bt                   = compute_commands->create<bind_texture_command>(command_keys::no_sort);
     bt->binding          = 0;
     bt->sampler_location = 0;
     bt->texture_name     = m_cubemap->get_name();
@@ -399,7 +399,7 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
         float roughness            = (float)mip / (float)(mip_count - 1);
 
         // bind correct mipmap
-        bit                 = compute_commands->create<bind_image_texture_command>(command_keys::min_key_no_sort);
+        bit                 = compute_commands->create<bind_image_texture_command>(command_keys::no_sort);
         bit->binding        = 1;
         bit->texture_name   = m_prefiltered_specular->get_name();
         bit->level          = static_cast<g_int>(mip);
@@ -409,27 +409,27 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
         bit->element_format = format::rgba16f;
 
         out                = glm::vec2(mipmap_width, mipmap_height);
-        bsu                = compute_commands->create<bind_single_uniform_command>(command_keys::min_key_no_sort, sizeof(out));
+        bsu                = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
         bsu->count         = 1;
         bsu->location      = 1;
         bsu->type          = shader_resource_type::fvec2;
         bsu->uniform_value = compute_commands->map_spare<bind_single_uniform_command>();
         memcpy(bsu->uniform_value, &out, sizeof(out));
 
-        bsu                = compute_commands->create<bind_single_uniform_command>(command_keys::min_key_no_sort, sizeof(out));
+        bsu                = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
         bsu->count         = 1;
         bsu->location      = 2;
         bsu->type          = shader_resource_type::fsingle;
         bsu->uniform_value = compute_commands->map_spare<bind_single_uniform_command>();
         memcpy(bsu->uniform_value, &roughness, sizeof(roughness));
 
-        dp               = compute_commands->create<dispatch_compute_command>(command_keys::min_key_no_sort);
+        dp               = compute_commands->create<dispatch_compute_command>(command_keys::no_sort);
         dp->num_x_groups = m_prefiltered_specular->get_width() / 32;
         dp->num_y_groups = m_prefiltered_specular->get_height() / 32;
         dp->num_z_groups = 6;
     }
 
-    bsp                      = compute_commands->create<bind_shader_program_command>(command_keys::min_key_no_sort);
+    bsp                      = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
     bsp->shader_program_name = 0;
 
     {

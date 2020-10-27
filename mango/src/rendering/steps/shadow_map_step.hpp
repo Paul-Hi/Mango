@@ -24,15 +24,20 @@ namespace mango
         //! \brief Configures the \a shadow_map_step.
         //! \param[in] configuration The \a shadow_step_configuration to use.
         void configure(const shadow_step_configuration& configuration);
-        void execute(uniform_buffer_ptr frame_uniform_buffer) override;
+        void execute(gpu_buffer_ptr frame_uniform_buffer) override;
 
         void destroy() override;
 
+        //! \brief Returns the shadow framebuffer with the shadow map attached as depth attachment with multiple layers.
+        //! \return A shared_ptr to the shadow \a framebuffer.
         inline framebuffer_ptr get_shadow_buffer()
         {
             return m_shadow_buffer;
         }
 
+        //! \brief Returns a shared_ptr to the \a command_buffer of the shadow step.
+        //! \details The returned \a command_buffer can be used to render geometry that should cast shadows. It gets executed by the rendering system.
+        //! \return A shared_ptr to the shadow step \a command_buffer.
         inline command_buffer_ptr<max_key> get_shadow_commands()
         {
             return m_shadow_command_buffer;
@@ -54,6 +59,7 @@ namespace mango
         void on_ui_widget() override;
 
       private:
+        //! \brief The \a command_buffer storing all shadow step related commands.
         command_buffer_ptr<max_key> m_shadow_command_buffer;
         //! \brief The framebuffer storing all shadow maps.
         framebuffer_ptr m_shadow_buffer;
@@ -77,7 +83,7 @@ namespace mango
             std140_int cascade_count                 = 3;                    //!< The number of cascades.
             std140_float cascade_interpolation_range = 0.5f; //!< The range to use for interpolating the cascades. Larger values mean smoother transition, but less quality and performance impact.
             std140_float max_penumbra                = 3.0f; //!< The maximum penumra radius in pixels. Larger values can look more natural, but may cause artefacts and performance drops.
-        } m_shadow_data;
+        } m_shadow_data; //!< Current shadow_data.
 
         struct
         {

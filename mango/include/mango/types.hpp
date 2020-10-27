@@ -49,6 +49,7 @@ namespace mango
     //! \brief Type alias for a size_t.
     using ptr_size = ::size_t;
 
+    //! \brief Type alias for an uintptr_t.
     using uintptr = ::uintptr_t;
 
     //! \brief Type alias for a std::string.
