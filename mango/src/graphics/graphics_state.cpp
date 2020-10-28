@@ -8,30 +8,30 @@
 #include <graphics/shader_program.hpp>
 #include <graphics/vertex_array.hpp>
 #include <mango/assert.hpp>
-#include <map>
 #include <mango/profile.hpp>
+#include <map>
 
 using namespace mango;
 
 graphics_state::graphics_state()
 {
     PROFILE_ZONE;
-    m_internal_state.shader_program        = nullptr;
-    m_internal_state.framebuffer           = nullptr;
-    m_internal_state.vertex_array          = nullptr;
+    m_internal_state.shader_program        = 0;
+    m_internal_state.framebuffer           = 0;
+    m_internal_state.vertex_array          = 0;
     m_internal_state.viewport.x            = 0;
     m_internal_state.viewport.y            = 0;
     m_internal_state.viewport.width        = 0;
     m_internal_state.viewport.height       = 0;
-    m_internal_state.poly_mode.face        = polygon_face::FACE_FRONT_AND_BACK;
-    m_internal_state.poly_mode.mode        = polygon_mode::FILL;
+    m_internal_state.poly_mode.face        = polygon_face::face_front_and_back;
+    m_internal_state.poly_mode.mode        = polygon_mode::fill;
     m_internal_state.depth_test.enabled    = false;
-    m_internal_state.depth_test.depth_func = compare_operation::LESS;
+    m_internal_state.depth_test.depth_func = compare_operation::less;
     m_internal_state.face_culling.enabled  = false;
-    m_internal_state.face_culling.face     = polygon_face::FACE_BACK;
+    m_internal_state.face_culling.face     = polygon_face::face_back;
     m_internal_state.blending.enabled      = false;
-    m_internal_state.blending.src          = blend_factor::ONE;
-    m_internal_state.blending.dest         = blend_factor::ZERO;
+    m_internal_state.blending.src          = blend_factor::one;
+    m_internal_state.blending.dest         = blend_factor::zero;
 }
 
 bool graphics_state::set_viewport(int32 x, int32 y, int32 width, int32 height)
@@ -64,6 +64,17 @@ bool graphics_state::set_depth_test(bool enabled)
     return false;
 }
 
+bool graphics_state::set_depth_write(bool enabled)
+{
+    PROFILE_ZONE;
+    if (m_internal_state.depth_write != enabled)
+    {
+        m_internal_state.depth_write = enabled;
+        return true;
+    }
+    return false;
+}
+
 bool graphics_state::set_depth_func(compare_operation op)
 {
     PROFILE_ZONE;
@@ -87,44 +98,27 @@ bool graphics_state::set_polygon_mode(polygon_face face, polygon_mode mode)
     return false;
 }
 
-bool graphics_state::bind_vertex_array(vertex_array_ptr vertex_array)
+bool graphics_state::bind_vertex_array(g_uint name)
 {
     PROFILE_ZONE;
-    if (m_internal_state.vertex_array != vertex_array)
+    if (m_internal_state.vertex_array != name)
     {
-        m_internal_state.vertex_array = vertex_array;
+        m_internal_state.vertex_array = name;
         return true;
     }
     return false;
 }
 
-bool graphics_state::bind_shader_program(shader_program_ptr shader_program)
+bool graphics_state::bind_shader_program(g_uint name)
 {
     PROFILE_ZONE;
-    if (m_internal_state.shader_program != shader_program)
+    if (m_internal_state.shader_program != name)
     {
-        m_internal_state.shader_program = shader_program;
+        m_internal_state.shader_program = name;
         m_internal_state.m_active_texture_bindings.fill(0);
         return true;
     }
     return false;
-}
-
-bool graphics_state::bind_single_uniform()
-{
-    PROFILE_ZONE;
-    // TODO Paul
-    return true;
-}
-
-bool graphics_state::bind_buffer(g_uint index, buffer_ptr buffer, buffer_target target)
-{
-    PROFILE_ZONE;
-    MANGO_UNUSED(index);
-    MANGO_UNUSED(buffer);
-    MANGO_UNUSED(target);
-    // TODO Paul
-    return true;
 }
 
 bool graphics_state::bind_texture(int32 binding, g_uint name)
@@ -142,12 +136,23 @@ bool graphics_state::bind_texture(int32 binding, g_uint name)
     return false;
 }
 
-bool graphics_state::bind_framebuffer(framebuffer_ptr framebuffer)
+bool graphics_state::bind_framebuffer(g_uint name)
 {
     PROFILE_ZONE;
-    if (m_internal_state.framebuffer != framebuffer)
+    if (m_internal_state.framebuffer != name)
     {
-        m_internal_state.framebuffer = framebuffer;
+        m_internal_state.framebuffer = name;
+        return true;
+    }
+    return false;
+}
+
+bool graphics_state::bind_buffer(int32 slot, int64 offset)
+{
+    PROFILE_ZONE;
+    if (m_internal_state.buffer_offsets[slot] != offset)
+    {
+        m_internal_state.buffer_offsets[slot] = offset;
         return true;
     }
     return false;

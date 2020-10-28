@@ -36,6 +36,11 @@ namespace mango
         //! \return True if state changed, else false.
         bool set_depth_test(bool enabled);
 
+        //! \brief Enables or disables the depth writing.
+        //! \param[in] enabled True if the depth writing should be enabled, else false.
+        //! \return True if state changed, else false.
+        bool set_depth_write(bool enabled);
+
         //! \brief Sets the \a compare_operation for depth testing.
         //! \param[in] op The \a compare_operation to use for depth testing.
         //! \return True if state changed, else false.
@@ -48,26 +53,14 @@ namespace mango
         bool set_polygon_mode(polygon_face face, polygon_mode mode);
 
         //! \brief Binds a \a vertex_array for drawing.
-        //! \param[in] vertex_array A pointer to the \a vertex_array to bind.
+        //! \param[in] name The name of the \a vertex_array to bind.
         //! \return True if state changed, else false.
-        bool bind_vertex_array(vertex_array_ptr vertex_array);
+        bool bind_vertex_array(g_uint name);
 
         //! \brief Binds a \a shader_program for drawing.
-        //! \param[in] shader_program A pointer to the \a shader_program to bind.
+        //! \param[in] name The name of the \a shader_program to bind.
         //! \return True if state changed, else false.
-        bool bind_shader_program(shader_program_ptr shader_program);
-
-        //! \brief Binds a non buffered uniform.
-        //! \details This gets reset after every draw call.
-        //! \return True if state changed, else false.
-        bool bind_single_uniform();
-
-        //! \brief Binds an \a buffer for drawing.
-        //! \param[in] index The \a buffer index to bind the \a buffer to.
-        //! \param[in] buffer The \a buffer to bind.
-        //! \param[in] target The target of the \a buffer to bind.
-        //! \return True if state changed, else false.
-        bool bind_buffer(g_uint index, buffer_ptr buffer, buffer_target target);
+        bool bind_shader_program(g_uint name);
 
         //! \brief Binds a \a texture for drawing.
         //! \param[in] binding The binding location to bind the \a texture too. Has to be a positive value.
@@ -76,9 +69,15 @@ namespace mango
         bool bind_texture(int32 binding, g_uint name);
 
         //! \brief Binds a \a framebuffer for drawing.
-        //! \param[in] framebuffer The pointer to the \a framebuffer to bind.
+        //! \param[in] name The name of the \a framebuffer to bind.
         //! \return True if state changed, else false.
-        bool bind_framebuffer(framebuffer_ptr framebuffer);
+        bool bind_framebuffer(g_uint name);
+
+        //! \brief Binds a \a buffer.
+        //! \param[in] slot The slot to bind the \a buffer to.
+        //! \param[in] offset The offset to start.
+        //! \return True if state changed, else false.
+        bool bind_buffer(int32 slot, int64 offset);
 
         //! \brief Enables or disables face culling.
         //! \param[in] enabled True if face culling should be enabled, else false.
@@ -107,16 +106,29 @@ namespace mango
         //! \return True if state changed, else false.
         bool set_polygon_offset(float factor, float units);
 
+        //! \brief Marks the end of one frame, so the buffer offsets can be reset.
+        void end_frame() // TODO Paul: Maybe not a good solution...
+        {
+            for (int32 i = 0; i < max_buffer_slots; ++i)
+                m_internal_state.buffer_offsets[i] = -1;
+        }
+
         //! \brief The maximum number of texture bindings (not really, just supported by the state).
         const static int32 max_texture_bindings = 16; // TODO Paul: We should really define these things somewhere else. And query from OpenGL.
+
+        //! \brief The maximum number of buffer slot (not really, just supported by the state).
+        const static int32 max_buffer_slots = 8; // TODO Paul: We should really define these things somewhere else. And query from OpenGL.
+
         //! \brief Structure to cache the state of the graphics pipeline.
         struct internal_state
         {
-            shader_program_ptr shader_program; //!< Cached shader program.
-            framebuffer_ptr framebuffer;       //!< Cached framebuffer.
-            vertex_array_ptr vertex_array;     //!< Cached vertex array.
+            g_uint shader_program; //!< Cached shader program.
+            g_uint framebuffer;    //!< Cached framebuffer.
+            g_uint vertex_array;   //!< Cached vertex array.
 
             std::array<g_uint, max_texture_bindings> m_active_texture_bindings; //!< Bindings from binding points to texture names.
+
+            int64 buffer_offsets[max_buffer_slots]; //!< Buffer slot offsets per frame.
 
             struct
             {
@@ -137,6 +149,8 @@ namespace mango
                 bool enabled;                 //!< Enabled or disabled.
                 compare_operation depth_func; //!< Compare operation.
             } depth_test;                     //!< Cached depth test.
+
+            bool depth_write; //!< Cached depth write.
 
             struct
             {

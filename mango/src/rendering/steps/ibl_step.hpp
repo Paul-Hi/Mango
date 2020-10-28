@@ -23,7 +23,7 @@ namespace mango
         //! \brief Configures the \a ibl_step.
         //! \param[in] configuration The \a ibl_step_configuration to use.
         void configure(const ibl_step_configuration& configuration);
-        void execute(command_buffer_ptr& command_buffer) override;
+        void execute(gpu_buffer_ptr frame_uniform_buffer) override;
 
         void destroy() override;
 
@@ -32,28 +32,29 @@ namespace mango
         //! \param[in] hdr_texture The texture with the hdr image data.
         void load_from_hdr(const texture_ptr& hdr_texture);
 
-        //! \brief Sets the intensity of the environment light.
-        //! \param[in] intensity The intensity in cd/m^2.
-        inline void set_intensity(float intensity)
+        //! \brief Returns a shared_ptr to the \a command_buffer of the ibl step.
+        //! \details The returned \a command_buffer gets executed by the rendering system.
+        //! \return A shared_ptr to the ibl step \a command_buffer.
+        inline command_buffer_ptr<min_key> get_ibl_commands()
         {
-            m_intensity = intensity;
+            return m_ibl_command_buffer;
         }
 
-        //! \brief Submits the texture binding \a commands and additional uniform calls to the given \a command_buffer.
-        //! \param[in] command_buffer The \a command_buffer to submit the \a commands to.
-        void bind_image_based_light_maps(command_buffer_ptr& command_buffer);
-
-        //! \brief Sets the view projection matrix used for rendering the environment as a skybox.
-        //! \details This matrix should be given without the view translation.
-        //! \param[in] view_projection The matrix to use.
-        inline void set_view_projection_matrix(const glm::mat4& view_projection)
-        {
-            m_view_projection = view_projection;
-        }
+        //! \brief Returns the preconvoluted irradiance map of the currently loaded hdr image.
+        //! \return A shared_ptr to the preconvoluted irradiance \a texture.
+        texture_ptr get_irradiance_map();
+        //! \brief Returns the prefiltered specular map of the currently loaded hdr image.
+        //! \return A shared_ptr to the prefiltered specular \a texture.
+        texture_ptr get_prefiltered_specular();
+        //! \brief Returns the precalculated brdf lookup table of the currently loaded hdr image.
+        //! \return A shared_ptr to the precalculated brdf lookup table in the form of a \a texture.
+        texture_ptr get_brdf_lookup();
 
         void on_ui_widget() override;
 
       private:
+        //! \brief The \a command_buffer storing all ibl step related commands.
+        command_buffer_ptr<min_key> m_ibl_command_buffer;
         //! \brief Cubemap texture.
         texture_ptr m_cubemap;
         //! \brief Irradiance map.
@@ -75,14 +76,6 @@ namespace mango
         shader_program_ptr m_build_integration_lut;
         //! \brief Shader program to render a cubemap.
         shader_program_ptr m_draw_environment;
-        //! \brief Rotation and scale for the cubemap (currently unused).
-        glm::mat3 m_current_rotation_scale;
-        //! \brief The view projection matrix to render with.
-        glm::mat4 m_view_projection;
-        //! \brief The miplevel to render the cubemap with.
-        float m_render_level;
-        //! \brief The intensity of the environment light in cd/m^2.
-        float m_intensity;
 
         //! \brief The width of one cubemap face.
         const int32 m_cube_width = 1024;
@@ -100,6 +93,16 @@ namespace mango
         const int32 m_integration_lut_width = 256;
         //! \brief The height of the brdf integration look up texture.
         const int32 m_integration_lut_height = 256;
+
+        //! \brief Uniform buffer struct for ibl data.
+        struct ibl_data
+        {
+            std140_mat3 current_rotation_scale; //!< Rotation and scale for the cubemap (currently unused).
+            std140_float render_level;          //!< The miplevel to render the cubemap with.
+            std140_float p0;                    //!< Padding.
+            std140_float p1;                    //!< Padding.
+            std140_float p2;                    //!< Padding.
+        } m_ibl_data; //!< Current ibl_data.
     };
 } // namespace mango
 

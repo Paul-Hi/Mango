@@ -21,11 +21,6 @@ shader_program_impl::~shader_program_impl()
     m_binding_data.listed_data.clear();
 }
 
-void shader_program_impl::use()
-{
-    glUseProgram(m_name);
-}
-
 const uniform_binding_data& shader_program_impl::get_single_bindings()
 {
     MANGO_ASSERT(is_created(), "Shader program not created!");

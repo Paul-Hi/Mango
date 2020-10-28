@@ -104,12 +104,6 @@ namespace mango
         //! \return Attachment \a texture of the \a framebuffer specified.
         virtual texture_ptr get_attachment(framebuffer_attachment attachment) = 0;
 
-        //! \brief Binds the \a framebuffer.
-        virtual void bind() = 0;
-
-        //! \brief Unbinds the \a framebuffer.
-        virtual void unbind() = 0;
-
       protected:
         framebuffer()  = default;
         ~framebuffer() = default;

@@ -7,6 +7,7 @@
 #include <graphics/buffer.hpp>
 #include <graphics/command_buffer.hpp>
 #include <graphics/framebuffer.hpp>
+#include <graphics/graphics_state.hpp>
 #include <graphics/shader_program.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
@@ -14,1031 +15,462 @@
 
 using namespace mango;
 
-command_buffer::command_buffer()
-    : m_building_state()
-    , m_execution_state()
-    , m_first(nullptr)
-    , m_last(nullptr)
+//! \brief Internal \a graphics_state to limit state changes.
+graphics_state m_current_state;
+
+//! \cond NO_COND
+void set_viewport(const void* data)
 {
-}
-
-command_buffer::~command_buffer()
-{
-    unique_ptr<command> head = std::move(m_first);
-
-    while (head)
-    {
-        head = std::move(head->m_next);
-    }
-    m_last = nullptr;
-}
-
-void command_buffer::clear()
-{
-    unique_ptr<command> head = std::move(m_first);
-
-    while (head)
-    {
-        head = std::move(head->m_next);
-    }
-    m_last = nullptr;
-}
-
-void command_buffer::attach(command_buffer_ptr& other)
-{
-    unique_ptr<command> head = std::move(other->head());
-    if (!head)
+    NAMED_PROFILE_ZONE("Set Viewport");
+    const set_viewport_command* cmd = static_cast<const set_viewport_command*>(data);
+    if (!m_current_state.set_viewport(cmd->x, cmd->y, cmd->width, cmd->height))
         return;
+    MANGO_ASSERT(cmd->x >= 0, "Viewport x position has to be positive!");
+    MANGO_ASSERT(cmd->y >= 0, "Viewport y position has to be positive!");
+    MANGO_ASSERT(cmd->width >= 0, "Viewport width has to be positive!");
+    MANGO_ASSERT(cmd->height >= 0, "Viewport height has to be positive!");
 
-    if (nullptr != m_first)
+    GL_NAMED_PROFILE_ZONE("Set Viewport");
+    glViewport(cmd->x, cmd->y, static_cast<g_sizei>(cmd->width), static_cast<g_sizei>(cmd->height));
+}
+const execute_function set_viewport_command::execute = &set_viewport;
+
+void set_depth_test(const void* data)
+{
+    NAMED_PROFILE_ZONE("Set Depth Test");
+    const set_depth_test_command* cmd = static_cast<const set_depth_test_command*>(data);
+    if (!m_current_state.set_depth_test(cmd->enabled))
+        return;
+    GL_NAMED_PROFILE_ZONE("Set Depth Test");
+    if (cmd->enabled)
     {
-        MANGO_ASSERT(nullptr != m_last, "Last command is null, while first command is not!");
-        MANGO_ASSERT(nullptr == m_last->m_next, "Last command has a successor!");
-        m_last->m_next = std::move(head);
-        do
-        {
-            m_last = m_last->m_next.get();
-        } while (m_last->m_next);
+        glEnable(GL_DEPTH_TEST);
     }
     else
     {
-        MANGO_ASSERT(nullptr == m_last, "Last command is not null, but first command is!");
-        m_first = std::move(head);
-        m_last  = m_first.get();
-        while (m_last->m_next)
-        {
-            m_last = m_last->m_next.get();
-        }
+        glDisable(GL_DEPTH_TEST);
     }
-    other->clear();
 }
+const execute_function set_depth_test_command::execute = &set_depth_test;
 
-void command_buffer::execute()
+void set_depth_write(const void* data)
 {
-    NAMED_PROFILE_ZONE("Commandbuffer Execution");
-    if (m_first == nullptr || m_last == nullptr)
+    NAMED_PROFILE_ZONE("Set Depth Test");
+    const set_depth_write_command* cmd = static_cast<const set_depth_write_command*>(data);
+    if (!m_current_state.set_depth_write(cmd->enabled))
+        return;
+    GL_NAMED_PROFILE_ZONE("Set Depth Write");
+    if (cmd->enabled)
     {
-        MANGO_LOG_DEBUG("Command buffer is empty!");
-        MANGO_LOG_DEBUG("Command buffer is empty!");
+        glDepthMask(GL_TRUE);
+    }
+    else
+    {
+        glDepthMask(GL_FALSE);
+    }
+}
+const execute_function set_depth_write_command::execute = &set_depth_write;
+
+void set_depth_func(const void* data)
+{
+    NAMED_PROFILE_ZONE("Set Depth Func");
+    const set_depth_func_command* cmd = static_cast<const set_depth_func_command*>(data);
+    if (!m_current_state.set_depth_func(cmd->operation))
+        return;
+    GL_NAMED_PROFILE_ZONE("Set Depth Func");
+    glDepthFunc(compare_operation_to_gl(cmd->operation));
+}
+const execute_function set_depth_func_command::execute = &set_depth_func;
+
+void set_polygon_mode(const void* data)
+{
+    NAMED_PROFILE_ZONE("Set Polygon Mode");
+    const set_polygon_mode_command* cmd = static_cast<const set_polygon_mode_command*>(data);
+    if (!m_current_state.set_polygon_mode(cmd->face, cmd->mode))
+        return;
+    GL_NAMED_PROFILE_ZONE("Set Polygon Mode");
+    glPolygonMode(polygon_face_to_gl(cmd->face), polygon_mode_to_gl(cmd->mode));
+}
+const execute_function set_polygon_mode_command::execute = &set_polygon_mode;
+
+void bind_vertex_array(const void* data)
+{
+    NAMED_PROFILE_ZONE("Bind Vertex Array");
+    const bind_vertex_array_command* cmd = static_cast<const bind_vertex_array_command*>(data);
+    if (!m_current_state.bind_vertex_array(cmd->vertex_array_name))
+        return;
+    GL_NAMED_PROFILE_ZONE("Bind Vertex Array");
+    glBindVertexArray(cmd->vertex_array_name);
+}
+const execute_function bind_vertex_array_command::execute = &bind_vertex_array;
+
+void bind_shader_program(const void* data)
+{
+    NAMED_PROFILE_ZONE("Bind Shader Program");
+    const bind_shader_program_command* cmd = static_cast<const bind_shader_program_command*>(data);
+    if (!m_current_state.bind_shader_program(cmd->shader_program_name))
+        return;
+    GL_NAMED_PROFILE_ZONE("Bind Shader Program");
+    glUseProgram(cmd->shader_program_name);
+}
+const execute_function bind_shader_program_command::execute = &bind_shader_program;
+
+void bind_single_uniform(const void* data)
+{
+    NAMED_PROFILE_ZONE("Bind Single Uniform");
+    const bind_single_uniform_command* cmd = static_cast<const bind_single_uniform_command*>(data);
+    MANGO_ASSERT(cmd->location >= 0, "Uniform location has to be greater than 0!");
+
+    GL_NAMED_PROFILE_ZONE("Bind Single Uniform");
+    switch (cmd->type)
+    {
+    case shader_resource_type::fsingle:
+    {
+        glUniform1f(cmd->location, *static_cast<float*>(cmd->uniform_value));
         return;
     }
-
-    // This is also clearing the buffer
-    unique_ptr<command> head = std::move(m_first);
-    m_first                  = nullptr;
-    m_last                   = nullptr;
-
-    while (head)
+    case shader_resource_type::fvec2:
     {
-        head->execute(m_execution_state);
-        unique_ptr<command> tmp = std::move(head);
-        head                    = std::move(tmp->m_next);
+        float* vec = static_cast<g_float*>(cmd->uniform_value);
+        glUniform2f(cmd->location, vec[0], vec[1]);
+        return;
+    }
+    case shader_resource_type::fvec3:
+    {
+        float* vec = static_cast<g_float*>(cmd->uniform_value);
+        glUniform3f(cmd->location, vec[0], vec[1], vec[2]);
+        return;
+    }
+    case shader_resource_type::fvec4:
+    {
+        float* vec = static_cast<g_float*>(cmd->uniform_value);
+        glUniform4f(cmd->location, vec[0], vec[1], vec[2], vec[3]);
+        return;
+    }
+    case shader_resource_type::isingle:
+    {
+        glUniform1i(cmd->location, *static_cast<g_int*>(cmd->uniform_value));
+        return;
+    }
+    case shader_resource_type::ivec2:
+    {
+        int32* vec = static_cast<g_int*>(cmd->uniform_value);
+        glUniform2i(cmd->location, vec[0], vec[1]);
+        return;
+    }
+    case shader_resource_type::ivec3:
+    {
+        int32* vec = static_cast<g_int*>(cmd->uniform_value);
+        glUniform3i(cmd->location, vec[0], vec[1], vec[2]);
+        return;
+    }
+    case shader_resource_type::ivec4:
+    {
+        int32* vec = static_cast<g_int*>(cmd->uniform_value);
+        glUniform4i(cmd->location, vec[0], vec[1], vec[2], vec[3]);
+        return;
+    }
+    case shader_resource_type::mat3:
+    {
+        glUniformMatrix3fv(cmd->location, cmd->count, GL_FALSE, static_cast<g_float*>(cmd->uniform_value));
+        return;
+    }
+    case shader_resource_type::mat4:
+    {
+        glUniformMatrix4fv(cmd->location, cmd->count, GL_FALSE, static_cast<g_float*>(cmd->uniform_value));
+        return;
+    }
+    default:
+        MANGO_LOG_ERROR("Unknown uniform type!");
     }
 }
+const execute_function bind_single_uniform_command::execute = &bind_single_uniform;
 
-void command_buffer::set_viewport(int32 x, int32 y, int32 width, int32 height)
+void bind_buffer(const void* data)
 {
-    PROFILE_ZONE;
-    MANGO_ASSERT(x >= 0, "Viewport x position has to be positive!");
-    MANGO_ASSERT(y >= 0, "Viewport y position has to be positive!");
-    MANGO_ASSERT(width >= 0, "Viewport width has to be positive!");
-    MANGO_ASSERT(height >= 0, "Viewport height has to be positive!");
-    class set_viewport_cmd : public command
+    NAMED_PROFILE_ZONE("Bind Buffer");
+    const bind_buffer_command* cmd = static_cast<const bind_buffer_command*>(data);
+    if (!m_current_state.bind_buffer(cmd->index, cmd->offset))
+        return;
+
+    g_enum gl_target = buffer_target_to_gl(cmd->target);
+
+    MANGO_ASSERT(cmd->index >= 0, "Cannot bind buffer with negative index!");
+    MANGO_ASSERT(cmd->offset >= 0, "Can not bind data outside the buffer! Negative offset!");
+    MANGO_ASSERT(cmd->size > 0, "Negative size is not possible!");
+
+    GL_NAMED_PROFILE_ZONE("Bind Buffer");
+    glBindBufferRange(gl_target, static_cast<g_uint>(cmd->index), cmd->buffer_name, static_cast<g_intptr>(cmd->offset), static_cast<g_sizeiptr>(cmd->size));
+}
+const execute_function bind_buffer_command::execute = &bind_buffer;
+
+void bind_texture(const void* data)
+{
+    NAMED_PROFILE_ZONE("Bind Texture");
+    const bind_texture_command* cmd = static_cast<const bind_texture_command*>(data);
+    if (!m_current_state.bind_texture(cmd->binding, cmd->texture_name))
+        return;
+
+    MANGO_ASSERT(cmd->sampler_location >= 0, "Texture sampler location has to be greater than 0!");
+    MANGO_ASSERT(cmd->binding >= 0, "Texture binding has to be greater than 0!");
+
+    GL_NAMED_PROFILE_ZONE("Bind Texture");
+    glBindTextureUnit(cmd->binding, cmd->texture_name);
+    glUniform1i(cmd->sampler_location, cmd->binding);
+}
+const execute_function bind_texture_command::execute = &bind_texture;
+
+void bind_image_texture(const void* data)
+{
+    NAMED_PROFILE_ZONE("Bind Image Texture");
+    const bind_image_texture_command* cmd = static_cast<const bind_image_texture_command*>(data);
+    MANGO_ASSERT(cmd->binding >= 0, "Image texture binding has to be greater than 0!");
+    MANGO_ASSERT(cmd->level >= 0, "Image texture level has to be greater than 0!");
+    MANGO_ASSERT(cmd->layer >= 0, "Image texture layer has to be greater than 0!");
+    GL_NAMED_PROFILE_ZONE("Bind Image Texture");
+    glBindImageTexture(cmd->binding, cmd->texture_name, cmd->level, cmd->layered, cmd->layer, base_access_to_gl(cmd->access), static_cast<g_enum>(cmd->element_format));
+}
+const execute_function bind_image_texture_command::execute = &bind_image_texture;
+
+void bind_framebuffer(const void* data)
+{
+    NAMED_PROFILE_ZONE("Bind Framebuffer");
+    const bind_framebuffer_command* cmd = static_cast<const bind_framebuffer_command*>(data);
+    if (!m_current_state.bind_framebuffer(cmd->framebuffer_name))
+        return;
+    GL_NAMED_PROFILE_ZONE("Bind Framebuffer");
+    glBindFramebuffer(GL_FRAMEBUFFER, cmd->framebuffer_name);
+}
+const execute_function bind_framebuffer_command::execute = &bind_framebuffer;
+
+void add_memory_barrier(const void* data)
+{
+    NAMED_PROFILE_ZONE("Add Memory Barrier");
+    const add_memory_barrier_command* cmd = static_cast<const add_memory_barrier_command*>(data);
+    GL_NAMED_PROFILE_ZONE("Add Memory Barrier");
+    glMemoryBarrier(memory_barrier_bit_to_gl(cmd->barrier_bit));
+}
+const execute_function add_memory_barrier_command::execute = &add_memory_barrier;
+
+void fence_sync(const void* data)
+{
+    NAMED_PROFILE_ZONE("Fence Sync");
+    const fence_sync_command* cmd = static_cast<const fence_sync_command*>(data);
+    GL_NAMED_PROFILE_ZONE("Fence Sync");
+    if (glIsSync(*(cmd->sync)))
+        glDeleteSync(*(cmd->sync));
+    *(cmd->sync) = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+}
+const execute_function fence_sync_command::execute = &fence_sync;
+
+void client_wait_sync(const void* data)
+{
+    NAMED_PROFILE_ZONE("Client Wait Sync");
+    const client_wait_sync_command* cmd = static_cast<const client_wait_sync_command*>(data);
+    GL_NAMED_PROFILE_ZONE("Client Wait Sync");
+    if (!glIsSync(*(cmd->sync)))
+        return;
+    int32 waiting_time = 1;
+    g_enum wait_return = glClientWaitSync(*(cmd->sync), GL_SYNC_FLUSH_COMMANDS_BIT, 0);
+    while (wait_return != GL_ALREADY_SIGNALED && wait_return != GL_CONDITION_SATISFIED)
     {
-      public:
-        struct
-        {
-            int32 x;
-            int32 y;
-            int32 width;
-            int32 height;
-        } m_vp;
-
-        set_viewport_cmd(int32 x, int32 y, int32 width, int32 height)
-            : m_vp{ x, y, width, height }
-        {
-        }
-
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Set Viewport");
-            GL_NAMED_PROFILE_ZONE("Set Viewport");
-            glViewport(m_vp.x, m_vp.y, static_cast<g_sizei>(m_vp.width), static_cast<g_sizei>(m_vp.height));
-            state.set_viewport(m_vp.x, m_vp.y, m_vp.width, m_vp.height);
-        }
-    };
-
-    if (m_building_state.set_viewport(x, y, width, height))
-    {
-        submit<set_viewport_cmd>(x, y, width, height);
+        wait_return = glClientWaitSync(*(cmd->sync), GL_SYNC_FLUSH_COMMANDS_BIT, waiting_time);
+        MANGO_LOG_DEBUG("Waited {0} ns.", waiting_time);
     }
 }
+const execute_function client_wait_sync_command::execute = &client_wait_sync;
 
-void command_buffer::set_depth_test(bool enabled)
+void end_frame(const void*)
 {
-    PROFILE_ZONE;
-    class set_depth_test_cmd : public command
-    {
-      public:
-        bool m_enabled;
-        set_depth_test_cmd(bool enabled)
-            : m_enabled(enabled)
-        {
-        }
+    NAMED_PROFILE_ZONE("End Frame");
+    m_current_state.end_frame();
+}
+const execute_function end_frame_command::execute = &end_frame;
 
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Set Depth Test");
-            GL_NAMED_PROFILE_ZONE("Set Depth Test");
-            if (m_enabled)
-            {
-                glEnable(GL_DEPTH_TEST);
-            }
-            else
-            {
-                glDisable(GL_DEPTH_TEST);
-            }
-            state.set_depth_test(m_enabled);
-        }
-    };
+void calculate_mipmaps(const void* data)
+{
+    NAMED_PROFILE_ZONE("Calculate Mipmaps");
+    const calculate_mipmaps_command* cmd = static_cast<const calculate_mipmaps_command*>(data);
+    GL_NAMED_PROFILE_ZONE("Calculate Mipmaps");
+    glGenerateTextureMipmap(cmd->texture_name);
+}
+const execute_function calculate_mipmaps_command::execute = &calculate_mipmaps;
 
-    if (m_building_state.set_depth_test(enabled))
+void clear_framebuffer(const void* data)
+{
+    NAMED_PROFILE_ZONE("Clear Framebuffer");
+    const clear_framebuffer_command* cmd = static_cast<const clear_framebuffer_command*>(data);
+    GL_NAMED_PROFILE_ZONE("Clear Framebuffer");
+    // TODO Paul: Check if these clear functions do always clear correct *fv, *uiv ..... etc.
+    // We asume that the mask is correct and all attachments to clear are there.
+    if ((cmd->buffer_mask & clear_buffer_mask::color_buffer) != clear_buffer_mask::none)
     {
-        submit<set_depth_test_cmd>(enabled);
+        const float rgba[4] = { cmd->r, cmd->g, cmd->b, cmd->a };
+        for (int32 i = 0; i < 4; ++i)
+        {
+            if ((cmd->fb_attachment_mask & static_cast<attachment_mask>(1 << i)) != attachment_mask::none)
+            {
+                glClearNamedFramebufferfv(cmd->framebuffer_name, GL_COLOR, i, rgba);
+            }
+        }
+    }
+    if ((cmd->buffer_mask & clear_buffer_mask::depth_buffer) != clear_buffer_mask::none)
+    {
+        if ((cmd->fb_attachment_mask & attachment_mask::depth_buffer) != attachment_mask::none)
+        {
+            glClearNamedFramebufferfv(cmd->framebuffer_name, GL_DEPTH, 0, &cmd->depth);
+        }
+    }
+    if ((cmd->buffer_mask & clear_buffer_mask::stencil_buffer) != clear_buffer_mask::none)
+    {
+        if ((cmd->fb_attachment_mask & attachment_mask::stencil_buffer) != attachment_mask::none)
+        {
+            glClearNamedFramebufferiv(cmd->framebuffer_name, GL_STENCIL, 0, &cmd->stencil);
+        }
+    }
+    if ((cmd->buffer_mask & clear_buffer_mask::depth_stencil_buffer) != clear_buffer_mask::none)
+    {
+        if ((cmd->fb_attachment_mask & attachment_mask::depth_stencil_buffer) != attachment_mask::none)
+        {
+            glClearNamedFramebufferfi(cmd->framebuffer_name, GL_DEPTH_STENCIL, 0, cmd->depth, cmd->stencil);
+        }
     }
 }
+const execute_function clear_framebuffer_command::execute = &clear_framebuffer;
 
-void command_buffer::set_depth_func(compare_operation op)
+void draw_arrays(const void* data)
 {
-    PROFILE_ZONE;
-    class set_depth_func_cmd : public command
-    {
-      public:
-        compare_operation m_compare_op;
-        set_depth_func_cmd(compare_operation op)
-            : m_compare_op(op)
-        {
-        }
+    NAMED_PROFILE_ZONE("Draw Arrays (Instanced)");
+    const draw_arrays_command* cmd = static_cast<const draw_arrays_command*>(data);
+    MANGO_ASSERT(cmd->first >= 0, "The first index has to be greater than 0!");
+    MANGO_ASSERT(cmd->count >= 0, "The vertex count has to be greater than 0!");
+    MANGO_ASSERT(cmd->instance_count >= 0, "The instance count has to be greater than 0!");
 
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Set Depth Func");
-            GL_NAMED_PROFILE_ZONE("Set Depth Func");
-            glDepthFunc(compare_operation_to_gl(m_compare_op));
-            state.set_depth_func(m_compare_op);
-        }
-    };
-
-    if (m_building_state.set_depth_func(op))
+    if (cmd->instance_count > 1)
     {
-        submit<set_depth_func_cmd>(op);
+        GL_NAMED_PROFILE_ZONE("Draw Arrays Instanced");
+        glDrawArraysInstanced(static_cast<g_enum>(cmd->topology), cmd->first, static_cast<g_sizei>(cmd->count), static_cast<g_sizei>(cmd->instance_count));
+    }
+    else
+    {
+        GL_NAMED_PROFILE_ZONE("Draw Arrays");
+        glDrawArrays(static_cast<g_enum>(cmd->topology), cmd->first, static_cast<g_sizei>(cmd->count));
     }
 }
+const execute_function draw_arrays_command::execute = &draw_arrays;
 
-void command_buffer::set_polygon_mode(polygon_face face, polygon_mode mode)
+void draw_elements(const void* data)
 {
-    PROFILE_ZONE;
-    class set_polygon_mode_cmd : public command
-    {
-      public:
-        polygon_face m_face;
-        polygon_mode m_mode;
-        set_polygon_mode_cmd(polygon_face face, polygon_mode mode)
-            : m_face(face)
-            , m_mode(mode)
-        {
-        }
+    NAMED_PROFILE_ZONE("Draw Elements (Instanced)");
+    const draw_elements_command* cmd = static_cast<const draw_elements_command*>(data);
+    MANGO_ASSERT(cmd->first >= 0, "The first index has to be greater than 0!");
+    MANGO_ASSERT(cmd->count >= 0, "The vertex count has to be greater than 0!");
+    MANGO_ASSERT(cmd->instance_count >= 0, "The instance count has to be greater than 0!");
 
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Set Polygon Mode");
-            GL_NAMED_PROFILE_ZONE("Set Polygon Mode");
-            glPolygonMode(polygon_face_to_gl(m_face), polygon_mode_to_gl(m_mode));
-            state.set_polygon_mode(m_face, m_mode);
-        }
-    };
-
-    if (m_building_state.set_polygon_mode(face, mode))
+    if (cmd->instance_count > 1)
     {
-        submit<set_polygon_mode_cmd>(face, mode);
+        GL_NAMED_PROFILE_ZONE("Draw Elements Instanced");
+        glDrawElementsInstanced(static_cast<g_enum>(cmd->topology), static_cast<g_sizei>(cmd->count), static_cast<g_enum>(cmd->type), (g_byte*)NULL + cmd->first,
+                                static_cast<g_sizei>(cmd->instance_count));
+    }
+    else
+    {
+        GL_NAMED_PROFILE_ZONE("Draw Elements");
+        glDrawElements(static_cast<g_enum>(cmd->topology), static_cast<g_sizei>(cmd->count), static_cast<g_enum>(cmd->type), (g_byte*)NULL + cmd->first);
     }
 }
+const execute_function draw_elements_command::execute = &draw_elements;
 
-void command_buffer::bind_vertex_array(vertex_array_ptr vertex_array)
+void dispatch_compute(const void* data)
 {
-    PROFILE_ZONE;
-    class bind_vertex_array_cmd : public command
-    {
-      public:
-        vertex_array_ptr m_vertex_array;
-        bind_vertex_array_cmd(vertex_array_ptr vertex_array)
-            : m_vertex_array(vertex_array)
-        {
-        }
+    NAMED_PROFILE_ZONE("Dispatch Compute");
+    const dispatch_compute_command* cmd = static_cast<const dispatch_compute_command*>(data);
 
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Bind Vertex Array");
-            GL_NAMED_PROFILE_ZONE("Bind Vertex Array");
-            if (nullptr != m_vertex_array)
-                glBindVertexArray(m_vertex_array->get_name());
-            else
-                glBindVertexArray(0);
-            state.bind_vertex_array(m_vertex_array);
-        }
-    };
+    MANGO_ASSERT(cmd->num_x_groups >= 0, "The number of groups (x) has to be greater than 0!");
+    MANGO_ASSERT(cmd->num_y_groups >= 0, "The number of groups (y) has to be greater than 0!");
+    MANGO_ASSERT(cmd->num_z_groups >= 0, "The number of groups (z) has to be greater than 0!");
 
-    if (m_building_state.bind_vertex_array(vertex_array))
+    GL_NAMED_PROFILE_ZONE("Dispatch Compute");
+    glDispatchCompute(static_cast<g_uint>(cmd->num_x_groups), static_cast<g_uint>(cmd->num_y_groups), static_cast<g_uint>(cmd->num_z_groups));
+}
+const execute_function dispatch_compute_command::execute = &dispatch_compute;
+
+void set_face_culling(const void* data)
+{
+    NAMED_PROFILE_ZONE("Set Face Culling");
+    const set_face_culling_command* cmd = static_cast<const set_face_culling_command*>(data);
+    if (!m_current_state.set_face_culling(cmd->enabled))
+        return;
+    GL_NAMED_PROFILE_ZONE("Set Face Culling");
+    if (cmd->enabled)
     {
-        submit<bind_vertex_array_cmd>(vertex_array);
+        glEnable(GL_CULL_FACE);
+    }
+    else
+    {
+        glDisable(GL_CULL_FACE);
     }
 }
+const execute_function set_face_culling_command::execute = &set_face_culling;
 
-void command_buffer::bind_shader_program(shader_program_ptr shader_program)
+void set_cull_face(const void* data)
 {
-    PROFILE_ZONE;
-    class bind_shader_program_cmd : public command
+    NAMED_PROFILE_ZONE("Set Cull Face");
+    const set_cull_face_command* cmd = static_cast<const set_cull_face_command*>(data);
+    if (!m_current_state.set_cull_face(cmd->face))
+        return;
+    GL_NAMED_PROFILE_ZONE("Set Cull Face");
+    glCullFace(polygon_face_to_gl(cmd->face));
+}
+const execute_function set_cull_face_command::execute = &set_cull_face;
+
+void set_blending(const void* data)
+{
+    NAMED_PROFILE_ZONE("Set Blending");
+    const set_blending_command* cmd = static_cast<const set_blending_command*>(data);
+    if (!m_current_state.set_blending(cmd->enabled))
+        return;
+    GL_NAMED_PROFILE_ZONE("Set Blending");
+    if (cmd->enabled)
     {
-      public:
-        shader_program_ptr m_shader_program;
-        bind_shader_program_cmd(shader_program_ptr shader_program)
-            : m_shader_program(shader_program)
-        {
-        }
-
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Bind Shader Program");
-            GL_NAMED_PROFILE_ZONE("Bind Shader Program");
-            if (m_shader_program)
-            {
-                m_shader_program->use();
-            }
-            else
-            {
-                glUseProgram(0);
-            }
-
-            state.bind_shader_program(m_shader_program);
-        }
-    };
-
-    if (m_building_state.bind_shader_program(shader_program))
+        glEnable(GL_BLEND);
+    }
+    else
     {
-        submit<bind_shader_program_cmd>(shader_program);
+        glDisable(GL_BLEND);
     }
 }
+const execute_function set_blending_command::execute = &set_blending;
 
-void command_buffer::bind_single_uniform(int32 location, void* uniform_value, int64 data_size, int32 count)
+void set_blend_factors(const void* data)
 {
-    PROFILE_ZONE;
-    MANGO_ASSERT(location >= 0, "Uniform location has to be greater than 0!");
-    MANGO_ASSERT(data_size > 0, "The uniforms size has to be positive!");
-    class bind_single_uniform_cmd : public command
+    NAMED_PROFILE_ZONE("Set Blend Factors");
+    const set_blend_factors_command* cmd = static_cast<const set_blend_factors_command*>(data);
+    if (!m_current_state.set_blend_factors(cmd->source, cmd->destination))
+        return;
+    GL_NAMED_PROFILE_ZONE("Set Blend Factors");
+    glBlendFunc(blend_factor_to_gl(cmd->source), blend_factor_to_gl(cmd->destination));
+}
+const execute_function set_blend_factors_command::execute = &set_blend_factors;
+
+void set_polygon_offset(const void* data)
+{
+    NAMED_PROFILE_ZONE("Set Polygon Offset");
+    const set_polygon_offset_command* cmd = static_cast<const set_polygon_offset_command*>(data);
+    if (!m_current_state.set_polygon_offset(cmd->factor, cmd->units))
+        return;
+
+    GL_NAMED_PROFILE_ZONE("Set Polygon Offset");
+    if (cmd->units > 1e-5)
     {
-      public:
-        std::vector<uint8> m_data;
-        int32 m_location;
-        int32 m_count;
-        bind_single_uniform_cmd(int32 location, void* uniform_value, int64 data_size, int32 count)
-            : m_location(location)
-            , m_count(count)
-        {
-            m_data.resize(static_cast<ptr_size>(data_size));
-            memcpy(&m_data[0], static_cast<uint8*>(uniform_value), static_cast<ptr_size>(data_size));
-        }
-
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Bind Single Uniform");
-            GL_NAMED_PROFILE_ZONE("Bind Single Uniform");
-            void* data    = static_cast<void*>(m_data.data());
-            auto uniforms = state.m_internal_state.shader_program->get_single_bindings();
-            auto it       = uniforms.listed_data.find(m_location);
-            if (it == uniforms.listed_data.end())
-                return; // Ignore.
-
-            uniform_binding_data::uniform u = it->second;
-
-            switch (u.type)
-            {
-            case shader_resource_type::FLOAT:
-            {
-                glUniform1f(m_location, *static_cast<float*>(data));
-                break;
-            }
-            case shader_resource_type::FVEC2:
-            {
-                float* vec = static_cast<g_float*>(data);
-                glUniform2f(m_location, vec[0], vec[1]);
-                break;
-            }
-            case shader_resource_type::FVEC3:
-            {
-                float* vec = static_cast<g_float*>(data);
-                glUniform3f(m_location, vec[0], vec[1], vec[2]);
-                break;
-            }
-            case shader_resource_type::FVEC4:
-            {
-                float* vec = static_cast<g_float*>(data);
-                glUniform4f(m_location, vec[0], vec[1], vec[2], vec[3]);
-                break;
-            }
-            case shader_resource_type::INT:
-            {
-                glUniform1i(m_location, *static_cast<g_int*>(data));
-                break;
-            }
-            case shader_resource_type::IVEC2:
-            {
-                int* vec = static_cast<g_int*>(data);
-                glUniform2i(m_location, vec[0], vec[1]);
-                break;
-            }
-            case shader_resource_type::IVEC3:
-            {
-                int* vec = static_cast<g_int*>(data);
-                glUniform3i(m_location, vec[0], vec[1], vec[2]);
-                break;
-            }
-            case shader_resource_type::IVEC4:
-            {
-                int* vec = static_cast<g_int*>(data);
-                glUniform4i(m_location, vec[0], vec[1], vec[2], vec[3]);
-                break;
-            }
-            case shader_resource_type::MAT3:
-            {
-                glUniformMatrix3fv(m_location, m_count, GL_FALSE, static_cast<g_float*>(data));
-                break;
-            }
-            case shader_resource_type::MAT4:
-            {
-                glUniformMatrix4fv(m_location, m_count, GL_FALSE, static_cast<g_float*>(data));
-                break;
-            }
-            default:
-                MANGO_LOG_ERROR("Unknown uniform type!");
-            }
-            state.bind_single_uniform();
-        }
-    };
-
-    if (m_building_state.bind_single_uniform())
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(cmd->factor, cmd->units);
+    }
+    else
     {
-        submit<bind_single_uniform_cmd>(location, uniform_value, data_size, count);
+        glDisable(GL_POLYGON_OFFSET_FILL);
     }
 }
+const execute_function set_polygon_offset_command::execute = &set_polygon_offset;
 
-void command_buffer::bind_buffer(int32 index, buffer_ptr buffer, buffer_target target)
-{
-    PROFILE_ZONE;
-    MANGO_ASSERT(index >= 0, "Buffer index has to be greater than 0!");
-    class bind_buffer_buffer_cmd : public command
-    {
-      public:
-        int32 m_index;
-        buffer_ptr m_buffer;
-        buffer_target m_target;
-        bind_buffer_buffer_cmd(int32 index, buffer_ptr buffer, buffer_target target)
-            : m_index(index)
-            , m_buffer(buffer)
-            , m_target(target)
-        {
-        }
-        void execute(graphics_state&) override
-        {
-            NAMED_PROFILE_ZONE("Bind Buffer");
-            GL_NAMED_PROFILE_ZONE("Bind Buffer");
-            m_buffer->bind(m_target, m_index);
-        }
-    };
-
-    if (m_building_state.bind_buffer(index, buffer, target))
-    {
-        submit<bind_buffer_buffer_cmd>(index, buffer, target);
-    }
-}
-
-void command_buffer::bind_texture(int32 binding, texture_ptr texture, int32 uniform_location)
-{
-    PROFILE_ZONE;
-    MANGO_ASSERT(uniform_location >= 0, "Texture uniform location has to be greater than 0!");
-    MANGO_ASSERT(binding >= 0, "The texture binding has to be greater than 0!");
-    class bind_texture_cmd : public command
-    {
-      public:
-        int32 m_binding;
-        texture_ptr m_texture;
-        int32 m_uniform_location;
-        bind_texture_cmd(int32 binding, texture_ptr texture, int32 uniform_location)
-            : m_binding(binding)
-            , m_texture(texture)
-            , m_uniform_location(uniform_location)
-        {
-        }
-
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Bind Texture");
-            GL_NAMED_PROFILE_ZONE("Bind Texture");
-            if (m_texture)
-            {
-                m_texture->bind_texture_unit(m_binding);
-                state.bind_texture(m_binding, m_texture->get_name());
-                glUniform1i(m_uniform_location, m_binding);
-            }
-            else
-            {
-                glBindTextureUnit(m_binding, 0);
-                state.bind_texture(m_binding, 0);
-            }
-        }
-    };
-
-    if (m_building_state.bind_texture(binding, texture ? texture->get_name() : 0))
-    {
-        submit<bind_texture_cmd>(binding, texture, uniform_location);
-    }
-}
-
-void command_buffer::bind_image_texture(int32 binding, texture_ptr texture, int32 level, bool layered, int32 layer, base_access access, format element_format)
-{
-    PROFILE_ZONE;
-    MANGO_ASSERT(binding >= 0, "Image texture binding has to be greater than 0!");
-    MANGO_ASSERT(level >= 0, "Image texture level has to be greater than 0!");
-    MANGO_ASSERT(layer >= 0, "VImage texture layer has to be greater than 0!");
-    class bind_image_texture_cmd : public command
-    {
-      public:
-        int32 m_binding;
-        texture_ptr m_texture;
-        int32 m_level;
-        bool m_layered;
-        int32 m_layer;
-        g_enum m_access;
-        g_enum m_element_format;
-        bind_image_texture_cmd(int32 binding, texture_ptr texture, int32 level, bool layered, int32 layer, base_access access, format element_format)
-            : m_binding(binding)
-            , m_texture(texture)
-            , m_level(level)
-            , m_layered(layered)
-            , m_layer(layer)
-            , m_access(base_access_to_gl(access))
-            , m_element_format(static_cast<g_enum>(element_format))
-        {
-        }
-
-        void execute(graphics_state&) override
-        {
-            NAMED_PROFILE_ZONE("Bind Image Texture");
-            GL_NAMED_PROFILE_ZONE("Bind Image Texture");
-            if (m_texture)
-            {
-                glBindImageTexture(static_cast<g_uint>(m_binding), m_texture->get_name(), m_level, m_layered, m_layer, m_access, m_element_format);
-            }
-            else
-            {
-                glBindImageTexture(static_cast<g_uint>(m_binding), 0, m_level, m_layered, m_layer, m_access, m_element_format);
-            }
-        }
-    };
-
-    // if (m_building_state.bind_texture(binding, texture ? texture->get_name() : 0)) // TODO Paul: We need extra handling in the state. Because of layer access.
-    //{
-    submit<bind_image_texture_cmd>(binding, texture, level, layered, layer, access, element_format);
-    //}
-}
-
-void command_buffer::bind_framebuffer(framebuffer_ptr framebuffer)
-{
-    PROFILE_ZONE;
-    class bind_framebuffer_cmd : public command
-    {
-      public:
-        framebuffer_ptr m_framebuffer;
-        bind_framebuffer_cmd(framebuffer_ptr framebuffer)
-            : m_framebuffer(framebuffer)
-        {
-        }
-
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Bind Framebuffer");
-            GL_NAMED_PROFILE_ZONE("Bind Framebuffer");
-            if (nullptr != m_framebuffer)
-                m_framebuffer->bind();
-            else
-                glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            state.bind_framebuffer(m_framebuffer);
-        }
-    };
-
-    if (m_building_state.bind_framebuffer(framebuffer))
-    {
-        submit<bind_framebuffer_cmd>(framebuffer);
-    }
-}
-
-void command_buffer::add_memory_barrier(memory_barrier_bit barrier_bit)
-{
-    PROFILE_ZONE;
-    class add_memory_barrier_cmd : public command
-    {
-      public:
-        g_enum m_barrier_bit;
-        add_memory_barrier_cmd(memory_barrier_bit barrier_bit)
-            : m_barrier_bit(memory_barrier_bit_to_gl(barrier_bit))
-        {
-        }
-
-        void execute(graphics_state&) override
-        {
-            NAMED_PROFILE_ZONE("Add Memory Barrier");
-            GL_NAMED_PROFILE_ZONE("Add Memory Barrier");
-            glMemoryBarrier(m_barrier_bit);
-        }
-    };
-
-    // TODO Paul: Store that in the state?
-    submit<add_memory_barrier_cmd>(barrier_bit);
-}
-
-void command_buffer::fence_sync(g_sync sync)
-{
-    PROFILE_ZONE;
-    class fence_sync_cmd : public command
-    {
-      public:
-        g_sync m_sync;
-        fence_sync_cmd(g_sync sync)
-            : m_sync(sync)
-        {
-        }
-
-        void execute(graphics_state&) override
-        {
-            NAMED_PROFILE_ZONE("Fence Sync");
-            GL_NAMED_PROFILE_ZONE("Fence Sync");
-            if (glIsSync(m_sync))
-                glDeleteSync(m_sync);
-            m_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-            MANGO_ASSERT(m_sync, "Sync creation failed.");
-        }
-    };
-
-    // TODO Paul: Store that in the state?
-    submit<fence_sync_cmd>(sync);
-}
-
-void command_buffer::client_wait_sync(g_sync sync)
-{
-    PROFILE_ZONE;
-    class client_wait_sync_cmd : public command
-    {
-      public:
-        g_sync m_sync;
-        client_wait_sync_cmd(g_sync sync)
-            : m_sync(sync)
-        {
-        }
-
-        void execute(graphics_state&) override
-        {
-            NAMED_PROFILE_ZONE("Client Wait Sync");
-            GL_NAMED_PROFILE_ZONE("Client Wait Sync");
-            if (!glIsSync(m_sync))
-                return;
-            int32 waiting_time = 1;
-            g_enum wait_return = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, waiting_time);
-            int32 count        = -1;
-            while (wait_return != GL_ALREADY_SIGNALED && wait_return != GL_CONDITION_SATISFIED)
-            {
-                wait_return = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, waiting_time);
-                count++;
-            }
-            if (count > 0)
-            {
-                MANGO_LOG_DEBUG("Waited {0} times.", count);
-            }
-        }
-    };
-
-    // TODO Paul: Store that in the state?
-    submit<client_wait_sync_cmd>(sync);
-}
-
-void command_buffer::client_wait()
-{
-    PROFILE_ZONE;
-    class client_wait_cmd : public command
-    {
-      public:
-        client_wait_cmd() {}
-
-        void execute(graphics_state&) override
-        {
-            NAMED_PROFILE_ZONE("Client Wait");
-            GL_NAMED_PROFILE_ZONE("Client Wait");
-            glFinish();
-        }
-    };
-
-    // TODO Paul: Store that in the state?
-    submit<client_wait_cmd>();
-}
-
-void command_buffer::calculate_mipmaps(texture_ptr texture)
-{
-    PROFILE_ZONE;
-    class calculate_mipmaps_cmd : public command
-    {
-      public:
-        texture_ptr m_texture;
-        calculate_mipmaps_cmd(texture_ptr texture)
-            : m_texture(texture)
-        {
-        }
-
-        void execute(graphics_state&) override
-        {
-            NAMED_PROFILE_ZONE("Calculate Mipmaps");
-            GL_NAMED_PROFILE_ZONE("Calculate Mipmaps");
-            if (m_texture->mipmaps())
-            {
-                glGenerateTextureMipmap(m_texture->get_name());
-            }
-        }
-    };
-
-    submit<calculate_mipmaps_cmd>(texture);
-}
-
-void command_buffer::clear_framebuffer(clear_buffer_mask buffer_mask, attachment_mask att_mask, float r, float g, float b, float a, framebuffer_ptr framebuffer)
-{
-    PROFILE_ZONE;
-    class clear_cmd : public command
-    {
-      public:
-        framebuffer_ptr m_framebuffer;
-        clear_buffer_mask m_buffer_mask;
-        attachment_mask m_attachment_mask;
-        float m_r, m_g, m_b, m_a;
-        clear_cmd(framebuffer_ptr framebuffer, clear_buffer_mask buffer_mask, attachment_mask att_mask, float r, float g, float b, float a)
-            : m_framebuffer(framebuffer)
-            , m_buffer_mask(buffer_mask)
-            , m_attachment_mask(att_mask)
-            , m_r(r)
-            , m_g(g)
-            , m_b(b)
-            , m_a(a)
-        {
-        }
-
-        void execute(graphics_state&) override
-        {
-            NAMED_PROFILE_ZONE("Clear Framebuffer");
-            GL_NAMED_PROFILE_ZONE("Clear Framebuffer");
-            // TODO Paul: Check if these clear functions do always clear correct *fv, *uiv ..... etc.
-            if ((m_buffer_mask & clear_buffer_mask::COLOR_BUFFER) != clear_buffer_mask::NONE)
-            {
-                if (nullptr == m_framebuffer)
-                {
-                    const float rgb[4] = { m_r, m_g, m_b, m_a };
-                    glClearNamedFramebufferfv(0, GL_COLOR, 0, rgb);
-                }
-                else
-                {
-                    // We asume that all attached color textures are also draw buffers.
-                    const float rgb[4] = { m_r, m_g, m_b, m_a };
-                    for (int32 i = 0; i < 4; ++i)
-                    {
-                        if (m_framebuffer->get_attachment(static_cast<framebuffer_attachment>(i)) && (m_attachment_mask & static_cast<attachment_mask>(1 << i)) != attachment_mask::NONE)
-                        {
-                            glClearNamedFramebufferfv(m_framebuffer->get_name(), GL_COLOR, i, rgb);
-                        }
-                    }
-                }
-            }
-            if ((m_buffer_mask & clear_buffer_mask::DEPTH_BUFFER) != clear_buffer_mask::NONE)
-            {
-                // The initial value is 1.
-                const g_float d = 1.0f; // TODO Paul: Parameter!
-                if (nullptr == m_framebuffer)
-                {
-                    glClearNamedFramebufferfv(0, GL_DEPTH, 0, &d);
-                }
-                else if (m_framebuffer->get_attachment(framebuffer_attachment::DEPTH_ATTACHMENT) && (m_attachment_mask & attachment_mask::DEPTH_BUFFER) != attachment_mask::NONE)
-                {
-                    glClearNamedFramebufferfv(m_framebuffer->get_name(), GL_DEPTH, 0, &d);
-                }
-            }
-            if ((m_buffer_mask & clear_buffer_mask::STENCIL_BUFFER) != clear_buffer_mask::NONE)
-            {
-                // The initial value is 0.
-                const g_int s = 1; // TODO Paul: Parameter!
-                if (nullptr == m_framebuffer)
-                {
-                    glClearNamedFramebufferiv(0, GL_STENCIL, 0, &s);
-                }
-                else if (m_framebuffer->get_attachment(framebuffer_attachment::STENCIL_ATTACHMENT) && (m_attachment_mask & attachment_mask::STENCIL_BUFFER) != attachment_mask::NONE)
-                {
-                    glClearNamedFramebufferiv(m_framebuffer->get_name(), GL_STENCIL, 0, &s);
-                }
-            }
-            if ((m_buffer_mask & clear_buffer_mask::DEPTH_STENCIL_BUFFER) != clear_buffer_mask::NONE)
-            {
-                // The initial value is 1.
-                const g_float d = 1.0f; // TODO Paul: Parameter!
-                // The initial value is 0.
-                const g_int s = 1; // TODO Paul: Parameter!
-                if (nullptr == m_framebuffer)
-                {
-                    glClearNamedFramebufferfi(0, GL_DEPTH_STENCIL, 0, d, s);
-                }
-                else if (m_framebuffer->get_attachment(framebuffer_attachment::DEPTH_STENCIL_ATTACHMENT) && (m_attachment_mask & attachment_mask::DEPTH_STENCIL_BUFFER) != attachment_mask::NONE)
-                {
-                    glClearNamedFramebufferfi(m_framebuffer->get_name(), GL_DEPTH_STENCIL, 0, d, s);
-                }
-            }
-        }
-    };
-
-    submit<clear_cmd>(framebuffer, buffer_mask, att_mask, r, g, b, a);
-}
-
-void command_buffer::draw_arrays(primitive_topology topology, int32 first, int32 count, int32 instance_count)
-{
-    PROFILE_ZONE;
-    MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
-    MANGO_ASSERT(count >= 0, "The vertex count has to be greater than 0!");
-    MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
-    class draw_arrays_cmd : public command
-    {
-      public:
-        primitive_topology m_topology;
-        int32 m_first;
-        int32 m_count;
-        int32 m_instance_count;
-        draw_arrays_cmd(primitive_topology topology, int32 first, int32 count, int32 instance_count)
-            : m_topology(topology)
-            , m_first(first)
-            , m_count(count)
-            , m_instance_count(instance_count)
-        {
-        }
-
-        void execute(graphics_state&) override
-        {
-            NAMED_PROFILE_ZONE("Draw Arrays (Instanced)");
-            if (m_instance_count > 1)
-            {
-                GL_NAMED_PROFILE_ZONE("Draw Arrays Instanced");
-                glDrawArraysInstanced(static_cast<g_enum>(m_topology), m_first, static_cast<g_sizei>(m_count), static_cast<g_sizei>(m_instance_count));
-            }
-            else
-            {
-                GL_NAMED_PROFILE_ZONE("Draw Arrays");
-                glDrawArrays(static_cast<g_enum>(m_topology), m_first, static_cast<g_sizei>(m_count));
-            }
-        }
-    };
-
-    submit<draw_arrays_cmd>(topology, first, count, instance_count);
-}
-
-void command_buffer::draw_elements(primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
-{
-    PROFILE_ZONE;
-    MANGO_ASSERT(first >= 0, "The first index has to be greater than 0!");
-    MANGO_ASSERT(count >= 0, "The index count has to be greater than 0!");
-    MANGO_ASSERT(instance_count >= 0, "The instance count has to be greater than 0!");
-    class draw_elements_cmd : public command
-    {
-      public:
-        primitive_topology m_topology;
-        int32 m_first;
-        int32 m_count;
-        index_type m_type;
-        int32 m_instance_count;
-        draw_elements_cmd(primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count)
-            : m_topology(topology)
-            , m_first(first)
-            , m_count(count)
-            , m_type(type)
-            , m_instance_count(instance_count)
-        {
-        }
-
-        void execute(graphics_state&) override
-        {
-            NAMED_PROFILE_ZONE("Draw Elements (Instanced)");
-            if (m_instance_count > 1)
-            {
-                GL_NAMED_PROFILE_ZONE("Draw Elements Instanced");
-                glDrawElementsInstanced(static_cast<g_enum>(m_topology), static_cast<g_sizei>(m_count), static_cast<g_enum>(m_type), (g_byte*)NULL + m_first, static_cast<g_sizei>(m_instance_count));
-            }
-            else
-            {
-                GL_NAMED_PROFILE_ZONE("Draw Elements");
-                glDrawElements(static_cast<g_enum>(m_topology), static_cast<g_sizei>(m_count), static_cast<g_enum>(m_type), (g_byte*)NULL + m_first);
-            }
-        }
-    };
-
-    submit<draw_elements_cmd>(topology, first, count, type, instance_count);
-}
-
-void command_buffer::dispatch_compute(int32 num_x_groups, int32 num_y_groups, int32 num_z_groups)
-{
-    PROFILE_ZONE;
-    MANGO_ASSERT(num_x_groups >= 0, "The number of groups (x) has to be greater than 0!");
-    MANGO_ASSERT(num_y_groups >= 0, "The number of groups (y) has to be greater than 0!");
-    MANGO_ASSERT(num_z_groups >= 0, "The number of groups (z) has to be greater than 0!");
-    class dispatch_compute_cmd : public command
-    {
-      public:
-        int32 m_x_groups;
-        int32 m_y_groups;
-        int32 m_z_groups;
-        dispatch_compute_cmd(int32 num_x_groups, int32 num_y_groups, int32 num_z_groups)
-            : m_x_groups(num_x_groups)
-            , m_y_groups(num_y_groups)
-            , m_z_groups(num_z_groups)
-        {
-        }
-
-        void execute(graphics_state&) override
-        {
-            NAMED_PROFILE_ZONE("Dispatch Compute");
-            GL_NAMED_PROFILE_ZONE("Dispatch Compute");
-            glDispatchCompute(static_cast<g_uint>(m_x_groups), static_cast<g_uint>(m_y_groups), static_cast<g_uint>(m_z_groups));
-        }
-    };
-
-    submit<dispatch_compute_cmd>(num_x_groups, num_y_groups, num_z_groups);
-}
-
-void command_buffer::set_face_culling(bool enabled)
-{
-    PROFILE_ZONE;
-    class set_face_culling_cmd : public command
-    {
-      public:
-        bool m_enabled;
-        set_face_culling_cmd(bool enabled)
-            : m_enabled(enabled)
-        {
-        }
-
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Set Face Culling");
-            GL_NAMED_PROFILE_ZONE("Set Face Culling");
-            if (m_enabled)
-            {
-                glEnable(GL_CULL_FACE);
-            }
-            else
-            {
-                glDisable(GL_CULL_FACE);
-            }
-            state.set_face_culling(m_enabled);
-        }
-    };
-
-    if (m_building_state.set_face_culling(enabled))
-    {
-        submit<set_face_culling_cmd>(enabled);
-    }
-}
-
-void command_buffer::set_cull_face(polygon_face face)
-{
-    PROFILE_ZONE;
-    class set_cull_face_cmd : public command
-    {
-      public:
-        polygon_face m_face;
-        set_cull_face_cmd(polygon_face face)
-            : m_face(face)
-        {
-        }
-
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Set Cull Face");
-            GL_NAMED_PROFILE_ZONE("Set Cull Face");
-            glCullFace(polygon_face_to_gl(m_face));
-            state.set_cull_face(m_face);
-        }
-    };
-
-    if (m_building_state.set_cull_face(face))
-    {
-        submit<set_cull_face_cmd>(face);
-    }
-}
-
-void command_buffer::set_blending(bool enabled)
-{
-    PROFILE_ZONE;
-    class set_blending_cmd : public command
-    {
-      public:
-        bool m_enabled;
-        set_blending_cmd(bool enabled)
-            : m_enabled(enabled)
-        {
-        }
-
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Set Blending");
-            GL_NAMED_PROFILE_ZONE("Set Blending");
-            if (m_enabled)
-            {
-                glEnable(GL_BLEND);
-            }
-            else
-            {
-                glDisable(GL_BLEND);
-            }
-            state.set_blending(m_enabled);
-        }
-    };
-
-    if (m_building_state.set_blending(enabled))
-    {
-        submit<set_blending_cmd>(enabled);
-    }
-}
-
-void command_buffer::set_blend_factors(blend_factor source, blend_factor destination)
-{
-    PROFILE_ZONE;
-    class set_blend_factors_cmd : public command
-    {
-      public:
-        blend_factor m_source;
-        blend_factor m_destination;
-        set_blend_factors_cmd(blend_factor source, blend_factor destination)
-            : m_source(source)
-            , m_destination(destination)
-        {
-        }
-
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Set Blend Factors");
-            GL_NAMED_PROFILE_ZONE("Set Blend Factors");
-            glBlendFunc(blend_factor_to_gl(m_source), blend_factor_to_gl(m_destination));
-            state.set_blend_factors(m_source, m_destination);
-        }
-    };
-
-    if (m_building_state.set_blend_factors(source, destination))
-    {
-        submit<set_blend_factors_cmd>(source, destination);
-    }
-}
-
-void command_buffer::set_polygon_offset(float factor, float units)
-{
-    PROFILE_ZONE;
-    class set_polygon_offset_cmd : public command
-    {
-      public:
-        float m_factor;
-        float m_units;
-        set_polygon_offset_cmd(float factor, float units)
-            : m_factor(factor)
-            , m_units(units)
-        {
-        }
-
-        void execute(graphics_state& state) override
-        {
-            NAMED_PROFILE_ZONE("Set Polygon Offset");
-            GL_NAMED_PROFILE_ZONE("Set Polygon Offset");
-
-            if (m_units > 1e-5)
-            {
-                glEnable(GL_POLYGON_OFFSET_FILL);
-                glPolygonOffset(m_factor, m_units);
-            }
-            else
-            {
-                glDisable(GL_POLYGON_OFFSET_FILL);
-            }
-
-            state.set_polygon_offset(m_factor, m_units);
-        }
-    };
-
-    if (m_building_state.set_polygon_offset(factor, units))
-    {
-        submit<set_polygon_offset_cmd>(factor, units);
-    }
-}
+//! \endcond

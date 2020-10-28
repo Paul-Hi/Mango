@@ -34,9 +34,9 @@ namespace mango
         //! \details Enables the vertex attribute and sets all necessary format specific data.
         //! \param[in] index The index of the vertex attribute. Has to be a positive value.
         //! \param[in] buffer_index The index of the vertex buffer the vertex attribute should be enabled in. Has to be a positive value.
-        //! \param[in] attribute_format The \a format of the vertex attribute. Has to be \a R8, \a R16, \a R16F, \a R32F, \a R8I, \a R16I, \a R32I, \a R8UI, \a R16UI, \a R32UI, \a RG8, \a RG16, \a
-        //! RG16F, \a RG32F, \a RG8I, \a RG16I, \a RG32I, \a RG8UI, \a RG16UI, \a RG32UI, \a RGB32F, \a RGB32I, \a RGB32UI, \a RGBA8, \a RGBA16, \a RGBA16F, \a RGBA32F, \a RGBA8I, \a RGBA16I, \a
-        //! RGBA32I, \a RGBA8UI, \a RGBA16UI or \a RGBA32UI.
+        //! \param[in] attribute_format The \a format of the vertex attribute. Has to be \a r8, \a r16, \a r16f, \a r32f, \a r8i, \a r16i, \a r32i, \a r8ui, \a r16ui, \a r32ui, \a rg8, \a rg16, \a
+        //! rg16f, \a rg32f, \a rg8i, \a rg16i, \a rg32i, \a rg8ui, \a rg16ui, \a rg32ui, \a rgb32f, \a rgb32i, \a rgb32ui, \a rgba8, \a rgba16, \a rgba16f, \a rgba32f, \a rgba8i, \a rgba16i, \a
+        //! rgba32i, \a rgba8ui, \a rgba16ui or \a rgba32ui.
         //! \param[in] relative_offset The offset relative to the whole vertex (if existent). Has to be a positive value.
         virtual void set_vertex_attribute(int32 index, int32 buffer_index, format attribute_format, int64 relative_offset) = 0;
 

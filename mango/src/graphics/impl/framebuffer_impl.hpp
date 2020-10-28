@@ -34,9 +34,6 @@ namespace mango
 
         texture_ptr get_attachment(framebuffer_attachment attachment) override;
 
-        void bind() override;
-        void unbind() override;
-
       private:
         //! \brief The width of the \a framebuffer.
         int32 m_width;

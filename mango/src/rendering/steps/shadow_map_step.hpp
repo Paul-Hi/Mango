@@ -24,22 +24,23 @@ namespace mango
         //! \brief Configures the \a shadow_map_step.
         //! \param[in] configuration The \a shadow_step_configuration to use.
         void configure(const shadow_step_configuration& configuration);
-        void execute(command_buffer_ptr& command_buffer) override;
+        void execute(gpu_buffer_ptr frame_uniform_buffer) override;
 
         void destroy() override;
 
-        //! \brief Clears the shadow map buffer.
-        //! \param[in] command_buffer The \a command_buffer to add the clear command to.
-        inline void clear_shadow_buffer(command_buffer_ptr& command_buffer)
+        //! \brief Returns the shadow framebuffer with the shadow map attached as depth attachment with multiple layers.
+        //! \return A shared_ptr to the shadow \a framebuffer.
+        inline framebuffer_ptr get_shadow_buffer()
         {
-            command_buffer->clear_framebuffer(clear_buffer_mask::DEPTH_BUFFER, attachment_mask::DEPTH_BUFFER, 0.0f, 0.0f, 0.0f, 1.0f, m_shadow_buffer);
+            return m_shadow_buffer;
         }
 
-        //! \brief Returns the queue to submit commands used to render shadow casters.
-        //! \return The casters queue.
-        inline command_buffer_ptr get_caster_queue()
+        //! \brief Returns a shared_ptr to the \a command_buffer of the shadow step.
+        //! \details The returned \a command_buffer can be used to render geometry that should cast shadows. It gets executed by the rendering system.
+        //! \return A shared_ptr to the shadow step \a command_buffer.
+        inline command_buffer_ptr<max_key> get_shadow_commands()
         {
-            return m_caster_queue;
+            return m_shadow_command_buffer;
         }
 
         //! \brief Updates the cascades for CSM.
@@ -55,28 +56,15 @@ namespace mango
         //! \brief The maximum number of cascades.
         static const int32 max_shadow_mapping_cascades = 4; // TODO Paul: We should move this.
 
-        //! \brief Binds the shadow maps and returns relevant lighting pass data.
-        //!\param[in] command_buffer The \a command_buffer to add the binding commands to.
-        //! \param[out] out_view_projections An array to store the view projection matrices of the cascades into.
-        //! \param[out] far_planes An vec4 to store the far planes of the cascade views into.
-        //! \param[out] cascade_info An four dimensional vector to store the splits depths into. The w component is the shadow map resolution.
-        void bind_shadow_maps_and_get_shadow_data(command_buffer_ptr& command_buffer, glm::mat4 (&out_view_projections)[max_shadow_mapping_cascades], glm::vec4& far_planes, glm::vec4& cascade_info);
-
         void on_ui_widget() override;
 
       private:
-        //! \brief Queue to store caster render commands into.
-        command_buffer_ptr m_caster_queue;
+        //! \brief The \a command_buffer storing all shadow step related commands.
+        command_buffer_ptr<max_key> m_shadow_command_buffer;
         //! \brief The framebuffer storing all shadow maps.
         framebuffer_ptr m_shadow_buffer;
         //! \brief Program to execute the shadow mapping pass.
         shader_program_ptr m_shadow_pass;
-
-        //! \brief Shadow map resolution.
-        int32 m_resolution = 2048; // TODO Paul: hardcoded. Read from config.
-
-        //! \brief The number of cascades.
-        int32 m_shadow_map_cascade_count = 3; // TODO Paul: This can probably be done better.
 
         //! \brief The offset for the projection.
         float m_shadow_map_offset = 0.0f; // TODO Paul: This can probably be done better.
@@ -84,24 +72,27 @@ namespace mango
         //! \brief Dirty bit for cascade count update.
         bool m_dirty_cascades;
 
-        //! \brief The range to use for interpolating the cascades.
-        //! \details Larger values mean smoother transition, but less quality and performance impact.
-        float m_cascade_interpolation_range = 0.5f;
-
-        //! \brief The maximum penumra radius in pixels.
-        //! \details Larger values can look more natural, but may cause artefacts and performance drops.
-        float m_max_penumbra = 3.0f;
+        //! \brief Uniform buffer struct for shadow data.
+        struct shadow_data
+        {
+            std140_mat4 view_projection_matrices[max_shadow_mapping_cascades]; //!< The view projection matrices.
+            // TODO Paul: We really should not use arrays with that paaing -.-
+            std140_float_array split_depth[max_shadow_mapping_cascades + 1]; //!< The calculated split depths. Times two because of better alignment
+            std140_vec4 far_planes;                                          //!< The far planes of the shadow views.
+            std140_int resolution                    = 2048;                 //!< The shadow map resolution.
+            std140_int cascade_count                 = 3;                    //!< The number of cascades.
+            std140_float cascade_interpolation_range = 0.5f; //!< The range to use for interpolating the cascades. Larger values mean smoother transition, but less quality and performance impact.
+            std140_float max_penumbra                = 3.0f; //!< The maximum penumra radius in pixels. Larger values can look more natural, but may cause artefacts and performance drops.
+        } m_shadow_data; //!< Current shadow_data.
 
         struct
         {
-            float camera_near;                                               //!< The cameras near plane depth.
-            float camera_far;                                                //!< The cameras far plane depth.
-            glm::vec3 directional_direction;                                 //!< The direction to the light.
-            float split_depth[max_shadow_mapping_cascades + 1];              //!< The calculated split depths.
-            float lambda;                                                    //!< Lambda used to calculate split depths uniform <-> log.
-            glm::mat4 view_projection_matrices[max_shadow_mapping_cascades]; //!< The view projection matrices.
-            glm::vec4 far_planes;                                            //!< The far planes of the shadow views.
-        } m_cascade_data;                                                    //!< Data related to shadow cascades.
+            float camera_near;               //!< The cameras near plane depth.
+            float camera_far;                //!< The cameras far plane depth.
+            glm::vec3 directional_direction; //!< The direction to the light.
+            float lambda;                    //!< Lambda used to calculate split depths uniform <-> log.
+
+        } m_cascade_data; //!< Data required to calculate shadow cascades.
     };
 } // namespace mango
 

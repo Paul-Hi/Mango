@@ -10,6 +10,7 @@
 #include <graphics/command_buffer.hpp>
 #include <mango/system.hpp>
 #include <mango/types.hpp>
+#include <graphics/gpu_buffer.hpp>
 
 namespace mango
 {
@@ -22,8 +23,8 @@ namespace mango
         virtual void attach() = 0;
 
         //! \brief Executes the command by inserting commands into the given \a render \a command_buffer.
-        //! \param[in] command_buffer The buffer given by the \a render to execute into.
-        virtual void execute(command_buffer_ptr& command_buffer) = 0;
+        //!\param[in] frame_uniform_buffer The \a gpu_buffer to manage uniform buffer memory.
+        virtual void execute(gpu_buffer_ptr frame_uniform_buffer) = 0;
 
         //! \brief Custom UI function.
         //! \details This can be called by any \a ui_widget and displays settings for the active \a pipeline_step.

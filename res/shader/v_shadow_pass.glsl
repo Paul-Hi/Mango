@@ -1,11 +1,12 @@
 #version 430 core
 
-layout(location = 0) in vec3 v_position;
-layout(location = 1) in vec3 v_normal;
-layout(location = 2) in vec2 v_texcoord;
-layout(location = 3) in vec4 v_tangent;
+layout(location = 0) in vec3 vertex_data_position;
+layout(location = 1) in vec3 vertex_data_normal;
+layout(location = 2) in vec2 vertex_data_texcoord;
+layout(location = 3) in vec4 vertex_data_tangent;
 
-layout(binding = 0, std140) uniform scene_vertex_uniforms
+// Uniform Buffer Model.
+layout(binding = 1, std140) uniform model_data
 {
     mat4 model_matrix;
     mat3 normal_matrix;
@@ -13,15 +14,19 @@ layout(binding = 0, std140) uniform scene_vertex_uniforms
     bool has_tangents;
 };
 
-
-out shader_shared
+out shared_data
 {
-    vec2 shared_texcoord;
+    vec2 texcoord;
 } vs_out;
+
+vec4 get_world_position()
+{
+    return model_matrix * vec4(vertex_data_position, 1.0);
+}
 
 void main()
 {
-    vs_out.shared_texcoord = v_texcoord;
-    vec4 v_pos = model_matrix * vec4(v_position, 1.0);
-    gl_Position = v_pos;
+    vs_out.texcoord = vertex_data_texcoord;
+    vec4 world_position = get_world_position();
+    gl_Position = world_position;
 }

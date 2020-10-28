@@ -26,7 +26,6 @@ namespace mango
         }
 
         void set_data(format internal_format, int64 offset, int64 size, format pixel_format, format type, const void* data) override;
-        void bind(buffer_target target, int32 index, int64 offset, int64 size) override;
         void* map(int64 offset, int64 length, buffer_access access) override;
         void unmap() override;
 

@@ -1,9 +1,9 @@
 #version 430 core
 
+layout (location = 0, binding = 0) uniform sampler2D sampler_base_color;
 
-layout (location = 5, binding = 0) uniform sampler2D t_base_color;
-
-layout(binding = 1, std140) uniform scene_material_uniforms
+// Uniform Buffer Material.
+layout(binding = 2, std140) uniform material_data
 {
     vec4  base_color;
     vec4  emissive_color; // this is a vec3, but there are annoying bugs with some drivers.
@@ -17,13 +17,13 @@ layout(binding = 1, std140) uniform scene_material_uniforms
     bool normal_texture;
     bool emissive_color_texture;
 
-    int alpha_mode;
+    int   alpha_mode;
     float alpha_cutoff;
 };
 
-in shader_shared
+in shared_data
 {
-    vec2 shared_texcoord;
+    vec2 texcoord;
 } fs_in;
 
 void alpha_dither(in vec2 screen_pos, in float alpha) {
@@ -47,8 +47,10 @@ void alpha_dither(in vec2 screen_pos, in float alpha) {
 
 void main()
 {
-    vec4 color = base_color_texture ? texture(t_base_color, fs_in.shared_texcoord) : base_color;
+    vec4 color = base_color_texture ? texture(sampler_base_color, fs_in.texcoord) : base_color;
     if(alpha_mode == 1 && color.a <= alpha_cutoff)
+        discard;
+    if(alpha_mode == 2 && color.a < 1.0 - 1e-5)
         discard;
     if(alpha_mode == 3)
         alpha_dither(gl_FragCoord.xy, sqrt(color.a));

@@ -40,7 +40,7 @@ namespace mango
         static ImVec2 last_size = ImVec2(0.0f, 0.0f);
 
         ImGui::GetWindowDrawList()->AddImage(
-            (void*)(intptr_t)shared_context->get_render_system_internal().lock()->get_backbuffer()->get_attachment(framebuffer_attachment::COLOR_ATTACHMENT0)->get_name(), position,
+            (void*)(intptr_t)shared_context->get_render_system_internal().lock()->get_backbuffer()->get_attachment(framebuffer_attachment::color_attachment0)->get_name(), position,
             ImVec2(position.x + size.x, position.y + size.y), ImVec2(0, 1), ImVec2(1, 0));
         ImGui::PopStyleVar();
         ImGui::End();
@@ -76,8 +76,8 @@ namespace mango
         if (ImGui::CollapsingHeader("Renderer Stats"))
         {
             ImGui::Text("API Version: %s", stats.api_version.c_str());
-            ImGui::Text("Draw Calls: %d", stats.last_frame.draw_calls);
             ImGui::Text("Rendered Meshes: %d", stats.last_frame.meshes);
+            ImGui::Text("Draw Calls: %d", stats.last_frame.draw_calls);
             ImGui::Text("Rendered Primitives: %d", stats.last_frame.primitives);
             ImGui::Text("Rendered Materials: %d", stats.last_frame.materials);
             ImGui::Text("Canvas Size: (%d x %d) px", stats.last_frame.canvas_width, stats.last_frame.canvas_height);
@@ -99,43 +99,43 @@ namespace mango
         {
             if (is_hdr)
             {
-                f        = format::RGB;
-                internal = format::RGB32F;
-                type     = format::FLOAT;
+                f        = format::rgb;
+                internal = format::rgb32f;
+                type     = format::t_float;
 
                 if (components == 4)
                 {
-                    f        = format::RGBA;
-                    internal = format::RGBA32F;
+                    f        = format::rgba;
+                    internal = format::rgba32f;
                 }
                 return;
             }
 
-            f        = format::RGBA;
-            internal = srgb ? format::SRGB8_ALPHA8 : format::RGBA8;
+            f        = format::rgba;
+            internal = srgb ? format::srgb8_alpha8 : format::rgba8;
 
             if (components == 1)
             {
-                f = format::RED;
+                f = format::red;
             }
             else if (components == 2)
             {
-                f = format::RG;
+                f = format::rg;
             }
             else if (components == 3)
             {
-                f        = format::RGB;
-                internal = srgb ? format::SRGB8 : format::RGB8;
+                f        = format::rgb;
+                internal = srgb ? format::srgb8 : format::rgb8;
             }
 
-            type = format::UNSIGNED_BYTE;
+            type = format::t_unsigned_byte;
             if (bits == 16)
             {
-                type = format::UNSIGNED_SHORT;
+                type = format::t_unsigned_short;
             }
             else if (bits == 32)
             {
-                type = format::UNSIGNED_INT;
+                type = format::t_unsigned_int;
             }
         }
 
@@ -253,10 +253,10 @@ namespace mango
                 texture_configuration config;
                 config.m_generate_mipmaps        = 1;
                 config.m_is_standard_color_space = true;
-                config.m_texture_min_filter      = texture_parameter::FILTER_LINEAR_MIPMAP_LINEAR;
-                config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
-                config.m_texture_wrap_s          = texture_parameter::WRAP_REPEAT;
-                config.m_texture_wrap_t          = texture_parameter::WRAP_REPEAT;
+                config.m_texture_min_filter      = texture_parameter::filter_linear_mipmap_linear;
+                config.m_texture_mag_filter      = texture_parameter::filter_linear;
+                config.m_texture_wrap_s          = texture_parameter::wrap_repeat;
+                config.m_texture_wrap_t          = texture_parameter::wrap_repeat;
                 char const* filter[4]            = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
 
                 ImVec2 canvas_p0;
@@ -508,19 +508,18 @@ namespace mango
                     ImGui::TreePop();
                 }
 
-                ImGui::Checkbox(("Double Sided##" + std::to_string(e)).c_str(), & material->double_sided);
+                ImGui::Checkbox(("Double Sided##" + std::to_string(e)).c_str(), &material->double_sided);
                 ImGui::Separator();
-                const char* types  = "opaque\0masked\0blended\0dithered\0\0";
+                const char* types    = "opaque\0masked\0blended\0dithered\0\0";
                 int32 alpha_mode_int = static_cast<int32>(material->alpha_rendering);
                 ImGui::Combo(("Alpha Mode##" + std::to_string(e)).c_str(), &alpha_mode_int, types);
                 material->alpha_rendering = static_cast<alpha_mode>(alpha_mode_int);
-                if(material->alpha_rendering == alpha_mode::MODE_MASK)
+                if (material->alpha_rendering == alpha_mode::mode_mask)
                     ImGui::SliderFloat("Alpha CutOff", material->alpha_cutoff.type_data(), 0.0f, 1.0f);
-                if(material->alpha_rendering == alpha_mode::MODE_BLEND)
-                    ImGui::Text("Blending currently not supported!");
-                if(material->alpha_rendering == alpha_mode::MODE_DITHER)
+                if (material->alpha_rendering == alpha_mode::mode_blend)
+                    ImGui::Text("Blending is supported (Basic Over Operator)!");
+                if (material->alpha_rendering == alpha_mode::mode_dither)
                     ImGui::Text("Dithering ... Just for fun!");
-
             }
         }
 
@@ -978,10 +977,10 @@ namespace mango
                         texture_configuration tex_config;
                         tex_config.m_generate_mipmaps        = 1;
                         tex_config.m_is_standard_color_space = false;
-                        tex_config.m_texture_min_filter      = texture_parameter::FILTER_LINEAR;
-                        tex_config.m_texture_mag_filter      = texture_parameter::FILTER_LINEAR;
-                        tex_config.m_texture_wrap_s          = texture_parameter::WRAP_CLAMP_TO_EDGE;
-                        tex_config.m_texture_wrap_t          = texture_parameter::WRAP_CLAMP_TO_EDGE;
+                        tex_config.m_texture_min_filter      = texture_parameter::filter_linear;
+                        tex_config.m_texture_mag_filter      = texture_parameter::filter_linear;
+                        tex_config.m_texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
+                        tex_config.m_texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
 
                         char const* filter[1] = { "*.hdr" };
 

@@ -6,21 +6,68 @@ const float INV_PI = 1.0 / PI;
 #define saturate(x) clamp(x, 0.0, 1.0)
 #define max_cascades 4
 
-out vec4 frag_color;
+// Output Texture HDR
+out vec4 hdr_out;
 
-in vec2 texcoord;
+// Shared Shader Data.
+in shared_data
+{
+    vec3 position;
+    vec2 texcoord;
+    vec3 normal;
+    vec3 tangent;
+    vec3 bitangent;
+} fs_in;
 
-layout(location = 0, binding = 0) uniform sampler2D gbuffer_c0;
-layout(location = 1, binding = 1) uniform sampler2D gbuffer_c1;
-layout(location = 2, binding = 2) uniform sampler2D gbuffer_c2;
-layout(location = 3, binding = 3) uniform sampler2D gbuffer_c3;
-layout(location = 4, binding = 4) uniform sampler2D gbuffer_depth;
+// Texture Samplers.
+layout (location = 0, binding = 0) uniform sampler2D sampler_base_color;
+layout (location = 1, binding = 1) uniform sampler2D sampler_roughness_metallic;
+layout (location = 2, binding = 2) uniform sampler2D sampler_occlusion;
+layout (location = 3, binding = 3) uniform sampler2D sampler_normal;
+layout (location = 4, binding = 4) uniform sampler2D sampler_emissive_color;
 
 layout(location = 5, binding = 5) uniform samplerCube irradiance_map;
 layout(location = 6, binding = 6) uniform samplerCube prefiltered_specular;
 layout(location = 7, binding = 7) uniform sampler2D brdf_integration_lut;
 
 layout(location = 8, binding = 8) uniform sampler2DArray shadow_map;
+
+// Uniform Buffer Renderer.
+layout(binding = 0, std140) uniform renderer_data
+{
+    mat4 view_matrix;
+    mat4 projection_matrix;
+    mat4 view_projection_matrix;
+    float camera_exposure;
+};
+
+// Uniform Buffer Model.
+layout(binding = 1, std140) uniform model_data
+{
+    mat4 model_matrix;
+    mat3 normal_matrix;
+    bool has_normals;
+    bool has_tangents;
+};
+
+// Uniform Buffer Material.
+layout(binding = 2, std140) uniform material_data
+{
+    vec4  base_color;
+    vec4  emissive_color; // this is a vec3, but there are annoying bugs with some drivers.
+    float metallic;
+    float roughness;
+
+    bool base_color_texture;
+    bool roughness_metallic_texture;
+    bool occlusion_texture;
+    bool packed_occlusion;
+    bool normal_texture;
+    bool emissive_color_texture;
+
+    int   alpha_mode;
+    float alpha_cutoff;
+};
 
 // Uniform Buffer Lighting Pass.
 layout(binding = 3, std140) uniform lighting_pass_data
@@ -63,42 +110,69 @@ layout(binding = 4, std140) uniform shadow_data
     float maximum_penumbra;
 } shadow_map_data;
 
+vec4 get_base_color()
+{
+    vec4 color = base_color_texture ? texture(sampler_base_color, fs_in.texcoord) : base_color;
+
+    return color;
+}
+
+vec3 get_emissive()
+{
+    return emissive_color_texture ? texture(sampler_emissive_color, fs_in.texcoord).rgb : emissive_color.rgb;
+}
+
+vec3 get_occlusion_roughness_metallic()
+{
+    vec3 o_r_m = roughness_metallic_texture ? texture(sampler_roughness_metallic, fs_in.texcoord).rgb : vec3(1.0, roughness, metallic);
+    if(packed_occlusion)
+        return o_r_m;
+
+    float occlusion = occlusion_texture ? texture(sampler_occlusion, fs_in.texcoord).r : 1.0;
+    o_r_m.r = occlusion;
+
+    return o_r_m;
+}
+
+vec3 get_normal()
+{
+    vec3 normal = normalize(fs_in.normal);
+    if(!gl_FrontFacing)
+        normal *= -1.0;
+    vec3 dfdx = dFdx(fs_in.position);
+    vec3 dfdy = dFdy(fs_in.position);
+    if(!has_normals)
+        normal = normalize(cross(dfdx, dfdy)); // approximation
+    if(normal_texture)
+    {
+        vec3 tangent   = fs_in.tangent;
+        vec3 bitangent = fs_in.bitangent;
+        if(!has_tangents)
+        {
+            vec3 uv_dx = dFdx(vec3(fs_in.texcoord, 0.0));
+            vec3 uv_dy = dFdy(vec3(fs_in.texcoord, 0.0));
+            vec3 t_    = (uv_dy.y * dfdx - uv_dx.y * dfdy) / (uv_dx.x * uv_dy.y - uv_dy.x * uv_dx.y);
+            tangent    = normalize(t_ - normal * dot(normal, t_));
+            bitangent  = cross(normal, tangent);
+        }
+
+        mat3 tbn = mat3(normalize(tangent), normalize(bitangent), normal);
+        vec3 mapped_normal = normalize(texture(sampler_normal, fs_in.texcoord).rgb * 2.0 - 1.0);
+        normal = normalize(tbn * mapped_normal.rgb);
+    }
+    return normal;
+}
+
 float D_GGX(in float n_dot_h, in float roughness);
 float V_SmithGGXCorrelated(in float n_dot_v, in float n_dot_l, in float roughness);
 vec3 F_Schlick(in float dot, in vec3 f0, in float f90);
 vec3 F_Schlick_roughness(in float dot, in vec3 f0, in float roughness);
 float Fd_BurleyRenormalized(in float n_dot_v, in float n_dot_l, in float l_dot_h, in float roughness);
 
-vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection);
 vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor);
 vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor, in vec3 world_pos);
 
 vec3 get_specular_dominant_direction(in vec3 normal, in vec3 reflection, in float roughness);
-
-
-vec4 get_base_color()
-{
-    return texture(gbuffer_c0, texcoord);
-}
-
-vec3 get_normal()
-{
-    return normalize(texture(gbuffer_c1, texcoord).rgb * 2.0 - 1.0);
-}
-
-vec3 get_emissive()
-{
-    return texture(gbuffer_c2, texcoord).rgb;
-}
-
-vec3 get_occlusion_roughness_metallic()
-{
-    vec3 o_r_m = texture(gbuffer_c3, texcoord).rgb;
-    o_r_m.x = max(o_r_m.x, 0.089f);
-    return o_r_m;
-}
-
-void debug_views(in float depth);
 
 // interpolation_mode: 0 -> no interpolation | 1 -> interpolation from cascade_id to cascade_id + 1 - shadow_map_data.shadow_cascade_interpolation_range | 2 -> interpolation from cascade_id - 1  + shadow_map_data.shadow_cascade_interpolation_range to cascade_id
 int compute_cascade_id(in float view_depth, out float interpolation_factor, out int interpolation_mode) // xy texcoords, z depth
@@ -143,6 +217,7 @@ float linearize_depth(in float d, in float near, in float far)
     float depth = 2.0 * d - 1.0;
     return 2.0 * near * far / (far + near - depth * (far - near));
 }
+
 
 float interleaved_gradient_noise(in vec2 screen_pos)
 {
@@ -286,45 +361,6 @@ float directional_shadow(in sampler2DArray lookup, in vec3 world_pos, in int cas
 
 void main()
 {
-    float depth = texture(gbuffer_depth, texcoord).r;
-    if(debug_view_enabled)
-    {
-        debug_views(depth);
-        return;
-    }
-    bool debug_shadow_maps_viewport = draw_shadow_maps && cast_shadows && texcoord.y < 0.25;
-    if(debug_shadow_maps_viewport)
-    {
-        bool sm3 = texcoord.x > 0.75;
-        bool sm2 = texcoord.x > 0.5;
-        bool sm1 = texcoord.x > 0.25;
-        if(sm3)
-        {
-            vec2 uv = vec2((texcoord.x - 0.75) / 0.25, texcoord.y / 0.25);
-            frag_color = vec4(vec3(texture(shadow_map, vec3(uv, 3)).x), 1.0);
-            return;
-        }
-        if(sm2)
-        {
-            vec2 uv = vec2((texcoord.x - 0.5) / 0.25, texcoord.y / 0.25);
-            frag_color = vec4(vec3(texture(shadow_map, vec3(uv, 2)).x), 1.0);
-            return;
-        }
-        if(sm1)
-        {
-            vec2 uv = vec2((texcoord.x - 0.25) / 0.25, texcoord.y / 0.25);
-            frag_color = vec4(vec3(texture(shadow_map, vec3(uv, 1)).x), 1.0);
-            return;
-        }
-        vec2 uv = vec2((texcoord.x) / 0.25, texcoord.y / 0.25);
-        frag_color = vec4(vec3(texture(shadow_map, vec3(uv, 0)).x), 1.0);
-        return;
-    }
-
-    gl_FragDepth = depth; // This is for potential transparent objects and cubemap.
-    if(depth >= 1.0) discard;
-
-    vec3 position                        = world_space_from_depth(depth, texcoord, inverse_view_projection);
     vec4 base_color                      = get_base_color();
     vec3 normal                          = get_normal();
     vec3 occlusion_roughness_metallic    = get_occlusion_roughness_metallic();
@@ -332,12 +368,12 @@ void main()
     float perceptual_roughness           = occlusion_roughness_metallic.g;
     float metallic                       = occlusion_roughness_metallic.b;
     vec3 emissive                        = get_emissive();
-    float reflectance                    = 0.5; // TODO Paul: Make tweakable.
+    float reflectance                    = 1.0; // TODO Paul: Make tweakable.
 
     vec3 f0          = 0.16 * reflectance * reflectance * (1.0 - metallic) + base_color.rgb * metallic;
     vec3 real_albedo = base_color.rgb * (1.0 - metallic);
 
-    vec3 view_dir = normalize(camera_position.xyz - position);
+    vec3 view_dir = normalize(camera_position.xyz - fs_in.position);
     float n_dot_v = clamp(dot(normal, view_dir), 1e-5, 1.0 - 1e-5);
 
     vec3 lighting = vec3(0.0);
@@ -346,11 +382,11 @@ void main()
     lighting += calculate_image_based_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
 
     // lights
-    lighting += calculate_directional_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor, position);
+    lighting += calculate_directional_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor, fs_in.position);
 
     lighting += emissive * 50000; // TODO Paul: Remove hardcoded intensity for all emissive values -.-
 
-    frag_color = vec4(lighting, 1.0);
+    hdr_out = vec4(lighting * base_color.a, base_color.a); // Premultiplied alpha?
 }
 
 vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor)
@@ -481,52 +517,9 @@ float Fd_BurleyRenormalized(in float n_dot_v, in float n_dot_l, in float l_dot_h
     return energy_factor * light_scatter * view_scatter;
 }
 
-vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection)
-{
-    float z = depth * 2.0 - 1.0;
-
-    vec4 clip = vec4(uv * 2.0 - 1.0, z, 1.0);
-    vec4 direct = inverse_view_projection * clip;
-    return direct.xyz / direct.w;
-}
-
 vec3 get_specular_dominant_direction(in vec3 normal, in vec3 reflection, in float roughness)
 {
     float smoothness = saturate(1.0 - roughness);
     float lerp_f = smoothness * (sqrt(smoothness) + roughness);
     return mix(normal, reflection, lerp_f);
-}
-
-
-void debug_views(in float depth)
-{
-    vec4 base_color = get_base_color();
-    vec3 normal = get_normal();
-    vec3 occlusion_roughness_metallic = get_occlusion_roughness_metallic();
-    float occlusion_factor = occlusion_roughness_metallic.r;
-    float perceptual_roughness = occlusion_roughness_metallic.g;
-    float metallic = occlusion_roughness_metallic.b;
-    vec3 emissive = get_emissive();
-
-    if(debug_views_position)
-        frag_color = vec4(world_space_from_depth(depth, texcoord, inverse_view_projection), 1.0);
-    if(debug_views_normal)
-        frag_color = vec4(normal, 1.0);
-    if(debug_views_depth)
-    {
-        float z_lin = (2.0 * camera_params.x) / (camera_params.y + camera_params.x - depth * (camera_params.y - camera_params.x));
-        frag_color = vec4(vec3(z_lin), 1.0);
-    }
-    if(debug_views_base_color)
-        frag_color = vec4(vec3(1.0 - metallic) * base_color.rgb, 1.0);
-    if(debug_views_reflection_color)
-        frag_color = vec4(vec3(metallic) * base_color.rgb, 1.0);
-    if(debug_views_occlusion)
-        frag_color = vec4(vec3(occlusion_factor), 1.0);
-    if(debug_views_roughness)
-        frag_color = vec4(vec3(perceptual_roughness), 1.0);
-    if(debug_views_metallic)
-        frag_color = vec4(vec3(metallic), 1.0);
-    if(debug_views_emission)
-        frag_color = vec4(vec3(emissive), 1.0);
 }

@@ -10,8 +10,44 @@ out vec4 frag_color;
 in vec2 texcoord;
 
 layout(location = 0, binding = 0) uniform sampler2D hdr_input;
-layout (location = 1) uniform float camera_exposure;
-layout (location = 2) uniform int debug_mode;
+
+// Uniform Buffer Renderer.
+layout(binding = 0, std140) uniform renderer_data
+{
+    mat4 view_matrix;
+    mat4 projection_matrix;
+    mat4 view_projection_matrix;
+    float camera_exposure;
+};
+
+// Uniform Buffer Lighting Pass.
+layout(binding = 3, std140) uniform lighting_pass_data
+{
+    mat4 inverse_view_projection;
+    mat4 view;
+    vec4 camera_position; // this is a vec3, but there are annoying bugs with some drivers.
+    vec4 camera_params; // near, far, (zw) unused
+
+    vec4  directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
+    vec4  directional_color; // this is a vec3, but there are annoying bugs with some drivers.
+    float directional_intensity;
+    bool  cast_shadows;
+
+    float ambient_intensity;
+
+    bool debug_view_enabled;
+    bool debug_views_position;
+    bool debug_views_normal;
+    bool debug_views_depth;
+    bool debug_views_base_color;
+    bool debug_views_reflection_color;
+    bool debug_views_emission;
+    bool debug_views_occlusion;
+    bool debug_views_roughness;
+    bool debug_views_metallic;
+    bool show_cascades;
+    bool draw_shadow_maps;
+};
 
 vec4 tonemap_with_gamma_correction(in vec4 color);
 vec4 srgb_to_linear(in vec4 srgb);
@@ -19,12 +55,12 @@ vec4 linear_to_srgb(in vec4 linear);
 
 void main()
 {
-    if (debug_mode == 1)
+    if (debug_view_enabled)
     {
         frag_color = texture(hdr_input, texcoord);
         return;
     }
-    if(debug_mode == 2 && texcoord.y < 0.25) // TODO Paul: This is weird.
+    if(draw_shadow_maps && texcoord.y < 0.25) // TODO Paul: This is weird.
     {
         frag_color = texture(hdr_input, texcoord);
         return;

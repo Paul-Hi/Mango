@@ -67,27 +67,27 @@ bool editor::create()
     mango_context->make_scene_current(application_scene);
 
     // test settings comment in to have some example scene
-    //{
-    //   ibl_step_configuration ibl_config;
-    //   ibl_config.set_render_level(0.1f);
-    //   mango_rs->setup_ibl_step(ibl_config);
+    {
+        ibl_step_configuration ibl_config;
+        ibl_config.set_render_level(0.1f);
+        mango_rs->setup_ibl_step(ibl_config);
 
-    //   shadow_step_configuration shadow_config;
-    //   shadow_config.set_resolution(2048).set_max_penumbra(6.0f).set_offset(3.0f).set_cascade_count(3).set_split_lambda(0.5f);
-    //   mango_rs->setup_shadow_map_step(shadow_config);
+        shadow_step_configuration shadow_config;
+        shadow_config.set_resolution(2048).set_max_penumbra(6.0f).set_offset(12.0f).set_cascade_count(3).set_split_lambda(0.5f);
+        mango_rs->setup_shadow_map_step(shadow_config);
 
-    //   application_scene->create_entities_from_model("res/models/shaderball/shaderball.glb");
-    //   entity lighting                                                   = application_scene->create_environment_from_hdr("res/textures/venice_sunset_4k.hdr");
-    //   application_scene->get_tag(lighting)->tag_name                    = "Global Lighting";
-    //   application_scene->get_environment_component(lighting)->intensity = 4000.0f;
-    //   auto& l_c                                                         = application_scene->add_light_component(lighting);
-    //   l_c.type_of_light                                                 = mango::light_type::directional;
-    //   auto directional_data                                             = static_cast<mango::directional_light_data*>(l_c.data.get());
-    //   directional_data->direction                                       = glm::vec3(0.9f, 0.05f, 0.65f);
-    //   directional_data->intensity                                       = 89000.0f;
-    //   directional_data->light_color                                     = mango::color_rgb({ 1.0f, 0.387f, 0.207f });
-    //   directional_data->cast_shadows                                    = true;
-    //}
+        application_scene->create_entities_from_model("res/models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.glb");
+        entity lighting                                                   = application_scene->create_environment_from_hdr("res/textures/venice_sunset_4k.hdr");
+        application_scene->get_tag(lighting)->tag_name                    = "Global Lighting";
+        application_scene->get_environment_component(lighting)->intensity = 4000.0f;
+        auto& l_c                                                         = application_scene->add_light_component(lighting);
+        l_c.type_of_light                                                 = mango::light_type::directional;
+        auto directional_data                                             = static_cast<mango::directional_light_data*>(l_c.data.get());
+        directional_data->direction                                       = glm::vec3(0.9f, 0.05f, 0.65f);
+        directional_data->intensity                                       = 89000.0f;
+        directional_data->light_color                                     = mango::color_rgb({ 1.0f, 0.387f, 0.207f });
+        directional_data->cast_shadows                                    = true;
+    }
     // test end
 
     shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
@@ -108,8 +108,8 @@ bool editor::create()
         shared_ptr<input_system> mango_is = mango_context->get_input_system().lock();
         MANGO_ASSERT(mango_is, "Input System is expired!");
 
-        bool no_rotation         = mango_is->get_mouse_button(mouse_button::MOUSE_BUTTON_LEFT) == input_action::RELEASE;
-        bool no_panning          = mango_is->get_mouse_button(mouse_button::MOUSE_BUTTON_RIGHT) == input_action::RELEASE;
+        bool no_rotation         = mango_is->get_mouse_button(mouse_button::mouse_button_left) == input_action::release;
+        bool no_panning          = mango_is->get_mouse_button(mouse_button::mouse_button_right) == input_action::release;
         glm::vec2 diff           = glm::vec2(x_position, y_position) - m_last_mouse_position;
         bool offset_not_relevant = glm::length(diff) < 1.0f; // In pixels.
 
@@ -172,7 +172,7 @@ void editor::update(float dt)
         return;
     auto cam_transform = application_scene->get_transform_component(m_main_camera);
     auto cam_data      = application_scene->get_camera_component(m_main_camera);
-    if(!cam_data || ! cam_transform)
+    if (!cam_data || !cam_transform)
         return;
 
     if (glm::length(m_target_offset) > 0.0f)

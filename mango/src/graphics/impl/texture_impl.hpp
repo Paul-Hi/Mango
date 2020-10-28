@@ -86,8 +86,6 @@ namespace mango
         }
 
         void set_data(format internal_format, int32 width, int32 height, format pixel_format, format type, const void* data, int32 layer) override;
-        void bind_texture_unit(int32 unit) override;
-        void unbind() override;
         void release() override;
 
       private:
@@ -109,7 +107,7 @@ namespace mango
         texture_parameter m_texture_wrap_s;
         //! \brief The wrapping procedure in t direction for texture coordinates not in [0, 1].
         texture_parameter m_texture_wrap_t;
-        //! \brief Specifies if the \a texture should be interpreted as SRGB etc.
+        //! \brief Specifies if the \a texture should be interpreted as srgb etc.
         bool m_is_standard_color_space;
         //! \brief Number of mipmap levels.
         int32 m_generate_mipmaps;

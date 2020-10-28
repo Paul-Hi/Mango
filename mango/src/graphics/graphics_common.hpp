@@ -13,12 +13,16 @@
 namespace mango
 {
 //! \cond NO_COND
+#define MANGO_TEMPLATE_GRAPHICS_OBJECT(name) \
+    template <typename K>                    \
+    class name;                              \
+    template <typename K>                    \
+    using name##_ptr = shared_ptr<name<K>>;
 #define MANGO_GRAPHICS_OBJECT(name) \
     class name;                     \
     using name##_ptr = shared_ptr<name>;
 #define MANGO_GRAPHICS_OBJECT_IMPL(name) class name_impl;
-
-    MANGO_GRAPHICS_OBJECT(command_buffer)
+    MANGO_TEMPLATE_GRAPHICS_OBJECT(command_buffer)
     MANGO_GRAPHICS_OBJECT(buffer)
     MANGO_GRAPHICS_OBJECT_IMPL(buffer)
     MANGO_GRAPHICS_OBJECT(texture)
@@ -31,6 +35,7 @@ namespace mango
     MANGO_GRAPHICS_OBJECT_IMPL(vertex_array)
     MANGO_GRAPHICS_OBJECT(framebuffer)
     MANGO_GRAPHICS_OBJECT_IMPL(framebuffer)
+    MANGO_GRAPHICS_OBJECT(gpu_buffer)
 
 #undef MANGO_GRAPHICS_OBJECT
 #undef MANGO_GRAPHICS_OBJECT_IMPL
@@ -39,10 +44,10 @@ namespace mango
     //! \brief The alpha mode of a material.
     enum class alpha_mode : uint8
     {
-        MODE_OPAQUE,
-        MODE_MASK,
-        MODE_BLEND,
-        MODE_DITHER
+        mode_opaque,
+        mode_mask,
+        mode_blend,
+        mode_dither
     };
 
     //! \brief Structure to store material properties, textures etc.
@@ -137,20 +142,110 @@ namespace mango
         //! \cond NO_COND
         std140_bool(const bool& b)
         {
-            v = b ? 1 : 0;
+            pad = 0;
+            v   = b ? 1 : 0;
         }
         std140_bool()
-            : v(0)
+            : pad(0)
         {
         }
-
-        bool value()
+        operator bool&()
         {
-            return v == 1 ? true : false;
+            return v;
+        }
+        void operator=(const bool& o)
+        {
+            pad = 0;
+            v   = o;
         }
 
       private:
-        uint32 v;
+        union
+        {
+            bool v;
+            int32 pad;
+        };
+        //! \endcond
+    };
+
+    //! \brief An integer in the glsl std140 layout.
+    struct std140_int
+    {
+        //! \cond NO_COND
+        std140_int(const int& i)
+        {
+            v = i;
+        }
+        std140_int()
+            : v(0)
+        {
+        }
+        operator int32&()
+        {
+            return v;
+        }
+        void operator=(const int& o)
+        {
+            v = o;
+        }
+
+      private:
+        int32 v;
+        //! \endcond
+    };
+
+    //! \brief A float in the glsl std140 layout.
+    struct std140_float
+    {
+        //! \cond NO_COND
+        std140_float(const float& f)
+        {
+            v = f;
+        }
+        std140_float()
+            : v(0)
+        {
+        }
+        operator float&()
+        {
+            return v;
+        }
+        void operator=(const float& o)
+        {
+            v = o;
+        }
+
+      private:
+        float v;
+        //! \endcond
+    };
+
+    //! \brief A float in the glsl std140 layout for arrays.
+    struct std140_float_array
+    {
+        //! \cond NO_COND
+        std140_float_array(const float& f)
+        {
+            v = f;
+        }
+        std140_float_array()
+            : v(0)
+        {
+        }
+        operator float&()
+        {
+            return v;
+        }
+        void operator=(const float& o)
+        {
+            v = o;
+        }
+
+      private:
+        float v;
+        float p0;
+        float p1;
+        float p2;
         //! \endcond
     };
 
@@ -158,18 +253,29 @@ namespace mango
     struct std140_vec2
     {
         //! \cond NO_COND
-        float x;
-        float y;
         std140_vec2(const glm::vec2& vec)
+            : v(vec)
         {
-            x = vec.x;
-            y = vec.y;
         }
         std140_vec2()
-            : x()
-            , y()
+            : v(glm::vec2(0.0f))
         {
         }
+        operator glm::vec2 &()
+        {
+            return v;
+        }
+        void operator=(const glm::vec2& o)
+        {
+            v = o;
+        }
+        float& operator[](int i)
+        {
+            return v[i];
+        }
+
+      private:
+        glm::vec2 v;
         //! \endcond
     };
 
@@ -177,30 +283,30 @@ namespace mango
     struct std140_vec3
     {
         //! \cond NO_COND
-        float x;
-        float y;
-        float z;
         std140_vec3(const glm::vec3& vec)
+            : v(vec)
         {
-            x  = vec.x;
-            y  = vec.y;
-            z  = vec.z;
-            _w = 0.0f;
         }
         std140_vec3()
-            : x()
-            , y()
-            , z()
-            , _w()
+            : v(glm::vec3(0.0f))
         {
         }
-        inline glm::vec3 value()
+        operator glm::vec3 &()
         {
-            return glm::vec3(x, y, z);
+            return v;
+        }
+        void operator=(const glm::vec3& o)
+        {
+            v = o;
+        }
+        float& operator[](int i)
+        {
+            return v[i];
         }
 
       private:
-        float _w = 0.0f;
+        glm::vec3 v;
+        float pad;
         //! \endcond
     };
 
@@ -208,28 +314,29 @@ namespace mango
     struct std140_vec4
     {
         //! \cond NO_COND
-        float x;
-        float y;
-        float z;
-        float w;
         std140_vec4(const glm::vec4& vec)
+            : v(vec)
         {
-            x = vec.x;
-            y = vec.y;
-            z = vec.z;
-            w = vec.w;
         }
         std140_vec4()
-            : x(0.0f)
-            , y(0.0f)
-            , z(0.0f)
-            , w(0.0f)
+            : v(glm::vec4(0.0f))
         {
         }
-        inline glm::vec4 value()
+        operator glm::vec4 &()
         {
-            return glm::vec4(x, y, z, w);
+            return v;
         }
+        void operator=(const glm::vec4& o)
+        {
+            v = o;
+        }
+        float& operator[](int i)
+        {
+            return v[i];
+        }
+
+      private:
+        glm::vec4 v;
         //! \endcond
     };
 
@@ -237,9 +344,6 @@ namespace mango
     struct std140_mat3
     {
         //! \cond NO_COND
-        std140_vec3 r0;
-        std140_vec3 r1;
-        std140_vec3 r2;
         std140_mat3(const glm::mat3& mat)
             : r0(mat[0])
             , r1(mat[1])
@@ -252,14 +356,29 @@ namespace mango
             , r2()
         {
         }
-        inline glm::mat3 value()
+        void operator=(const glm::mat3& o)
         {
-            auto mat = glm::mat3();
-            mat[0] = r0.value();
-            mat[1] = r1.value();
-            mat[2] = r2.value();
-            return mat;
+            r0 = o[0];
+            r1 = o[1];
+            r2 = o[2];
         }
+        glm::vec3& operator[](int i)
+        {
+            switch (i)
+            {
+            case 0:
+                return r0;
+            case 1:
+                return r1;
+            case 2:
+                return r2;
+            }
+        }
+
+      private:
+        std140_vec3 r0;
+        std140_vec3 r1;
+        std140_vec3 r2;
         //! \endcond
     };
 
@@ -267,10 +386,6 @@ namespace mango
     struct std140_mat4
     {
         //! \cond NO_COND
-        std140_vec4 r0;
-        std140_vec4 r1;
-        std140_vec4 r2;
-        std140_vec4 r3;
         std140_mat4(const glm::mat4& mat)
             : r0(mat[0])
             , r1(mat[1])
@@ -285,15 +400,33 @@ namespace mango
             , r3()
         {
         }
-        inline glm::mat4 value()
+        void operator=(const glm::mat4& o)
         {
-            auto mat = glm::mat4();
-            mat[0] = r0.value();
-            mat[1] = r1.value();
-            mat[2] = r2.value();
-            mat[3] = r3.value();
-            return mat;
+            r0 = o[0];
+            r1 = o[1];
+            r2 = o[2];
+            r3 = o[3];
         }
+        glm::vec4& operator[](int i)
+        {
+            switch (i)
+            {
+            case 0:
+                return r0;
+            case 1:
+                return r1;
+            case 2:
+                return r2;
+            case 3:
+                return r3;
+            }
+        }
+
+      private:
+        std140_vec4 r0;
+        std140_vec4 r1;
+        std140_vec4 r2;
+        std140_vec4 r3;
         //! \endcond
     };
 
@@ -315,116 +448,116 @@ namespace mango
     //! \details The values are the same as in OpenGl, but sometimes the usage is extended.
     enum class format : uint32 // OpenGL values
     {
-        INVALID = 0x0,
+        invalid = 0x0,
         // vertex attribute formats and buffer format types
-        BYTE                        = 0x1400,
-        UNSIGNED_BYTE               = 0x1401,
-        SHORT                       = 0x1402,
-        UNSIGNED_SHORT              = 0x1403,
-        HALF_FLOAT                  = 0x140B,
-        DOUBLE                      = 0x140A,
-        FIXED                       = 0x140C,
-        FLOAT                       = 0x1406,
-        FLOAT_VEC2                  = 0x8B50,
-        FLOAT_VEC3                  = 0x8B51,
-        FLOAT_VEC4                  = 0x8B52,
-        INT                         = 0x1404,
-        INT_VEC2                    = 0x8B53,
-        INT_VEC3                    = 0x8B54,
-        INT_VEC4                    = 0x8B55,
-        UNSIGNED_INT                = 0x1405,
-        UNSIGNED_INT_VEC2           = 0x8DC6,
-        UNSIGNED_INT_VEC3           = 0x8DC7,
-        UNSIGNED_INT_VEC4           = 0x8DC8,
-        UNSIGNED_BYTE_3_3_2         = 0x8032,
-        UNSIGNED_BYTE_2_3_3_REV     = 0x8362,
-        UNSIGNED_SHORT_5_6_5        = 0x8363,
-        UNSIGNED_SHORT_5_6_5_REV    = 0x8364,
-        UNSIGNED_SHORT_4_4_4_4      = 0x8033,
-        UNSIGNED_SHORT_4_4_4_4_REV  = 0x8365,
-        UNSIGNED_SHORT_5_5_5_1      = 0x8034,
-        UNSIGNED_SHORT_1_5_5_5_REV  = 0x8366,
-        UNSIGNED_INT_8_8_8_8        = 0x8035,
-        UNSIGNED_INT_8_8_8_8_REV    = 0x8367,
-        UNSIGNED_INT_10_10_10_2     = 0x8036,
-        UNSIGNED_INT_2_10_10_10_REV = 0x8368,
-        INT_2_10_10_10_REV          = 0x8D9F,
+        t_byte                        = 0x1400,
+        t_unsigned_byte               = 0x1401,
+        t_short                       = 0x1402,
+        t_unsigned_short              = 0x1403,
+        t_half_float                  = 0x140b,
+        t_double                      = 0x140a,
+        t_fixed                       = 0x140c,
+        t_float                       = 0x1406,
+        t_float_vec2                  = 0x8b50,
+        t_float_vec3                  = 0x8b51,
+        t_float_vec4                  = 0x8b52,
+        t_int                         = 0x1404,
+        t_int_vec2                    = 0x8b53,
+        t_int_vec3                    = 0x8b54,
+        t_int_vec4                    = 0x8b55,
+        t_unsigned_int                = 0x1405,
+        t_unsigned_int_vec2           = 0x8dc6,
+        t_unsigned_int_vec3           = 0x8dc7,
+        t_unsigned_int_vec4           = 0x8dc8,
+        t_unsigned_byte_3_3_2         = 0x8032,
+        t_unsigned_byte_2_3_3_rev     = 0x8362,
+        t_unsigned_short_5_6_5        = 0x8363,
+        t_unsigned_short_5_6_5_rev    = 0x8364,
+        t_unsigned_short_4_4_4_4      = 0x8033,
+        t_unsigned_short_4_4_4_4_rev  = 0x8365,
+        t_unsigned_short_5_5_5_1      = 0x8034,
+        t_unsigned_short_1_5_5_5_rev  = 0x8366,
+        t_unsigned_int_8_8_8_8        = 0x8035,
+        t_unsigned_int_8_8_8_8_rev    = 0x8367,
+        t_unsigned_int_10_10_10_2     = 0x8036,
+        t_unsigned_int_2_10_10_10_rev = 0x8368,
+        t_int_2_10_10_10_rev          = 0x8d9f,
         // internal_formats
-        R8                 = 0x8229,
-        R16                = 0x822A,
-        R16F               = 0x822D,
-        R32F               = 0x822E,
-        R8I                = 0x8231,
-        R16I               = 0x8233,
-        R32I               = 0x8235,
-        R8UI               = 0x8232,
-        R16UI              = 0x8234,
-        R32UI              = 0x8236,
-        RG8                = 0x822B,
-        RG16               = 0x822C,
-        RG16F              = 0x822F,
-        RG32F              = 0x8230,
-        RG8I               = 0x8237,
-        RG16I              = 0x8239,
-        RG32I              = 0x823B,
-        RG8UI              = 0x8238,
-        RG16UI             = 0x823A,
-        RG32UI             = 0x823C,
-        RGB4               = 0x804F,
-        RGB5               = 0x8050,
-        RGB8               = 0x8051,
-        RGB10              = 0x8052,
-        RGB12              = 0x8053,
-        RGB16              = 0x8054,
-        SRGB8              = 0x8C41,
-        SRGB8_ALPHA8       = 0x8C43,
-        RGB8UI             = 0x8D7D,
-        RGB8I              = 0x8D8F,
-        RGB16F             = 0x881B,
-        RGB16UI            = 0x8D77,
-        RGB16I             = 0x8D89,
-        RGB32F             = 0x8815,
-        RGB32I             = 0x8D83,
-        RGB32UI            = 0x8D71,
-        RGBA2              = 0x8055,
-        RGBA4              = 0x8056,
-        RGB5_A1            = 0x8057,
-        RGBA8              = 0x8058,
-        RGB10_A2           = 0x8059,
-        RGBA12             = 0x805A,
-        RGBA16             = 0x805B,
-        RGBA16F            = 0x881A,
-        RGBA32F            = 0x8814,
-        RGBA8I             = 0x8D8E,
-        RGBA16I            = 0x8D88,
-        RGBA32I            = 0x8D82,
-        RGBA8UI            = 0x8D7C,
-        RGBA16UI           = 0x8D76,
-        RGBA32UI           = 0x8D70,
-        DEPTH_COMPONENT32F = 0x8CAC,
-        DEPTH_COMPONENT16  = 0x81A5,
-        DEPTH_COMPONENT24  = 0x81A6,
-        DEPTH_COMPONENT32  = 0x81A7,
-        // Pixel formats
-        DEPTH_COMPONENT = 0x1902,
-        STENCIL_INDEX   = 0x1901,
-        DEPTH_STENCIL   = 0x84F9,
-        RED             = 0x1903,
-        GREEN           = 0x1904,
-        BLUE            = 0x1905,
-        RG              = 0x8227,
-        RGB             = 0x1907,
-        BGR             = 0x80E0,
-        RGBA            = 0x1908,
-        BGRA            = 0x80E1,
-        RED_INTEGER     = 0x8D94,
-        GREEN_INTEGER   = 0x8D95,
-        BLUE_INTEGER    = 0x8D96,
-        RG_INTEGER      = 0x8228,
-        RGB_INTEGER     = 0x8D98,
-        BGR_INTEGER     = 0x8D9A,
-        RGBA_INTEGER    = 0x8D99,
-        BGRA_INTEGER    = 0x8D9B,
+        r8                 = 0x8229,
+        r16                = 0x822a,
+        r16f               = 0x822d,
+        r32f               = 0x822e,
+        r8i                = 0x8231,
+        r16i               = 0x8233,
+        r32i               = 0x8235,
+        r8ui               = 0x8232,
+        r16ui              = 0x8234,
+        r32ui              = 0x8236,
+        rg8                = 0x822b,
+        rg16               = 0x822c,
+        rg16f              = 0x822f,
+        rg32f              = 0x8230,
+        rg8i               = 0x8237,
+        rg16i              = 0x8239,
+        rg32i              = 0x823b,
+        rg8ui              = 0x8238,
+        rg16ui             = 0x823a,
+        rg32ui             = 0x823c,
+        rgb4               = 0x804f,
+        rgb5               = 0x8050,
+        rgb8               = 0x8051,
+        rgb10              = 0x8052,
+        rgb12              = 0x8053,
+        rgb16              = 0x8054,
+        srgb8              = 0x8c41,
+        srgb8_alpha8       = 0x8c43,
+        rgb8ui             = 0x8d7d,
+        rgb8i              = 0x8d8f,
+        rgb16f             = 0x881b,
+        rgb16ui            = 0x8d77,
+        rgb16i             = 0x8d89,
+        rgb32f             = 0x8815,
+        rgb32i             = 0x8d83,
+        rgb32ui            = 0x8d71,
+        rgba2              = 0x8055,
+        rgba4              = 0x8056,
+        rgb5_a1            = 0x8057,
+        rgba8              = 0x8058,
+        rgb10_a2           = 0x8059,
+        rgba12             = 0x805a,
+        rgba16             = 0x805b,
+        rgba16f            = 0x881a,
+        rgba32f            = 0x8814,
+        rgba8i             = 0x8d8e,
+        rgba16i            = 0x8d88,
+        rgba32i            = 0x8d82,
+        rgba8ui            = 0x8d7c,
+        rgba16ui           = 0x8d76,
+        rgba32ui           = 0x8d70,
+        depth_component32f = 0x8cac,
+        depth_component16  = 0x81a5,
+        depth_component24  = 0x81a6,
+        depth_component32  = 0x81a7,
+        // pixel formats
+        depth_component = 0x1902,
+        stencil_index   = 0x1901,
+        depth_stencil   = 0x84f9,
+        red             = 0x1903,
+        green           = 0x1904,
+        blue            = 0x1905,
+        rg              = 0x8227,
+        rgb             = 0x1907,
+        bgr             = 0x80e0,
+        rgba            = 0x1908,
+        bgra            = 0x80e1,
+        red_integer     = 0x8d94,
+        green_integer   = 0x8d95,
+        blue_integer    = 0x8d96,
+        rg_integer      = 0x8228,
+        rgb_integer     = 0x8d98,
+        bgr_integer     = 0x8d9a,
+        rgba_integer    = 0x8d99,
+        bgra_integer    = 0x8d9b,
     };
     MANGO_ENABLE_BITMASK_OPERATIONS(format)
 
@@ -437,155 +570,155 @@ namespace mango
     {
         switch (f)
         {
-        case format::R8:
+        case format::r8:
             number_of_components = 1;
             normalized           = true;
             return GL_UNSIGNED_BYTE;
-        case format::R16:
+        case format::r16:
             number_of_components = 1;
             normalized           = true;
             return GL_UNSIGNED_SHORT;
-        case format::R16F:
+        case format::r16f:
             number_of_components = 1;
             normalized           = false;
             return GL_HALF_FLOAT;
-        case format::R32F:
+        case format::r32f:
             number_of_components = 1;
             normalized           = false;
             return GL_FLOAT;
-        case format::R8I:
+        case format::r8i:
             number_of_components = 1;
             normalized           = true;
             return GL_BYTE;
-        case format::R16I:
+        case format::r16i:
             number_of_components = 1;
             normalized           = true;
             return GL_SHORT;
-        case format::R32I:
+        case format::r32i:
             number_of_components = 1;
             normalized           = true;
             return GL_INT;
-        case format::R8UI:
+        case format::r8ui:
             number_of_components = 1;
             normalized           = true;
             return GL_UNSIGNED_BYTE;
-        case format::R16UI:
+        case format::r16ui:
             number_of_components = 1;
             normalized           = true;
             return GL_UNSIGNED_SHORT;
-        case format::R32UI:
+        case format::r32ui:
             number_of_components = 1;
             normalized           = true;
             return GL_UNSIGNED_INT;
-        case format::RG8:
+        case format::rg8:
             number_of_components = 2;
             normalized           = true;
             return GL_UNSIGNED_BYTE;
-        case format::RG16:
+        case format::rg16:
             number_of_components = 2;
             normalized           = true;
             return GL_UNSIGNED_SHORT;
-        case format::RG16F:
+        case format::rg16f:
             number_of_components = 2;
             normalized           = false;
             return GL_HALF_FLOAT;
-        case format::RG32F:
+        case format::rg32f:
             number_of_components = 2;
             normalized           = false;
             return GL_FLOAT;
-        case format::RG8I:
+        case format::rg8i:
             number_of_components = 2;
             normalized           = true;
             return GL_BYTE;
-        case format::RG16I:
+        case format::rg16i:
             number_of_components = 2;
             normalized           = true;
             return GL_SHORT;
-        case format::RG32I:
+        case format::rg32i:
             number_of_components = 2;
             normalized           = true;
             return GL_INT;
-        case format::RG8UI:
+        case format::rg8ui:
             number_of_components = 2;
             normalized           = true;
             return GL_UNSIGNED_BYTE;
-        case format::RG16UI:
+        case format::rg16ui:
             number_of_components = 2;
             normalized           = true;
             return GL_UNSIGNED_SHORT;
-        case format::RG32UI:
+        case format::rg32ui:
             number_of_components = 2;
             normalized           = true;
             return GL_UNSIGNED_INT;
-        case format::RGB8I:
+        case format::rgb8i:
             number_of_components = 3;
             normalized           = true;
             return GL_BYTE;
-        case format::RGB8UI:
+        case format::rgb8ui:
             number_of_components = 3;
             normalized           = true;
             return GL_UNSIGNED_BYTE;
-        case format::RGB16F:
+        case format::rgb16f:
             number_of_components = 3;
             normalized           = false;
             return GL_HALF_FLOAT;
-        case format::RGB16I:
+        case format::rgb16i:
             number_of_components = 3;
             normalized           = true;
             return GL_SHORT;
-        case format::RGB16UI:
+        case format::rgb16ui:
             number_of_components = 3;
             normalized           = true;
             return GL_UNSIGNED_SHORT;
-        case format::RGB32F:
+        case format::rgb32f:
             number_of_components = 3;
             normalized           = false;
             return GL_FLOAT;
-        case format::RGB32I:
+        case format::rgb32i:
             number_of_components = 3;
             normalized           = true;
             return GL_INT;
-        case format::RGB32UI:
+        case format::rgb32ui:
             number_of_components = 3;
             normalized           = true;
             return GL_UNSIGNED_INT;
-        case format::RGBA8:
+        case format::rgba8:
             number_of_components = 4;
             normalized           = true;
             return GL_UNSIGNED_BYTE;
-        case format::RGBA16:
+        case format::rgba16:
             number_of_components = 4;
             normalized           = true;
             return GL_SHORT;
-        case format::RGBA16F:
+        case format::rgba16f:
             number_of_components = 4;
             normalized           = false;
             return GL_HALF_FLOAT;
-        case format::RGBA32F:
+        case format::rgba32f:
             number_of_components = 4;
             normalized           = false;
             return GL_FLOAT;
-        case format::RGBA8I:
+        case format::rgba8i:
             number_of_components = 4;
             normalized           = true;
             return GL_BYTE;
-        case format::RGBA16I:
+        case format::rgba16i:
             number_of_components = 4;
             normalized           = true;
             return GL_UNSIGNED_BYTE;
-        case format::RGBA32I:
+        case format::rgba32i:
             number_of_components = 4;
             normalized           = true;
             return GL_UNSIGNED_BYTE;
-        case format::RGBA8UI:
+        case format::rgba8ui:
             number_of_components = 4;
             normalized           = true;
             return GL_UNSIGNED_BYTE;
-        case format::RGBA16UI:
+        case format::rgba16ui:
             number_of_components = 4;
             normalized           = true;
             return GL_UNSIGNED_SHORT;
-        case format::RGBA32UI:
+        case format::rgba32ui:
             number_of_components = 4;
             normalized           = true;
             return GL_UNSIGNED_INT;
@@ -603,92 +736,92 @@ namespace mango
     {
         switch (f)
         {
-        case format::BYTE:
+        case format::t_byte:
             if (number_of_components == 1)
-                return format::R8I;
+                return format::r8i;
             if (number_of_components == 2)
-                return format::RG8I;
+                return format::rg8i;
             if (number_of_components == 3)
-                return format::RGB8I;
+                return format::rgb8i;
             if (number_of_components == 4)
-                return format::RGBA8I;
+                return format::rgba8i;
             break;
-        case format::UNSIGNED_BYTE:
+        case format::t_unsigned_byte:
             if (number_of_components == 1)
-                return format::R8UI;
+                return format::r8ui;
             if (number_of_components == 2)
-                return format::RG8UI;
+                return format::rg8ui;
             if (number_of_components == 3)
-                return format::RGB8UI;
+                return format::rgb8ui;
             if (number_of_components == 4)
-                return format::RGBA8UI;
+                return format::rgba8ui;
             break;
-        case format::SHORT:
+        case format::t_short:
             if (number_of_components == 1)
-                return format::R16I;
+                return format::r16i;
             if (number_of_components == 2)
-                return format::RG16I;
+                return format::rg16i;
             if (number_of_components == 3)
-                return format::RGB16I;
+                return format::rgb16i;
             if (number_of_components == 4)
-                return format::RGBA16I;
+                return format::rgba16i;
             break;
-        case format::UNSIGNED_SHORT:
+        case format::t_unsigned_short:
             if (number_of_components == 1)
-                return format::R16UI;
+                return format::r16ui;
             if (number_of_components == 2)
-                return format::RG16UI;
+                return format::rg16ui;
             if (number_of_components == 3)
-                return format::RGB16UI;
+                return format::rgb16ui;
             if (number_of_components == 4)
-                return format::RGBA16UI;
+                return format::rgba16ui;
             break;
-        case format::INT:
+        case format::t_int:
             if (number_of_components == 1)
-                return format::R32I;
+                return format::r32i;
             if (number_of_components == 2)
-                return format::RG32I;
+                return format::rg32i;
             if (number_of_components == 3)
-                return format::RGB32I;
+                return format::rgb32i;
             if (number_of_components == 4)
-                return format::RGBA32I;
+                return format::rgba32i;
             break;
-        case format::UNSIGNED_INT:
+        case format::t_unsigned_int:
             if (number_of_components == 1)
-                return format::R32UI;
+                return format::r32ui;
             if (number_of_components == 2)
-                return format::RG32UI;
+                return format::rg32ui;
             if (number_of_components == 3)
-                return format::RGB32UI;
+                return format::rgb32ui;
             if (number_of_components == 4)
-                return format::RGBA32UI;
+                return format::rgba32ui;
             break;
-        case format::HALF_FLOAT:
+        case format::t_half_float:
             if (number_of_components == 1)
-                return format::R16F;
+                return format::r16f;
             if (number_of_components == 2)
-                return format::RG16F;
+                return format::rg16f;
             if (number_of_components == 3)
-                return format::RGB16F;
+                return format::rgb16f;
             if (number_of_components == 4)
-                return format::RGBA16F;
+                return format::rgba16f;
             break;
-        case format::FLOAT:
+        case format::t_float:
             if (number_of_components == 1)
-                return format::R32F;
+                return format::r32f;
             if (number_of_components == 2)
-                return format::RG32F;
+                return format::rg32f;
             if (number_of_components == 3)
-                return format::RGB32F;
+                return format::rgb32f;
             if (number_of_components == 4)
-                return format::RGBA32F;
+                return format::rgba32f;
             break;
         default:
             MANGO_ASSERT(false, "Invalid format! Could also be, that I did not think of adding this here!");
-            return format::INVALID;
+            return format::invalid;
         }
         MANGO_ASSERT(false, "Invalid count! Could also be, that I did not think of adding this here!");
-        return format::INVALID;
+        return format::invalid;
     }
 
     //! \brief Retrieves the number of machine units, or size in bytes for a format.
@@ -698,71 +831,71 @@ namespace mango
     {
         switch (internal_format)
         {
-        case format::R8:
+        case format::r8:
             return 1 * sizeof(g_ubyte);
-        case format::R16:
+        case format::r16:
             return 1 * sizeof(g_ushort);
-        case format::R16F:
+        case format::r16f:
             return 1 * sizeof(g_half);
-        case format::R32F:
+        case format::r32f:
             return 1 * sizeof(g_float);
-        case format::R8I:
+        case format::r8i:
             return 1 * sizeof(g_byte);
-        case format::R16I:
+        case format::r16i:
             return 1 * sizeof(g_short);
-        case format::R32I:
+        case format::r32i:
             return 1 * sizeof(g_int);
-        case format::R8UI:
+        case format::r8ui:
             return 1 * sizeof(g_ubyte);
-        case format::R16UI:
+        case format::r16ui:
             return 1 * sizeof(g_ushort);
-        case format::R32UI:
+        case format::r32ui:
             return 1 * sizeof(g_uint);
-        case format::RG8:
+        case format::rg8:
             return 2 * sizeof(g_ubyte);
-        case format::RG16:
+        case format::rg16:
             return 2 * sizeof(g_ushort);
-        case format::RG16F:
+        case format::rg16f:
             return 2 * sizeof(g_half);
-        case format::RG32F:
+        case format::rg32f:
             return 2 * sizeof(g_float);
-        case format::RG8I:
+        case format::rg8i:
             return 2 * sizeof(g_byte);
-        case format::RG16I:
+        case format::rg16i:
             return 2 * sizeof(g_ushort);
-        case format::RG32I:
+        case format::rg32i:
             return 2 * sizeof(g_int);
-        case format::RG8UI:
+        case format::rg8ui:
             return 2 * sizeof(g_ubyte);
-        case format::RG16UI:
+        case format::rg16ui:
             return 2 * sizeof(g_ushort);
-        case format::RG32UI:
+        case format::rg32ui:
             return 2 * sizeof(g_uint);
-        case format::RGB32F:
+        case format::rgb32f:
             return 3 * sizeof(g_float);
-        case format::RGB32I:
+        case format::rgb32i:
             return 3 * sizeof(g_int);
-        case format::RGB32UI:
+        case format::rgb32ui:
             return 3 * sizeof(g_uint);
-        case format::RGBA8:
+        case format::rgba8:
             return 4 * sizeof(g_ubyte);
-        case format::RGBA16:
+        case format::rgba16:
             return 4 * sizeof(g_short);
-        case format::RGBA16F:
+        case format::rgba16f:
             return 4 * sizeof(g_half);
-        case format::RGBA32F:
+        case format::rgba32f:
             return 4 * sizeof(g_float);
-        case format::RGBA8I:
+        case format::rgba8i:
             return 4 * sizeof(g_byte);
-        case format::RGBA16I:
+        case format::rgba16i:
             return 4 * sizeof(g_short);
-        case format::RGBA32I:
+        case format::rgba32i:
             return 4 * sizeof(g_int);
-        case format::RGBA8UI:
+        case format::rgba8ui:
             return 4 * sizeof(g_ubyte);
-        case format::RGBA16UI:
+        case format::rgba16ui:
             return 4 * sizeof(g_ushort);
-        case format::RGBA32UI:
+        case format::rgba32ui:
             return 4 * sizeof(g_uint);
         default:
             MANGO_ASSERT(false, "Invalid internal format! Could also be, that I did not think of adding this here!");
@@ -773,14 +906,14 @@ namespace mango
     //! \brief Compare operation used for depth test and similar things.
     enum class compare_operation : uint8
     {
-        NEVER,
-        LESS,
-        EQUAL,
-        LESS_EQUAL,
-        GREATER,
-        NOT_EQUAL,
-        GREATER_EQUAL,
-        ALWAYS
+        never,
+        less,
+        equal,
+        less_equal,
+        greater,
+        not_equal,
+        greater_equal,
+        always
     };
 
     //! \brief Converts a \a compare_operation to an OpenGl enumeration value.
@@ -790,21 +923,21 @@ namespace mango
     {
         switch (op)
         {
-        case compare_operation::NEVER:
+        case compare_operation::never:
             return GL_NEVER;
-        case compare_operation::LESS:
+        case compare_operation::less:
             return GL_LESS;
-        case compare_operation::EQUAL:
+        case compare_operation::equal:
             return GL_EQUAL;
-        case compare_operation::LESS_EQUAL:
+        case compare_operation::less_equal:
             return GL_LEQUAL;
-        case compare_operation::GREATER:
+        case compare_operation::greater:
             return GL_GREATER;
-        case compare_operation::NOT_EQUAL:
+        case compare_operation::not_equal:
             return GL_NOTEQUAL;
-        case compare_operation::GREATER_EQUAL:
+        case compare_operation::greater_equal:
             return GL_GEQUAL;
-        case compare_operation::ALWAYS:
+        case compare_operation::always:
             return GL_ALWAYS;
         default:
             MANGO_ASSERT(false, "Unknown compare operation!");
@@ -815,9 +948,9 @@ namespace mango
     //! \brief Enumeration specifying the face of a polygon. Used for face culling.
     enum class polygon_face : uint8
     {
-        FACE_BACK           = 1 << 0,
-        FACE_FRONT          = 1 << 1,
-        FACE_FRONT_AND_BACK = FACE_BACK | FACE_FRONT
+        face_back           = 1 << 0,
+        face_front          = 1 << 1,
+        face_front_and_back = face_back | face_front
     };
     MANGO_ENABLE_BITMASK_OPERATIONS(polygon_face)
 
@@ -828,11 +961,11 @@ namespace mango
     {
         switch (face)
         {
-        case polygon_face::FACE_BACK:
+        case polygon_face::face_back:
             return GL_BACK;
-        case polygon_face::FACE_FRONT:
+        case polygon_face::face_front:
             return GL_FRONT;
-        case polygon_face::FACE_FRONT_AND_BACK:
+        case polygon_face::face_front_and_back:
             return GL_FRONT_AND_BACK;
         default:
             MANGO_ASSERT(false, "Unknown polygon face!");
@@ -843,9 +976,9 @@ namespace mango
     //! \brief Enumeration specifying how a polygon should be drawn. For example used to render wireframes.
     enum class polygon_mode : uint8
     {
-        POINT,
-        LINE,
-        FILL
+        point,
+        line,
+        fill
     };
 
     //! \brief Converts a \a polygon_mode to an OpenGl enumeration value.
@@ -855,11 +988,11 @@ namespace mango
     {
         switch (mode)
         {
-        case polygon_mode::POINT:
+        case polygon_mode::point:
             return GL_POINT;
-        case polygon_mode::LINE:
+        case polygon_mode::line:
             return GL_LINE;
-        case polygon_mode::FILL:
+        case polygon_mode::fill:
             return GL_FILL;
         default:
             MANGO_ASSERT(false, "Unknown polygon mode!");
@@ -870,25 +1003,25 @@ namespace mango
     //! \brief The blend factor used for blending operations.
     enum class blend_factor : uint8
     {
-        ZERO,
-        ONE,
-        SRC_COLOR,
-        ONE_MINUS_SRC_COLOR,
-        DST_COLOR,
-        ONE_MINUS_DST_COLOR,
-        SRC_ALPHA,
-        ONE_MINUS_SRC_ALPHA,
-        DST_ALPHA,
-        ONE_MINUS_DST_ALPHA,
-        CONSTANT_COLOR,
-        ONE_MINUS_CONSTANT_COLOR,
-        CONSTANT_ALPHA,
-        ONE_MINUS_CONSTANT_ALPHA,
-        SRC_ALPHA_SATURATE,
-        SRC1_COLOR,
-        ONE_MINUS_SRC1_COLOR,
-        SRC1_ALPHA,
-        ONE_MINUS_SRC1_ALPHA
+        zero,
+        one,
+        src_color,
+        one_minus_src_color,
+        dst_color,
+        one_minus_dst_color,
+        src_alpha,
+        one_minus_src_alpha,
+        dst_alpha,
+        one_minus_dst_alpha,
+        constant_color,
+        one_minus_constant_color,
+        constant_alpha,
+        one_minus_constant_alpha,
+        src_alpha_saturate,
+        src1_color,
+        one_minus_src1_color,
+        src1_alpha,
+        one_minus_src1_alpha
     };
 
     //! \brief Converts a \a blend_factor to an OpenGl enumeration value.
@@ -898,43 +1031,43 @@ namespace mango
     {
         switch (factor)
         {
-        case blend_factor::ZERO:
+        case blend_factor::zero:
             return GL_ZERO;
-        case blend_factor::ONE:
+        case blend_factor::one:
             return GL_ONE;
-        case blend_factor::SRC_COLOR:
+        case blend_factor::src_color:
             return GL_SRC_COLOR;
-        case blend_factor::ONE_MINUS_SRC_COLOR:
+        case blend_factor::one_minus_src_color:
             return GL_ONE_MINUS_SRC_COLOR;
-        case blend_factor::DST_COLOR:
+        case blend_factor::dst_color:
             return GL_DST_COLOR;
-        case blend_factor::ONE_MINUS_DST_COLOR:
+        case blend_factor::one_minus_dst_color:
             return GL_ONE_MINUS_DST_COLOR;
-        case blend_factor::SRC_ALPHA:
+        case blend_factor::src_alpha:
             return GL_SRC_ALPHA;
-        case blend_factor::ONE_MINUS_SRC_ALPHA:
+        case blend_factor::one_minus_src_alpha:
             return GL_ONE_MINUS_SRC_ALPHA;
-        case blend_factor::DST_ALPHA:
+        case blend_factor::dst_alpha:
             return GL_DST_ALPHA;
-        case blend_factor::ONE_MINUS_DST_ALPHA:
+        case blend_factor::one_minus_dst_alpha:
             return GL_ONE_MINUS_DST_ALPHA;
-        case blend_factor::CONSTANT_COLOR:
+        case blend_factor::constant_color:
             return GL_CONSTANT_COLOR;
-        case blend_factor::ONE_MINUS_CONSTANT_COLOR:
+        case blend_factor::one_minus_constant_color:
             return GL_ONE_MINUS_CONSTANT_COLOR;
-        case blend_factor::CONSTANT_ALPHA:
+        case blend_factor::constant_alpha:
             return GL_CONSTANT_ALPHA;
-        case blend_factor::ONE_MINUS_CONSTANT_ALPHA:
+        case blend_factor::one_minus_constant_alpha:
             return GL_ONE_MINUS_CONSTANT_ALPHA;
-        case blend_factor::SRC_ALPHA_SATURATE:
+        case blend_factor::src_alpha_saturate:
             return GL_SRC_ALPHA_SATURATE;
-        case blend_factor::SRC1_COLOR:
+        case blend_factor::src1_color:
             return GL_SRC1_COLOR;
-        case blend_factor::ONE_MINUS_SRC1_COLOR:
+        case blend_factor::one_minus_src1_color:
             return GL_ONE_MINUS_SRC1_COLOR;
-        case blend_factor::SRC1_ALPHA:
+        case blend_factor::src1_alpha:
             return GL_SRC1_ALPHA;
-        case blend_factor::ONE_MINUS_SRC1_ALPHA:
+        case blend_factor::one_minus_src1_alpha:
             return GL_ONE_MINUS_SRC1_ALPHA;
         default:
             MANGO_ASSERT(false, "Unknown blend factor!");
@@ -945,69 +1078,92 @@ namespace mango
     //! \brief Mask used to specify buffers that should be cleared.
     enum class clear_buffer_mask : uint8
     {
-        COLOR_BUFFER         = 1 << 0,
-        DEPTH_BUFFER         = 1 << 1,
-        STENCIL_BUFFER       = 1 << 2,
-        DEPTH_STENCIL_BUFFER = 1 << 3,
+        color_buffer         = 1 << 0,
+        depth_buffer         = 1 << 1,
+        stencil_buffer       = 1 << 2,
+        depth_stencil_buffer = 1 << 3,
 
-        NONE                        = 0,
-        COLOR_AND_DEPTH             = COLOR_BUFFER | DEPTH_BUFFER,
-        COLOR_AND_STENCIL           = COLOR_BUFFER | STENCIL_BUFFER,
-        COLOR_AND_DEPTH_AND_STENCIL = COLOR_BUFFER | DEPTH_BUFFER | STENCIL_BUFFER,
-        COLOR_AND_DEPTH_STENCIL     = COLOR_BUFFER | DEPTH_STENCIL_BUFFER
+        none                        = 0,
+        color_and_depth             = color_buffer | depth_buffer,
+        color_and_stencil           = color_buffer | stencil_buffer,
+        color_and_depth_and_stencil = color_buffer | depth_buffer | stencil_buffer,
+        color_and_depth_stencil     = color_buffer | depth_stencil_buffer
     };
     MANGO_ENABLE_BITMASK_OPERATIONS(clear_buffer_mask)
 
     //! \brief Mask used to specify attachements that should be cleared.
     enum class attachment_mask : uint8
     {
-        DRAW_BUFFER0   = 1 << 0,
-        DRAW_BUFFER1   = 1 << 1,
-        DRAW_BUFFER2   = 1 << 2,
-        DRAW_BUFFER3   = 1 << 3,
-        DRAW_BUFFER4   = 1 << 4,
-        DRAW_BUFFER5   = 1 << 5,
-        DEPTH_BUFFER   = 1 << 6,
-        STENCIL_BUFFER = 1 << 7,
+        draw_buffer0   = 1 << 0,
+        draw_buffer1   = 1 << 1,
+        draw_buffer2   = 1 << 2,
+        draw_buffer3   = 1 << 3,
+        draw_buffer4   = 1 << 4,
+        draw_buffer5   = 1 << 5,
+        depth_buffer   = 1 << 6,
+        stencil_buffer = 1 << 7,
 
-        NONE                         = 0,
-        ALL_DRAW_BUFFERS             = DRAW_BUFFER0 | DRAW_BUFFER1 | DRAW_BUFFER2 | DRAW_BUFFER3 | DRAW_BUFFER4 | DRAW_BUFFER5,
-        ALL_DRAW_BUFFERS_AND_DEPTH   = ALL_DRAW_BUFFERS | DEPTH_BUFFER,
-        ALL_DRAW_BUFFERS_AND_STENCIL = ALL_DRAW_BUFFERS | STENCIL_BUFFER,
-        DEPTH_STENCIL_BUFFER         = DEPTH_BUFFER | STENCIL_BUFFER,
-        ALL                          = ALL_DRAW_BUFFERS | DEPTH_STENCIL_BUFFER,
+        none                         = 0,
+        all_draw_buffers             = draw_buffer0 | draw_buffer1 | draw_buffer2 | draw_buffer3 | draw_buffer4 | draw_buffer5,
+        all_draw_buffers_and_depth   = all_draw_buffers | depth_buffer,
+        all_draw_buffers_and_stencil = all_draw_buffers | stencil_buffer,
+        depth_stencil_buffer         = depth_buffer | stencil_buffer,
+        all                          = all_draw_buffers | depth_stencil_buffer,
     };
     MANGO_ENABLE_BITMASK_OPERATIONS(attachment_mask)
 
     //! \brief The targets buffer can be bound to.
     enum class buffer_target : uint8
     {
-        NONE,
-        VERTEX_BUFFER,
-        INDEX_BUFFER,
-        UNIFORM_BUFFER,
-        SHADER_STORAGE_BUFFER,
-        TEXTURE_BUFFER
+        none,
+        vertex_buffer,
+        index_buffer,
+        uniform_buffer,
+        shader_storage_buffer,
+        texture_buffer
     };
+
+    //! \brief Converts a \a buffer_target to an OpenGl enumeration value.
+    //! \param[in] target The \a buffer_target to convert.
+    //! \return The gl enumeration specifying a \a buffer_target.
+    inline g_enum buffer_target_to_gl(const buffer_target& target)
+    {
+        switch (target)
+        {
+        case buffer_target::vertex_buffer:
+            return GL_ARRAY_BUFFER;
+        case buffer_target::index_buffer:
+            return GL_ELEMENT_ARRAY_BUFFER;
+        case buffer_target::uniform_buffer:
+            return GL_UNIFORM_BUFFER;
+        case buffer_target::shader_storage_buffer:
+            return GL_SHADER_STORAGE_BUFFER;
+        case buffer_target::texture_buffer:
+            return GL_TEXTURE_BUFFER;
+        default:
+            MANGO_ASSERT(false, "Unknown buffer target!");
+            return GL_NONE;
+        }
+    }
 
     //! \brief A set of access bits used for accessing buffers.
     enum class buffer_access : uint8
     {
-        NONE                     = 0,
-        DYNAMIC_STORAGE          = 1 << 0,
-        MAPPED_ACCESS_READ       = 1 << 1, // We want to map in a specific way, so we do not give any other options.
-        MAPPED_ACCESS_WRITE      = 1 << 2, // We want to map in a specific way, so we do not give any other options.
-        MAPPED_ACCESS_READ_WRITE = MAPPED_ACCESS_READ | MAPPED_ACCESS_WRITE
+        none                     = 0,
+        dynamic_storage          = 1 << 0,
+        mapped_access_read       = 1 << 1, // We want to map in a specific way, so we do not give any other options.
+        mapped_access_write      = 1 << 2, // We want to map in a specific way, so we do not give any other options.
+        mapped_access_read_write = mapped_access_read | mapped_access_write
     };
     MANGO_ENABLE_BITMASK_OPERATIONS(buffer_access)
 
     //! \brief A set of access bits used for general access.
     enum class base_access : uint8
     {
-        NONE = 0,
-        READ_ONLY,
-        WRITE_ONLY,
-        READ_WRITE
+        none = 0,
+        read_only,
+        write_only,
+        read_write
     };
     //! \brief Converts a \a base_access to an OpenGl enumeration value.
     //! \param[in] access The \a base_access to convert.
@@ -1016,11 +1172,11 @@ namespace mango
     {
         switch (access)
         {
-        case base_access::READ_ONLY:
+        case base_access::read_only:
             return GL_READ_ONLY;
-        case base_access::WRITE_ONLY:
+        case base_access::write_only:
             return GL_WRITE_ONLY;
-        case base_access::READ_WRITE:
+        case base_access::read_write:
             return GL_READ_WRITE;
         default:
             return GL_NONE;
@@ -1030,15 +1186,15 @@ namespace mango
     //! \brief The type of a \a shader.
     enum class shader_type : uint8
     {
-        NONE = 0,
+        none = 0,
 
-        VERTEX_SHADER,
-        TESSELATION_CONTROL_SHADER,
-        TESSELATION_EVALUATION_SHADER,
-        GEOMETRY_SHADER,
-        FRAGMENT_SHADER,
+        vertex_shader,
+        tesselation_control_shader,
+        tesselation_evaluation_shader,
+        geometry_shader,
+        fragment_shader,
 
-        COMPUTE_SHADER
+        compute_shader
     };
     //! \brief Converts a \a shader_type to an OpenGl enumeration value.
     //! \param[in] type The \a shader_type to convert.
@@ -1047,17 +1203,17 @@ namespace mango
     {
         switch (type)
         {
-        case shader_type::VERTEX_SHADER:
+        case shader_type::vertex_shader:
             return GL_VERTEX_SHADER;
-        case shader_type::TESSELATION_CONTROL_SHADER:
+        case shader_type::tesselation_control_shader:
             return GL_TESS_CONTROL_SHADER;
-        case shader_type::TESSELATION_EVALUATION_SHADER:
+        case shader_type::tesselation_evaluation_shader:
             return GL_TESS_EVALUATION_SHADER;
-        case shader_type::GEOMETRY_SHADER:
+        case shader_type::geometry_shader:
             return GL_GEOMETRY_SHADER;
-        case shader_type::FRAGMENT_SHADER:
+        case shader_type::fragment_shader:
             return GL_FRAGMENT_SHADER;
-        case shader_type::COMPUTE_SHADER:
+        case shader_type::compute_shader:
             return GL_COMPUTE_SHADER;
         default:
             MANGO_ASSERT(false, "Unknown shader type!");
@@ -1069,30 +1225,30 @@ namespace mango
     //! \details Extend this when needed -> all types are here https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glGetActiveUniform.xhtml
     enum class shader_resource_type : uint8
     {
-        NONE,
-        FLOAT,
-        FVEC2,
-        FVEC3,
-        FVEC4,
-        // DOUBLE,
-        // DVEC2,
-        // DVEC3,
-        // DVEC4,
-        INT,
-        IVEC2,
-        IVEC3,
-        IVEC4,
-        // UNSIGNED_INT,
-        // UVEC2,
-        // UVEC3,
-        // UVEC4,
-        // BOOL,
-        // BVEC2,
-        // BVEC3,
-        // BVEC4,
-        // MAT2,
-        MAT3,
-        MAT4,
+        none,
+        fsingle,
+        fvec2,
+        fvec3,
+        fvec4,
+        // double,
+        // dvec2,
+        // dvec3,
+        // dvec4,
+        isingle,
+        ivec2,
+        ivec3,
+        ivec4,
+        // unsigned_int,
+        // uvec2,
+        // uvec3,
+        // uvec4,
+        // bool,
+        // bvec2,
+        // bvec3,
+        // bvec4,
+        // mat2,
+        mat3,
+        mat4,
     };
     //! \brief Converts an OpenGl enumeration value to a \a shader_resource_type.
     //! \param[in] type The g_enum to convert.
@@ -1102,53 +1258,53 @@ namespace mango
         switch (type)
         {
         case GL_FLOAT:
-            return shader_resource_type::FLOAT;
+            return shader_resource_type::fsingle;
         case GL_FLOAT_VEC2:
-            return shader_resource_type::FVEC2;
+            return shader_resource_type::fvec2;
         case GL_FLOAT_VEC3:
-            return shader_resource_type::FVEC3;
+            return shader_resource_type::fvec3;
         case GL_FLOAT_VEC4:
-            return shader_resource_type::FVEC4;
+            return shader_resource_type::fvec4;
         case GL_INT:
-            return shader_resource_type::INT;
+            return shader_resource_type::isingle;
         case GL_INT_VEC2:
-            return shader_resource_type::IVEC2;
+            return shader_resource_type::ivec2;
         case GL_INT_VEC3:
-            return shader_resource_type::IVEC3;
+            return shader_resource_type::ivec3;
         case GL_INT_VEC4:
-            return shader_resource_type::IVEC4;
+            return shader_resource_type::ivec4;
         case GL_BOOL:
-            return shader_resource_type::INT;
+            return shader_resource_type::isingle;
         case GL_FLOAT_MAT3:
-            return shader_resource_type::MAT3;
+            return shader_resource_type::mat3;
         case GL_FLOAT_MAT4:
-            return shader_resource_type::MAT4;
+            return shader_resource_type::mat4;
         case GL_SAMPLER_2D:
         case GL_SAMPLER_2D_ARRAY:
         case GL_SAMPLER_CUBE:
-            return shader_resource_type::INT; // We only need integers, because the binding of the texture is not done with an uniform.
+            return shader_resource_type::isingle; // We only need integers, because the binding of the texture is not done with an uniform.
         case GL_IMAGE_2D:
         case GL_IMAGE_2D_ARRAY:
         case GL_IMAGE_CUBE:
-            return shader_resource_type::NONE; // We don't need that, because the binding of the image texture is not done with an uniform.
+            return shader_resource_type::none; // We don't need that, because the binding of the image texture is not done with an uniform.
         default:
             MANGO_LOG_ERROR("GL Uniform type {0} currently not supported!", type);
-            return shader_resource_type::NONE;
+            return shader_resource_type::none;
         }
     }
 
     //! \brief Some parameters required for creation of a \a texture on the gpu.
     enum class texture_parameter : uint8
     {
-        FILTER_NEAREST,
-        FILTER_LINEAR,
-        FILTER_NEAREST_MIPMAP_NEAREST,
-        FILTER_LINEAR_MIPMAP_NEAREST,
-        FILTER_NEAREST_MIPMAP_LINEAR,
-        FILTER_LINEAR_MIPMAP_LINEAR,
-        WRAP_REPEAT,
-        WRAP_CLAMP_TO_EDGE,
-        WRAP_CLAMP_TO_BORDER
+        filter_nearest,
+        filter_linear,
+        filter_nearest_mipmap_nearest,
+        filter_linear_mipmap_nearest,
+        filter_nearest_mipmap_linear,
+        filter_linear_mipmap_linear,
+        wrap_repeat,
+        wrap_clamp_to_edge,
+        wrap_clamp_to_border
     };
     //! \brief Converts an wrapping \a texture_parameter to an OpenGl enumeration value.
     //! \param[in] wrapping The \a texture_parameter to convert.
@@ -1157,11 +1313,11 @@ namespace mango
     {
         switch (wrapping)
         {
-        case texture_parameter::WRAP_REPEAT:
+        case texture_parameter::wrap_repeat:
             return GL_REPEAT;
-        case texture_parameter::WRAP_CLAMP_TO_EDGE:
+        case texture_parameter::wrap_clamp_to_edge:
             return GL_CLAMP_TO_EDGE;
-        case texture_parameter::WRAP_CLAMP_TO_BORDER:
+        case texture_parameter::wrap_clamp_to_border:
             return GL_CLAMP_TO_BORDER;
         default:
             MANGO_LOG_ERROR("Unknown texture wrap parameter.");
@@ -1175,17 +1331,17 @@ namespace mango
     {
         switch (filtering)
         {
-        case texture_parameter::FILTER_NEAREST:
+        case texture_parameter::filter_nearest:
             return GL_NEAREST;
-        case texture_parameter::FILTER_LINEAR:
+        case texture_parameter::filter_linear:
             return GL_LINEAR;
-        case texture_parameter::FILTER_NEAREST_MIPMAP_NEAREST:
+        case texture_parameter::filter_nearest_mipmap_nearest:
             return GL_NEAREST_MIPMAP_NEAREST;
-        case texture_parameter::FILTER_LINEAR_MIPMAP_NEAREST:
+        case texture_parameter::filter_linear_mipmap_nearest:
             return GL_LINEAR_MIPMAP_NEAREST;
-        case texture_parameter::FILTER_NEAREST_MIPMAP_LINEAR:
+        case texture_parameter::filter_nearest_mipmap_linear:
             return GL_NEAREST_MIPMAP_LINEAR;
-        case texture_parameter::FILTER_LINEAR_MIPMAP_LINEAR:
+        case texture_parameter::filter_linear_mipmap_linear:
             return GL_LINEAR_MIPMAP_LINEAR;
         default:
             MANGO_LOG_ERROR("Unknown texture filter parameter.");
@@ -1200,14 +1356,14 @@ namespace mango
         switch (wrapping)
         {
         case GL_REPEAT:
-            return texture_parameter::WRAP_REPEAT;
+            return texture_parameter::wrap_repeat;
         case GL_CLAMP_TO_EDGE:
-            return texture_parameter::WRAP_CLAMP_TO_EDGE;
+            return texture_parameter::wrap_clamp_to_edge;
         case GL_CLAMP_TO_BORDER:
-            return texture_parameter::WRAP_CLAMP_TO_BORDER;
+            return texture_parameter::wrap_clamp_to_border;
         default:
             MANGO_LOG_WARN("Unknown texture wrap parameter.");
-            return texture_parameter::WRAP_REPEAT;
+            return texture_parameter::wrap_repeat;
         }
     }
     //! \brief Converts an OpenGl enumeration value to a filter \a texture_parameter.
@@ -1218,52 +1374,52 @@ namespace mango
         switch (filtering)
         {
         case GL_NEAREST:
-            return texture_parameter::FILTER_NEAREST;
+            return texture_parameter::filter_nearest;
         case GL_LINEAR:
-            return texture_parameter::FILTER_LINEAR;
+            return texture_parameter::filter_linear;
         case GL_NEAREST_MIPMAP_NEAREST:
-            return texture_parameter::FILTER_NEAREST_MIPMAP_NEAREST;
+            return texture_parameter::filter_nearest_mipmap_nearest;
         case GL_LINEAR_MIPMAP_NEAREST:
-            return texture_parameter::FILTER_LINEAR_MIPMAP_NEAREST;
+            return texture_parameter::filter_linear_mipmap_nearest;
         case GL_NEAREST_MIPMAP_LINEAR:
-            return texture_parameter::FILTER_NEAREST_MIPMAP_LINEAR;
+            return texture_parameter::filter_nearest_mipmap_linear;
         case GL_LINEAR_MIPMAP_LINEAR:
-            return texture_parameter::FILTER_LINEAR_MIPMAP_LINEAR;
+            return texture_parameter::filter_linear_mipmap_linear;
         default:
             MANGO_LOG_WARN("Unknown texture filter parameter.");
-            return texture_parameter::FILTER_NEAREST;
+            return texture_parameter::filter_nearest;
         }
     }
 
     //! \brief Specification of attachments in a \a framebuffer.
     enum class framebuffer_attachment : uint8
     {
-        COLOR_ATTACHMENT0,
-        COLOR_ATTACHMENT1,
-        COLOR_ATTACHMENT2,
-        COLOR_ATTACHMENT3,
-        DEPTH_ATTACHMENT,
-        STENCIL_ATTACHMENT,
-        DEPTH_STENCIL_ATTACHMENT
+        color_attachment0,
+        color_attachment1,
+        color_attachment2,
+        color_attachment3,
+        depth_attachment,
+        stencil_attachment,
+        depth_stencil_attachment
     };
 
     //! \brief Specification of barrier bits to block Opengl.
     enum class memory_barrier_bit : uint8
     {
-        VERTEX_ATTRIB_ARRAY_BARRIER_BIT,
-        ELEMENT_ARRAY_BARRIER_BIT,
-        UNIFORM_BARRIER_BIT,
-        TEXTURE_FETCH_BARRIER_BIT,
-        SHADER_IMAGE_ACCESS_BARRIER_BIT,
-        COMMAND_BARRIER_BIT,
-        PIXEL_BUFFER_BARRIER_BIT,
-        TEXTURE_UPDATE_BARRIER_BIT,
-        BUFFER_UPDATE_BARRIER_BIT,
-        FRAMEBUFFER_BARRIER_BIT,
-        TRANSFORM_FEEDBACK_BARRIER_BIT,
-        ATOMIC_COUNTER_BARRIER_BIT,
-        SHADER_STORAGE_BARRIER_BIT,
-        QUERY_BUFFER_BARRIER_BIT
+        vertex_attrib_array_barrier_bit,
+        element_array_barrier_bit,
+        uniform_barrier_bit,
+        texture_fetch_barrier_bit,
+        shader_image_access_barrier_bit,
+        command_barrier_bit,
+        pixel_buffer_barrier_bit,
+        texture_update_barrier_bit,
+        buffer_update_barrier_bit,
+        framebuffer_barrier_bit,
+        transform_feedback_barrier_bit,
+        atomic_counter_barrier_bit,
+        shader_storage_barrier_bit,
+        query_buffer_barrier_bit
     };
     //! \brief Converts a \a memory_barrier_bit to an OpenGl enumeration value.
     //! \param[in] barrier_bit The \a memory_barrier_bit to convert.
@@ -1272,33 +1428,33 @@ namespace mango
     {
         switch (barrier_bit)
         {
-        case memory_barrier_bit::VERTEX_ATTRIB_ARRAY_BARRIER_BIT:
+        case memory_barrier_bit::vertex_attrib_array_barrier_bit:
             return GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT;
-        case memory_barrier_bit::ELEMENT_ARRAY_BARRIER_BIT:
+        case memory_barrier_bit::element_array_barrier_bit:
             return GL_ELEMENT_ARRAY_BARRIER_BIT;
-        case memory_barrier_bit::UNIFORM_BARRIER_BIT:
+        case memory_barrier_bit::uniform_barrier_bit:
             return GL_UNIFORM_BARRIER_BIT;
-        case memory_barrier_bit::TEXTURE_FETCH_BARRIER_BIT:
+        case memory_barrier_bit::texture_fetch_barrier_bit:
             return GL_TEXTURE_FETCH_BARRIER_BIT;
-        case memory_barrier_bit::SHADER_IMAGE_ACCESS_BARRIER_BIT:
+        case memory_barrier_bit::shader_image_access_barrier_bit:
             return GL_SHADER_IMAGE_ACCESS_BARRIER_BIT;
-        case memory_barrier_bit::COMMAND_BARRIER_BIT:
+        case memory_barrier_bit::command_barrier_bit:
             return GL_COMMAND_BARRIER_BIT;
-        case memory_barrier_bit::PIXEL_BUFFER_BARRIER_BIT:
+        case memory_barrier_bit::pixel_buffer_barrier_bit:
             return GL_PIXEL_BUFFER_BARRIER_BIT;
-        case memory_barrier_bit::TEXTURE_UPDATE_BARRIER_BIT:
+        case memory_barrier_bit::texture_update_barrier_bit:
             return GL_TEXTURE_UPDATE_BARRIER_BIT;
-        case memory_barrier_bit::BUFFER_UPDATE_BARRIER_BIT:
+        case memory_barrier_bit::buffer_update_barrier_bit:
             return GL_BUFFER_UPDATE_BARRIER_BIT;
-        case memory_barrier_bit::FRAMEBUFFER_BARRIER_BIT:
+        case memory_barrier_bit::framebuffer_barrier_bit:
             return GL_FRAMEBUFFER_BARRIER_BIT;
-        case memory_barrier_bit::TRANSFORM_FEEDBACK_BARRIER_BIT:
+        case memory_barrier_bit::transform_feedback_barrier_bit:
             return GL_TRANSFORM_FEEDBACK_BARRIER_BIT;
-        case memory_barrier_bit::ATOMIC_COUNTER_BARRIER_BIT:
+        case memory_barrier_bit::atomic_counter_barrier_bit:
             return GL_ATOMIC_COUNTER_BARRIER_BIT;
-        case memory_barrier_bit::SHADER_STORAGE_BARRIER_BIT:
+        case memory_barrier_bit::shader_storage_barrier_bit:
             return GL_SHADER_STORAGE_BARRIER_BIT;
-        case memory_barrier_bit::QUERY_BUFFER_BARRIER_BIT:
+        case memory_barrier_bit::query_buffer_barrier_bit:
             return GL_QUERY_BUFFER_BARRIER_BIT;
         default:
             MANGO_LOG_WARN("Unknown memory barrier bit.");
