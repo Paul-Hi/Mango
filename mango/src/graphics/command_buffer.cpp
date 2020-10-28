@@ -75,10 +75,10 @@ void set_depth_func(const void* data)
 {
     NAMED_PROFILE_ZONE("Set Depth Func");
     const set_depth_func_command* cmd = static_cast<const set_depth_func_command*>(data);
-    if (!m_current_state.set_depth_func(cmd->compare_operation))
+    if (!m_current_state.set_depth_func(cmd->operation))
         return;
     GL_NAMED_PROFILE_ZONE("Set Depth Func");
-    glDepthFunc(compare_operation_to_gl(cmd->compare_operation));
+    glDepthFunc(compare_operation_to_gl(cmd->operation));
 }
 const execute_function set_depth_func_command::execute = &set_depth_func;
 

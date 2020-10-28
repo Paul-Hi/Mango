@@ -210,7 +210,7 @@ void ibl_step::execute(gpu_buffer_ptr frame_uniform_buffer)
     set_depth_test_command* sdt = m_ibl_command_buffer->create<set_depth_test_command>(command_keys::no_sort);
     sdt->enabled                = true;
     set_depth_func_command* sdf = m_ibl_command_buffer->create<set_depth_func_command>(command_keys::no_sort);
-    sdf->compare_operation      = compare_operation::less_equal;
+    sdf->operation              = compare_operation::less_equal;
 
     set_cull_face_command* scf = m_ibl_command_buffer->create<set_cull_face_command>(command_keys::no_sort);
     scf->face                  = polygon_face::face_front;

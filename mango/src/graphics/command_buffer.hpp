@@ -51,7 +51,7 @@ namespace mango
 
     //! \brief Command setting a depth comparison function.
     BEGIN_COMMAND(set_depth_func);
-    compare_operation compare_operation; //!< Depth testing compare operation.
+    compare_operation operation; //!< Depth testing compare operation.
     //! \cond NO_COND
     END_COMMAND(set_depth_func);
     //! \endcond

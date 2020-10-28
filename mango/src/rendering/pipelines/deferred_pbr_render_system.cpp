@@ -369,7 +369,7 @@ void deferred_pbr_render_system::begin_render()
         set_depth_test_command* sdt      = m_gbuffer_commands->create<set_depth_test_command>(k);
         sdt->enabled                     = true;
         set_depth_func_command* sdf      = m_gbuffer_commands->append<set_depth_func_command, set_depth_test_command>(sdt);
-        sdf->compare_operation           = compare_operation::less;
+        sdf->operation                   = compare_operation::less;
         set_cull_face_command* scf       = m_gbuffer_commands->append<set_cull_face_command, set_depth_func_command>(sdf);
         scf->face                        = polygon_face::face_back;
         set_polygon_offset_command* spo  = m_gbuffer_commands->append<set_polygon_offset_command, set_cull_face_command>(scf);
@@ -691,7 +691,7 @@ void deferred_pbr_render_system::finish_render(float dt)
         set_depth_write_command* sdw     = m_composite_commands->create<set_depth_write_command>(command_keys::no_sort);
         sdw->enabled                     = true;
         set_depth_func_command* sdf      = m_composite_commands->create<set_depth_func_command>(command_keys::no_sort);
-        sdf->compare_operation           = compare_operation::less;
+        sdf->operation                   = compare_operation::less;
         set_polygon_mode_command* spm    = m_composite_commands->create<set_polygon_mode_command>(command_keys::no_sort);
         spm->face                        = polygon_face::face_front_and_back;
         spm->mode                        = polygon_mode::fill;
