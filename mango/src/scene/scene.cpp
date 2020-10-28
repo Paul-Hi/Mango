@@ -1061,7 +1061,6 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     {
         material.component_material->alpha_rendering = alpha_mode::mode_blend;
         material.component_material->alpha_cutoff    = 1.0f;
-        MANGO_LOG_WARN("Alpha blending currently not supported!");
     }
 }
 

@@ -105,10 +105,10 @@ namespace mango
         }
 
       protected:
-        //! \brief Pointer to the start of the preallocated memory block.
-        void* m_start;
         //! \brief Total size of memory managed by the \a allocator in bytes.
         int64 m_total_size;
+        //! \brief Pointer to the start of the preallocated memory block.
+        void* m_start;
 
         //! \brief Allocates memory unaligned of a specific size.
         //! \details Internal function overwritten by the derived allocators.
@@ -125,7 +125,7 @@ namespace mango
         //! \param[in] unaligned_address The adress to calculate the alignment adjustment for.
         //! \param[in] alignment The alignment to calculate the adjustment from.
         //! \return The adjustment needed to align unaligned_adress with alignment.
-        const int64 calculate_adjustment(int64 unaligned_address, const int64 alignment)
+        int64 calculate_adjustment(int64 unaligned_address, const int64 alignment)
         {
             int64 mask         = alignment - 2;
             int64 misalignment = unaligned_address & mask;

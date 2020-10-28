@@ -20,9 +20,9 @@ namespace mango
     typedef void (*execute_function)(const void*);
 
     //! \cond NO_COND
-#define BEGIN_COMMAND(name)            \
-    struct name##_command              \
-    {                                  \
+#define BEGIN_COMMAND(name) \
+    struct name##_command   \
+    {                       \
         static const execute_function execute
 #define END_COMMAND(name) \
     }                     \
@@ -340,6 +340,9 @@ namespace mango
             case key_template::max_key_back_to_front:
                 pos = 8;
                 break;
+            default:
+                MANGO_LOG_WARN("Unknown key temnplate. Can not add depth.");
+                return;
             }
 
             uint64 key_mask  = ~(((1ull << 24) - 1) << pos);
@@ -625,7 +628,7 @@ namespace mango
 
         //! \brief Loads the next package of the current command/package.
         //! \return The next package.
-        const package load_next()
+        package load_next()
         {
             m_current = *read_next();
             return m_current;
@@ -633,14 +636,14 @@ namespace mango
 
         //! \brief Loads the execute function of the current command/package.
         //! \return The execute function.
-        const execute_function load_execute_function()
+        execute_function load_execute_function()
         {
             return *read_execute_function();
         }
 
         //! \brief Loads the command of the current package.
         //! \return The command.
-        const void* load_command()
+        void* load_command()
         {
             return (static_cast<int8*>(m_current) + command_offset);
         }

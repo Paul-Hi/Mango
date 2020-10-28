@@ -860,7 +860,7 @@ void deferred_pbr_render_system::begin_mesh(const glm::mat4& model_matrix, bool 
 {
     PROFILE_ZONE;
 
-    model_data d{ model_matrix, glm::transpose(glm::inverse(model_matrix)), has_normals, has_tangents, 0, 0 };
+    model_data d{ model_matrix, std140_mat3(glm::mat3(glm::transpose(glm::inverse(model_matrix)))), has_normals, has_tangents, 0, 0 };
 
     int64 offset                     = m_frame_uniform_buffer->write_data(sizeof(d), &d);
     m_active_model.model_data_offset = offset;

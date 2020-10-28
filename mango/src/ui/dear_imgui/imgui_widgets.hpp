@@ -517,7 +517,7 @@ namespace mango
                 if (material->alpha_rendering == alpha_mode::mode_mask)
                     ImGui::SliderFloat("Alpha CutOff", material->alpha_cutoff.type_data(), 0.0f, 1.0f);
                 if (material->alpha_rendering == alpha_mode::mode_blend)
-                    ImGui::Text("Blending currently not supported!");
+                    ImGui::Text("Blending is supported (Basic Over Operator)!");
                 if (material->alpha_rendering == alpha_mode::mode_dither)
                     ImGui::Text("Dithering ... Just for fun!");
             }

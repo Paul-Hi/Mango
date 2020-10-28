@@ -237,13 +237,16 @@ void shadow_map_step::on_ui_widget()
     if (m_shadow_data.resolution != r)
         m_shadow_buffer->resize(m_shadow_data.resolution, m_shadow_data.resolution);
     // Offset 1.0 - 32.0
-    ImGui::SliderFloat("Maximum Penumbra Width##shadow_step", &static_cast<float>(m_shadow_data.max_penumbra), 1.0f, 32.0f);
+    float& max_penumbra = m_shadow_data.max_penumbra;
+    ImGui::SliderFloat("Maximum Penumbra Width##shadow_step", &max_penumbra, 1.0f, 32.0f);
     // Offset 0.0 - 100.0
     ImGui::SliderFloat("Shadow Map Offset##shadow_step", &m_shadow_map_offset, 0.0f, 100.0f);
 
     // Cascades 1, 2, 3, 4
-    ImGui::SliderInt("Number Of Shadow Cascades##shadow_step", &static_cast<int32>(m_shadow_data.cascade_count), 1, 4);
-    ImGui::SliderFloat("Cascade Interpolation Range##shadow_step", &static_cast<float>(m_shadow_data.cascade_interpolation_range), 0.0f, 10.0f);
+    int32& shadow_cascades = m_shadow_data.cascade_count;
+    ImGui::SliderInt("Number Of Shadow Cascades##shadow_step", &shadow_cascades, 1, 4);
+    float& interpolation_range = m_shadow_data.cascade_interpolation_range;
+    ImGui::SliderFloat("Cascade Interpolation Range##shadow_step", &interpolation_range, 0.0f, 10.0f);
     ImGui::SliderFloat("Cascade Splits Lambda##shadow_step", &m_cascade_data.lambda, 0.0f, 1.0f);
     m_dirty_cascades = true; // For now always in debug.
 }

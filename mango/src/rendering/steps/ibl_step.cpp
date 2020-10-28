@@ -479,7 +479,8 @@ void ibl_step::on_ui_widget()
     else
     {
         m_ibl_data.render_level = tmp;
-        ImGui::SliderFloat("Blur Level##ibl_step", &static_cast<float>(m_ibl_data.render_level), 0.0f, 8.0f);
+        float& render_level     = m_ibl_data.render_level;
+        ImGui::SliderFloat("Blur Level##ibl_step", &render_level, 0.0f, 8.0f);
         tmp = m_ibl_data.render_level;
     }
 }

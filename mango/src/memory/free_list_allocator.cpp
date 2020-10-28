@@ -81,7 +81,7 @@ free_list_memory_block* free_list_allocator::first_fit(int64 size)
 
     free_list_memory_block* next = current->next;
 
-    if (current->size - size > sizeof(free_list_memory_block)) // Smaller does not really make sense.
+    if (current->size - size > static_cast<int64>(sizeof(free_list_memory_block))) // Smaller does not really make sense.
     {
         split(size, current->size, current, last, next);
         return current;

@@ -356,14 +356,6 @@ namespace mango
             , r2()
         {
         }
-        operator glm::mat3 &()
-        {
-            auto mat = glm::mat3();
-            mat[0]   = r0;
-            mat[1]   = r1;
-            mat[2]   = r2;
-            return mat;
-        }
         void operator=(const glm::mat3& o)
         {
             r0 = o[0];
@@ -407,15 +399,6 @@ namespace mango
             , r2()
             , r3()
         {
-        }
-        operator glm::mat4 &()
-        {
-            auto mat = glm::mat4();
-            mat[0]   = r0;
-            mat[1]   = r1;
-            mat[2]   = r2;
-            mat[3]   = r3;
-            return mat;
         }
         void operator=(const glm::mat4& o)
         {
