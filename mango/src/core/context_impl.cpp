@@ -119,6 +119,24 @@ void context_impl::set_gl_loading_procedure(mango_gl_load_proc procedure)
 bool context_impl::create()
 {
     NAMED_PROFILE_ZONE("Context Creation");
+
+    return create_systems();
+}
+
+void context_impl::make_current()
+{
+    m_window_system->make_window_context_current();
+}
+
+void context_impl::destroy()
+{
+    NAMED_PROFILE_ZONE("Context Destruction");
+    destroy_systems();
+}
+
+bool context_impl::create_systems()
+{
+    NAMED_PROFILE_ZONE("System Creation");
     bool success = true;
 #if defined(WIN32)
     m_window_system = std::make_shared<win32_window_system>(shared_from_this());
@@ -138,18 +156,12 @@ bool context_impl::create()
 
     m_resource_system = std::make_shared<resource_system>(shared_from_this());
     success           = success && m_resource_system->create();
-
     return success;
 }
 
-void context_impl::make_current()
+void context_impl::destroy_systems()
 {
-    m_window_system->make_window_context_current();
-}
-
-void context_impl::destroy()
-{
-    NAMED_PROFILE_ZONE("Context Destruction");
+    NAMED_PROFILE_ZONE("System Destruction");
     MANGO_ASSERT(m_resource_system, "Resource System is invalid!");
     m_resource_system->destroy();
     MANGO_ASSERT(m_ui_system, "UI System is invalid!");

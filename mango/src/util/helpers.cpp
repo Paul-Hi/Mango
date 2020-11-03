@@ -14,7 +14,7 @@ static bool check_anything(const string& anything, void* ptr, const string& what
 {
     if (!ptr)
     {
-        MANGO_LOG_ERROR("{0} of {1} failed! {2} not available!", anything, what, system);
+        MANGO_LOG_ERROR("{0} of {1} failed! {2} not working!", anything, what, system);
         return false;
     }
     return true;

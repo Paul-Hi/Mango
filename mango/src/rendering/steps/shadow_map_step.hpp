@@ -59,6 +59,9 @@ namespace mango
         void on_ui_widget() override;
 
       private:
+        bool setup_shader_programs() override;
+        bool setup_buffers() override;
+
         //! \brief The \a command_buffer storing all shadow step related commands.
         command_buffer_ptr<max_key> m_shadow_command_buffer;
         //! \brief The framebuffer storing all shadow maps.

@@ -53,6 +53,9 @@ namespace mango
         void on_ui_widget() override;
 
       private:
+        bool setup_shader_programs() override;
+        bool setup_buffers() override;
+
         //! \brief The \a command_buffer storing all ibl step related commands.
         command_buffer_ptr<min_key> m_ibl_command_buffer;
         //! \brief Cubemap texture.

@@ -18,23 +18,29 @@
 
 namespace mango
 {
-    //! \brief Some stats regarding hardware.
-    struct hardware_stats
+    //! \brief Informatiosn used and filled by the \a renderer.
+    struct renderer_info
     {
         //! \brief The graphics API version used.
         string api_version;
 
         struct
         {
-            int32 draw_calls;    //!< The number of draw calls.
-            int32 meshes;        //!< The number of meshes.
-            int32 primitives;    //!< The number of primitives.
-            int32 materials;     //!< The number of materials.
-            int32 canvas_x;      //!< The x of the current render canvas.
-            int32 canvas_y;      //!< The y of the current render canvas.
-            int32 canvas_width;  //!< The width of the current render canvas.
-            int32 canvas_height; //!< The height of the current render canvas.
-        } last_frame;            //!< Measured stats from the last rendered frame.
+            int32 x;      //!< The x of the current render canvas.
+            int32 y;      //!< The y of the current render canvas.
+            int32 width;  //!< The width of the current render canvas.
+            int32 height; //!< The height of the current render canvas.
+        } canvas;         //!< Draw canvas information.
+
+        struct
+        {
+            int32 draw_calls; //!< The number of draw calls.
+            int32 meshes;     //!< The number of meshes.
+            int32 primitives; //!< The number of primitives.
+            int32 vertices; //!< The number of vertices.
+            int32 triangles; //!< The number of triangles (approx.).
+            int32 materials;  //!< The number of materials.
+        } last_frame;         //!< Measured stats from the last rendered frame.
     };
 
     //! \brief Structure to store data for adaptive exposure.
@@ -126,12 +132,12 @@ namespace mango
         //! \return The backbuffer.
         virtual framebuffer_ptr get_backbuffer();
 
-        //! \brief Returns some stats regarding hardware.
-        //! \return Some stats regarding hardware.
-        inline const hardware_stats& get_hardware_stats()
+        //! \brief Returns \a renderer related informations.
+        //! \return The informations.
+        inline const renderer_info& get_renderer_info()
         {
             MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-            return m_current_render_system->m_hardware_stats;
+            return m_current_render_system->m_renderer_info;
         }
 
         //! \brief Custom UI function.
@@ -144,10 +150,15 @@ namespace mango
         shared_ptr<context_impl> m_shared_context;
 
         //! \brief The hardware stats.
-        hardware_stats m_hardware_stats;
+        renderer_info m_renderer_info;
 
         //! \brief True if vertical synchronization is enabled, else False.
         bool m_vsync;
+
+        virtual bool create_renderer_resources()
+        {
+            return true;
+        }
 
       private:
         //! \brief A shared pointer to the currently used internal \a render_system.

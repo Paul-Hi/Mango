@@ -21,8 +21,18 @@ bool shadow_map_step::create()
 {
     PROFILE_ZONE;
 
-    m_shadow_command_buffer = command_buffer<max_key>::create(524288); // 0.5 MiB?
+    m_cascade_data.lambda = 0.65f;
 
+    bool success = true;
+    success = success & setup_buffers();
+    success = success & setup_shader_programs();
+
+    return success;
+}
+
+bool shadow_map_step::setup_shader_programs()
+{
+    PROFILE_ZONE;
     shader_configuration shader_config;
     shader_config.m_path          = "res/shader/v_shadow_pass.glsl";
     shader_config.m_type          = shader_type::vertex_shader;
@@ -45,6 +55,13 @@ bool shadow_map_step::create()
     m_shadow_pass = shader_program::create_graphics_pipeline(shadow_pass_vertex, nullptr, nullptr, shadow_pass_geometry, shadow_pass_fragment);
     if (!check_creation(m_shadow_pass.get(), "shadow pass shader program", "Render System"))
         return false;
+    return true;
+}
+
+bool shadow_map_step::setup_buffers()
+{
+    PROFILE_ZONE;
+    m_shadow_command_buffer = command_buffer<max_key>::create(524288); // 0.5 MiB?
 
     texture_configuration shadow_map_config;
     shadow_map_config.m_generate_mipmaps        = 1;
@@ -64,8 +81,6 @@ bool shadow_map_step::create()
     m_shadow_buffer = framebuffer::create(fb_config);
     if (!check_creation(m_shadow_buffer.get(), "shadow buffer", "Render System"))
         return false;
-
-    m_cascade_data.lambda = 0.65f;
 
     return true;
 }

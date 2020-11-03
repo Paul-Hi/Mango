@@ -10,7 +10,9 @@
 #include <graphics/framebuffer.hpp>
 #include <graphics/gpu_buffer.hpp>
 #include <rendering/render_system_impl.hpp>
+#include <rendering/steps/ibl_step.hpp>
 #include <rendering/steps/pipeline_step.hpp>
+#include <rendering/steps/shadow_map_step.hpp>
 
 namespace mango
 {
@@ -119,7 +121,7 @@ namespace mango
             std140_float padding0;              //!< Padding.
             std140_float padding1;              //!< Padding.
             std140_float padding2;              //!< Padding.
-        } m_renderer_data; //!< Current renderer_data.
+        } m_renderer_data;                      //!< Current renderer_data.
 
         //! \brief Uniform buffer struct for model data.
         struct model_data
@@ -205,22 +207,22 @@ namespace mango
             } debug_options;                  //!< The debug options.
 
             std140_float padding0; //!< padding.
-        } m_lighting_pass_data; //!< Current lighting_pass_data.
+        } m_lighting_pass_data;    //!< Current lighting_pass_data.
 
         //! \brief Structure used to cache the \a commands regarding the rendering of the current model/mesh.
         struct model_cache
         {
-            int64 model_data_offset; //!< Caches the offset of the model_data.
-            int64 material_data_offset; //!< Caches the offset of the material_data.
-            int8 material_id; //!< Caches the material_id.
-            glm::vec3 position; //!< Caches the transform position (used for example for transparency sorting).
-            g_uint base_color_texture_name; //!< Caches the name of the materials base color texture, or the default one if not existent.
+            int64 model_data_offset;                //!< Caches the offset of the model_data.
+            int64 material_data_offset;             //!< Caches the offset of the material_data.
+            int8 material_id;                       //!< Caches the material_id.
+            glm::vec3 position;                     //!< Caches the transform position (used for example for transparency sorting).
+            g_uint base_color_texture_name;         //!< Caches the name of the materials base color texture, or the default one if not existent.
             g_uint roughness_metallic_texture_name; //!< Caches the name of the materials roughness metallic texture, or the default one if not existent.
-            g_uint occlusion_texture_name; //!< Caches the name of the materials occlusion texture, or the default one if not existent.
-            g_uint normal_texture_name; //!< Caches the name of the materials normal texture, or the default one if not existent.
-            g_uint emissive_color_texture_name; //!< Caches the name of the materials emissive color texture, or the default one if not existent.
-            bool blend; //!< Caches if material needs blending.
-            bool face_culling; //!< Caches if faces have to be culled for rendering that material.
+            g_uint occlusion_texture_name;          //!< Caches the name of the materials occlusion texture, or the default one if not existent.
+            g_uint normal_texture_name;             //!< Caches the name of the materials normal texture, or the default one if not existent.
+            g_uint emissive_color_texture_name;     //!< Caches the name of the materials emissive color texture, or the default one if not existent.
+            bool blend;                             //!< Caches if material needs blending.
+            bool face_culling;                      //!< Caches if faces have to be culled for rendering that material.
 
             //! \brief Returns the validation state of the \a model_cache.
             //! \return True if \a model_cache is valid, else False.
@@ -244,6 +246,14 @@ namespace mango
 
         } m_active_model; //!< Active model_cache.
 
+        //! \brief Optional additional steps of the deferred pipeline.
+        shared_ptr<pipeline_step> m_pipeline_steps[mango::render_step::number_of_step_types];
+
+        //! \brief True if the renderer should draw wireframe, else false.
+        bool m_wireframe = false;
+
+        bool create_renderer_resources() override;
+
         //! \brief Binds the uniform buffer of the renderer.
         //! \param[in,out] camera The \a camera_data of the current camera.
         //! \param[in] camera_exposure The current exposure value.
@@ -256,13 +266,40 @@ namespace mango
 
         //! \brief Calculates automatic exposure and adapts physical camera parameters.
         //! \param[in,out] camera The \a camera_data of the current camera.
-        void apply_auto_exposure(camera_data& camera);
+        //! \return Returns the calculated camera exposure.
+        float apply_auto_exposure(camera_data& camera);
 
-        //! \brief Optional additional steps of the deferred pipeline.
-        shared_ptr<pipeline_step> m_pipeline_steps[mango::render_step::number_of_step_types];
+        //! \brief Clears all relevant \a framebuffers. Done in begin_render().
+        void clear_framebuffers();
+        //! \brief GBuffer pass setup done in begin_render().
+        void setup_gbuffer_pass();
+        //! \brief Lighting pass setup done in begin_render().
+        void setup_lighting_pass();
+        //! \brief Transparent pass setup done in begin_render().
+        void setup_transparent_pass();
 
-        //! \brief True if the renderer should draw wireframe, else false.
-        bool m_wireframe = false;
+        //! \brief Lighting pass finalization done in finish_render().
+        //! \param[in] step_ibl The shared pointer to the \a ibl_step, or null.
+        //! \param[in] step_shadow_map The shared pointer to the \a shadow_map_step, or null.
+        void finalize_lighting_pass(const std::shared_ptr<ibl_step>& step_ibl, const std::shared_ptr<shadow_map_step>& step_shadow_map);
+        //! \brief Auto exposure compute passes done in finish_render().
+        //! \param[in] dt Past time since last call.
+        void calculate_auto_exposure(float dt);
+        //! \brief Composite pass done in finish_render().
+        void composite_pass();
+        //! \brief Frame finalization pass with setup for next frame done in finish_render().
+        void end_frame_and_sync();
+        //! \brief Sorts and executes all \a command_buffers in the correct order.
+        //! \param[in] ibl_command_buffer The shared pointer to the \a command_buffer of the \a ibl_step, or null.
+        //! \param[in] shadow_command_buffer The shared pointer to the \a command_buffer of the \a shadow_map_step, or null.
+        void execute_commands(const command_buffer_ptr<min_key>& ibl_command_buffer, const command_buffer_ptr<max_key>& shadow_command_buffer);
+
+        bind_texture_command* begin_mesh_draw(const command_buffer_ptr<max_key>& draw_buffer, max_key mesh_key, bool simplified = false);
+        bind_texture_command* bind_material_textures(const command_buffer_ptr<max_key>& draw_buffer, bind_buffer_command* last_command);
+
+#ifdef MANGO_DEBUG
+        void cleanup_texture_bindings(const command_buffer_ptr<max_key>& draw_buffer, bind_vertex_array_command* last_command);
+#endif // MANGO_DEBUG
     };
 
 } // namespace mango

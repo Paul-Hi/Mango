@@ -60,7 +60,7 @@ namespace mango
         return size;
     }
 
-    //! \brief This is an imgui widget drawing some stats of the framework.
+    //! \brief This is an imgui widget drawing some info of the framework.
     //! \param[in] shared_context The shared context.
     //! \param[in] enabled Specifies if window is rendered or not and can be set by imgui.
     void hardware_info_widget(const shared_ptr<context_impl>& shared_context, bool& enabled)
@@ -89,45 +89,57 @@ namespace mango
                 ImGui::PlotLines("", ft, 60, 0, "", 0.0f, max, ImVec2(0, 64));
             });
         }
-        auto stats = shared_context->get_render_system_internal().lock()->get_hardware_stats();
-        if (ImGui::CollapsingHeader("Renderer Stats", flags))
+        auto info = shared_context->get_render_system_internal().lock()->get_renderer_info();
+        if (ImGui::CollapsingHeader("Renderer Info", flags))
         {
             column_split("split", 2, ImGui::GetContentRegionAvail().x * 0.33f);
 
             text_wrapped("API Version:");
             column_next();
             ImGui::AlignTextToFramePadding();
-            ImGui::Text("%s", stats.api_version.c_str());
+            ImGui::Text("%s", info.api_version.c_str());
             column_next();
             ImGui::SeparatorEx(ImGuiSeparatorFlags_SpanAllColumns | ImGuiSeparatorFlags_Horizontal);
             text_wrapped("Rendered Meshes:");
             column_next();
             ImGui::AlignTextToFramePadding();
-            ImGui::Text("%d", stats.last_frame.meshes);
+            ImGui::Text("%d", info.last_frame.meshes);
             column_next();
             ImGui::SeparatorEx(ImGuiSeparatorFlags_SpanAllColumns | ImGuiSeparatorFlags_Horizontal);
             text_wrapped("Draw Calls:");
             column_next();
             ImGui::AlignTextToFramePadding();
-            ImGui::Text("%d", stats.last_frame.draw_calls);
+            ImGui::Text("%d", info.last_frame.draw_calls);
             column_next();
             ImGui::SeparatorEx(ImGuiSeparatorFlags_SpanAllColumns | ImGuiSeparatorFlags_Horizontal);
             text_wrapped("Rendered Primitives:");
             column_next();
             ImGui::AlignTextToFramePadding();
-            ImGui::Text("%d", stats.last_frame.primitives);
+            ImGui::Text("%d", info.last_frame.primitives);
+            column_next();
+            ImGui::SeparatorEx(ImGuiSeparatorFlags_SpanAllColumns | ImGuiSeparatorFlags_Horizontal);
+            text_wrapped("Rendered Vertices:");
+            column_next();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("%d", info.last_frame.vertices);
+            column_next();
+            ImGui::SeparatorEx(ImGuiSeparatorFlags_SpanAllColumns | ImGuiSeparatorFlags_Horizontal);
+            text_wrapped("Rendered Triangles:");
+            column_next();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("%d", info.last_frame.triangles);
             column_next();
             ImGui::SeparatorEx(ImGuiSeparatorFlags_SpanAllColumns | ImGuiSeparatorFlags_Horizontal);
             text_wrapped("Rendered Materials:");
             column_next();
             ImGui::AlignTextToFramePadding();
-            ImGui::Text("%d", stats.last_frame.materials);
+            ImGui::Text("%d", info.last_frame.materials);
             column_next();
             ImGui::SeparatorEx(ImGuiSeparatorFlags_SpanAllColumns | ImGuiSeparatorFlags_Horizontal);
             text_wrapped("Canvas Size:");
             column_next();
             ImGui::AlignTextToFramePadding();
-            ImGui::Text("(%d x %d) px", stats.last_frame.canvas_width, stats.last_frame.canvas_height);
+            ImGui::Text("(%d x %d) px", info.canvas.width, info.canvas.height);
 
             column_merge();
         }

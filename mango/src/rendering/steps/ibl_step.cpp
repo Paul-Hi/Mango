@@ -27,7 +27,62 @@ bool ibl_step::create()
 {
     PROFILE_ZONE;
 
-    m_ibl_command_buffer = command_buffer<min_key>::create(512);
+    bool success = true;
+    success      = success & setup_buffers();
+    success      = success & setup_shader_programs();
+
+    if (success)
+    {
+        // creating a temporal command buffer for compute shader execution.
+        command_buffer_ptr<min_key> compute_commands = command_buffer<min_key>::create(256);
+
+        // build integration look up texture
+        bind_shader_program_command* bsp = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
+        bsp->shader_program_name         = m_build_integration_lut->get_name();
+
+        // bind output lut
+        bind_image_texture_command* bit = compute_commands->create<bind_image_texture_command>(command_keys::no_sort);
+        bit->binding                    = 0;
+        bit->texture_name               = m_brdf_integration_lut->get_name();
+        bit->level                      = 0;
+        bit->layered                    = false;
+        bit->layer                      = 0;
+        bit->access                     = base_access::write_only;
+        bit->element_format             = format::rgba16f;
+
+        // bind uniform
+        glm::vec2 out                    = glm::vec2(m_brdf_integration_lut->get_width(), m_brdf_integration_lut->get_height());
+        bind_single_uniform_command* bsu = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
+        bsu->count                       = 1;
+        bsu->location                    = 0;
+        bsu->type                        = shader_resource_type::fvec2;
+        bsu->uniform_value               = compute_commands->map_spare<bind_single_uniform_command>();
+        memcpy(bsu->uniform_value, &out, sizeof(out));
+
+        // execute compute
+        dispatch_compute_command* dc = compute_commands->create<dispatch_compute_command>(command_keys::no_sort);
+        dc->num_x_groups             = m_brdf_integration_lut->get_width() / 8;
+        dc->num_y_groups             = m_brdf_integration_lut->get_height() / 8;
+        dc->num_z_groups             = 1;
+
+        add_memory_barrier_command* amb = compute_commands->create<add_memory_barrier_command>(command_keys::no_sort);
+        amb->barrier_bit                = memory_barrier_bit::shader_image_access_barrier_bit;
+
+        bsp                      = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
+        bsp->shader_program_name = 0;
+
+        {
+            GL_NAMED_PROFILE_ZONE("Generating brdf lookup");
+            compute_commands->execute();
+        }
+    }
+
+    return success;
+}
+
+bool ibl_step::setup_shader_programs()
+{
+    PROFILE_ZONE;
 
     // compute shader to convert from equirectangular projected hdr textures to a cube map.
     shader_configuration shader_config;
@@ -91,6 +146,15 @@ bool ibl_step::create()
     if (!check_creation(m_draw_environment.get(), "cubemap rendering shader program", "Ibl Step"))
         return false;
 
+    return true;
+}
+
+bool ibl_step::setup_buffers()
+{
+    PROFILE_ZONE;
+
+    m_ibl_command_buffer = command_buffer<min_key>::create(512);
+
     m_cube_geometry = vertex_array::create();
     if (!check_creation(m_cube_geometry.get(), "cubemap geometry vertex array", "Ibl Step"))
         return false;
@@ -126,50 +190,10 @@ bool ibl_step::create()
     texture_config.m_texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
     texture_config.m_texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
     m_brdf_integration_lut                   = texture::create(texture_config);
+    if (!check_creation(m_brdf_integration_lut.get(), "brdf integration look up texture", "Ibl Step"))
+        return false;
+
     m_brdf_integration_lut->set_data(format::rgba16f, m_integration_lut_width, m_integration_lut_height, format::rgba, format::t_float, nullptr);
-
-    // creating a temporal command buffer for compute shader execution.
-    command_buffer_ptr<min_key> compute_commands = command_buffer<min_key>::create(256);
-
-    // build integration look up texture
-    bind_shader_program_command* bsp = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
-    bsp->shader_program_name         = m_build_integration_lut->get_name();
-
-    // bind output lut
-    bind_image_texture_command* bit = compute_commands->create<bind_image_texture_command>(command_keys::no_sort);
-    bit->binding                    = 0;
-    bit->texture_name               = m_brdf_integration_lut->get_name();
-    bit->level                      = 0;
-    bit->layered                    = false;
-    bit->layer                      = 0;
-    bit->access                     = base_access::write_only;
-    bit->element_format             = format::rgba16f;
-
-    // bind uniform
-    glm::vec2 out                    = glm::vec2(m_brdf_integration_lut->get_width(), m_brdf_integration_lut->get_height());
-    bind_single_uniform_command* bsu = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
-    bsu->count                       = 1;
-    bsu->location                    = 0;
-    bsu->type                        = shader_resource_type::fvec2;
-    bsu->uniform_value               = compute_commands->map_spare<bind_single_uniform_command>();
-    memcpy(bsu->uniform_value, &out, sizeof(out));
-
-    // execute compute
-    dispatch_compute_command* dc = compute_commands->create<dispatch_compute_command>(command_keys::no_sort);
-    dc->num_x_groups             = m_brdf_integration_lut->get_width() / 8;
-    dc->num_y_groups             = m_brdf_integration_lut->get_height() / 8;
-    dc->num_z_groups             = 1;
-
-    add_memory_barrier_command* amb = compute_commands->create<add_memory_barrier_command>(command_keys::no_sort);
-    amb->barrier_bit                = memory_barrier_bit::shader_image_access_barrier_bit;
-
-    bsp                      = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
-    bsp->shader_program_name = 0;
-
-    {
-        GL_NAMED_PROFILE_ZONE("Generating brdf lookup");
-        compute_commands->execute();
-    }
 
     // default texture needed
     texture_config.m_texture_min_filter = texture_parameter::filter_nearest;
@@ -280,12 +304,18 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
     if (m_cubemap)
         m_cubemap->release();
     m_cubemap = texture::create(texture_config);
+    if (!check_creation(m_cubemap.get(), "environment cubemap texture", "Ibl Step"))
+        return;
+
     m_cubemap->set_data(format::rgba16f, m_cube_width, m_cube_height, format::rgba, format::t_float, nullptr);
 
     texture_config.m_generate_mipmaps = calculate_mip_count(m_prefiltered_base_width, m_prefiltered_base_height);
     if (m_prefiltered_specular)
         m_prefiltered_specular->release();
     m_prefiltered_specular = texture::create(texture_config);
+    if (!check_creation(m_prefiltered_specular.get(), "prefiltered specular texture", "Ibl Step"))
+        return;
+
     m_prefiltered_specular->set_data(format::rgba16f, m_prefiltered_base_width, m_prefiltered_base_height, format::rgba, format::t_float, nullptr);
 
     texture_config.m_generate_mipmaps   = 1;
@@ -293,6 +323,9 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
     if (m_irradiance_map)
         m_irradiance_map->release();
     m_irradiance_map = texture::create(texture_config);
+    if (!check_creation(m_irradiance_map.get(), "irradiance texture", "Ibl Step"))
+        return;
+
     m_irradiance_map->set_data(format::rgba16f, m_irradiance_width, m_irradiance_height, format::rgba, format::t_float, nullptr);
 
     // creating a temporal command buffer for compute shader execution.

@@ -57,6 +57,10 @@ namespace mango
         shared_ptr<context_impl> m_shared_context;
         //! \brief True if vertical synchronization is enabled, else False.
         bool m_vsync;
+
+        //! \brief Creates a window.
+        //! \return True on success, else False.
+        virtual bool create_window() = 0;
     };
 
 } // namespace mango
