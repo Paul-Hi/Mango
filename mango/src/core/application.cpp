@@ -59,7 +59,8 @@ int32 application::run(int32 t_argc, char** t_argv)
         m_should_close = m_should_close || ws->should_close();
 
         m_frametime = static_cast<float>(m_frame_timer->elapsedMicroseconds().count()) * 0.000001f; // We need the resolution. TODO Paul: We could wrap this with some kind of 'high res clock'.
-        // Debug every second
+// Debug every second
+#ifdef MANGO_DEBUG
         static float fps_lock = 0.0f;
         fps_lock += m_frametime;
         if (fps_lock >= 1.0f)
@@ -68,6 +69,7 @@ int32 application::run(int32 t_argc, char** t_argv)
             MANGO_LOG_DEBUG("Frame Time: {0} ms", m_frametime * 1000.0f);
             MANGO_LOG_DEBUG("Framerate: {0} fps", 1.0f / m_frametime);
         }
+#endif // MANGO_DEBUG
         m_frame_timer->restart();
 
         // update

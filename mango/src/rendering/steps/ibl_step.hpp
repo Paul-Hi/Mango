@@ -102,7 +102,10 @@ namespace mango
             std140_float p0;                    //!< Padding.
             std140_float p1;                    //!< Padding.
             std140_float p2;                    //!< Padding.
-        } m_ibl_data; //!< Current ibl_data.
+        } m_ibl_data;                           //!< Current ibl_data.
+
+        //! \brief Default texture that is bound to every texture unit not in use to prevent warnings.
+        texture_ptr m_default_ibl_texture;
     };
 } // namespace mango
 

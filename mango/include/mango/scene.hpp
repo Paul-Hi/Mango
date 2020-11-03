@@ -48,6 +48,12 @@ namespace mango
         //! \details An entity with \a camera_component and \a transform_component.
         //! All the components are prefilled. Camera has a perspective projection.
         //! \return The created camera entity.
+        entity create_default_scene_camera();
+
+        //! \brief Creates a camera entity not attached to the scene.
+        //! \details An entity with \a camera_component and \a transform_component.
+        //! All the components are prefilled. Camera has a perspective projection.
+        //! \return The created camera entity.
         entity create_default_camera();
 
         //! \brief Creates entities from a model loaded from a gltf file.
@@ -266,10 +272,16 @@ namespace mango
         }
 
         //! \brief Removes \a model_component from a specific \a entity.
+        //! \details  Removes all children at the moment.
         //! \param[in] e The \a entity to remove the \a model_component from.
         inline void remove_model_component(entity e)
         {
             m_models.remove_component_from(e);
+            auto children = get_children(e);
+            for (auto child : children)
+            {
+                remove_entity(child);
+            }
         }
 
         //! \brief Removes \a mesh_component from a specific \a entity.
@@ -307,14 +319,15 @@ namespace mango
         {
             camera_data result;
             result.active_camera_entity = m_active.camera;
-            if (m_active.camera == invalid_entity)
+            result.camera_info          = m_cameras.get_component_for_entity(m_active.camera, true);
+            if (m_active.camera == invalid_entity || !result.camera_info)
             {
-                result.camera_info = nullptr;
-                result.transform   = nullptr;
+                result.active_camera_entity = invalid_entity;
+                result.camera_info          = nullptr;
+                result.transform            = nullptr;
                 return result;
             }
-            result.camera_info = m_cameras.get_component_for_entity(m_active.camera);
-            result.transform   = m_transformations.get_component_for_entity(m_active.camera);
+            result.transform = m_transformations.get_component_for_entity(m_active.camera, true);
             return result;
         }
 
@@ -322,6 +335,11 @@ namespace mango
         //! \param[in] e The \a entity to set the active camera to.
         inline void set_active_camera(entity e)
         {
+            if (e == invalid_entity)
+            {
+                m_active.camera = e;
+                return;
+            }
             auto next_comp = m_cameras.get_component_for_entity(e);
             if (!next_comp)
                 return;
@@ -336,12 +354,13 @@ namespace mango
         {
             environment_data result;
             result.active_environment_entity = m_active.environment;
-            if (m_active.environment == invalid_entity)
+            result.environment_info          = m_environments.get_component_for_entity(m_active.environment, true);
+            if (result.active_environment_entity == invalid_entity || !result.environment_info)
             {
-                result.environment_info = nullptr;
+                result.active_environment_entity = invalid_entity;
+                result.environment_info          = nullptr;
                 return result;
             }
-            result.environment_info = m_environments.get_component_for_entity(m_active.environment);
             return result;
         }
 
@@ -453,8 +472,10 @@ namespace mango
         scene_component_pool<environment_component> m_environments;
         //! \brief All \a light_components.
         scene_component_pool<light_component> m_lights;
-        //! \brief The current root entity of the scene.
+        //! \brief The root entity of the ecs.
         entity m_root_entity;
+        //! \brief The current root entity of the scene.
+        entity m_scene_root;
 
         struct
         {
@@ -470,7 +491,7 @@ namespace mango
             glm::vec3 min;    //!< Minimum geometry values.
             glm::vec3 max;    //!< Maximum geometry values.
         } m_scene_boundaries; //!< The boundaries of the current scene.
-    };
+    };                        // namespace mango
 
 } // namespace mango
 

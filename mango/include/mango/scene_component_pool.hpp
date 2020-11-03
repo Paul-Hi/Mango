@@ -117,7 +117,7 @@ namespace mango
 
         //! \brief Retrieves the \a component of a specific \a entity.
         //! \param[in] e The \a entity to get the \a component from.
-        //! \param[in] query True if the caller is not sure, if copmonent exists.
+        //! \param[in] query True if the caller is not sure, if component exists.
         //! \return A pointer to the \a component.
         component* get_component_for_entity(entity e, bool query = false)
         {

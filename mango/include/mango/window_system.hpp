@@ -119,6 +119,10 @@ namespace mango
         //! \param[in] height of the \a window in pixels. Has to be a positive value.
         virtual void set_size(int32 width, int32 height) = 0;
 
+        //! \brief Returns if the \a window has vertical synchronization enabled or not.
+        //! \return True if the \a window has vertical synchronization enabled, else False.
+        virtual bool vsync() = 0;
+
       protected:
         virtual bool create()         = 0;
         virtual void update(float dt) = 0;

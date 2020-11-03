@@ -17,6 +17,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input_codes.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/ui_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/profile.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/imgui_helper.hpp
 )
 
 set(PRIVATE_HEADERS
@@ -41,6 +42,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_glfw.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_widgets.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/icons_font_awesome_5.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/allocator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/linear_allocator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/free_list_allocator.hpp
@@ -84,6 +86,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_system_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_glfw.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/helpers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/linear_allocator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/free_list_allocator.cpp

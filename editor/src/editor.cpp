@@ -42,14 +42,16 @@ bool editor::create()
             shared_ptr<context> mango_context = get_context().lock();
             MANGO_ASSERT(mango_context, "Context is expired!");
             auto application_scene = mango_context->get_current_scene();
-            ImGui::Text("This is Mangos Editor.");
-            if (m_main_camera == invalid_entity || !application_scene->is_entity_alive(m_main_camera))
-            {
-                if (ImGui::Button("Create Editor Camera"))
-                    m_main_camera = application_scene->create_default_camera();
-                application_scene->get_tag(m_main_camera)->tag_name = "Editor Camera";
-            }
-
+            entity main_cam        = m_main_camera;
+            mango::custom_info("Mango Editor Custom", [&main_cam, &application_scene]() {
+                if (main_cam == invalid_entity || !application_scene->is_entity_alive(main_cam))
+                {
+                    if (ImGui::Button("Create Editor Camera"))
+                        main_cam = application_scene->create_default_camera();
+                    application_scene->get_tag(main_cam)->tag_name = "Editor Camera";
+                }
+            });
+            m_main_camera = main_cam;
             ImGui::End();
         });
 

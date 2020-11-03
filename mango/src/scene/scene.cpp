@@ -50,7 +50,11 @@ scene::scene(const string& name)
 
     m_root_entity          = create_empty();
     auto& tag_component    = m_tags.create_component_for(m_root_entity);
-    tag_component.tag_name = "Scene Root";
+    tag_component.tag_name = "Root";
+    m_scene_root           = create_empty();
+    auto& scene_tag        = m_tags.create_component_for(m_scene_root);
+    scene_tag.tag_name     = "Scene";
+    attach(m_scene_root, m_root_entity);
 }
 
 scene::~scene() {}
@@ -101,6 +105,16 @@ void scene::remove_entity(entity e)
     MANGO_LOG_DEBUG("Removed entity {0}, {1} left", e, m_free_entities.size());
 }
 
+entity scene::create_default_scene_camera()
+{
+    PROFILE_ZONE;
+    entity camera_entity = create_default_camera();
+    detach(camera_entity);
+    attach(camera_entity, m_scene_root);
+
+    return camera_entity;
+}
+
 entity scene::create_default_camera()
 {
     PROFILE_ZONE;
@@ -137,7 +151,7 @@ entity scene::create_entities_from_model(const string& path, entity gltf_root)
     if (gltf_root == invalid_entity)
     {
         gltf_root = create_empty();
-        attach(gltf_root, m_root_entity);
+        attach(gltf_root, m_scene_root);
     }
 
     auto& model_comp               = m_models.create_component_for(gltf_root);
@@ -219,7 +233,6 @@ entity scene::create_entities_from_model(const string& path, entity gltf_root)
     m_scene_boundaries.min =
         glm::min(m_scene_boundaries.min, min_backup); // TODO Paul: This is just in case all other assets are still here, we need to do the calculation with all still existing entities.
 
-
     return gltf_root;
 }
 
@@ -227,7 +240,7 @@ entity scene::create_environment_from_hdr(const string& path)
 {
     PROFILE_ZONE;
     entity environment_entity = create_empty();
-    attach(environment_entity, m_root_entity);
+    attach(environment_entity, m_scene_root);
     auto& environment = m_environments.create_component_for(environment_entity);
 
     // default rotation and scale
@@ -552,9 +565,10 @@ entity scene::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const glm:
         }
     }
 
-    glm::mat4 trafo = glm::translate(glm::mat4(1.0), transform.position);
-    trafo           = trafo * glm::toMat4(transform.rotation);
-    trafo           = glm::scale(trafo, transform.scale);
+    transform.rotation_hint = glm::degrees(glm::eulerAngles(transform.rotation));
+    glm::mat4 trafo         = glm::translate(glm::mat4(1.0), transform.position);
+    trafo                   = trafo * glm::toMat4(transform.rotation);
+    trafo                   = glm::scale(trafo, transform.scale);
 
     trafo = parent_world * trafo;
 

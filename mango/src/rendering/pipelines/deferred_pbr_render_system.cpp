@@ -11,7 +11,7 @@
 #include <graphics/shader_program.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
-#include <imgui.h>
+#include <mango/imgui_helper.hpp>
 #include <mango/profile.hpp>
 #include <mango/scene.hpp>
 #include <rendering/pipelines/deferred_pbr_render_system.hpp>
@@ -30,6 +30,8 @@ static void GLAPIENTRY debugCallback(g_enum source, g_enum type, g_uint id, g_en
 vertex_array_ptr default_vao;
 //! \brief Default texture that is bound to every texture unit not in use to prevent warnings.
 texture_ptr default_texture;
+//! \brief Default cubemap texture that is bound to every texture unit not in use to prevent warnings.
+texture_ptr default_cube_texture;
 //! \brief Default texture array that is bound to every texture unit not in use to prevent warnings.
 texture_ptr default_texture_array;
 
@@ -249,14 +251,20 @@ bool deferred_pbr_render_system::create()
     default_vao = vertex_array::create();
     if (!check_creation(default_vao.get(), "default vertex array object", "Render System"))
         return false;
-    // default texture needed (config is not relevant)
+    // default textures needed
     default_texture = texture::create(attachment_config);
     if (!check_creation(default_texture.get(), "default texture", "Render System"))
         return false;
-    g_ubyte albedo[3] = { 127, 127, 127 };
-    default_texture->set_data(format::rgb8, 1, 1, format::rgb, format::t_unsigned_byte, albedo);
-    attachment_config.m_layers = 3;
-    default_texture_array      = texture::create(attachment_config);
+    g_ubyte albedo[4] = { 127, 127, 127, 255 };
+    default_texture->set_data(format::rgba8, 1, 1, format::rgba, format::t_unsigned_byte, albedo);
+    attachment_config.m_is_cubemap = true;
+    default_cube_texture           = texture::create(attachment_config);
+    if (!check_creation(default_cube_texture.get(), "default cube texture", "Render System"))
+        return false;
+    default_cube_texture->set_data(format::rgba8, 1, 1, format::rgba, format::t_unsigned_byte, albedo);
+    attachment_config.m_layers     = 3;
+    attachment_config.m_is_cubemap = false;
+    default_texture_array          = texture::create(attachment_config);
     if (!check_creation(default_texture_array.get(), "default texture array", "Render System"))
         return false;
     default_texture_array->set_data(format::rgb8, 1, 1, format::rgb, format::t_unsigned_byte, albedo);
@@ -273,9 +281,10 @@ bool deferred_pbr_render_system::create()
 void deferred_pbr_render_system::configure(const render_configuration& configuration)
 {
     PROFILE_ZONE;
+    m_vsync = configuration.is_vsync_enabled();
     auto ws = m_shared_context->get_window_system_internal().lock();
     MANGO_ASSERT(ws, "Window System is expired!");
-    ws->set_vsync(configuration.is_vsync_enabled());
+    ws->set_vsync(m_vsync);
 
     // additional render steps
     if (configuration.get_render_steps()[mango::render_step::ibl])
@@ -341,7 +350,7 @@ void deferred_pbr_render_system::begin_render()
     cf->framebuffer_name   = m_hdr_buffer->get_name();
     cf->buffer_mask        = clear_buffer_mask::color_and_depth;
     cf->fb_attachment_mask = attachment_mask::draw_buffer0 | attachment_mask::depth_buffer;
-    cf->r = cf->g = cf->b = 0.0f;
+    cf->r = cf->g = cf->b = 4096.0f;
     cf->a = cf->depth = 1.0f;
 
     cf                     = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::no_sort);
@@ -433,7 +442,7 @@ void deferred_pbr_render_system::begin_render()
         set_depth_test_command* sdt      = m_transparent_commands->create<set_depth_test_command>(k);
         sdt->enabled                     = true;
         set_depth_write_command* sdw     = m_transparent_commands->append<set_depth_write_command, set_depth_test_command>(sdt);
-        sdw->enabled                     = false;
+        sdw->enabled                     = true;
         set_polygon_offset_command* spo  = m_transparent_commands->append<set_polygon_offset_command, set_depth_write_command>(sdw);
         spo->factor                      = 0.0f;
         spo->units                       = 0.0f;
@@ -452,8 +461,8 @@ void deferred_pbr_render_system::begin_render()
         blf->source                      = blend_factor::one;
         blf->destination                 = blend_factor::one_minus_src_alpha;
 
-        g_uint irradiance_map_name       = default_texture->get_name();
-        g_uint prefiltered_specular_name = default_texture->get_name();
+        g_uint irradiance_map_name       = default_cube_texture->get_name();
+        g_uint prefiltered_specular_name = default_cube_texture->get_name();
         g_uint brdf_lookup_name          = default_texture->get_name();
         g_uint shadow_map_name           = default_texture_array->get_name();
 
@@ -510,6 +519,46 @@ void deferred_pbr_render_system::finish_render(float dt)
     if (step_ibl)
         ibl_command_buffer = step_ibl->get_ibl_commands();
 
+    if (camera.active_camera_entity == invalid_entity)
+    {
+        static float fps_lock = 0.0f;
+        fps_lock += dt;
+        if (fps_lock >= 1.0f)
+        {
+            fps_lock -= 1.0f;
+            MANGO_LOG_WARN("No active Camera. Can not render!");
+        }
+        m_begin_render_commands->execute();
+        m_begin_render_commands->invalidate();
+        m_global_binding_commands->invalidate();
+        if (shadow_command_buffer)
+        {
+            shadow_command_buffer->invalidate();
+        }
+        m_gbuffer_commands->invalidate();
+        if (ibl_command_buffer)
+        {
+            ibl_command_buffer->invalidate();
+        }
+        m_transparent_commands->invalidate();
+        m_exposure_commands->invalidate();
+
+        g_sync* frame_sync_prepare = m_frame_uniform_buffer->prepare();
+
+        client_wait_sync_command* cws = m_finish_render_commands->create<client_wait_sync_command>(command_keys::no_sort);
+        cws->sync                     = frame_sync_prepare;
+        // TODO Paul: Is there a better way?
+        g_sync* frame_sync_end = m_frame_uniform_buffer->end_frame();
+        fence_sync_command* fs = m_finish_render_commands->create<fence_sync_command>(command_keys::no_sort);
+        fs->sync               = frame_sync_end;
+
+        m_finish_render_commands->create<end_frame_command>(command_keys::no_sort);
+        m_finish_render_commands->execute();
+        m_finish_render_commands->invalidate();
+
+        return;
+    }
+
     if (camera.camera_info && camera.camera_info->physical.adaptive_exposure && !m_lighting_pass_data.debug_view_enabled)
         apply_auto_exposure(camera); // with last frames data.
 
@@ -549,8 +598,8 @@ void deferred_pbr_render_system::finish_render(float dt)
     if (m_lighting_pass_commands->dirty())
     {
         // m_lighting_pass_commands
-        g_uint irradiance_map_name       = default_texture->get_name();
-        g_uint prefiltered_specular_name = default_texture->get_name();
+        g_uint irradiance_map_name       = default_cube_texture->get_name();
+        g_uint prefiltered_specular_name = default_cube_texture->get_name();
         g_uint brdf_lookup_name          = default_texture->get_name();
         g_uint shadow_map_name           = default_texture_array->get_name();
 
@@ -975,6 +1024,8 @@ void deferred_pbr_render_system::draw_mesh(const vertex_array_ptr& vertex_array,
 
     auto scene  = m_shared_context->get_current_scene();
     auto camera = scene->get_active_camera_data();
+    if (camera.active_camera_entity == invalid_entity)
+        return;
 
     if (m_active_model.blend)
     {
@@ -1310,6 +1361,7 @@ void deferred_pbr_render_system::set_environment_texture(const texture_ptr& hdr_
     PROFILE_ZONE;
     if (m_pipeline_steps[mango::render_step::ibl])
     {
+        m_lighting_pass_commands->invalidate();
         auto ibl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
         ibl->load_from_hdr(hdr_texture);
     }
@@ -1344,7 +1396,7 @@ void deferred_pbr_render_system::bind_lighting_pass_buffer(camera_data& camera, 
         MANGO_LOG_ERROR("Lighting pass uniforms can not be set! No active camera!");
     }
     m_lighting_pass_data.ambient.intensity = mango::default_environment_intensity;
-    if (environment.environment_info)
+    if (environment.environment_info && m_pipeline_steps[mango::render_step::ibl])
         m_lighting_pass_data.ambient.intensity = environment.environment_info->intensity;
 
     m_lighting_pass_data.directional.cast_shadows = m_lighting_pass_data.directional.cast_shadows && (m_pipeline_steps[mango::render_step::shadow_map] != nullptr);
@@ -1421,17 +1473,27 @@ void deferred_pbr_render_system::apply_auto_exposure(camera_data& camera)
 
 void deferred_pbr_render_system::on_ui_widget()
 {
-    const char* debug          = { " Default \0 Position \0 Normal \0 Depth \0 Base Color \0 Reflection Color \0 Emission \0 Occlusion \0 Roughness \0 Metallic " };
-    static int32 current_debug = 0;
-    bool change_flag           = false;
-    ImGui::Text("Deferred PBR Render System");
-    static bool has_ibl        = m_pipeline_steps[mango::render_step::ibl] != nullptr;
-    static bool has_shadow_map = m_pipeline_steps[mango::render_step::shadow_map] != nullptr;
-    if (ImGui::CollapsingHeader("Steps##deferred_pbr"))
+    ImGui::PushID("deferred_pbr");
+    const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
+    custom_info("Renderer:", []() { ImGui::Text("Deferred PBR Render System"); });
+    bool changed = checkbox("VSync", &m_vsync, true);
+    if (changed)
     {
-        change_flag = has_ibl;
-        ImGui::Checkbox("IBL##deferred_pbr", &has_ibl);
-        if (has_ibl != change_flag)
+        auto ws = m_shared_context->get_window_system_internal().lock();
+        MANGO_ASSERT(ws, "Window System is expired!");
+        ws->set_vsync(m_vsync);
+    }
+    ImGui::Separator();
+    bool has_ibl        = m_pipeline_steps[mango::render_step::ibl] != nullptr;
+    bool has_shadow_map = m_pipeline_steps[mango::render_step::shadow_map] != nullptr;
+    if (ImGui::TreeNodeEx("Steps", flags | ImGuiTreeNodeFlags_Framed))
+    {
+        bool open = ImGui::CollapsingHeader("IBL Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_ibl ? ImGuiTreeNodeFlags_Leaf : 0));
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x);
+        ImGui::PushID("enable_ibl_step");
+        bool value_changed = ImGui::Checkbox("", &has_ibl);
+        ImGui::PopID();
+        if (value_changed)
         {
             m_lighting_pass_commands->invalidate();
             if (has_ibl)
@@ -1448,17 +1510,22 @@ void deferred_pbr_render_system::on_ui_widget()
             else
             {
                 m_pipeline_steps[mango::render_step::ibl] = nullptr;
+                auto scene                                = m_shared_context->get_current_scene();
+                scene->set_active_environment(invalid_entity);
             }
         }
-        if (has_ibl && ImGui::TreeNode("IBL Step##deferred_pbr"))
+        if (has_ibl && open)
         {
             m_pipeline_steps[mango::render_step::ibl]->on_ui_widget();
-            ImGui::TreePop();
         }
         ImGui::Separator();
-        change_flag = has_shadow_map;
-        ImGui::Checkbox("Directional Shadows##deferred_pbr", &has_shadow_map);
-        if (has_shadow_map != change_flag)
+
+        open = ImGui::CollapsingHeader("Shadow Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_shadow_map ? ImGuiTreeNodeFlags_Leaf : 0));
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x);
+        ImGui::PushID("enable_shadow_step");
+        value_changed = ImGui::Checkbox("", &has_shadow_map);
+        ImGui::PopID();
+        if (value_changed)
         {
             m_lighting_pass_commands->invalidate();
             if (has_shadow_map)
@@ -1472,38 +1539,51 @@ void deferred_pbr_render_system::on_ui_widget()
                 m_pipeline_steps[mango::render_step::shadow_map] = nullptr;
             }
         }
-        if (has_shadow_map && ImGui::TreeNode("Shadow Step##deferred_pbr"))
+        if (has_shadow_map && open)
         {
             m_pipeline_steps[mango::render_step::shadow_map]->on_ui_widget();
-            ImGui::TreePop();
         }
+        ImGui::TreePop();
     }
-    if (ImGui::CollapsingHeader("Debug##deferred_pbr"))
+    const char* debug[10]      = { "Default", "Position", "Normal", "Depth", "Base Color", "Reflection Color", "Emission", "Occlusion", "Roughness", "Metallic" };
+    static int32 current_debug = 0;
+    if (ImGui::CollapsingHeader("Debug", flags))
     {
         float occupancy = m_frame_uniform_buffer->get_occupancy();
-        ImGui::Text(("Frame Uniform Buffer Occupancy: " + std::to_string(occupancy)).c_str());
-        ImGui::Checkbox("Render Wireframe##deferred_pbr", &m_wireframe);
+        custom_info("Frame Uniform Buffer Occupancy:", [occupancy]() {
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("%.3f%%", occupancy);
+        });
+        checkbox("Render Wireframe", &m_wireframe, false);
 
         for (int32 i = 0; i < 9; ++i)
             m_lighting_pass_data.debug_views.debug[i] = false;
         m_lighting_pass_data.debug_view_enabled = false;
-        ImGui::Combo("Views##deferred_pbr", &current_debug, debug);
+
+        int32 idx = current_debug;
+        combo("Debug Views", debug, 10, idx, 0);
+        current_debug = idx;
+
         if (current_debug)
         {
             m_lighting_pass_data.debug_views.debug[current_debug - 1] = true;
             m_lighting_pass_data.debug_view_enabled                   = true;
         }
+
+        ImGui::Separator();
+
         if (has_shadow_map)
         {
             bool casc = m_lighting_pass_data.debug_options.show_cascades;
-            ImGui::Checkbox("Show Cascades##deferred_pbr", &casc);
+            checkbox("Show Cascades", &casc, false);
             m_lighting_pass_data.debug_options.show_cascades = casc;
 
             bool sm = m_lighting_pass_data.debug_options.draw_shadow_maps;
-            ImGui::Checkbox("Show Shadow Maps##deferred_pbr", &sm);
+            checkbox("Show Shadow Maps", &sm, false);
             m_lighting_pass_data.debug_options.draw_shadow_maps = sm;
         }
     }
+    ImGui::PopID();
 }
 
 #ifdef MANGO_DEBUG

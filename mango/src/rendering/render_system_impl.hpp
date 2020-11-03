@@ -146,6 +146,9 @@ namespace mango
         //! \brief The hardware stats.
         hardware_stats m_hardware_stats;
 
+        //! \brief True if vertical synchronization is enabled, else False.
+        bool m_vsync;
+
       private:
         //! \brief A shared pointer to the currently used internal \a render_system.
         //! \details This is used to make runtime switching of different \a render_systems possible.

@@ -140,6 +140,7 @@ void linux_window_system::set_vsync(bool enabled)
 {
     make_window_context_current();
     glfwSwapInterval(enabled ? 1 : 0);
+    m_vsync = enabled;
 }
 
 void linux_window_system::make_window_context_current()

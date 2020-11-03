@@ -9,7 +9,7 @@
 #include <graphics/shader_program.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
-#include <imgui.h>
+#include <mango/imgui_helper.hpp>
 #include <mango/profile.hpp>
 #include <mango/render_system.hpp>
 #include <rendering/steps/shadow_map_step.hpp>
@@ -228,25 +228,27 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
 
 void shadow_map_step::on_ui_widget()
 {
+    ImGui::PushID("shadow_step");
     // Resolution 512, 1024, 2048, 4096
-    const char* resolutions = " 512 \0 1024 \0 2048 \0 4096 \0\0";
-    int32 r                 = m_shadow_data.resolution;
-    int32 current           = r > 2048 ? 3 : (r > 1024 ? 2 : (r > 512 ? 1 : 0));
-    ImGui::Combo("Shadow Map Resolution##shadow_step", &current, resolutions);
+    const char* resolutions[4] = { "512", "1024", "2048", "4096" };
+    int32 r                    = m_shadow_data.resolution;
+    int32 current              = r > 2048 ? 3 : (r > 1024 ? 2 : (r > 512 ? 1 : 0));
+    combo("Shadow Map Resolution", resolutions, 4, current, 2);
     m_shadow_data.resolution = 512 * static_cast<int32>(glm::pow(2, current));
     if (m_shadow_data.resolution != r)
         m_shadow_buffer->resize(m_shadow_data.resolution, m_shadow_data.resolution);
     // Offset 1.0 - 32.0
     float& max_penumbra = m_shadow_data.max_penumbra;
-    ImGui::SliderFloat("Maximum Penumbra Width##shadow_step", &max_penumbra, 1.0f, 32.0f);
+    slider_float_n("Maximum Penumbra Width", &max_penumbra, 1, 3.0f, 1.0f, 32.0f);
     // Offset 0.0 - 100.0
-    ImGui::SliderFloat("Shadow Map Offset##shadow_step", &m_shadow_map_offset, 0.0f, 100.0f);
+    slider_float_n("Shadow Map Offset", &m_shadow_map_offset, 1, 0.0f, 0.0f, 100.0f);
 
     // Cascades 1, 2, 3, 4
     int32& shadow_cascades = m_shadow_data.cascade_count;
-    ImGui::SliderInt("Number Of Shadow Cascades##shadow_step", &shadow_cascades, 1, 4);
+    slider_int_n("Number Of Shadow Cascades", &shadow_cascades, 1, 3, 1, 4);
     float& interpolation_range = m_shadow_data.cascade_interpolation_range;
-    ImGui::SliderFloat("Cascade Interpolation Range##shadow_step", &interpolation_range, 0.0f, 10.0f);
-    ImGui::SliderFloat("Cascade Splits Lambda##shadow_step", &m_cascade_data.lambda, 0.0f, 1.0f);
+    slider_float_n("Cascade Interpolation Range", &interpolation_range, 1, 0.5f, 0.0f, 10.0f);
+    slider_float_n("Cascade Splits Lambda", &m_cascade_data.lambda, 1, 0.5f, 0.0f, 1.0f);
     m_dirty_cascades = true; // For now always in debug.
+    ImGui::PopID();
 }

@@ -30,6 +30,10 @@ namespace mango
         {
             return m_window_configuration.get_height();
         }
+        inline bool vsync() override
+        {
+            return m_vsync;
+        }
         void set_size(int32 width, int32 height) override;
 
         void swap_buffers() override;

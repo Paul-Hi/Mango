@@ -9,7 +9,7 @@
 #include <graphics/shader_program.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
-#include <imgui.h>
+#include <mango/imgui_helper.hpp>
 #include <mango/profile.hpp>
 #include <mango/render_system.hpp>
 #include <mango/scene_ecs.hpp>
@@ -22,9 +22,6 @@ static const float cubemap_vertices[36] = { -1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f
                                             -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f, -1.0f, 1.0f };
 
 static const uint8 cubemap_indices[18] = { 8, 9, 0, 2, 1, 3, 3, 2, 5, 4, 7, 6, 6, 0, 7, 1, 10, 11 };
-
-//! \brief Default texture that is bound to every texture unit not in use to prevent warnings.
-texture_ptr default_ibl_texture;
 
 bool ibl_step::create()
 {
@@ -178,12 +175,12 @@ bool ibl_step::create()
     texture_config.m_texture_min_filter = texture_parameter::filter_nearest;
     texture_config.m_texture_mag_filter = texture_parameter::filter_nearest;
     texture_config.m_is_cubemap         = true;
-    default_ibl_texture                 = texture::create(texture_config);
-    if (!check_creation(default_ibl_texture.get(), "default ibl texture", "Ibl Step"))
+    m_default_ibl_texture               = texture::create(texture_config);
+    if (!check_creation(m_default_ibl_texture.get(), "default ibl texture", "Ibl Step"))
         return false;
 
-    g_ubyte albedo[3] = { 127, 127, 127 };
-    default_ibl_texture->set_data(format::rgb8, 1, 1, format::rgb, format::t_unsigned_byte, albedo);
+    g_ubyte albedo[4] = { 127, 127, 127, 255 };
+    m_default_ibl_texture->set_data(format::rgba8, 1, 1, format::rgba, format::t_unsigned_byte, albedo);
 
     return true;
 }
@@ -238,10 +235,10 @@ void ibl_step::execute(gpu_buffer_ptr frame_uniform_buffer)
     bind_texture_command* bt = m_ibl_command_buffer->create<bind_texture_command>(command_keys::no_sort);
     bt->binding              = 0;
     bt->sampler_location     = 0;
-    if (m_cubemap)
+    if (m_prefiltered_specular)
         bt->texture_name = m_prefiltered_specular->get_name();
     else
-        bt->texture_name = default_ibl_texture->get_name();
+        bt->texture_name = m_default_ibl_texture->get_name();
 
     draw_elements_command* de = m_ibl_command_buffer->create<draw_elements_command>(command_keys::no_sort);
     de->topology              = primitive_topology::triangle_strip;
@@ -440,12 +437,12 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
 
 texture_ptr ibl_step::get_irradiance_map()
 {
-    return m_cubemap ? m_irradiance_map : default_ibl_texture;
+    return m_irradiance_map ? m_irradiance_map : m_default_ibl_texture;
 }
 
 texture_ptr ibl_step::get_prefiltered_specular()
 {
-    return m_cubemap ? m_prefiltered_specular : default_ibl_texture;
+    return m_prefiltered_specular ? m_prefiltered_specular : m_default_ibl_texture;
 }
 
 texture_ptr ibl_step::get_brdf_lookup()
@@ -453,25 +450,13 @@ texture_ptr ibl_step::get_brdf_lookup()
     return m_brdf_integration_lut;
 }
 
-// if (m_cubemap)
-//{
-//    command_buffer->bind_texture(5, m_irradiance_map, 5);       // TODO Paul: Binding and location...
-//    command_buffer->bind_texture(6, m_prefiltered_specular, 6); // TODO Paul: Binding and location...
-//    command_buffer->bind_texture(7, m_brdf_integration_lut, 7); // TODO Paul: Binding and location...
-//}
-// else
-//{
-//    command_buffer->bind_texture(5, default_ibl_texture, 5);    // TODO Paul: Binding and location...
-//    command_buffer->bind_texture(6, default_ibl_texture, 6);    // TODO Paul: Binding and location...
-//    command_buffer->bind_texture(7, m_brdf_integration_lut, 7); // TODO Paul: Binding and location...
-//}
-
 void ibl_step::on_ui_widget()
 {
+    ImGui::PushID("ibl_step");
     // Render Level 0.0 - 8.0
     bool should_render = !(m_ibl_data.render_level < -1e-5f);
     static float tmp   = 0.0f;
-    ImGui::Checkbox("Render IBL Visualization##ibl_step", &should_render);
+    checkbox("Render IBL Visualization", &should_render, false);
     if (!should_render)
     {
         m_ibl_data.render_level = -1.0f;
@@ -480,7 +465,8 @@ void ibl_step::on_ui_widget()
     {
         m_ibl_data.render_level = tmp;
         float& render_level     = m_ibl_data.render_level;
-        ImGui::SliderFloat("Blur Level##ibl_step", &render_level, 0.0f, 8.0f);
+        slider_float_n("Blur Level", &render_level, 1, 0.0f, 0.0f, 8.0f);
         tmp = m_ibl_data.render_level;
     }
+    ImGui::PopID();
 }

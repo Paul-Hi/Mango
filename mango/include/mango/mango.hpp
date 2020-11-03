@@ -19,6 +19,7 @@ namespace mango
 #include <mango/application.hpp>
 #include <mango/assert.hpp>
 #include <mango/context.hpp>
+#include <mango/imgui_helper.hpp>
 #include <mango/input_system.hpp>
 #include <mango/log.hpp>
 #include <mango/profile.hpp>
@@ -28,7 +29,6 @@ namespace mango
 #include <mango/types.hpp>
 #include <mango/ui_system.hpp>
 #include <mango/window_system.hpp>
-
 
 // Third Party
 #include "imgui.h"

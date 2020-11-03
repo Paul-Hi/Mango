@@ -13,11 +13,11 @@
 #include <glm/gtx/vector_angle.hpp>
 #include <graphics/framebuffer.hpp>
 #include <graphics/texture.hpp>
-#include <imgui.h>
-#include <imgui_internal.h>
+#include <mango/imgui_helper.hpp>
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
+#include <ui/dear_imgui/icons_font_awesome_5.hpp>
 #include <ui/dear_imgui/imgui_glfw.hpp>
 
 namespace mango
@@ -66,21 +66,70 @@ namespace mango
     void hardware_info_widget(const shared_ptr<context_impl>& shared_context, bool& enabled)
     {
         ImGui::Begin("Hardware Info", &enabled);
-        if (ImGui::CollapsingHeader("Editor Stats"))
+        const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
+        if (ImGui::CollapsingHeader("Editor Stats", flags))
         {
             float frametime = shared_context->get_application()->frame_time();
-            ImGui::Text("Frame Time: %.2f ms", frametime * 1000.0f);
-            ImGui::Text("Framerate: %.2f fps", 1.0f / frametime);
+            custom_info("Frame Time:", [frametime]() {
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text("%.2f ms", frametime * 1000.0f);
+            });
+
+            static int32 idx = 0;
+            static float frametimes[60];
+            frametimes[idx] = 1.0f / frametime;
+            float* ft       = frametimes;
+            int32 idx_      = idx;
+            idx++;
+            idx %= 60;
+            float max = shared_context->get_window_system_internal().lock()->vsync() ? 75.0f : 650.0f;
+            custom_info("Frame Rate:", [ft, idx_, max]() {
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text("%.2f fps", ft[idx_]);
+                ImGui::PlotLines("", ft, 60, 0, "", 0.0f, max, ImVec2(0, 64));
+            });
         }
         auto stats = shared_context->get_render_system_internal().lock()->get_hardware_stats();
-        if (ImGui::CollapsingHeader("Renderer Stats"))
+        if (ImGui::CollapsingHeader("Renderer Stats", flags))
         {
-            ImGui::Text("API Version: %s", stats.api_version.c_str());
-            ImGui::Text("Rendered Meshes: %d", stats.last_frame.meshes);
-            ImGui::Text("Draw Calls: %d", stats.last_frame.draw_calls);
-            ImGui::Text("Rendered Primitives: %d", stats.last_frame.primitives);
-            ImGui::Text("Rendered Materials: %d", stats.last_frame.materials);
-            ImGui::Text("Canvas Size: (%d x %d) px", stats.last_frame.canvas_width, stats.last_frame.canvas_height);
+            column_split("split", 2, ImGui::GetContentRegionAvail().x * 0.33f);
+
+            text_wrapped("API Version:");
+            column_next();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("%s", stats.api_version.c_str());
+            column_next();
+            ImGui::SeparatorEx(ImGuiSeparatorFlags_SpanAllColumns | ImGuiSeparatorFlags_Horizontal);
+            text_wrapped("Rendered Meshes:");
+            column_next();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("%d", stats.last_frame.meshes);
+            column_next();
+            ImGui::SeparatorEx(ImGuiSeparatorFlags_SpanAllColumns | ImGuiSeparatorFlags_Horizontal);
+            text_wrapped("Draw Calls:");
+            column_next();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("%d", stats.last_frame.draw_calls);
+            column_next();
+            ImGui::SeparatorEx(ImGuiSeparatorFlags_SpanAllColumns | ImGuiSeparatorFlags_Horizontal);
+            text_wrapped("Rendered Primitives:");
+            column_next();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("%d", stats.last_frame.primitives);
+            column_next();
+            ImGui::SeparatorEx(ImGuiSeparatorFlags_SpanAllColumns | ImGuiSeparatorFlags_Horizontal);
+            text_wrapped("Rendered Materials:");
+            column_next();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("%d", stats.last_frame.materials);
+            column_next();
+            ImGui::SeparatorEx(ImGuiSeparatorFlags_SpanAllColumns | ImGuiSeparatorFlags_Horizontal);
+            text_wrapped("Canvas Size:");
+            column_next();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("(%d x %d) px", stats.last_frame.canvas_width, stats.last_frame.canvas_height);
+
+            column_merge();
         }
         ImGui::End();
     }
@@ -139,20 +188,54 @@ namespace mango
             }
         }
 
+        string get_icon_for_entity(const shared_ptr<scene>& application_scene, entity e)
+        {
+            if (application_scene->query_tag(e)->tag_name == "Scene")
+                return string(ICON_FA_SITEMAP);
+            else if (application_scene->query_model_component(e) || application_scene->query_mesh_component(e))
+                return string(ICON_FA_DICE_D6);
+            else if (application_scene->query_camera_component(e))
+                return string(ICON_FA_VIDEO);
+            else if (application_scene->query_light_component(e) || application_scene->query_environment_component(e))
+                return string(ICON_FA_LIGHTBULB);
+            else if (application_scene->query_transform_component(e))
+                return string(ICON_FA_VECTOR_SQUARE);
+            return "";
+        }
+
         //! \brief Draws the subtree for a given entity in the user interface.
         //! \param[in] application_scene The current \a scene of the \a application.
         //! \param[in] e The entity to draw the subtree for.
         //! \param[in,out] selected The currently selected entity, can be updated by this function.
         void draw_entity_tree(const shared_ptr<scene>& application_scene, entity e, entity& selected)
         {
-            auto tag      = application_scene->query_tag(e);
-            auto name     = (tag && !tag->tag_name.empty()) ? tag->tag_name : ("Unnamed Entity " + std::to_string(e)).c_str();
+            auto tag = application_scene->query_tag(e);
+            if (!tag)
+                tag = &application_scene->add_tag(e);
+            auto name     = (tag && !tag->tag_name.empty()) ? tag->tag_name : "Unnamed Entity";
             auto children = application_scene->get_children(e);
 
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 5));
-            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_FramePadding | ((selected == e) ? ImGuiTreeNodeFlags_Selected : 0) |
-                                       (children.empty() ? ImGuiTreeNodeFlags_Leaf : 0);
-            bool open = ImGui::TreeNodeEx((name + "##id_" + std::to_string(e)).c_str(), flags, "%s", name.c_str());
+            const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_FramePadding |
+                                             ImGuiTreeNodeFlags_AllowItemOverlap | ((selected == e) ? ImGuiTreeNodeFlags_Selected : 0) | (children.empty() ? ImGuiTreeNodeFlags_Leaf : 0);
+
+            ImGui::PushID(e);
+
+            if (selected != invalid_entity && selected != e)
+            {
+                for (auto child : children) // TODO Paul: We need a better way, this can potentially kill performance ...
+                {
+                    if (child == selected)
+                    {
+                        ImGui::SetNextItemOpen(true);
+                        break;
+                    }
+                }
+            }
+
+            string icon = get_icon_for_entity(application_scene, e);
+            bool open   = ImGui::TreeNodeEx(name.c_str(), flags, "%s", (icon + "  " + name).c_str());
+
             ImGui::PopStyleVar();
 
             if (ImGui::IsItemClicked(0))
@@ -205,6 +288,7 @@ namespace mango
                 }
                 ImGui::TreePop();
             }
+            ImGui::PopID();
         }
 
         //! \brief Opens a file dialog to load any kind of image and returns a texture_ptr after loading it to a \a texture.
@@ -250,6 +334,7 @@ namespace mango
         {
             if (material)
             {
+                ImGui::PushID(material.get());
                 texture_configuration config;
                 config.m_generate_mipmaps        = 1;
                 config.m_is_standard_color_space = true;
@@ -260,269 +345,260 @@ namespace mango
                 char const* filter[4]            = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
 
                 ImVec2 canvas_p0;
-                ImDrawList* draw_list = ImGui::GetWindowDrawList();
+                ImDrawList* draw_list          = ImGui::GetWindowDrawList();
+                const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
 
                 // base color
 
-                if (ImGui::TreeNode(("Base Color##" + std::to_string(e)).c_str()))
+                if (ImGui::CollapsingHeader("Base Color", flags | ImGuiTreeNodeFlags_DefaultOpen))
                 {
-                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                    canvas_p0 = ImGui::GetCursorScreenPos();
-                    draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
-                    if (material->base_color_texture)
-                        ImGui::Image((void*)(intptr_t)material->base_color_texture->get_name(), ImVec2(64, 64));
-                    else
-                        ImGui::Dummy(ImVec2(64, 64));
-                    if (ImGui::IsItemHovered())
-                    {
-                        if (material->base_color_texture)
-                        {
-                            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
-                            ImGui::BeginTooltip();
-                            ImGui::Image((void*)(intptr_t)material->base_color_texture->get_name(), ImVec2(256, 256));
-                            ImGui::EndTooltip();
-                            ImGui::PopStyleColor();
-                        }
-                        else
-                            ImGui::SetTooltip("Load Texture");
-                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(200, 200, 200, 255), 2.0f);
-                    }
-                    ImGui::PopStyleVar();
-                    if (ImGui::IsItemClicked())
+                    ImGui::PushID("Base Color");
+                    bool changed  = false;
+                    bool load_new = false;
+                    changed |= image_load("Base Color Texture", material->base_color_texture ? material->base_color_texture->get_name() : -1, glm::vec2(64, 64), load_new);
+
+                    if (load_new)
                     {
                         config.m_is_standard_color_space = true;
                         material->base_color_texture     = load_texture(config, rs, filter, 4);
                         material->use_base_color_texture = (material->base_color_texture != nullptr);
                     }
-                    ImGui::SameLine();
-                    bool tmp = material->use_base_color_texture;
-                    ImGui::Checkbox("Use Texture##base_color", &material->use_base_color_texture);
-                    if (!tmp && material->use_base_color_texture && !material->base_color_texture)
+                    else if (changed)
+                    {
+                        material->base_color_texture     = nullptr;
+                        material->use_base_color_texture = false;
+                    }
+
+                    changed = checkbox("Use Texture", &material->use_base_color_texture, false);
+                    if (changed && material->use_base_color_texture && !material->base_color_texture)
                     {
                         config.m_is_standard_color_space = true;
                         material->base_color_texture     = load_texture(config, rs, filter, 4);
                         material->use_base_color_texture = (material->base_color_texture != nullptr);
-                    }
-                    if (!material->use_base_color_texture)
-                    {
-                        ImGui::SameLine();
-                        ImGui::ColorEdit4("Color", material->base_color, ImGuiColorEditFlags_NoInputs);
                     }
                     ImGui::Separator();
-                    ImGui::TreePop();
+
+                    if (!material->use_base_color_texture)
+                        color_edit("Color", &material->base_color[0], 4, 1.0f);
+
+                    ImGui::Separator();
+                    ImGui::PopID();
                 }
 
                 // roughness metallic
 
-                if (ImGui::TreeNode(("Roughness and Metallic##" + std::to_string(e)).c_str()))
+                if (ImGui::CollapsingHeader("Roughness And Metallic", flags))
                 {
-                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                    canvas_p0 = ImGui::GetCursorScreenPos();
-                    draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
-                    if (material->roughness_metallic_texture)
-                        ImGui::Image((void*)(intptr_t)material->roughness_metallic_texture->get_name(), ImVec2(64, 64));
-                    else
-                        ImGui::Dummy(ImVec2(64, 64));
-                    if (ImGui::IsItemHovered())
-                    {
-                        if (material->roughness_metallic_texture)
-                        {
-                            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
-                            ImGui::BeginTooltip();
-                            ImGui::Image((void*)(intptr_t)material->roughness_metallic_texture->get_name(), ImVec2(256, 256));
-                            ImGui::EndTooltip();
-                            ImGui::PopStyleColor();
-                        }
-                        else
-                            ImGui::SetTooltip("Load Texture");
-                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(200, 200, 200, 255), 2.0f);
-                    }
-                    ImGui::PopStyleVar();
-                    if (ImGui::IsItemClicked())
+                    ImGui::PushID("Roughness And Metallic");
+                    bool changed  = false;
+                    bool load_new = false;
+                    changed |= image_load("Roughness And Metallic Texture", material->roughness_metallic_texture ? material->roughness_metallic_texture->get_name() : -1, glm::vec2(64, 64), load_new);
+
+                    if (load_new)
                     {
                         config.m_is_standard_color_space         = false;
                         material->roughness_metallic_texture     = load_texture(config, rs, filter, 4);
                         material->use_roughness_metallic_texture = (material->roughness_metallic_texture != nullptr);
                     }
-                    ImGui::SameLine();
-                    bool tmp = material->use_roughness_metallic_texture;
-                    ImGui::Checkbox("Use Texture##roughness_metallic", &material->use_roughness_metallic_texture);
-                    if (!tmp && material->use_roughness_metallic_texture && !material->roughness_metallic_texture)
+                    else if (changed)
+                    {
+                        material->roughness_metallic_texture     = nullptr;
+                        material->use_roughness_metallic_texture = false;
+                    }
+
+                    changed = checkbox("Use Texture", &material->use_roughness_metallic_texture, false);
+                    if (changed && material->use_roughness_metallic_texture && !material->roughness_metallic_texture)
                     {
                         config.m_is_standard_color_space         = false;
                         material->roughness_metallic_texture     = load_texture(config, rs, filter, 4);
                         material->use_roughness_metallic_texture = (material->roughness_metallic_texture != nullptr);
-                    }
-                    if (material->roughness_metallic_texture && material->use_roughness_metallic_texture)
-                    {
-                        ImGui::Checkbox("Has packed ambient occlusion", &material->packed_occlusion);
-                        if (material->packed_occlusion)
-                            ImGui::Checkbox("Use packed ambient occlusion", &material->use_packed_occlusion);
-                    }
-                    if (!material->use_roughness_metallic_texture)
-                    {
-                        ImGui::SliderFloat("Roughness", material->roughness.type_data(), 0.0f, 1.0f);
-                        ImGui::SliderFloat("Metallic", material->metallic.type_data(), 0.0f, 1.0f);
                     }
                     ImGui::Separator();
-                    ImGui::TreePop();
+
+                    if (material->use_roughness_metallic_texture)
+                    {
+                        checkbox("Has Packed AO", &material->packed_occlusion, false);
+                        if (material->packed_occlusion)
+                            checkbox("Use Packed AO", &material->use_packed_occlusion, true);
+                    }
+                    else
+                    {
+                        slider_float_n("Roughness", material->roughness.type_data(), 1, 0.5f, 0.0f, 1.0f);
+                        slider_float_n("Metallic", material->metallic.type_data(), 1, 0.5f, 0.0f, 1.0f);
+                    }
+
+                    ImGui::Separator();
+                    ImGui::PopID();
                 }
 
                 // normal
 
-                if (ImGui::TreeNode(("Normal Map##" + std::to_string(e)).c_str()))
+                if (ImGui::CollapsingHeader("Normal Map", flags))
                 {
-                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                    canvas_p0 = ImGui::GetCursorScreenPos();
-                    draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
-                    if (material->normal_texture)
-                        ImGui::Image((void*)(intptr_t)material->normal_texture->get_name(), ImVec2(64, 64));
-                    else
-                        ImGui::Dummy(ImVec2(64, 64));
-                    if (ImGui::IsItemHovered())
-                    {
-                        if (material->normal_texture)
-                        {
-                            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
-                            ImGui::BeginTooltip();
-                            ImGui::Image((void*)(intptr_t)material->normal_texture->get_name(), ImVec2(256, 256));
-                            ImGui::EndTooltip();
-                            ImGui::PopStyleColor();
-                        }
-                        else
-                            ImGui::SetTooltip("Load Texture");
-                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(200, 200, 200, 255), 2.0f);
-                    }
-                    ImGui::PopStyleVar();
-                    if (ImGui::IsItemClicked())
+                    ImGui::PushID("Normal Map");
+                    bool changed  = false;
+                    bool load_new = false;
+                    changed |= image_load("Normal Texture", material->normal_texture ? material->normal_texture->get_name() : -1, glm::vec2(64, 64), load_new);
+
+                    if (load_new)
                     {
                         config.m_is_standard_color_space = false;
                         material->normal_texture         = load_texture(config, rs, filter, 4);
                         material->use_normal_texture     = (material->normal_texture != nullptr);
                     }
-                    ImGui::SameLine();
-                    bool tmp = material->use_normal_texture;
-                    ImGui::Checkbox("Use Texture##normal", &material->use_normal_texture);
-                    if (!tmp && material->use_normal_texture && !material->normal_texture)
+                    else if (changed)
+                    {
+                        material->normal_texture     = nullptr;
+                        material->use_normal_texture = false;
+                    }
+
+                    changed = checkbox("Use Texture", &material->use_normal_texture, false);
+                    if (changed && material->use_normal_texture && !material->normal_texture)
                     {
                         config.m_is_standard_color_space = false;
                         material->normal_texture         = load_texture(config, rs, filter, 4);
                         material->use_normal_texture     = (material->normal_texture != nullptr);
                     }
+
                     ImGui::Separator();
-                    ImGui::TreePop();
+                    ImGui::PopID();
                 }
 
                 // occlusion
 
-                if (ImGui::TreeNode(("Occlusion Map##" + std::to_string(e)).c_str()))
+                if (ImGui::CollapsingHeader("Occlusion Map", flags))
                 {
-                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                    canvas_p0 = ImGui::GetCursorScreenPos();
-                    draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
-                    if (material->occlusion_texture)
-                        ImGui::Image((void*)(intptr_t)material->occlusion_texture->get_name(), ImVec2(64, 64));
-                    else
-                        ImGui::Dummy(ImVec2(64, 64));
-                    if (ImGui::IsItemHovered())
-                    {
-                        if (material->occlusion_texture)
-                        {
-                            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
-                            ImGui::BeginTooltip();
-                            ImGui::Image((void*)(intptr_t)material->occlusion_texture->get_name(), ImVec2(256, 256));
-                            ImGui::EndTooltip();
-                            ImGui::PopStyleColor();
-                        }
-                        else
-                            ImGui::SetTooltip("Load Texture");
-                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(200, 200, 200, 255), 2.0f);
-                    }
-                    ImGui::PopStyleVar();
-                    if (ImGui::IsItemClicked())
+                    ImGui::PushID("Occlusion Map");
+                    bool changed  = false;
+                    bool load_new = false;
+                    changed |= image_load("Occlusion Texture", material->occlusion_texture ? material->occlusion_texture->get_name() : -1, glm::vec2(64, 64), load_new);
+
+                    if (load_new)
                     {
                         config.m_is_standard_color_space = false;
                         material->occlusion_texture      = load_texture(config, rs, filter, 4);
                         material->use_occlusion_texture  = (material->occlusion_texture != nullptr);
                     }
-                    ImGui::SameLine();
-                    bool tmp = material->use_occlusion_texture;
-                    ImGui::Checkbox("Use Texture##occlusion", &material->use_occlusion_texture);
-                    if (!tmp && material->use_occlusion_texture && !material->occlusion_texture)
+                    else if (changed)
+                    {
+                        material->occlusion_texture     = nullptr;
+                        material->use_occlusion_texture = false;
+                    }
+
+                    changed = checkbox("Use Texture", &material->use_occlusion_texture, false);
+                    if (changed && material->use_occlusion_texture && !material->occlusion_texture)
                     {
                         config.m_is_standard_color_space = false;
                         material->occlusion_texture      = load_texture(config, rs, filter, 4);
                         material->use_occlusion_texture  = (material->occlusion_texture != nullptr);
                     }
+
                     ImGui::Separator();
-                    ImGui::TreePop();
+                    ImGui::PopID();
                 }
 
                 // emissive
 
-                if (ImGui::TreeNode(("Emissive##" + std::to_string(e)).c_str()))
+                if (ImGui::CollapsingHeader("Emissive", flags))
                 {
-                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                    canvas_p0 = ImGui::GetCursorScreenPos();
-                    draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
-                    if (material->emissive_color_texture)
-                        ImGui::Image((void*)(intptr_t)material->emissive_color_texture->get_name(), ImVec2(64, 64));
-                    else
-                        ImGui::Dummy(ImVec2(64, 64));
-                    if (ImGui::IsItemHovered())
-                    {
-                        if (material->emissive_color_texture)
-                        {
-                            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
-                            ImGui::BeginTooltip();
-                            ImGui::Image((void*)(intptr_t)material->emissive_color_texture->get_name(), ImVec2(256, 256));
-                            ImGui::EndTooltip();
-                            ImGui::PopStyleColor();
-                        }
-                        else
-                            ImGui::SetTooltip("Load Texture");
-                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 64, canvas_p0.y + 64), IM_COL32(200, 200, 200, 255), 2.0f);
-                    }
-                    ImGui::PopStyleVar();
-                    if (ImGui::IsItemClicked())
+                    ImGui::PushID("Emissive");
+                    bool changed  = false;
+                    bool load_new = false;
+                    changed |= image_load("Emissive Color Texture", material->emissive_color_texture ? material->emissive_color_texture->get_name() : -1, glm::vec2(64, 64), load_new);
+
+                    if (load_new)
                     {
                         config.m_is_standard_color_space     = true;
                         material->emissive_color_texture     = load_texture(config, rs, filter, 4);
                         material->use_emissive_color_texture = (material->emissive_color_texture != nullptr);
                     }
-                    ImGui::SameLine();
-                    bool tmp = material->use_emissive_color_texture;
-                    ImGui::Checkbox("Use Texture##emissive_color", &material->use_emissive_color_texture);
-                    if (!tmp && material->use_emissive_color_texture && !material->emissive_color_texture)
+                    else if (changed)
+                    {
+                        material->emissive_color_texture     = nullptr;
+                        material->use_emissive_color_texture = false;
+                    }
+
+                    changed = checkbox("Use Texture", &material->use_emissive_color_texture, false);
+                    if (changed && material->use_emissive_color_texture && !material->emissive_color_texture)
                     {
                         config.m_is_standard_color_space     = true;
                         material->emissive_color_texture     = load_texture(config, rs, filter, 4);
                         material->use_emissive_color_texture = (material->emissive_color_texture != nullptr);
-                    }
-                    if (!material->use_emissive_color_texture)
-                    {
-                        ImGui::SameLine();
-                        ImGui::ColorEdit3("Color", material->emissive_color, ImGuiColorEditFlags_NoInputs);
                     }
                     ImGui::Separator();
-                    ImGui::TreePop();
-                }
 
-                ImGui::Checkbox(("Double Sided##" + std::to_string(e)).c_str(), &material->double_sided);
+                    if (!material->use_emissive_color_texture)
+                        color_edit("Color", &material->emissive_color[0], 3, 1.0f);
+
+                    ImGui::Separator();
+                    ImGui::PopID();
+                }
                 ImGui::Separator();
-                const char* types    = "opaque\0masked\0blended\0dithered\0\0";
-                int32 alpha_mode_int = static_cast<int32>(material->alpha_rendering);
-                ImGui::Combo(("Alpha Mode##" + std::to_string(e)).c_str(), &alpha_mode_int, types);
-                material->alpha_rendering = static_cast<alpha_mode>(alpha_mode_int);
+                ImGui::Spacing();
+
+                checkbox("Double Sided", &material->double_sided, false);
+
+                ImGui::Separator();
+
+                const char* types[4] = { "Opaque", "Masked", "Blended", "Dithered" };
+                int32 idx            = static_cast<int32>(material->alpha_rendering);
+                combo("Alpha Mode", types, 4, idx, 0);
+                material->alpha_rendering = static_cast<alpha_mode>(idx);
+
                 if (material->alpha_rendering == alpha_mode::mode_mask)
-                    ImGui::SliderFloat("Alpha CutOff", material->alpha_cutoff.type_data(), 0.0f, 1.0f);
+                    slider_float_n("Alpha CutOff", material->alpha_cutoff.type_data(), 1, 0.5f, 0.0f, 1.0f, "%.2f");
                 if (material->alpha_rendering == alpha_mode::mode_blend)
-                    ImGui::Text("Blending is supported (Basic Over Operator)!");
+                    custom_info(
+                        "Blending With Basic Over Operator!", []() {}, 0.0f, ImGui::GetContentRegionAvail().x);
                 if (material->alpha_rendering == alpha_mode::mode_dither)
-                    ImGui::Text("Dithering ... Just for fun!");
+                    custom_info(
+                        "Dithering ... Just For Fun!", []() {}, 0.0f, ImGui::GetContentRegionAvail().x);
+
+                ImGui::PopID();
             }
         }
 
+        template <typename component>
+        void draw_component(entity e, component* comp, std::function<void()> component_draw_function, std::function<void()> additional = nullptr)
+        {
+            if (!comp)
+                return;
+
+            std::string comp_name = std::string(type_name<component>::get());
+
+            ImGui::PushID(comp_name.c_str());
+            const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_DefaultOpen;
+            bool open                      = (ImGui::CollapsingHeader(comp_name.c_str(), flags));
+
+            if (additional)
+            {
+                float line_height     = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
+                float avaliable_width = ImGui::GetContentRegionAvail().x;
+                ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
+                ImGui::SameLine(avaliable_width - line_height * 0.5f);
+                ImGui::PushID("additional");
+                if (ImGui::Button("+", ImVec2(line_height, line_height)))
+                {
+                    ImGui::OpenPopup("##");
+                }
+                if (ImGui::BeginPopup("##"))
+                {
+                    additional();
+                    ImGui::EndPopup();
+                }
+                ImGui::PopStyleVar();
+                ImGui::PopID();
+            }
+
+            if (open)
+            {
+                ImGui::Spacing();
+                component_draw_function();
+                ImGui::Separator();
+            }
+
+            ImGui::PopID();
+        }
     } // namespace details
 
     //! \brief Draws a scene graph in the user interface.
@@ -533,9 +609,13 @@ namespace mango
     {
         ImGui::Begin("Scene Inspector", &enabled);
         entity root = application_scene->get_root();
-
-        if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() && !ImGui::IsPopupOpen("##scene_menu") && ImGui::IsMouseClicked(1))
-            ImGui::OpenPopup("##scene_menu");
+        if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered())
+        {
+            if (ImGui::IsMouseClicked(0))
+                selected = invalid_entity;
+            if (!ImGui::IsPopupOpen("##scene_menu") && ImGui::IsMouseClicked(1))
+                ImGui::OpenPopup("##scene_menu");
+        }
         if (ImGui::BeginPopup("##scene_menu"))
         {
             if (ImGui::Selectable("Add Entity##scene_menu"))
@@ -547,10 +627,8 @@ namespace mango
             ImGui::EndPopup();
         }
 
-        static entity selection = invalid_entity;
-        details::draw_entity_tree(application_scene, root, selection);
+        details::draw_entity_tree(application_scene, root, selected);
         ImGui::End();
-        selected = selection;
     }
 
     //! \brief Draws the material inspector for a given entity and it's \a mesh_component in the user interface.
@@ -565,28 +643,39 @@ namespace mango
         ImGui::Begin("Material Inspector", &enabled);
         if (mesh)
         {
-            static material_component current_material;
-            static int32 current_id;
-            auto current_name = !current_material.material_name.empty() ? current_material.material_name : "Unnamed Material " + std::to_string(current_id);
-            if (ImGui::BeginCombo("Materials", current_name.c_str()))
-            {
-                for (int32 n = 0; n < static_cast<int32>(mesh->materials.size()); ++n)
+            ImGui::PushID(e);
+            static int32 current_id = 0;
+            auto current_name       = !mesh->materials[current_id].material_name.empty() ? mesh->materials[current_id].material_name : "Unnamed Material " + std::to_string(current_id);
+            int32 return_id         = current_id;
+            custom_aligned("Materials", [&mesh, &current_name, &return_id](bool reset) {
+                bool value_changed = false;
+                ImGui::PushItemWidth(ImGui::CalcItemWidth());
+                if (ImGui::BeginCombo("", current_name.c_str()))
                 {
-                    bool is_selected = (current_material.material_name == mesh->materials[n].material_name);
-                    auto name        = !mesh->materials[n].material_name.empty() ? mesh->materials[n].material_name : "Unnamed Material " + std::to_string(n);
-                    if (ImGui::Selectable(name.c_str(), is_selected))
+                    for (int32 n = 0; n < static_cast<int32>(mesh->materials.size()); ++n)
                     {
-                        current_material = mesh->materials[n];
-                        current_id       = n;
+                        bool is_selected = (current_name == mesh->materials[n].material_name);
+                        auto name        = !mesh->materials[n].material_name.empty() ? mesh->materials[n].material_name : "Unnamed Material " + std::to_string(n);
+                        if (ImGui::Selectable(name.c_str(), is_selected))
+                        {
+                            return_id     = n;
+                            value_changed = true;
+                        }
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
                     }
-                    if (is_selected)
-                        ImGui::SetItemDefaultFocus();
+                    ImGui::EndCombo();
                 }
-                ImGui::EndCombo();
-            }
+                ImGui::PopItemWidth();
+                if (reset)
+                    return_id = 0;
+                return value_changed;
+            });
+            current_id = return_id;
             if (entity_changed)
-                current_material = mesh->materials.at(0);
-            details::draw_material(current_material.component_material, rs, e);
+                current_id = 0;
+            details::draw_material(mesh->materials[current_id].component_material, rs, e);
+            ImGui::PopID();
         }
         ImGui::End();
     }
@@ -610,16 +699,30 @@ namespace mango
             auto environment_comp = application_scene->query_environment_component(e);
             auto light_comp       = application_scene->query_light_component(e);
 
-            if (ImGui::Button("Add Component"))
+            ImGui::PushID(e);
+
+            // Tag
+            if (!tag_comp)
+                tag_comp = &application_scene->add_tag(e);
+            std::array<char, 32> tmp_string; // TODO Paul: Max length? 32 enough for now?
+            auto icon = details::get_icon_for_entity(application_scene, e);
+            ImGui::Text(icon.c_str());
+            ImGui::SameLine();
+            ImGui::PushItemWidth(-1);
+            strcpy(tmp_string.data(), tag_comp->tag_name.c_str()); // TODO Paul: Kind of fishy.
+            ImGui::InputTextWithHint("##tag", "Enter Entity Tag", tmp_string.data(), 32);
+            tag_comp->tag_name = tmp_string.data();
+            ImGui::PopItemWidth();
+
+            if (ImGui::Button(ICON_FA_DOT_CIRCLE "  Add Component", ImVec2(-1, 0)))
             {
                 ImGui::OpenPopup("##component_addition_popup");
             }
+
+            ImGui::Spacing();
+
             if (ImGui::BeginPopup("##component_addition_popup"))
             {
-                if (!tag_comp && ImGui::Selectable("Tag Component"))
-                {
-                    application_scene->add_tag(e);
-                }
                 if (!transform_comp && ImGui::Selectable("Transform Component"))
                 {
                     application_scene->add_transform_component(e);
@@ -647,332 +750,216 @@ namespace mango
 
                 ImGui::EndPopup();
             }
+
             ImGui::Separator();
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 0.0f);
-            // Tag
-            if (tag_comp)
-            {
-                if (ImGui::TreeNode(("Tag Component##" + std::to_string(e)).c_str()))
-                {
-                    ImGui::Spacing();
-                    std::array<char, 32> tmp_string;                       // TODO Paul: Max length? 32 enough for now?
-                    strcpy(tmp_string.data(), tag_comp->tag_name.c_str()); // TODO Paul: Kind of fishy.
-                    ImGui::InputTextWithHint(("##tag" + std::to_string(e)).c_str(), "Enter Entity Tag", tmp_string.data(), 32);
-                    tag_comp->tag_name = tmp_string.data();
-                    ImGui::Spacing();
-                    if (ImGui::Button(("Remove##tag" + std::to_string(e)).c_str()))
-                        application_scene->remove_tag(e);
-                    ImGui::Separator();
-                    ImGui::TreePop();
-                }
-            }
 
             // Transform
-            if (transform_comp)
-            {
-                if (ImGui::TreeNode(("Transform Component##" + std::to_string(e)).c_str()))
+            details::draw_component<mango::transform_component>(e, transform_comp, [e, &application_scene, &transform_comp, &environment_comp, &camera_comp]() {
+                ImGui::BeginGroup();
+                if (environment_comp)
                 {
-                    ImGui::Spacing();
-                    ImGui::BeginTabBar(("##local_transform" + std::to_string(e)).c_str());
-                    if (ImGui::BeginTabItem(("Translation##translation" + std::to_string(e)).c_str()))
-                    {
-                        if (environment_comp)
-                        {
-                            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-                            ImGui::BeginGroup();
-                        }
-                        ImGui::DragFloat(("X##t_delta_x" + std::to_string(e)).c_str(), &transform_comp->position.x, 0.1f, 0.0f, 0.0f, "%.1f");
-                        ImGui::DragFloat(("Y##t_delta_y" + std::to_string(e)).c_str(), &transform_comp->position.y, 0.1f, 0.0f, 0.0f, "%.1f");
-                        ImGui::DragFloat(("Z##t_delta_z" + std::to_string(e)).c_str(), &transform_comp->position.z, 0.1f, 0.0f, 0.0f, "%.1f");
-
-                        ImGui::Spacing();
-                        if (ImGui::Button(("Clear##translation" + std::to_string(e)).c_str()))
-                            transform_comp->position = glm::vec3(0.0f);
-                        if (environment_comp)
-                        {
-                            ImGui::EndGroup();
-                            ImGui::PopItemFlag();
-                            ImGui::PopStyleVar();
-                            if (ImGui::IsItemHovered())
-                                ImGui::SetTooltip("Disabled for environments");
-                        }
-                        ImGui::EndTabItem();
-                    }
-                    if (ImGui::BeginTabItem(("Rotation##rotation" + std::to_string(e)).c_str()))
-                    {
-                        if ((camera_comp || environment_comp))
-                        {
-                            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-                            ImGui::BeginGroup();
-                        }
-                        static bool dragging[3] = { false, false, false };
-                        float x                 = dragging[0] && ImGui::IsWindowFocused() ? ImGui::GetMouseDragDelta().x * 0.1f : 0.0f;
-                        float y                 = dragging[1] && ImGui::IsWindowFocused() ? ImGui::GetMouseDragDelta().x * 0.1f : 0.0f;
-                        float z                 = dragging[2] && ImGui::IsWindowFocused() ? ImGui::GetMouseDragDelta().x * 0.1f : 0.0f;
-                        float t_x               = x;
-                        float t_y               = y;
-                        float t_z               = z;
-
-                        ImGui::DragFloat(("X##r_delta_x" + std::to_string(e)).c_str(), &x, 0.1f, 0.0f, 0.0f, "%.1f°");
-                        if (!ImGui::IsMouseDragging(0) && !ImGui::IsItemDeactivatedAfterChange())
-                            t_x = x;
-                        if (ImGui::IsItemActivated())
-                        {
-                            dragging[0] = true;
-                            dragging[1] = false;
-                            dragging[2] = false;
-                        }
-                        ImGui::DragFloat(("Y##r_delta_y" + std::to_string(e)).c_str(), &y, 0.1f, 0.0f, 0.0f, "%.1f°");
-                        if (!ImGui::IsMouseDragging(0) && !ImGui::IsItemDeactivatedAfterChange())
-                            t_y = y;
-                        if (ImGui::IsItemActivated())
-                        {
-                            dragging[0] = false;
-                            dragging[1] = true;
-                            dragging[2] = false;
-                        }
-                        ImGui::DragFloat(("Z##r_delta_z" + std::to_string(e)).c_str(), &z, 0.1f, 0.0f, 0.0f, "%.1f°");
-                        if (!ImGui::IsMouseDragging(0) && !ImGui::IsItemDeactivatedAfterChange())
-                            t_z = z;
-                        if (ImGui::IsItemActivated())
-                        {
-                            dragging[0] = false;
-                            dragging[1] = false;
-                            dragging[2] = true;
-                        }
-
-                        glm::quat x_quat = glm::angleAxis(glm::radians(x - t_x), glm::vec3(1.0f, 0.0f, 0.0f));
-                        glm::quat y_quat = glm::angleAxis(glm::radians(y - t_y), glm::vec3(0.0f, 1.0f, 0.0f));
-                        glm::quat z_quat = glm::angleAxis(glm::radians(z - t_z), glm::vec3(0.0f, 0.0f, 1.0f));
-
-                        transform_comp->rotation = x_quat * y_quat * z_quat * transform_comp->rotation;
-
-                        ImGui::Spacing();
-                        if (ImGui::Button(("Clear##rotation" + std::to_string(e)).c_str()))
-                            transform_comp->rotation = glm::quat(glm::vec3(0.0, 0.0, 0.0));
-                        if ((camera_comp || environment_comp))
-                        {
-                            ImGui::EndGroup();
-                            ImGui::PopItemFlag();
-                            ImGui::PopStyleVar();
-                            if (ImGui::IsItemHovered())
-                                ImGui::SetTooltip("Disabled for %s", (environment_comp ? "environments" : "cameras"));
-                        }
-                        ImGui::EndTabItem();
-                    }
-                    if (ImGui::BeginTabItem(("Scale##scale" + std::to_string(e)).c_str()))
-                    {
-                        if ((camera_comp || environment_comp))
-                        {
-                            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-                            ImGui::BeginGroup();
-                        }
-
-                        ImGui::DragFloat(("X##s_delta_x" + std::to_string(e)).c_str(), &transform_comp->scale.x, 0.01f, 0.0f, 0.0f, "%.2f");
-                        ImGui::DragFloat(("Y##s_delta_y" + std::to_string(e)).c_str(), &transform_comp->scale.y, 0.01f, 0.0f, 0.0f, "%.2f");
-                        ImGui::DragFloat(("Z##s_delta_z" + std::to_string(e)).c_str(), &transform_comp->scale.z, 0.01f, 0.0f, 0.0f, "%.2f");
-
-                        ImGui::Spacing();
-                        if (ImGui::Button(("Clear##scale" + std::to_string(e)).c_str()))
-                            transform_comp->scale = glm::vec3(1.0f);
-                        if ((camera_comp || environment_comp))
-                        {
-                            ImGui::EndGroup();
-                            ImGui::PopItemFlag();
-                            ImGui::PopStyleVar();
-                            if (ImGui::IsItemHovered())
-                                ImGui::SetTooltip("Disabled for %s", (environment_comp ? "environments" : "cameras"));
-                        }
-                        ImGui::EndTabItem();
-                    }
-                    ImGui::EndTabBar();
-                    // TODO Paul: Removing transforms? .... Should be possible.
-                    // ImGui::SameLine();
-                    // if (ImGui::Button(("Remove##transform" + std::to_string(e)).c_str()))
-                    //     application_scene->remove_transform_component(e);
-                    ImGui::Separator();
-                    ImGui::TreePop();
+                    ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
                 }
-            }
+
+                // translation
+                drag_float_n("Translation", &transform_comp->position[0], 3, 0.0f, 0.08f, 0.0f, 0.0f, "%.2f", true);
+
+                if (camera_comp && !environment_comp)
+                {
+                    ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+                }
+
+                // rotation
+                glm::vec3 rotation_hint_before = transform_comp->rotation_hint;
+                drag_float_n("Rotation", &transform_comp->rotation_hint[0], 3, 0.0f, 0.08f, 0.0f, 0.0f, "%.2f", true);
+                glm::quat x_quat         = glm::angleAxis(glm::radians(transform_comp->rotation_hint.x - rotation_hint_before.x), glm::vec3(1.0f, 0.0f, 0.0f));
+                glm::quat y_quat         = glm::angleAxis(glm::radians(transform_comp->rotation_hint.y - rotation_hint_before.y), glm::vec3(0.0f, 1.0f, 0.0f));
+                glm::quat z_quat         = glm::angleAxis(glm::radians(transform_comp->rotation_hint.z - rotation_hint_before.z), glm::vec3(0.0f, 0.0f, 1.0f));
+                transform_comp->rotation = x_quat * y_quat * z_quat * transform_comp->rotation;
+
+                // scale
+                drag_float_n("Scale", &transform_comp->scale[0], 3, 1.0f, 0.08f, 0.0f, 0.0f, "%.2f", true);
+
+                ImGui::EndGroup();
+                if (camera_comp || environment_comp)
+                {
+                    ImGui::PopItemFlag();
+                    ImGui::PopStyleVar();
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("Disabled For %s", (environment_comp ? "Environments" : "Cameras"));
+                }
+                // TODO Paul: Removing transforms? .... Should be possible.
+            });
 
             // Model
-            if (model_comp)
-            {
-                if (ImGui::TreeNode(("Model Component##" + std::to_string(e)).c_str()))
-                {
-                    ImGui::Spacing();
+            details::draw_component<mango::model_component>(
+                e, model_comp,
+                [e, &application_scene, &model_comp, &transform_comp]() {
                     if (model_comp->model_file_path.empty())
-                    {
-                        ImGui::Text("No Model loaded!");
-                        if (ImGui::Button("Load"))
-                        {
-                            char const* filter[2] = { "*.gltf", "*.glb" };
+                        custom_info(
+                            "No Model Loaded!", []() {}, 0.0f, ImGui::GetContentRegionAvail().x);
+                    else
+                        custom_info("Model Loaded:", [&model_comp]() {
+                            ImGui::AlignTextToFramePadding();
+                            text_wrapped(model_comp->model_file_path.c_str());
+                        });
 
-                            char* query_path = tinyfd_openFileDialog("", "res/", 2, filter, NULL, 0);
-                            if (query_path)
+                    ImGui::PushItemWidth(-1);
+                    if (ImGui::Button("Import"))
+                    {
+                        char const* filter[2] = { "*.gltf", "*.glb" };
+
+                        char* query_path = tinyfd_openFileDialog("", "res/", 2, filter, NULL, 0);
+                        if (query_path)
+                        {
+                            string queried = string(query_path);
+                            auto ext       = queried.substr(queried.find_last_of(".") + 1);
+                            if (ext == "glb" || ext == "gltf")
                             {
-                                string queried = string(query_path);
-                                auto ext       = queried.substr(queried.find_last_of(".") + 1);
-                                if (ext == "glb" || ext == "gltf")
-                                    application_scene->create_entities_from_model(queried, e);
+                                application_scene->remove_model_component(e); // TODO Paul: This could be done cleaner.
+                                application_scene->create_entities_from_model(queried, e);
                             }
                         }
-                        // Removing only possible when no model is loaded ... TODO Paul?
-                        if (ImGui::Button(("Remove##model" + std::to_string(e)).c_str()))
-                            application_scene->remove_model_component(e);
                     }
-                    else
-                    {
-                        ImGui::Text(("Model loaded from: '" + model_comp->model_file_path + "'").c_str());
-                        glm::vec3 min = model_comp->min_extends;
-                        glm::vec3 max = model_comp->max_extends;
-                        if (transform_comp)
-                        {
-                            min = glm::vec3(transform_comp->world_transformation_matrix * glm::vec4(min, 1.0f));
-                            max = glm::vec3(transform_comp->world_transformation_matrix * glm::vec4(max, 1.0f));
-                        }
-                        // TODO Paul: These are only correct, if we do not change any mesh transformations.
-                        ImGui::Text(("Min Extends: [ " + std::to_string(min.x) + ", " + std::to_string(min.y) + ", " + std::to_string(min.z) + "]").c_str());
-                        ImGui::Text(("Max Extends: [ " + std::to_string(max.x) + ", " + std::to_string(max.y) + ", " + std::to_string(max.z) + "]").c_str());
-                    }
-
-                    ImGui::Separator();
-                    ImGui::TreePop();
-                }
-            }
+                    ImGui::PopItemWidth();
+                },
+                [e, &application_scene]() {
+                    // TODO Paul: We can not remove the component without removing model entities?
+                    if (ImGui::Selectable("Remove"))
+                        application_scene->remove_model_component(e);
+                });
 
             // Mesh
-            if (mesh_comp)
-            {
-                if (ImGui::TreeNode(("Mesh Component##" + std::to_string(e)).c_str()))
-                {
-                    ImGui::Spacing();
-                    ImGui::Text("Primitive/Material List:");
-                    if (ImGui::ListBoxHeader(("##primitives_materials_list_box" + std::to_string(e)).c_str(), ImVec2(ImGui::GetWindowWidth() * 0.5f, 64)))
-                    {
-                        for (auto m : mesh_comp->materials)
-                            ImGui::Text(("Primitive with " + m.material_name + " material").c_str());
-                        ImGui::ListBoxFooter();
-                    }
-                    ImGui::Checkbox(("Has normals##mesh" + std::to_string(e)).c_str(), &mesh_comp->has_normals);
-                    ImGui::Checkbox(("Has tangents##mesh" + std::to_string(e)).c_str(), &mesh_comp->has_tangents);
-                    ImGui::Spacing();
-                    if (ImGui::Button(("Remove##mesh" + std::to_string(e)).c_str()))
+            details::draw_component<mango::mesh_component>(
+                e, mesh_comp,
+                [e, &application_scene, &mesh_comp]() {
+                    auto primitive_count = mesh_comp->primitives.size();
+                    custom_info("Primitive Count", [primitive_count]() {
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::Text((std::to_string(primitive_count)).c_str());
+                    });
+                    auto material_count = mesh_comp->materials.size();
+                    custom_info("Material Count", [material_count]() {
+                        ImGui::AlignTextToFramePadding();
+                        ImGui::Text((std::to_string(material_count)).c_str());
+                    });
+                    checkbox("Has Normals", &mesh_comp->has_normals, false);
+                    checkbox("Has Tangents", &mesh_comp->has_tangents, false);
+                },
+                [e, &application_scene]() {
+                    if (ImGui::Selectable("Remove"))
                         application_scene->remove_mesh_component(e);
-                    ImGui::Separator();
-                    ImGui::TreePop();
-                }
-            }
+                });
 
             // Camera
-            if (camera_comp)
-            {
-                if (ImGui::TreeNode(("Camera Component##" + std::to_string(e)).c_str()))
-                {
-                    ImGui::Spacing();
-                    entity cam  = application_scene->get_active_camera_data().active_camera_entity;
-                    bool active = cam == e;
-                    ImGui::Checkbox(("Make Scene Camera##camera" + std::to_string(e)).c_str(), &active);
-                    if (active)
+            details::draw_component<mango::camera_component>(
+                e, camera_comp,
+                [e, &application_scene, &camera_comp, &viewport_size]() {
+                    entity cam   = application_scene->get_active_camera_data().active_camera_entity;
+                    bool active  = cam == e;
+                    bool changed = checkbox("Set active", &active, false);
+
+                    if ((changed || cam != e) && active)
                         application_scene->set_active_camera(e);
-                    const char* types  = "perspective\0orthographic\0\0";
-                    int32 cam_type_int = static_cast<int32>(camera_comp->cam_type);
-                    ImGui::Combo(("Camera Type##camera" + std::to_string(e)).c_str(), &cam_type_int, types);
-                    camera_comp->cam_type = static_cast<camera_type>(cam_type_int);
-                    ImGui::SliderFloat(("Near Plane##camera" + std::to_string(e)).c_str(), &camera_comp->z_near, 0.0f, camera_comp->z_far);
-                    ImGui::SliderFloat(("Far Plane##camera" + std::to_string(e)).c_str(), &camera_comp->z_far, camera_comp->z_near, 1000.0f);
+                    else if (cam == e && changed && !active)
+                        application_scene->set_active_camera(invalid_entity);
+
+                    ImGui::Separator();
+                    const char* types[2] = { "Perspective", "Orthographic" };
+                    int32 idx            = static_cast<int32>(camera_comp->cam_type);
+                    combo("Camera Type", types, 2, idx, 0);
+                    camera_comp->cam_type = static_cast<camera_type>(idx);
+                    ImGui::Separator();
+
+                    slider_float_n("Near Plane", &camera_comp->z_near, 1, 0.4f, 0.0f, camera_comp->z_far);
+                    slider_float_n("Far Plane", &camera_comp->z_far, 1, 40.0f, camera_comp->z_near, 10000.0f);
                     if (camera_comp->cam_type == camera_type::perspective_camera)
                     {
-                        ImGui::SliderAngle(("Vertical Field Of View##camera" + std::to_string(e)).c_str(), &camera_comp->perspective.vertical_field_of_view, 1.75f, 175.0f, "%.0f°");
-                        ImGui::Text(("Aspect: " + std::to_string(camera_comp->perspective.aspect)).c_str());
-                        if (ImGui::Button(("Aspect to viewport##camera" + std::to_string(e)).c_str()))
-                        {
-                            camera_comp->perspective.aspect = viewport_size.x / viewport_size.y;
-                        }
+                        float degree_fov = glm::degrees(camera_comp->perspective.vertical_field_of_view);
+                        slider_float_n("Vertical FOV", &degree_fov, 1, 45.0f, 1.75f, 175.0f, "%.1f°");
+                        camera_comp->perspective.vertical_field_of_view = glm::radians(degree_fov);
+                        custom_aligned("Aspect", [&camera_comp, &viewport_size](bool reset) {
+                            ImGui::AlignTextToFramePadding();
+                            ImGui::Text((std::to_string(camera_comp->perspective.aspect) + " ").c_str());
+                            ImGui::SameLine();
+                            if (ImGui::Button("Aspect To Viewport", ImVec2(-1, 0)))
+                            {
+                                camera_comp->perspective.aspect = viewport_size.x / viewport_size.y;
+                                return true;
+                            }
+                            if (reset)
+                            {
+                                camera_comp->perspective.aspect = 16.0f / 9.0f;
+                                return true;
+                            }
+                            return false;
+                        });
                     }
                     else // orthographic
                     {
-                        ImGui::SliderFloat(("Magnification X##camera" + std::to_string(e)).c_str(), &camera_comp->orthographic.x_mag, 0.1f, 100.0f);
-                        ImGui::SliderFloat(("Magnification Y##camera" + std::to_string(e)).c_str(), &camera_comp->orthographic.y_mag, 0.1f, 100.0f);
-                        if (ImGui::Button(("Magnification to viewport##camera" + std::to_string(e)).c_str()))
-                        {
-                            camera_comp->orthographic.x_mag = viewport_size.x / viewport_size.y;
-                            camera_comp->orthographic.y_mag = 1.0f;
-                        }
+                        slider_float_n("Magnification X", &camera_comp->orthographic.x_mag, 1, 1.0f, 0.1f, 100.0f, "%.1f");
+                        slider_float_n("Magnification Y", &camera_comp->orthographic.y_mag, 1, 1.0f, 0.1f, 100.0f, "%.1f");
+                        custom_aligned("Magnification", [&camera_comp, &viewport_size](bool reset) {
+                            if (ImGui::Button("Magnification To Viewport", ImVec2(-1, 0)))
+                            {
+                                camera_comp->orthographic.x_mag = viewport_size.x / viewport_size.y;
+                                camera_comp->orthographic.y_mag = 1.0f;
+                                return true;
+                            }
+                            if (reset)
+                            {
+                                camera_comp->orthographic.x_mag = 1.0f;
+                                camera_comp->orthographic.y_mag = 1.0f;
+                                return true;
+                            }
+                            return false;
+                        });
                     }
-                    ImGui::DragFloat3(("Target##camera" + std::to_string(e)).c_str(), &camera_comp->target.x, 0.1f, 0.0f, 0.0f, "%.1f");
+                    ImGui::Separator();
+                    drag_float_n("Target", &camera_comp->target.x, 3, 0.0f, 0.1f, 0.0, 0.0, "%.1f", true);
 
-                    ImGui::Checkbox(("Adaptive Exposure##camera" + std::to_string(e)).c_str(), &camera_comp->physical.adaptive_exposure);
+                    ImGui::Separator();
+                    checkbox("Adaptive Exposure", &camera_comp->physical.adaptive_exposure, false);
 
+                    ImGui::BeginGroup();
                     if (camera_comp->physical.adaptive_exposure)
                     {
                         ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
                         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-                        ImGui::BeginGroup();
                     }
 
-                    ImGui::InputFloat(("Aperture##camera" + std::to_string(e)).c_str(), &camera_comp->physical.aperture, 0.1f, 1.0f, "%.1f");
-                    ImGui::InputFloat(("Shutter Speed##camera" + std::to_string(e)).c_str(), &camera_comp->physical.shutter_speed, 0.0001f, 0.1f, "%.5f");
-                    ImGui::InputFloat(("Iso##camera" + std::to_string(e)).c_str(), &camera_comp->physical.iso, 10.0f, 100.0f, "%.1f");
+                    drag_float_n("Aperture", &camera_comp->physical.aperture, 1, mango::default_aperture, 0.1f, mango::min_aperture, mango::max_aperture, "%.1f");
+                    drag_float_n("Shutter Speed", &camera_comp->physical.shutter_speed, 1, mango::default_shutter_speed, 0.0001f, mango::min_shutter_speed, mango::max_shutter_speed, "%.5f");
+                    drag_float_n("Iso", &camera_comp->physical.iso, 1, mango::default_iso, 0.1f, mango::min_iso, mango::max_iso, "%.1f");
 
+                    ImGui::EndGroup();
                     if (camera_comp->physical.adaptive_exposure)
                     {
-                        ImGui::EndGroup();
                         ImGui::PopItemFlag();
                         ImGui::PopStyleVar();
                         if (ImGui::IsItemHovered())
-                            ImGui::SetTooltip("Adaptive Exposure is activated");
+                            ImGui::SetTooltip("Adaptive Exposure Controlled");
                     }
-
-                    ImGui::Spacing();
-                    if (ImGui::Button(("Remove##camera" + std::to_string(e)).c_str()))
+                },
+                [e, &application_scene]() {
+                    if (ImGui::Selectable("Remove"))
                         application_scene->remove_camera_component(e);
-                    ImGui::Separator();
-                    ImGui::TreePop();
-                }
-            }
+                });
 
             // Environment
-            if (environment_comp)
-            {
-                if (ImGui::TreeNode(("Environment Component##" + std::to_string(e)).c_str()))
-                {
-                    ImGui::Spacing();
+            details::draw_component<mango::environment_component>(
+                e, environment_comp,
+                [e, &application_scene, &environment_comp, &rs]() {
                     entity env  = application_scene->get_active_environment_data().active_environment_entity;
                     bool active = env == e;
-                    if (environment_comp->hdr_texture)
-                        ImGui::Checkbox(("Make Scene Environment##camera" + std::to_string(e)).c_str(), &active);
-                    if (env != e && active)
-                        application_scene->set_active_environment(e);
 
-                    ImVec2 canvas_p0;
-                    ImDrawList* draw_list = ImGui::GetWindowDrawList();
-                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
-                    canvas_p0 = ImGui::GetCursorScreenPos();
-                    draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + 128, canvas_p0.y + 64), IM_COL32(127, 127, 127, 255), 2.0f);
-                    if (environment_comp->hdr_texture)
-                        ImGui::Image((void*)(intptr_t)environment_comp->hdr_texture->get_name(), ImVec2(128, 64));
-                    else
-                        ImGui::Dummy(ImVec2(128, 64));
-                    if (ImGui::IsItemHovered())
-                    {
-                        if (environment_comp->hdr_texture)
-                        {
-                            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
-                            ImGui::BeginTooltip();
-                            ImGui::Image((void*)(intptr_t)environment_comp->hdr_texture->get_name(), ImVec2(512, 256));
-                            ImGui::EndTooltip();
-                            ImGui::PopStyleColor();
-                        }
-                        else
-                            ImGui::SetTooltip("Load HDR image");
-                        draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + 128, canvas_p0.y + 64), IM_COL32(200, 200, 200, 255), 2.0f);
-                    }
-                    ImGui::PopStyleVar();
-                    if (ImGui::IsItemClicked())
+                    bool changed  = false;
+                    bool load_new = false;
+                    changed |= image_load("Environment Image", environment_comp->hdr_texture ? environment_comp->hdr_texture->get_name() : -1, glm::vec2(128, 64), load_new);
+                    if (load_new)
                     {
                         texture_configuration tex_config;
                         tex_config.m_generate_mipmaps        = 1;
@@ -985,65 +972,70 @@ namespace mango
                         char const* filter[1] = { "*.hdr" };
 
                         environment_comp->hdr_texture = details::load_texture(tex_config, rs, filter, 1);
-                        application_scene->set_active_environment(e);
+                    }
+                    else if (changed)
+                    {
+                        environment_comp->hdr_texture = nullptr;
+                        active                        = false;
                     }
                     if (environment_comp->hdr_texture)
                     {
-                        ImGui::SliderFloat(("Intensity##environment_intensity" + std::to_string(e)).c_str(), &environment_comp->intensity, 0.0f, 50000.0f);
+                        ImGui::Separator();
+                        changed |= checkbox("Set Active", &active, false);
+                        ImGui::Separator();
+                        slider_float_n("Intensity", &environment_comp->intensity, 1, mango::default_environment_intensity, 0.0f, 50000.0f, "%.1f", false);
                     }
-
-                    ImGui::Spacing();
-                    if (ImGui::Button(("Remove##environment" + std::to_string(e)).c_str()))
+                    if ((changed || env != e) && active)
+                        application_scene->set_active_environment(e);
+                    else if (env == e && changed && !active)
+                        application_scene->set_active_environment(invalid_entity);
+                },
+                [e, &application_scene]() {
+                    if (ImGui::Selectable("Remove"))
                     {
-                        if (active)
+                        if (application_scene->get_active_environment_data().active_environment_entity == e)
                             application_scene->set_active_environment(invalid_entity);
                         application_scene->remove_environment_component(e);
                     }
-                    ImGui::Separator();
-                    ImGui::TreePop();
-                }
-            }
+                });
 
             // Light
-            if (light_comp)
-            {
-                if (ImGui::TreeNode(("Light Component##" + std::to_string(e)).c_str()))
-                {
-                    ImGui::Spacing();
-                    ImGui::Text("Light Type");
+            details::draw_component<mango::light_component>(
+                e, light_comp,
+                [e, &application_scene, &light_comp]() {
                     light_type current      = light_comp->type_of_light;
                     const char* possible[1] = { "Directional Light" };
                     int32 idx               = static_cast<int32>(current);
-                    ImGui::ListBox(("##light_type_selection" + std::to_string(e)).c_str(), &idx, possible, 1);
+                    combo("Light Type", possible, 1, idx, 0);
                     current = static_cast<light_type>(idx);
+
+                    ImGui::Separator();
 
                     if (current == light_type::directional) // Always true atm.
                     {
                         auto d_data = static_cast<directional_light_data*>(light_comp->data.get());
 
-                        ImGui::DragFloat(("Direction X##d_light_direction_x" + std::to_string(e)).c_str(), &d_data->direction.x, 0.05f, 0.0f, 0.0f, "%.2f");
-                        ImGui::DragFloat(("Direction Y##d_light_direction_y" + std::to_string(e)).c_str(), &d_data->direction.y, 0.05f, 0.0f, 0.0f, "%.2f");
-                        ImGui::DragFloat(("Direction Z##d_light_direction_z" + std::to_string(e)).c_str(), &d_data->direction.z, 0.05f, 0.0f, 0.0f, "%.2f");
+                        drag_float_n("Direction", &d_data->direction[0], 3, 1.0f, 0.08f, 0.0f, 0.0f, "%.2f", true);
 
-                        ImGui::ColorEdit4("Color##d_light_color", d_data->light_color, ImGuiColorEditFlags_NoInputs);
+                        color_edit("Color", &d_data->light_color[0], 3, 1.0f);
 
-                        ImGui::SliderFloat(("Intensity##d_light_intensity" + std::to_string(e)).c_str(), &d_data->intensity, 0.0f, 500000.0f);
-                        ImGui::Checkbox(("Cast Shadows##d_light_cast" + std::to_string(e)).c_str(), &d_data->cast_shadows);
+                        slider_float_n("Intensity", &d_data->intensity, 1, mango::default_directional_intensity, 0.0f, 500000.0f, "%.1f", false);
+
+                        checkbox("Cast Shadows", &d_data->cast_shadows, false);
                     }
-
-                    ImGui::Spacing();
-                    if (ImGui::Button(("Remove##light" + std::to_string(e)).c_str()))
+                },
+                [e, &application_scene]() {
+                    if (ImGui::Selectable("Remove"))
                     {
                         application_scene->remove_light_component(e);
                     }
-                    ImGui::Separator();
-                    ImGui::TreePop();
-                }
-            }
+                });
+
             ImGui::PopStyleVar();
+            ImGui::PopID();
         }
         ImGui::End();
-    }
+    } // namespace mango
 
     //! \brief Draws the render system widget for a given \a render_system_impl.
     //! \param[in] rs The \a render_system_impl.

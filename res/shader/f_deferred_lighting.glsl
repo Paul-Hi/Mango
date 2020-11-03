@@ -348,7 +348,7 @@ void main()
     // lights
     lighting += calculate_directional_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor, position);
 
-    lighting += emissive * 50000; // TODO Paul: Remove hardcoded intensity for all emissive values -.-
+    lighting += emissive * 50000.0; // TODO Paul: Remove hardcoded intensity for all emissive values -.-
 
     frag_color = vec4(lighting, 1.0);
 }

@@ -121,8 +121,8 @@ vec3 get_normal()
         vec3 bitangent = fs_in.bitangent;
         if(!has_tangents)
         {
-            vec3 uv_dx = dFdx(vec3(fs_in.texcoord, 0.0));
-            vec3 uv_dy = dFdy(vec3(fs_in.texcoord, 0.0));
+            vec2 uv_dx = dFdx(vec2(fs_in.texcoord));
+            vec2 uv_dy = dFdy(vec2(fs_in.texcoord));
             vec3 t_    = (uv_dy.y * dfdx - uv_dx.y * dfdy) / (uv_dx.x * uv_dy.y - uv_dy.x * uv_dx.y);
             tangent    = normalize(t_ - normal * dot(normal, t_));
             bitangent  = cross(normal, tangent);

@@ -61,9 +61,10 @@ namespace mango
     //! \brief Component used to transform anything in the scene.
     struct transform_component
     {
-        glm::vec3 position = glm::vec3(0.0f);                     //!< The local position.
-        glm::quat rotation = glm::quat(glm::vec3(0.0, 0.0, 0.0)); //!< The local rotation quaternion.
-        glm::vec3 scale    = glm::vec3(1.0f);                     //!< The local scale.
+        glm::vec3 position      = glm::vec3(0.0f);                     //!< The local position.
+        glm::quat rotation      = glm::quat(glm::vec3(0.0, 0.0, 0.0)); //!< The local rotation quaternion.
+        glm::vec3 rotation_hint = glm::vec3(0.0, 0.0, 0.0);            //!< The local rotation hint (used for editor controls).
+        glm::vec3 scale         = glm::vec3(1.0f);                     //!< The local scale.
 
         glm::mat4 local_transformation_matrix = glm::mat4(1.0f); //!< The local transformation.
         glm::mat4 world_transformation_matrix = glm::mat4(1.0f); //!< The world transformation. If there is no parent this is also the local transformation.
@@ -250,11 +251,19 @@ namespace mango
     };
 
     template <>
+    struct type_name<tag_component>
+    {
+        static const char* get()
+        {
+            return "Tag Component";
+        }
+    };
+    template <>
     struct type_name<transform_component>
     {
         static const char* get()
         {
-            return "transform_component";
+            return "Transform Component";
         }
     };
     template <>
@@ -262,7 +271,7 @@ namespace mango
     {
         static const char* get()
         {
-            return "node_component";
+            return "Node Component";
         }
     };
     template <>
@@ -270,7 +279,7 @@ namespace mango
     {
         static const char* get()
         {
-            return "primitive_component";
+            return "Primitive Component";
         }
     };
     template <>
@@ -278,7 +287,7 @@ namespace mango
     {
         static const char* get()
         {
-            return "material_component";
+            return "Material Component";
         }
     };
     template <>
@@ -286,7 +295,7 @@ namespace mango
     {
         static const char* get()
         {
-            return "model_component";
+            return "Model Component";
         }
     };
     template <>
@@ -294,7 +303,7 @@ namespace mango
     {
         static const char* get()
         {
-            return "mesh_component";
+            return "Mesh Component";
         }
     };
     template <>
@@ -302,7 +311,7 @@ namespace mango
     {
         static const char* get()
         {
-            return "camera_component";
+            return "Camera Component";
         }
     };
     template <>
@@ -310,7 +319,7 @@ namespace mango
     {
         static const char* get()
         {
-            return "environment_component";
+            return "Environment Component";
         }
     };
     template <>
@@ -318,7 +327,7 @@ namespace mango
     {
         static const char* get()
         {
-            return "light_component";
+            return "Light Component";
         }
     };
     //! \endcond

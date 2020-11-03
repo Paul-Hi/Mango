@@ -119,6 +119,8 @@ namespace mango
 #define GLOBAL_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
 //! \brief Define for the global forward vector.
 #define GLOBAL_FORWARD glm::vec3(0.0f, 0.0f, -1.0f)
+//! \brief Define for the global unit vector.
+#define GLOBAL_UNIT glm::vec3(1.0f)
 
     //! \brief A floating point type used to describe properties with a 0 to 1 range.
     struct normalized_float
