@@ -51,7 +51,8 @@ void main()
             // assuming average solid angle in the input cube map
             // Omega_p = (4*PI) / (fCubeMapDim * fCubeMapDim * 6)
             // Omega_s = PI / (fSampleCount * cos(theta))
-            float o = (6.0 * width_sqr) / (4.0 * float(sample_count) * n_dot_l);
+            // formula: eq 13: https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch20.html
+            float o = (1.5 * width_sqr) / (float(sample_count) * n_dot_l);
             float mip_level = max(0.5 * log2(o), 0.0);
             float bias = min(mip_level / 4.0, 1.5); // bias reduces artefacts
             irradiance += textureLod(cubemap_in, to_light, mip_level + bias).rgb * n_dot_l;

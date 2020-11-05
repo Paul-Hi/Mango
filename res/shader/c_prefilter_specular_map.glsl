@@ -36,14 +36,13 @@ void main()
     vec3 normal = normalize(pos);
     // assume view direction always equal to outgoing direction
     vec3 view = normal;
-    vec3 ref = normal;
 
     up = abs(normal.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
     tangent_x = normalize(cross(up, normal));
     tangent_y = normalize(cross(normal, tangent_x));
 
     if (roughness == 0.0) {
-        vec4 color = textureLod(cubemap_in, ref, 0);
+        vec4 color = textureLod(cubemap_in, view, 0);
         imageStore(prefiltered_spec_out, cube_coords, color);
         return;
     }

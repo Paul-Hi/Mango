@@ -586,8 +586,8 @@ void deferred_pbr_render_system::finish_render(float dt)
     }
 
     static float camera_exposure = 1.0f; // TODO Paul: Does the static variable here make sense?
-    if (camera.camera_info && camera.camera_info->physical.adaptive_exposure && !m_lighting_pass_data.debug_view_enabled)
-        camera_exposure = apply_auto_exposure(camera); // with last frames data.
+    if (camera.camera_info && !m_lighting_pass_data.debug_view_enabled)
+        camera_exposure = apply_exposure(camera); // with last frames data.
 
     // Bind the renderer uniform buffer.
     bind_renderer_data_buffer(camera, camera_exposure);
@@ -1393,34 +1393,40 @@ void deferred_pbr_render_system::bind_renderer_data_buffer(camera_data& camera, 
     bb->offset              = m_frame_uniform_buffer->write_data(sizeof(renderer_data), &m_renderer_data);
 }
 
-float deferred_pbr_render_system::apply_auto_exposure(camera_data& camera)
+float deferred_pbr_render_system::apply_exposure(camera_data& camera)
 {
     PROFILE_ZONE;
-    float avg_luminance = m_luminance_data_mapping->luminance;
-
-    // Start with the default assumption.
     float ape = mango::default_aperture;
-
-    // Start with the default assumption.
     float shu = mango::default_shutter_speed;
+    float iso = mango::default_iso;
+    if (camera.camera_info->physical.adaptive_exposure)
+    {
+        float avg_luminance = m_luminance_data_mapping->luminance;
 
-    // K is a light meter calibration constant
-    static const float K = 12.5f;
-    static const float S = 100.0f;
-    float target_ev      = glm::log2(avg_luminance * S / K);
+        // K is a light meter calibration constant
+        static const float K = 12.5f;
+        static const float S = 100.0f;
+        float target_ev      = glm::log2(avg_luminance * S / K);
 
-    // Compute the resulting ISO if we left both shutter and aperture here
-    float iso           = glm::clamp(((ape * ape) * 100.0f) / (shu * glm::exp2(target_ev)), mango::min_iso, mango::max_iso);
-    float unclamped_iso = (shu * glm::exp2(target_ev));
-    MANGO_UNUSED(unclamped_iso);
+        // Compute the resulting ISO if we left both shutter and aperture here
+        iso                 = glm::clamp(((ape * ape) * 100.0f) / (shu * glm::exp2(target_ev)), mango::min_iso, mango::max_iso);
+        float unclamped_iso = (shu * glm::exp2(target_ev));
+        MANGO_UNUSED(unclamped_iso);
 
-    // Apply half the difference in EV to the aperture
-    float ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
-    ape           = glm::clamp(ape * glm::pow(glm::sqrt(2.0f), ev_diff * 0.5f), mango::min_aperture, mango::max_aperture);
+        // Apply half the difference in EV to the aperture
+        float ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
+        ape           = glm::clamp(ape * glm::pow(glm::sqrt(2.0f), ev_diff * 0.5f), mango::min_aperture, mango::max_aperture);
 
-    // Apply the remaining difference to the shutter speed
-    ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
-    shu     = glm::clamp(shu * glm::pow(2.0f, -ev_diff), mango::min_shutter_speed, mango::max_shutter_speed);
+        // Apply the remaining difference to the shutter speed
+        ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
+        shu     = glm::clamp(shu * glm::pow(2.0f, -ev_diff), mango::min_shutter_speed, mango::max_shutter_speed);
+    }
+    else
+    {
+        ape = camera.camera_info->physical.aperture;
+        shu = camera.camera_info->physical.shutter_speed;
+        iso = camera.camera_info->physical.iso;
+    }
 
     // Adapt camera settings.
     camera.camera_info->physical.aperture      = glm::clamp(ape, min_aperture, max_aperture);

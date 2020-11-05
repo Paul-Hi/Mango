@@ -69,7 +69,7 @@ void main()
         }
     }
 
-    integration_lu *= 4.0 * inverse_sample_count;
+    integration_lu *= inverse_sample_count;
 
     imageStore(integration_lut_out, coords, vec4(integration_lu, 1.0));
 }

@@ -264,10 +264,10 @@ namespace mango
         //! \param[in,out] environment The \a environment_data of the current environment.
         void bind_lighting_pass_buffer(camera_data& camera, environment_data& environment);
 
-        //! \brief Calculates automatic exposure and adapts physical camera parameters.
+        //! \brief Calculates exposure and adapts physical camera parameters.
         //! \param[in,out] camera The \a camera_data of the current camera.
         //! \return Returns the calculated camera exposure.
-        float apply_auto_exposure(camera_data& camera);
+        float apply_exposure(camera_data& camera);
 
         //! \brief Clears all relevant \a framebuffers. Done in begin_render().
         void clear_framebuffers();
