@@ -48,7 +48,7 @@ bool editor::create()
                 {
                     if (ImGui::Button("Create Editor Camera"))
                         main_cam = application_scene->create_default_camera();
-                    application_scene->get_tag(main_cam)->tag_name = "Editor Camera";
+                    application_scene->get_component<tag_component>(main_cam)->tag_name = "Editor Camera";
                 }
             });
             m_main_camera = main_cam;
@@ -63,8 +63,8 @@ bool editor::create()
     mango_context->register_scene(application_scene);
 
     // camera
-    m_main_camera                                       = application_scene->create_default_camera();
-    application_scene->get_tag(m_main_camera)->tag_name = "Editor Camera";
+    m_main_camera                                                            = application_scene->create_default_camera();
+    application_scene->get_component<tag_component>(m_main_camera)->tag_name = "Editor Camera";
 
     mango_context->make_scene_current(application_scene);
 
@@ -79,16 +79,19 @@ bool editor::create()
         mango_rs->setup_shadow_map_step(shadow_config);
 
         application_scene->create_entities_from_model("res/models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.glb");
-        entity lighting                                                   = application_scene->create_environment_from_hdr("res/textures/venice_sunset_4k.hdr");
-        application_scene->get_tag(lighting)->tag_name                    = "Global Lighting";
-        application_scene->get_environment_component(lighting)->intensity = 4000.0f;
-        auto& l_c                                                         = application_scene->add_light_component(lighting);
-        l_c.type_of_light                                                 = mango::light_type::directional;
-        auto directional_data                                             = static_cast<mango::directional_light_data*>(l_c.data.get());
-        directional_data->direction                                       = glm::vec3(0.9f, 0.05f, 0.65f);
-        directional_data->intensity                                       = 89000.0f;
-        directional_data->light_color                                     = mango::color_rgb({ 1.0f, 0.387f, 0.207f });
-        directional_data->cast_shadows                                    = true;
+        entity lighting                                                              = application_scene->create_environment_from_hdr("res/textures/venice_sunset_4k.hdr");
+        application_scene->get_component<tag_component>(lighting)->tag_name          = "Global Lighting";
+        application_scene->get_component<environment_component>(lighting)->intensity = 4000.0f;
+        auto l_c                                                                     = application_scene->add_component<light_component>(lighting);
+        if (l_c)
+        {
+            l_c->type_of_light             = mango::light_type::directional;
+            auto directional_data          = static_cast<mango::directional_light_data*>(l_c->data.get());
+            directional_data->direction    = glm::vec3(0.9f, 0.05f, 0.65f);
+            directional_data->intensity    = 89000.0f;
+            directional_data->light_color  = mango::color_rgb({ 1.0f, 0.387f, 0.207f });
+            directional_data->cast_shadows = true;
+        }
     }
     // test end
 
@@ -172,8 +175,8 @@ void editor::update(float dt)
     auto application_scene = mango_context->get_current_scene();
     if (!application_scene->is_entity_alive(m_main_camera))
         return;
-    auto cam_transform = application_scene->get_transform_component(m_main_camera);
-    auto cam_data      = application_scene->get_camera_component(m_main_camera);
+    auto cam_transform = application_scene->get_component<transform_component>(m_main_camera);
+    auto cam_data      = application_scene->get_component<camera_component>(m_main_camera);
     if (!cam_data || !cam_transform)
         return;
 

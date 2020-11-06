@@ -135,7 +135,7 @@ bool ui_system_impl::create()
             ImGui::ColorConvertRGBtoHSV(col.x, col.y, col.z, h, s, v);
             if (s < 0.1f)
             {
-                v = 1.0 - v;
+                v = 1.0f - v;
             }
             ImGui::ColorConvertHSVtoRGB(h, s, v, col.x, col.y, col.z);
         }
@@ -284,7 +284,7 @@ void ui_system_impl::update(float dt)
     {
         if (selected != invalid_entity)
         {
-            auto comp = application_scene->query_mesh_component(selected);
+            auto comp = application_scene->query_component<mesh_component>(selected);
             material_inspector_widget(comp, material_inspector_enabled, tmp != selected, selected, rs);
         }
         else

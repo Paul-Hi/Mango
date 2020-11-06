@@ -248,6 +248,11 @@ namespace mango
         {
             return typeid(T).name();
         }
+
+        static const int32 id()
+        {
+            return -1;
+        }
     };
 
     template <>
@@ -257,6 +262,11 @@ namespace mango
         {
             return "Tag Component";
         }
+
+        static const int32 id()
+        {
+            return 0;
+        }
     };
     template <>
     struct type_name<transform_component>
@@ -264,6 +274,11 @@ namespace mango
         static const char* get()
         {
             return "Transform Component";
+        }
+
+        static const int32 id()
+        {
+            return 1;
         }
     };
     template <>
@@ -273,6 +288,11 @@ namespace mango
         {
             return "Node Component";
         }
+
+        static const int32 id()
+        {
+            return 2;
+        }
     };
     template <>
     struct type_name<primitive_component>
@@ -280,6 +300,11 @@ namespace mango
         static const char* get()
         {
             return "Primitive Component";
+        }
+
+        static const int32 id()
+        {
+            return 3;
         }
     };
     template <>
@@ -289,6 +314,11 @@ namespace mango
         {
             return "Material Component";
         }
+
+        static const int32 id()
+        {
+            return 4;
+        }
     };
     template <>
     struct type_name<model_component>
@@ -296,6 +326,11 @@ namespace mango
         static const char* get()
         {
             return "Model Component";
+        }
+
+        static const int32 id()
+        {
+            return 5;
         }
     };
     template <>
@@ -305,6 +340,11 @@ namespace mango
         {
             return "Mesh Component";
         }
+
+        static const int32 id()
+        {
+            return 6;
+        }
     };
     template <>
     struct type_name<camera_component>
@@ -312,6 +352,11 @@ namespace mango
         static const char* get()
         {
             return "Camera Component";
+        }
+
+        static const int32 id()
+        {
+            return 7;
         }
     };
     template <>
@@ -321,6 +366,11 @@ namespace mango
         {
             return "Environment Component";
         }
+
+        static const int32 id()
+        {
+            return 8;
+        }
     };
     template <>
     struct type_name<light_component>
@@ -328,6 +378,11 @@ namespace mango
         static const char* get()
         {
             return "Light Component";
+        }
+
+        static const int32 id()
+        {
+            return 9;
         }
     };
     //! \endcond

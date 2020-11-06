@@ -202,15 +202,15 @@ namespace mango
 
         string get_icon_for_entity(const shared_ptr<scene>& application_scene, entity e)
         {
-            if (application_scene->query_tag(e)->tag_name == "Scene")
+            if (application_scene->query_component<tag_component>(e)->tag_name == "Scene")
                 return string(ICON_FA_SITEMAP);
-            else if (application_scene->query_model_component(e) || application_scene->query_mesh_component(e))
+            else if (application_scene->query_component<model_component>(e) || application_scene->query_component<mesh_component>(e))
                 return string(ICON_FA_DICE_D6);
-            else if (application_scene->query_camera_component(e))
+            else if (application_scene->query_component<camera_component>(e))
                 return string(ICON_FA_VIDEO);
-            else if (application_scene->query_light_component(e) || application_scene->query_environment_component(e))
+            else if (application_scene->query_component<light_component>(e) || application_scene->query_component<environment_component>(e))
                 return string(ICON_FA_LIGHTBULB);
-            else if (application_scene->query_transform_component(e))
+            else if (application_scene->query_component<transform_component>(e))
                 return string(ICON_FA_VECTOR_SQUARE);
             return "";
         }
@@ -221,9 +221,10 @@ namespace mango
         //! \param[in,out] selected The currently selected entity, can be updated by this function.
         void draw_entity_tree(const shared_ptr<scene>& application_scene, entity e, entity& selected)
         {
-            auto tag = application_scene->query_tag(e);
+            auto tag = application_scene->query_component<tag_component>(e);
             if (!tag)
-                tag = &application_scene->add_tag(e);
+                tag = application_scene->add_component<tag_component>(e);
+            MANGO_ASSERT(tag, "Cannot create tag_component!");
             auto name     = (tag && !tag->tag_name.empty()) ? tag->tag_name : "Unnamed Entity";
             auto children = application_scene->get_children(e);
 
@@ -356,8 +357,6 @@ namespace mango
                 config.m_texture_wrap_t          = texture_parameter::wrap_repeat;
                 char const* filter[4]            = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
 
-                ImVec2 canvas_p0;
-                ImDrawList* draw_list          = ImGui::GetWindowDrawList();
                 const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
 
                 // base color
@@ -703,19 +702,20 @@ namespace mango
         ImGui::Begin("Entity Component Inspector", &enabled);
         if (e != invalid_entity)
         {
-            auto tag_comp         = application_scene->query_tag(e);
-            auto transform_comp   = application_scene->query_transform_component(e);
-            auto model_comp       = application_scene->query_model_component(e);
-            auto mesh_comp        = application_scene->query_mesh_component(e);
-            auto camera_comp      = application_scene->query_camera_component(e);
-            auto environment_comp = application_scene->query_environment_component(e);
-            auto light_comp       = application_scene->query_light_component(e);
+            auto tag_comp         = application_scene->query_component<tag_component>(e);
+            auto transform_comp   = application_scene->query_component<transform_component>(e);
+            auto model_comp       = application_scene->query_component<model_component>(e);
+            auto mesh_comp        = application_scene->query_component<mesh_component>(e);
+            auto camera_comp      = application_scene->query_component<camera_component>(e);
+            auto environment_comp = application_scene->query_component<environment_component>(e);
+            auto light_comp       = application_scene->query_component<light_component>(e);
 
             ImGui::PushID(e);
 
             // Tag
             if (!tag_comp)
-                tag_comp = &application_scene->add_tag(e);
+                tag_comp = application_scene->add_component<tag_component>(e);
+            MANGO_ASSERT(tag_comp, "Cannot create tag_component!");
             std::array<char, 32> tmp_string; // TODO Paul: Max length? 32 enough for now?
             auto icon = details::get_icon_for_entity(application_scene, e);
             ImGui::Text(icon.c_str());
@@ -737,27 +737,27 @@ namespace mango
             {
                 if (!transform_comp && ImGui::Selectable("Transform Component"))
                 {
-                    application_scene->add_transform_component(e);
+                    application_scene->add_component<transform_component>(e);
                 }
                 // if (!mesh_comp && ImGui::Selectable("Mesh Component"))
                 //{
-                //    application_scene->add_mesh_component(e);
+                //    application_scene->add_component<mesh_component>(e);
                 //}
                 if (!model_comp && ImGui::Selectable("Model Component"))
                 {
-                    application_scene->add_model_component(e);
+                    application_scene->add_component<model_component>(e);
                 }
                 if (!camera_comp && ImGui::Selectable("Camera Component"))
                 {
-                    application_scene->add_camera_component(e);
+                    application_scene->add_component<camera_component>(e);
                 }
                 if (!environment_comp && ImGui::Selectable("Environment Component"))
                 {
-                    application_scene->add_environment_component(e);
+                    application_scene->add_component<environment_component>(e);
                 }
                 if (!light_comp && ImGui::Selectable("Light Component"))
                 {
-                    application_scene->add_light_component(e);
+                    application_scene->add_component<light_component>(e);
                 }
 
                 ImGui::EndPopup();
@@ -831,7 +831,7 @@ namespace mango
                             auto ext       = queried.substr(queried.find_last_of(".") + 1);
                             if (ext == "glb" || ext == "gltf")
                             {
-                                application_scene->remove_model_component(e); // TODO Paul: This could be done cleaner.
+                                application_scene->remove_component<model_component>(e); // TODO Paul: This could be done cleaner.
                                 application_scene->create_entities_from_model(queried, e);
                             }
                         }
@@ -841,7 +841,7 @@ namespace mango
                 [e, &application_scene]() {
                     // TODO Paul: We can not remove the component without removing model entities?
                     if (ImGui::Selectable("Remove"))
-                        application_scene->remove_model_component(e);
+                        application_scene->remove_component<model_component>(e);
                 });
 
             // Mesh
@@ -863,7 +863,7 @@ namespace mango
                 },
                 [e, &application_scene]() {
                     if (ImGui::Selectable("Remove"))
-                        application_scene->remove_mesh_component(e);
+                        application_scene->remove_component<mesh_component>(e);
                 });
 
             // Camera
@@ -958,7 +958,7 @@ namespace mango
                 },
                 [e, &application_scene]() {
                     if (ImGui::Selectable("Remove"))
-                        application_scene->remove_camera_component(e);
+                        application_scene->remove_component<camera_component>(e);
                 });
 
             // Environment
@@ -1007,7 +1007,7 @@ namespace mango
                     {
                         if (application_scene->get_active_environment_data().active_environment_entity == e)
                             application_scene->set_active_environment(invalid_entity);
-                        application_scene->remove_environment_component(e);
+                        application_scene->remove_component<environment_component>(e);
                     }
                 });
 
@@ -1039,7 +1039,7 @@ namespace mango
                 [e, &application_scene]() {
                     if (ImGui::Selectable("Remove"))
                     {
-                        application_scene->remove_light_component(e);
+                        application_scene->remove_component<light_component>(e);
                     }
                 });
 
