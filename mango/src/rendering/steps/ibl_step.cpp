@@ -86,64 +86,64 @@ bool ibl_step::setup_shader_programs()
 
     // compute shader to convert from equirectangular projected hdr textures to a cube map.
     shader_configuration shader_config;
-    shader_config.m_path       = "res/shader/c_equi_to_cubemap.glsl";
-    shader_config.m_type       = shader_type::compute_shader;
+    shader_config.path       = "res/shader/c_equi_to_cubemap.glsl";
+    shader_config.type       = shader_type::compute_shader;
     shader_ptr to_cube_compute = shader::create(shader_config);
-    if (!check_creation(to_cube_compute.get(), "cubemap compute shader", "Ibl Step"))
+    if (!check_creation(to_cube_compute.get(), "cubemap compute shader"))
         return false;
 
     m_equi_to_cubemap = shader_program::create_compute_pipeline(to_cube_compute);
-    if (!check_creation(m_equi_to_cubemap.get(), "cubemap compute shader program", "Ibl Step"))
+    if (!check_creation(m_equi_to_cubemap.get(), "cubemap compute shader program"))
         return false;
 
     // compute shader to build the irradiance cubemap for image based lighting.
-    shader_config.m_path              = "res/shader/c_irradiance_map.glsl";
-    shader_config.m_type              = shader_type::compute_shader;
+    shader_config.path              = "res/shader/c_irradiance_map.glsl";
+    shader_config.type              = shader_type::compute_shader;
     shader_ptr irradiance_map_compute = shader::create(shader_config);
-    if (!check_creation(irradiance_map_compute.get(), "irradiance map compute shader", "Ibl Step"))
+    if (!check_creation(irradiance_map_compute.get(), "irradiance map compute shader"))
         return false;
 
     m_build_irradiance_map = shader_program::create_compute_pipeline(irradiance_map_compute);
-    if (!check_creation(m_build_irradiance_map.get(), "irradiance map compute shader program", "Ibl Step"))
+    if (!check_creation(m_build_irradiance_map.get(), "irradiance map compute shader program"))
         return false;
 
     // compute shader to build the prefiltered specular cubemap for image based lighting.
-    shader_config.m_path                        = "res/shader/c_prefilter_specular_map.glsl";
-    shader_config.m_type                        = shader_type::compute_shader;
+    shader_config.path                        = "res/shader/c_prefilter_specular_map.glsl";
+    shader_config.type                        = shader_type::compute_shader;
     shader_ptr specular_prefiltered_map_compute = shader::create(shader_config);
-    if (!check_creation(specular_prefiltered_map_compute.get(), "prefilter specular ibl compute shader", "Ibl Step"))
+    if (!check_creation(specular_prefiltered_map_compute.get(), "prefilter specular ibl compute shader"))
         return false;
 
     m_build_specular_prefiltered_map = shader_program::create_compute_pipeline(specular_prefiltered_map_compute);
-    if (!check_creation(m_build_specular_prefiltered_map.get(), "prefilter specular ibl compute shader program", "Ibl Step"))
+    if (!check_creation(m_build_specular_prefiltered_map.get(), "prefilter specular ibl compute shader program"))
         return false;
 
     // compute shader to build the brdf integration lookup texture for image based lighting. Could be done only once.
-    shader_config.m_path                = "res/shader/c_brdf_integration.glsl";
-    shader_config.m_type                = shader_type::compute_shader;
+    shader_config.path                = "res/shader/c_brdf_integration.glsl";
+    shader_config.type                = shader_type::compute_shader;
     shader_ptr brdf_integration_compute = shader::create(shader_config);
-    if (!check_creation(brdf_integration_compute.get(), "ibl brdf integration compute shader", "Ibl Step"))
+    if (!check_creation(brdf_integration_compute.get(), "ibl brdf integration compute shader"))
         return false;
 
     m_build_integration_lut = shader_program::create_compute_pipeline(brdf_integration_compute);
-    if (!check_creation(m_build_integration_lut.get(), "ibl brdf integration compute shader program", "Ibl Step"))
+    if (!check_creation(m_build_integration_lut.get(), "ibl brdf integration compute shader program"))
         return false;
 
     // cubemap rendering
-    shader_config.m_path      = "res/shader/v_cubemap.glsl";
-    shader_config.m_type      = shader_type::vertex_shader;
+    shader_config.path      = "res/shader/v_cubemap.glsl";
+    shader_config.type      = shader_type::vertex_shader;
     shader_ptr cubemap_vertex = shader::create(shader_config);
-    if (!check_creation(cubemap_vertex.get(), "cubemap vertex shader", "Ibl Step"))
+    if (!check_creation(cubemap_vertex.get(), "cubemap vertex shader"))
         return false;
 
-    shader_config.m_path        = "res/shader/f_cubemap.glsl";
-    shader_config.m_type        = shader_type::fragment_shader;
+    shader_config.path        = "res/shader/f_cubemap.glsl";
+    shader_config.type        = shader_type::fragment_shader;
     shader_ptr cubemap_fragment = shader::create(shader_config);
-    if (!check_creation(cubemap_fragment.get(), "cubemap fragment shader", "Ibl Step"))
+    if (!check_creation(cubemap_fragment.get(), "cubemap fragment shader"))
         return false;
 
     m_draw_environment = shader_program::create_graphics_pipeline(cubemap_vertex, nullptr, nullptr, nullptr, cubemap_fragment);
-    if (!check_creation(m_draw_environment.get(), "cubemap rendering shader program", "Ibl Step"))
+    if (!check_creation(m_draw_environment.get(), "cubemap rendering shader program"))
         return false;
 
     return true;
@@ -156,24 +156,24 @@ bool ibl_step::setup_buffers()
     m_ibl_command_buffer = command_buffer<min_key>::create(512);
 
     m_cube_geometry = vertex_array::create();
-    if (!check_creation(m_cube_geometry.get(), "cubemap geometry vertex array", "Ibl Step"))
+    if (!check_creation(m_cube_geometry.get(), "cubemap geometry vertex array"))
         return false;
 
     buffer_configuration b_config;
-    b_config.m_access   = buffer_access::none;
-    b_config.m_size     = sizeof(cubemap_vertices);
-    b_config.m_target   = buffer_target::vertex_buffer;
+    b_config.access   = buffer_access::none;
+    b_config.size     = sizeof(cubemap_vertices);
+    b_config.target   = buffer_target::vertex_buffer;
     const void* vb_data = static_cast<const void*>(cubemap_vertices);
-    b_config.m_data     = vb_data;
+    b_config.data     = vb_data;
     buffer_ptr vb       = buffer::create(b_config);
 
     m_cube_geometry->bind_vertex_buffer(0, vb, 0, sizeof(float) * 3);
     m_cube_geometry->set_vertex_attribute(0, 0, format::rgb32f, 0);
 
-    b_config.m_size     = sizeof(cubemap_indices);
-    b_config.m_target   = buffer_target::index_buffer;
+    b_config.size     = sizeof(cubemap_indices);
+    b_config.target   = buffer_target::index_buffer;
     const void* ib_data = static_cast<const void*>(cubemap_indices);
-    b_config.m_data     = ib_data;
+    b_config.data     = ib_data;
     buffer_ptr ib       = buffer::create(b_config);
 
     m_cube_geometry->bind_index_buffer(ib);
@@ -182,25 +182,25 @@ bool ibl_step::setup_buffers()
     m_ibl_data.render_level           = 0.0f;
 
     texture_configuration texture_config;
-    texture_config.m_generate_mipmaps        = 1;
-    texture_config.m_is_standard_color_space = false;
-    texture_config.m_is_cubemap              = false;
-    texture_config.m_texture_min_filter      = texture_parameter::filter_linear;
-    texture_config.m_texture_mag_filter      = texture_parameter::filter_linear;
-    texture_config.m_texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
-    texture_config.m_texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
+    texture_config.generate_mipmaps        = 1;
+    texture_config.is_standard_color_space = false;
+    texture_config.is_cubemap              = false;
+    texture_config.texture_min_filter      = texture_parameter::filter_linear;
+    texture_config.texture_mag_filter      = texture_parameter::filter_linear;
+    texture_config.texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
+    texture_config.texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
     m_brdf_integration_lut                   = texture::create(texture_config);
-    if (!check_creation(m_brdf_integration_lut.get(), "brdf integration look up texture", "Ibl Step"))
+    if (!check_creation(m_brdf_integration_lut.get(), "brdf integration look up texture"))
         return false;
 
     m_brdf_integration_lut->set_data(format::rgba16f, m_integration_lut_width, m_integration_lut_height, format::rgba, format::t_float, nullptr);
 
     // default texture needed
-    texture_config.m_texture_min_filter = texture_parameter::filter_nearest;
-    texture_config.m_texture_mag_filter = texture_parameter::filter_nearest;
-    texture_config.m_is_cubemap         = true;
+    texture_config.texture_min_filter = texture_parameter::filter_nearest;
+    texture_config.texture_mag_filter = texture_parameter::filter_nearest;
+    texture_config.is_cubemap         = true;
     m_default_ibl_texture               = texture::create(texture_config);
-    if (!check_creation(m_default_ibl_texture.get(), "default ibl texture", "Ibl Step"))
+    if (!check_creation(m_default_ibl_texture.get(), "default ibl texture"))
         return false;
 
     g_ubyte albedo[4] = { 127, 127, 127, 255 };
@@ -293,37 +293,37 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
         return;
     }
     texture_configuration texture_config;
-    texture_config.m_generate_mipmaps        = calculate_mip_count(m_cube_width, m_cube_height);
-    texture_config.m_is_standard_color_space = false;
-    texture_config.m_is_cubemap              = true;
-    texture_config.m_texture_min_filter      = texture_parameter::filter_linear_mipmap_linear;
-    texture_config.m_texture_mag_filter      = texture_parameter::filter_linear;
-    texture_config.m_texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
-    texture_config.m_texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
+    texture_config.generate_mipmaps        = calculate_mip_count(m_cube_width, m_cube_height);
+    texture_config.is_standard_color_space = false;
+    texture_config.is_cubemap              = true;
+    texture_config.texture_min_filter      = texture_parameter::filter_linear_mipmap_linear;
+    texture_config.texture_mag_filter      = texture_parameter::filter_linear;
+    texture_config.texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
+    texture_config.texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
 
     if (m_cubemap)
         m_cubemap->release();
     m_cubemap = texture::create(texture_config);
-    if (!check_creation(m_cubemap.get(), "environment cubemap texture", "Ibl Step"))
+    if (!check_creation(m_cubemap.get(), "environment cubemap texture"))
         return;
 
     m_cubemap->set_data(format::rgba16f, m_cube_width, m_cube_height, format::rgba, format::t_float, nullptr);
 
-    texture_config.m_generate_mipmaps = calculate_mip_count(m_prefiltered_base_width, m_prefiltered_base_height);
+    texture_config.generate_mipmaps = calculate_mip_count(m_prefiltered_base_width, m_prefiltered_base_height);
     if (m_prefiltered_specular)
         m_prefiltered_specular->release();
     m_prefiltered_specular = texture::create(texture_config);
-    if (!check_creation(m_prefiltered_specular.get(), "prefiltered specular texture", "Ibl Step"))
+    if (!check_creation(m_prefiltered_specular.get(), "prefiltered specular texture"))
         return;
 
     m_prefiltered_specular->set_data(format::rgba16f, m_prefiltered_base_width, m_prefiltered_base_height, format::rgba, format::t_float, nullptr);
 
-    texture_config.m_generate_mipmaps   = 1;
-    texture_config.m_texture_min_filter = texture_parameter::filter_linear;
+    texture_config.generate_mipmaps   = 1;
+    texture_config.texture_min_filter = texture_parameter::filter_linear;
     if (m_irradiance_map)
         m_irradiance_map->release();
     m_irradiance_map = texture::create(texture_config);
-    if (!check_creation(m_irradiance_map.get(), "irradiance texture", "Ibl Step"))
+    if (!check_creation(m_irradiance_map.get(), "irradiance texture"))
         return;
 
     m_irradiance_map->set_data(format::rgba16f, m_irradiance_width, m_irradiance_height, format::rgba, format::t_float, nullptr);

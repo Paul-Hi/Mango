@@ -25,19 +25,19 @@ namespace mango
         //! \param[in] path The path to the shader source.
         shader_configuration(const char* path)
             : graphics_configuration()
-            , m_path(path)
+            , path(path)
         {
         }
 
         //! \brief Path to shader source. Relative to project folder.
-        const char* m_path;
+        const char* path = nullptr;
 
         //! \brief The type of the shader described by the source.
-        shader_type m_type = shader_type::none;
+        shader_type type = shader_type::none;
 
         bool is_valid() const
         {
-            return nullptr != m_path && m_type != shader_type::none;
+            return nullptr != path && type != shader_type::none;
         }
     };
 

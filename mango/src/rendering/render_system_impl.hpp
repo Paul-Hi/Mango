@@ -67,6 +67,7 @@ namespace mango
         virtual void configure(const render_configuration& configuration) override;
         virtual void setup_ibl_step(const ibl_step_configuration& configuration) override;
         virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) override;
+        virtual void on_ui_widget() override;
 
         //! \brief Does all the setup and has to be called before rendering the scene.
         //! \details Adds setup and clear calls to the \a command_buffer.
@@ -139,11 +140,6 @@ namespace mango
             MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
             return m_current_render_system->m_renderer_info;
         }
-
-        //! \brief Custom UI function.
-        //! \details This can be called by any \a ui_widget and displays settings and debug information for the active \a render_system.
-        //! This does not draw any window, so it needs one surrounding it.
-        virtual void on_ui_widget();
 
       protected:
         //! \brief Mangos internal context for shared usage in all \a render_systems.

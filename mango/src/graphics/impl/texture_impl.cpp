@@ -10,14 +10,14 @@
 using namespace mango;
 
 texture_impl::texture_impl(const texture_configuration& configuration)
-    : m_texture_min_filter(configuration.m_texture_min_filter)
-    , m_texture_mag_filter(configuration.m_texture_mag_filter)
-    , m_texture_wrap_s(configuration.m_texture_wrap_s)
-    , m_texture_wrap_t(configuration.m_texture_wrap_t)
-    , m_is_standard_color_space(configuration.m_is_standard_color_space)
-    , m_generate_mipmaps(configuration.m_generate_mipmaps)
-    , m_is_cubemap(configuration.m_is_cubemap)
-    , m_layers(configuration.m_layers)
+    : m_texture_min_filter(configuration.texture_min_filter)
+    , m_texture_mag_filter(configuration.texture_mag_filter)
+    , m_texture_wrap_s(configuration.texture_wrap_s)
+    , m_texture_wrap_t(configuration.texture_wrap_t)
+    , m_is_standard_color_space(configuration.is_standard_color_space)
+    , m_generate_mipmaps(configuration.generate_mipmaps)
+    , m_is_cubemap(configuration.is_cubemap)
+    , m_layers(configuration.layers)
 {
     g_enum type = GL_TEXTURE_2D;
 

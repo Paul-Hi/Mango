@@ -148,58 +148,6 @@ namespace mango
 
     namespace details
     {
-        //! \brief Returns internal format, format and type for an image depending on a few infos.
-        //! \param[in] srgb True if image is in standard color space, else False.
-        //! \param[in] components The number of components in the image.
-        //! \param[in] bits The number of bits in the image.
-        //! \param[out] f The format to choose.
-        //! \param[out] internal The internal format to choose.
-        //! \param[out] type The type to choose.
-        //! \param[in] is_hdr True if image is hdr, else False.
-        void get_formats_and_types_for_image(bool srgb, int32 components, int32 bits, format& f, format& internal, format& type, bool is_hdr)
-        {
-            if (is_hdr)
-            {
-                f        = format::rgb;
-                internal = format::rgb32f;
-                type     = format::t_float;
-
-                if (components == 4)
-                {
-                    f        = format::rgba;
-                    internal = format::rgba32f;
-                }
-                return;
-            }
-
-            f        = format::rgba;
-            internal = srgb ? format::srgb8_alpha8 : format::rgba8;
-
-            if (components == 1)
-            {
-                f = format::red;
-            }
-            else if (components == 2)
-            {
-                f = format::rg;
-            }
-            else if (components == 3)
-            {
-                f        = format::rgb;
-                internal = srgb ? format::srgb8 : format::rgb8;
-            }
-
-            type = format::t_unsigned_byte;
-            if (bits == 16)
-            {
-                type = format::t_unsigned_short;
-            }
-            else if (bits == 32)
-            {
-                type = format::t_unsigned_int;
-            }
-        }
-
         string get_icon_for_entity(const shared_ptr<scene>& application_scene, entity e)
         {
             if (application_scene->query_component<tag_component>(e)->tag_name == "Scene")
@@ -317,23 +265,24 @@ namespace mango
             {
                 string queried = string(query_path);
 
-                mango::image_configuration img_config;
+                image_resource_configuration img_config;
                 img_config.is_hdr                  = num_filters == 1; // TODO Paul: This is correct but fishy.
-                img_config.is_standard_color_space = config.m_is_standard_color_space;
-                auto start                         = queried.find_last_of("\\/") + 1;
-                img_config.name                    = queried.substr(start, queried.find_last_of(".") - start);
-                auto img                           = rs->get_image(queried, img_config);
+                img_config.is_standard_color_space = config.is_standard_color_space;
+                img_config.path                    = queried.c_str();
+                auto img                           = rs->acquire(img_config);
 
-                config.m_generate_mipmaps = calculate_mip_count(img->width, img->height);
-                texture_ptr text          = texture::create(config);
+                config.generate_mipmaps = calculate_mip_count(img->width, img->height);
+                texture_ptr text        = texture::create(config);
 
                 format f;
                 format internal;
                 format type;
 
-                get_formats_and_types_for_image(config.m_is_standard_color_space, img->number_components, img->bits, f, internal, type, img_config.is_hdr);
+                get_formats_and_types_for_image(config.is_standard_color_space, img->number_components, img->bits, f, internal, type, img_config.is_hdr);
 
                 text->set_data(internal, img->width, img->height, f, type, img->data);
+
+                rs->release(img);
                 return text;
             }
             return nullptr;
@@ -342,20 +291,19 @@ namespace mango
         //! \brief Draws a \a material in the user interface.
         //! \param[in] material A shared_ptr to the \a material that should be represented in th UI.
         //! \param[in] rs A pointer to the \a resource_system.
-        //! \param[in] e The entity the \a material belongs to.
-        void draw_material(const shared_ptr<material>& material, const shared_ptr<resource_system>& rs, entity e)
+        void draw_material(const shared_ptr<material>& material, const shared_ptr<resource_system>& rs)
         {
             if (material)
             {
                 ImGui::PushID(material.get());
                 texture_configuration config;
-                config.m_generate_mipmaps        = 1;
-                config.m_is_standard_color_space = true;
-                config.m_texture_min_filter      = texture_parameter::filter_linear_mipmap_linear;
-                config.m_texture_mag_filter      = texture_parameter::filter_linear;
-                config.m_texture_wrap_s          = texture_parameter::wrap_repeat;
-                config.m_texture_wrap_t          = texture_parameter::wrap_repeat;
-                char const* filter[4]            = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
+                config.generate_mipmaps        = 1;
+                config.is_standard_color_space = true;
+                config.texture_min_filter      = texture_parameter::filter_linear_mipmap_linear;
+                config.texture_mag_filter      = texture_parameter::filter_linear;
+                config.texture_wrap_s          = texture_parameter::wrap_repeat;
+                config.texture_wrap_t          = texture_parameter::wrap_repeat;
+                char const* filter[4]          = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
 
                 const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
 
@@ -370,7 +318,7 @@ namespace mango
 
                     if (load_new)
                     {
-                        config.m_is_standard_color_space = true;
+                        config.is_standard_color_space   = true;
                         material->base_color_texture     = load_texture(config, rs, filter, 4);
                         material->use_base_color_texture = (material->base_color_texture != nullptr);
                     }
@@ -383,7 +331,7 @@ namespace mango
                     changed = checkbox("Use Texture", &material->use_base_color_texture, false);
                     if (changed && material->use_base_color_texture && !material->base_color_texture)
                     {
-                        config.m_is_standard_color_space = true;
+                        config.is_standard_color_space   = true;
                         material->base_color_texture     = load_texture(config, rs, filter, 4);
                         material->use_base_color_texture = (material->base_color_texture != nullptr);
                     }
@@ -407,7 +355,7 @@ namespace mango
 
                     if (load_new)
                     {
-                        config.m_is_standard_color_space         = false;
+                        config.is_standard_color_space           = false;
                         material->roughness_metallic_texture     = load_texture(config, rs, filter, 4);
                         material->use_roughness_metallic_texture = (material->roughness_metallic_texture != nullptr);
                     }
@@ -420,7 +368,7 @@ namespace mango
                     changed = checkbox("Use Texture", &material->use_roughness_metallic_texture, false);
                     if (changed && material->use_roughness_metallic_texture && !material->roughness_metallic_texture)
                     {
-                        config.m_is_standard_color_space         = false;
+                        config.is_standard_color_space           = false;
                         material->roughness_metallic_texture     = load_texture(config, rs, filter, 4);
                         material->use_roughness_metallic_texture = (material->roughness_metallic_texture != nullptr);
                     }
@@ -453,9 +401,9 @@ namespace mango
 
                     if (load_new)
                     {
-                        config.m_is_standard_color_space = false;
-                        material->normal_texture         = load_texture(config, rs, filter, 4);
-                        material->use_normal_texture     = (material->normal_texture != nullptr);
+                        config.is_standard_color_space = false;
+                        material->normal_texture       = load_texture(config, rs, filter, 4);
+                        material->use_normal_texture   = (material->normal_texture != nullptr);
                     }
                     else if (changed)
                     {
@@ -466,9 +414,9 @@ namespace mango
                     changed = checkbox("Use Texture", &material->use_normal_texture, false);
                     if (changed && material->use_normal_texture && !material->normal_texture)
                     {
-                        config.m_is_standard_color_space = false;
-                        material->normal_texture         = load_texture(config, rs, filter, 4);
-                        material->use_normal_texture     = (material->normal_texture != nullptr);
+                        config.is_standard_color_space = false;
+                        material->normal_texture       = load_texture(config, rs, filter, 4);
+                        material->use_normal_texture   = (material->normal_texture != nullptr);
                     }
 
                     ImGui::Separator();
@@ -486,9 +434,9 @@ namespace mango
 
                     if (load_new)
                     {
-                        config.m_is_standard_color_space = false;
-                        material->occlusion_texture      = load_texture(config, rs, filter, 4);
-                        material->use_occlusion_texture  = (material->occlusion_texture != nullptr);
+                        config.is_standard_color_space  = false;
+                        material->occlusion_texture     = load_texture(config, rs, filter, 4);
+                        material->use_occlusion_texture = (material->occlusion_texture != nullptr);
                     }
                     else if (changed)
                     {
@@ -499,9 +447,9 @@ namespace mango
                     changed = checkbox("Use Texture", &material->use_occlusion_texture, false);
                     if (changed && material->use_occlusion_texture && !material->occlusion_texture)
                     {
-                        config.m_is_standard_color_space = false;
-                        material->occlusion_texture      = load_texture(config, rs, filter, 4);
-                        material->use_occlusion_texture  = (material->occlusion_texture != nullptr);
+                        config.is_standard_color_space  = false;
+                        material->occlusion_texture     = load_texture(config, rs, filter, 4);
+                        material->use_occlusion_texture = (material->occlusion_texture != nullptr);
                     }
 
                     ImGui::Separator();
@@ -519,7 +467,7 @@ namespace mango
 
                     if (load_new)
                     {
-                        config.m_is_standard_color_space     = true;
+                        config.is_standard_color_space       = true;
                         material->emissive_color_texture     = load_texture(config, rs, filter, 4);
                         material->use_emissive_color_texture = (material->emissive_color_texture != nullptr);
                     }
@@ -532,7 +480,7 @@ namespace mango
                     changed = checkbox("Use Texture", &material->use_emissive_color_texture, false);
                     if (changed && material->use_emissive_color_texture && !material->emissive_color_texture)
                     {
-                        config.m_is_standard_color_space     = true;
+                        config.is_standard_color_space       = true;
                         material->emissive_color_texture     = load_texture(config, rs, filter, 4);
                         material->use_emissive_color_texture = (material->emissive_color_texture != nullptr);
                     }
@@ -570,7 +518,7 @@ namespace mango
         }
 
         template <typename component>
-        void draw_component(entity e, component* comp, std::function<void()> component_draw_function, std::function<void()> additional = nullptr)
+        void draw_component(component* comp, std::function<void()> component_draw_function, std::function<void()> additional = nullptr)
         {
             if (!comp)
                 return;
@@ -685,7 +633,7 @@ namespace mango
             current_id = return_id;
             if (entity_changed)
                 current_id = 0;
-            details::draw_material(mesh->materials[current_id].component_material, rs, e);
+            details::draw_material(mesh->materials[current_id].component_material, rs);
             ImGui::PopID();
         }
         ImGui::End();
@@ -767,7 +715,7 @@ namespace mango
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 0.0f);
 
             // Transform
-            details::draw_component<mango::transform_component>(e, transform_comp, [e, &application_scene, &transform_comp, &environment_comp, &camera_comp]() {
+            details::draw_component<mango::transform_component>(transform_comp, [e, &application_scene, &transform_comp, &environment_comp, &camera_comp]() {
                 ImGui::BeginGroup();
                 if (environment_comp)
                 {
@@ -808,7 +756,7 @@ namespace mango
 
             // Model
             details::draw_component<mango::model_component>(
-                e, model_comp,
+                model_comp,
                 [e, &application_scene, &model_comp, &transform_comp]() {
                     if (model_comp->model_file_path.empty())
                         custom_info(
@@ -846,7 +794,7 @@ namespace mango
 
             // Mesh
             details::draw_component<mango::mesh_component>(
-                e, mesh_comp,
+                mesh_comp,
                 [e, &application_scene, &mesh_comp]() {
                     auto primitive_count = mesh_comp->primitives.size();
                     custom_info("Primitive Count", [primitive_count]() {
@@ -868,7 +816,7 @@ namespace mango
 
             // Camera
             details::draw_component<mango::camera_component>(
-                e, camera_comp,
+                camera_comp,
                 [e, &application_scene, &camera_comp, &viewport_size]() {
                     entity cam   = application_scene->get_active_camera_data().active_camera_entity;
                     bool active  = cam == e;
@@ -963,7 +911,7 @@ namespace mango
 
             // Environment
             details::draw_component<mango::environment_component>(
-                e, environment_comp,
+                environment_comp,
                 [e, &application_scene, &environment_comp, &rs]() {
                     entity env  = application_scene->get_active_environment_data().active_environment_entity;
                     bool active = env == e;
@@ -974,12 +922,12 @@ namespace mango
                     if (load_new)
                     {
                         texture_configuration tex_config;
-                        tex_config.m_generate_mipmaps        = 1;
-                        tex_config.m_is_standard_color_space = false;
-                        tex_config.m_texture_min_filter      = texture_parameter::filter_linear;
-                        tex_config.m_texture_mag_filter      = texture_parameter::filter_linear;
-                        tex_config.m_texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
-                        tex_config.m_texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
+                        tex_config.generate_mipmaps        = 1;
+                        tex_config.is_standard_color_space = false;
+                        tex_config.texture_min_filter      = texture_parameter::filter_linear;
+                        tex_config.texture_mag_filter      = texture_parameter::filter_linear;
+                        tex_config.texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
+                        tex_config.texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
 
                         char const* filter[1] = { "*.hdr" };
 
@@ -1013,7 +961,7 @@ namespace mango
 
             // Light
             details::draw_component<mango::light_component>(
-                e, light_comp,
+                light_comp,
                 [e, &application_scene, &light_comp]() {
                     light_type current      = light_comp->type_of_light;
                     const char* possible[1] = { "Directional Light" };

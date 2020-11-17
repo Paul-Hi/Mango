@@ -11,8 +11,8 @@
 using namespace mango;
 
 shader_impl::shader_impl(const shader_configuration& configuration)
-    : m_path(configuration.m_path)
-    , m_type(configuration.m_type)
+    : m_path(configuration.path)
+    , m_type(configuration.type)
 {
     // load the shader from the source file
     string source_string = "";

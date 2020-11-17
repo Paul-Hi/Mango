@@ -14,6 +14,7 @@
 #include <mango/profile.hpp>
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
+#include <resources/resource_system.hpp>
 #include <ui/ui_system_impl.hpp>
 
 using namespace mango;
@@ -50,6 +51,8 @@ int32 application::run(int32 t_argc, char** t_argv)
         MANGO_ASSERT(is, "Input System is expired!");
         shared_ptr<render_system_impl> rs = m_context->get_render_system_internal().lock();
         MANGO_ASSERT(rs, "Render System is expired!");
+        shared_ptr<resource_system> rss = m_context->get_resource_system_internal().lock();
+        MANGO_ASSERT(rss, "Resource System is expired!");
         shared_ptr<ui_system_impl> uis = m_context->get_ui_system_internal().lock();
         MANGO_ASSERT(uis, "UI System is expired!");
         shared_ptr<scene> scene = m_context->get_current_scene();
@@ -74,6 +77,7 @@ int32 application::run(int32 t_argc, char** t_argv)
 
         // update
         update(m_frametime);
+        rss->update(m_frametime);
         scene->update(m_frametime);
         ws->update(m_frametime);
         is->update(m_frametime);

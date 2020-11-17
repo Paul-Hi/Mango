@@ -154,19 +154,20 @@ entity scene::create_entities_from_model(const string& path, entity gltf_root)
         attach(gltf_root, m_scene_root);
     }
 
-    auto& model_comp               = m_models.create_component_for(gltf_root);
-    model_comp.model_file_path     = path;
-    shared_ptr<resource_system> rs = m_shared_context->get_resource_system_internal().lock();
-    MANGO_ASSERT(rs, "Resource System is expired!");
+    auto& model_comp                = m_models.create_component_for(gltf_root);
+    model_comp.model_file_path      = path;
+    shared_ptr<resource_system> res = m_shared_context->get_resource_system_internal().lock();
+    MANGO_ASSERT(res, "Resource System is expired!");
     auto start                                      = path.find_last_of("\\/") + 1;
     auto name                                       = path.substr(start, path.find_last_of(".") - start);
     m_tags.create_component_for(gltf_root).tag_name = path.substr(start);
-    model_configuration config                      = { name };
-    const shared_ptr<model> loaded                  = rs->get_gltf_model(path, config);
+    model_resource_configuration config;
+    config.path                  = path.c_str();
+    const model_resource* loaded = res->acquire(config);
     if (!loaded)
         return invalid_entity;
 
-    tinygltf::Model& m = loaded->gltf_model;
+    tinygltf::Model& m = const_cast<model_resource*>(loaded)->gltf_model;
 
     // load the default scene or the first one.
     glm::vec3 max_backup   = m_scene_boundaries.max;
@@ -193,13 +194,13 @@ entity scene::create_entities_from_model(const string& path, entity gltf_root)
         const tinygltf::Buffer& t_buffer = m.buffers[buffer_view.buffer];
 
         buffer_configuration buffer_config;
-        buffer_config.m_access = buffer_access::none;
-        buffer_config.m_size   = buffer_view.byteLength;
-        buffer_config.m_target = (buffer_view.target == 0 || buffer_view.target == GL_ARRAY_BUFFER) ? buffer_target::vertex_buffer : buffer_target::index_buffer;
+        buffer_config.access = buffer_access::none;
+        buffer_config.size   = buffer_view.byteLength;
+        buffer_config.target = (buffer_view.target == 0 || buffer_view.target == GL_ARRAY_BUFFER) ? buffer_target::vertex_buffer : buffer_target::index_buffer;
 
         const unsigned char* buffer_start = t_buffer.data.data() + buffer_view.byteOffset;
         const void* buffer_data           = static_cast<const void*>(buffer_start);
-        buffer_config.m_data              = buffer_data;
+        buffer_config.data                = buffer_data;
         buffer_ptr buf                    = buffer::create(buffer_config);
         // TODO Paul: Interleaved buffers could be loaded two times ... BAD.
 
@@ -233,6 +234,7 @@ entity scene::create_entities_from_model(const string& path, entity gltf_root)
     m_scene_boundaries.min =
         glm::min(m_scene_boundaries.min, min_backup); // TODO Paul: This is just in case all other assets are still here, we need to do the calculation with all still existing entities.
 
+    res->release(loaded);
     return gltf_root;
 }
 
@@ -250,22 +252,22 @@ entity scene::create_environment_from_hdr(const string& path)
     shared_ptr<resource_system> res = m_shared_context->get_resource_system_internal().lock();
     MANGO_ASSERT(res, "Resource System is expired!");
 
-    image_configuration img_config;
+    image_resource_configuration img_config;
     auto start                                               = path.find_last_of("\\/") + 1;
-    img_config.name                                          = path.substr(start, path.find_last_of(".") - start);
+    m_tags.create_component_for(environment_entity).tag_name = path.substr(start);
+    img_config.path                                          = path.c_str();
     img_config.is_standard_color_space                       = false;
     img_config.is_hdr                                        = true;
-    m_tags.create_component_for(environment_entity).tag_name = path.substr(start);
 
-    auto hdr_image = res->get_image(path, img_config);
+    auto hdr_image = res->acquire(img_config);
 
     texture_configuration tex_config;
-    tex_config.m_generate_mipmaps        = 1;
-    tex_config.m_is_standard_color_space = false;
-    tex_config.m_texture_min_filter      = texture_parameter::filter_linear;
-    tex_config.m_texture_mag_filter      = texture_parameter::filter_linear;
-    tex_config.m_texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
-    tex_config.m_texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
+    tex_config.generate_mipmaps        = 1;
+    tex_config.is_standard_color_space = false;
+    tex_config.texture_min_filter      = texture_parameter::filter_linear;
+    tex_config.texture_mag_filter      = texture_parameter::filter_linear;
+    tex_config.texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
+    tex_config.texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
 
     texture_ptr hdr_texture = texture::create(tex_config);
 
@@ -285,6 +287,7 @@ entity scene::create_environment_from_hdr(const string& path)
 
     set_active_environment(environment_entity); // TODO Paul: Transformation?
 
+    res->release(hdr_image);
     return environment_entity;
 }
 
@@ -754,12 +757,12 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     // TODO Paul: Better structure?!
 
     texture_configuration config;
-    config.m_generate_mipmaps        = 1;
-    config.m_is_standard_color_space = true;
-    config.m_texture_min_filter      = texture_parameter::filter_linear_mipmap_linear;
-    config.m_texture_mag_filter      = texture_parameter::filter_linear;
-    config.m_texture_wrap_s          = texture_parameter::wrap_repeat;
-    config.m_texture_wrap_t          = texture_parameter::wrap_repeat;
+    config.generate_mipmaps        = 1;
+    config.is_standard_color_space = true;
+    config.texture_min_filter      = texture_parameter::filter_linear_mipmap_linear;
+    config.texture_mag_filter      = texture_parameter::filter_linear;
+    config.texture_wrap_s          = texture_parameter::wrap_repeat;
+    config.texture_wrap_t          = texture_parameter::wrap_repeat;
 
     if (pbr.baseColorTexture.index < 0)
     {
@@ -780,42 +783,20 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (base_col.sampler >= 0)
         {
             const tinygltf::Sampler& sampler = m.samplers[static_cast<g_enum>(base_col.sampler)];
-            config.m_texture_min_filter      = filter_parameter_from_gl(static_cast<g_enum>(sampler.minFilter));
-            config.m_texture_mag_filter      = filter_parameter_from_gl(static_cast<g_enum>(sampler.magFilter));
-            config.m_texture_wrap_s          = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapS));
-            config.m_texture_wrap_t          = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapT));
+            config.texture_min_filter        = filter_parameter_from_gl(static_cast<g_enum>(sampler.minFilter));
+            config.texture_mag_filter        = filter_parameter_from_gl(static_cast<g_enum>(sampler.magFilter));
+            config.texture_wrap_s            = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapS));
+            config.texture_wrap_t            = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapT));
         }
 
-        config.m_is_standard_color_space = true;
-        config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
-        texture_ptr base_color           = texture::create(config);
+        config.is_standard_color_space = true;
+        config.generate_mipmaps        = calculate_mip_count(image.width, image.height);
+        texture_ptr base_color         = texture::create(config);
 
-        format f        = format::rgba;
-        format internal = format::srgb8_alpha8;
-
-        if (image.component == 1)
-        {
-            f = format::red;
-        }
-        else if (image.component == 2)
-        {
-            f = format::rg;
-        }
-        else if (image.component == 3)
-        {
-            f        = format::rgb;
-            internal = format::srgb8;
-        }
-
-        format type = format::t_unsigned_byte;
-        if (image.bits == 16)
-        {
-            type = format::t_unsigned_short;
-        }
-        else if (image.bits == 32)
-        {
-            type = format::t_unsigned_int;
-        }
+        format f;
+        format internal;
+        format type;
+        get_formats_and_types_for_image(config.is_standard_color_space, image.component, image.bits, f, internal, type, false);
 
         base_color->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
         material.component_material->base_color_texture = base_color;
@@ -840,42 +821,20 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (o_r_m_t.sampler >= 0)
         {
             const tinygltf::Sampler& sampler = m.samplers[o_r_m_t.sampler];
-            config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
-            config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
-            config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
-            config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
+            config.texture_min_filter        = filter_parameter_from_gl(sampler.minFilter);
+            config.texture_mag_filter        = filter_parameter_from_gl(sampler.magFilter);
+            config.texture_wrap_s            = wrap_parameter_from_gl(sampler.wrapS);
+            config.texture_wrap_t            = wrap_parameter_from_gl(sampler.wrapT);
         }
 
-        config.m_is_standard_color_space = false;
-        config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
-        texture_ptr o_r_m                = texture::create(config);
+        config.is_standard_color_space = false;
+        config.generate_mipmaps        = calculate_mip_count(image.width, image.height);
+        texture_ptr o_r_m              = texture::create(config);
 
-        format f        = format::rgba;
-        format internal = format::rgba8;
-
-        if (image.component == 1)
-        {
-            f = format::red;
-        }
-        else if (image.component == 2)
-        {
-            f = format::rg;
-        }
-        else if (image.component == 3)
-        {
-            f        = format::rgb;
-            internal = format::rgb8;
-        }
-
-        format type = format::t_unsigned_byte;
-        if (image.bits == 16)
-        {
-            type = format::t_unsigned_short;
-        }
-        else if (image.bits == 32)
-        {
-            type = format::t_unsigned_int;
-        }
+        format f;
+        format internal;
+        format type;
+        get_formats_and_types_for_image(config.is_standard_color_space, image.component, image.bits, f, internal, type, false);
 
         o_r_m->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
         material.component_material->roughness_metallic_texture = o_r_m;
@@ -903,42 +862,20 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             if (occ.sampler >= 0)
             {
                 const tinygltf::Sampler& sampler = m.samplers[occ.sampler];
-                config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
-                config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
-                config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
-                config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
+                config.texture_min_filter        = filter_parameter_from_gl(sampler.minFilter);
+                config.texture_mag_filter        = filter_parameter_from_gl(sampler.magFilter);
+                config.texture_wrap_s            = wrap_parameter_from_gl(sampler.wrapS);
+                config.texture_wrap_t            = wrap_parameter_from_gl(sampler.wrapT);
             }
 
-            config.m_is_standard_color_space = false;
-            config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
-            texture_ptr occlusion            = texture::create(config);
+            config.is_standard_color_space = false;
+            config.generate_mipmaps        = calculate_mip_count(image.width, image.height);
+            texture_ptr occlusion          = texture::create(config);
 
-            format f        = format::rgba;
-            format internal = format::rgba8;
-
-            if (image.component == 1)
-            {
-                f = format::red;
-            }
-            else if (image.component == 2)
-            {
-                f = format::rg;
-            }
-            else if (image.component == 3)
-            {
-                f        = format::rgb;
-                internal = format::rgb8;
-            }
-
-            format type = format::t_unsigned_byte;
-            if (image.bits == 16)
-            {
-                type = format::t_unsigned_short;
-            }
-            else if (image.bits == 32)
-            {
-                type = format::t_unsigned_int;
-            }
+            format f;
+            format internal;
+            format type;
+            get_formats_and_types_for_image(config.is_standard_color_space, image.component, image.bits, f, internal, type, false);
 
             occlusion->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
             material.component_material->occlusion_texture = occlusion;
@@ -959,42 +896,20 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (norm.sampler >= 0)
         {
             const tinygltf::Sampler& sampler = m.samplers[norm.sampler];
-            config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
-            config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
-            config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
-            config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
+            config.texture_min_filter        = filter_parameter_from_gl(sampler.minFilter);
+            config.texture_mag_filter        = filter_parameter_from_gl(sampler.magFilter);
+            config.texture_wrap_s            = wrap_parameter_from_gl(sampler.wrapS);
+            config.texture_wrap_t            = wrap_parameter_from_gl(sampler.wrapT);
         }
 
-        config.m_is_standard_color_space = false;
-        config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
-        texture_ptr normal_t             = texture::create(config);
+        config.is_standard_color_space = false;
+        config.generate_mipmaps        = calculate_mip_count(image.width, image.height);
+        texture_ptr normal_t           = texture::create(config);
 
-        format f        = format::rgba;
-        format internal = format::rgba8;
-
-        if (image.component == 1)
-        {
-            f = format::red;
-        }
-        else if (image.component == 2)
-        {
-            f = format::rg;
-        }
-        else if (image.component == 3)
-        {
-            f        = format::rgb;
-            internal = format::rgb8;
-        }
-
-        format type = format::t_unsigned_byte;
-        if (image.bits == 16)
-        {
-            type = format::t_unsigned_short;
-        }
-        else if (image.bits == 32)
-        {
-            type = format::t_unsigned_int;
-        }
+        format f;
+        format internal;
+        format type;
+        get_formats_and_types_for_image(config.is_standard_color_space, image.component, image.bits, f, internal, type, false);
 
         normal_t->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
         material.component_material->normal_texture = normal_t;
@@ -1019,42 +934,20 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (emissive.sampler >= 0)
         {
             const tinygltf::Sampler& sampler = m.samplers[emissive.sampler];
-            config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
-            config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
-            config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
-            config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
+            config.texture_min_filter        = filter_parameter_from_gl(sampler.minFilter);
+            config.texture_mag_filter        = filter_parameter_from_gl(sampler.magFilter);
+            config.texture_wrap_s            = wrap_parameter_from_gl(sampler.wrapS);
+            config.texture_wrap_t            = wrap_parameter_from_gl(sampler.wrapT);
         }
 
-        config.m_is_standard_color_space = true;
-        config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
-        texture_ptr emissive_color       = texture::create(config);
+        config.is_standard_color_space = true;
+        config.generate_mipmaps        = calculate_mip_count(image.width, image.height);
+        texture_ptr emissive_color     = texture::create(config);
 
-        format f        = format::rgba;
-        format internal = format::srgb8_alpha8;
-
-        if (image.component == 1)
-        {
-            f = format::red;
-        }
-        else if (image.component == 2)
-        {
-            f = format::rg;
-        }
-        else if (image.component == 3)
-        {
-            f        = format::rgb;
-            internal = format::srgb8;
-        }
-
-        format type = format::t_unsigned_byte;
-        if (image.bits == 16)
-        {
-            type = format::t_unsigned_short;
-        }
-        else if (image.bits == 32)
-        {
-            type = format::t_unsigned_int;
-        }
+        format f;
+        format internal;
+        format type;
+        get_formats_and_types_for_image(config.is_standard_color_space, image.component, image.bits, f, internal, type, false);
 
         emissive_color->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
         material.component_material->emissive_color_texture = emissive_color;

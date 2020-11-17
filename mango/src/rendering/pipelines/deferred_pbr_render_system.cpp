@@ -96,168 +96,168 @@ bool deferred_pbr_render_system::create_renderer_resources()
 
     m_begin_render_commands   = command_buffer<min_key>::create(512);
     m_global_binding_commands = command_buffer<min_key>::create(128);
-    m_gbuffer_commands        = command_buffer<max_key>::create(524288); // 0.5 MiB?
-    m_transparent_commands    = command_buffer<max_key>::create(524288); // 0.5 MiB?
+    m_gbuffer_commands        = command_buffer<max_key>::create(524288 * 2); // 1.0 MiB?
+    m_transparent_commands    = command_buffer<max_key>::create(524288 * 2); // 1.0 MiB?
     m_lighting_pass_commands  = command_buffer<min_key>::create(512);
     m_exposure_commands       = command_buffer<min_key>::create(512);
     m_composite_commands      = command_buffer<min_key>::create(256);
     m_finish_render_commands  = command_buffer<min_key>::create(256);
 
     texture_configuration attachment_config;
-    attachment_config.m_generate_mipmaps        = 1;
-    attachment_config.m_is_standard_color_space = false;
-    attachment_config.m_texture_min_filter      = texture_parameter::filter_nearest;
-    attachment_config.m_texture_mag_filter      = texture_parameter::filter_nearest;
-    attachment_config.m_texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
-    attachment_config.m_texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
+    attachment_config.generate_mipmaps        = 1;
+    attachment_config.is_standard_color_space = false;
+    attachment_config.texture_min_filter      = texture_parameter::filter_nearest;
+    attachment_config.texture_mag_filter      = texture_parameter::filter_nearest;
+    attachment_config.texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
+    attachment_config.texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
 
     framebuffer_configuration gbuffer_config;
-    gbuffer_config.m_color_attachment0 = texture::create(attachment_config);
-    gbuffer_config.m_color_attachment0->set_data(format::rgba8, w, h, format::rgba, format::t_unsigned_int_8_8_8_8, nullptr);
-    gbuffer_config.m_color_attachment1 = texture::create(attachment_config);
-    gbuffer_config.m_color_attachment1->set_data(format::rgb10_a2, w, h, format::rgba, format::t_unsigned_int_10_10_10_2, nullptr);
-    gbuffer_config.m_color_attachment2 = texture::create(attachment_config);
-    gbuffer_config.m_color_attachment2->set_data(format::rgba8, w, h, format::rgba, format::t_unsigned_int_8_8_8_8, nullptr);
-    gbuffer_config.m_color_attachment3 = texture::create(attachment_config);
-    gbuffer_config.m_color_attachment3->set_data(format::rgba8, w, h, format::rgba, format::t_unsigned_int_8_8_8_8, nullptr);
-    gbuffer_config.m_depth_attachment = texture::create(attachment_config);
-    gbuffer_config.m_depth_attachment->set_data(format::depth_component32f, w, h, format::depth_component, format::t_float, nullptr);
+    gbuffer_config.color_attachment0 = texture::create(attachment_config);
+    gbuffer_config.color_attachment0->set_data(format::rgba8, w, h, format::rgba, format::t_unsigned_int_8_8_8_8, nullptr);
+    gbuffer_config.color_attachment1 = texture::create(attachment_config);
+    gbuffer_config.color_attachment1->set_data(format::rgb10_a2, w, h, format::rgba, format::t_unsigned_int_10_10_10_2, nullptr);
+    gbuffer_config.color_attachment2 = texture::create(attachment_config);
+    gbuffer_config.color_attachment2->set_data(format::rgba8, w, h, format::rgba, format::t_unsigned_int_8_8_8_8, nullptr);
+    gbuffer_config.color_attachment3 = texture::create(attachment_config);
+    gbuffer_config.color_attachment3->set_data(format::rgba8, w, h, format::rgba, format::t_unsigned_int_8_8_8_8, nullptr);
+    gbuffer_config.depth_attachment = texture::create(attachment_config);
+    gbuffer_config.depth_attachment->set_data(format::depth_component32f, w, h, format::depth_component, format::t_float, nullptr);
 
-    gbuffer_config.m_width  = w;
-    gbuffer_config.m_height = h;
+    gbuffer_config.width  = w;
+    gbuffer_config.height = h;
 
     m_gbuffer = framebuffer::create(gbuffer_config);
 
-    if (!check_creation(m_gbuffer.get(), "gbuffer", "Render System"))
+    if (!check_creation(m_gbuffer.get(), "gbuffer"))
         return false;
 
     // HDR for auto exposure
     framebuffer_configuration hdr_buffer_config;
-    attachment_config.m_generate_mipmaps  = calculate_mip_count(w, h);
-    hdr_buffer_config.m_color_attachment0 = texture::create(attachment_config);
-    hdr_buffer_config.m_color_attachment0->set_data(format::rgba32f, w, h, format::rgba, format::t_float, nullptr);
-    attachment_config.m_generate_mipmaps = 1;
-    hdr_buffer_config.m_depth_attachment = texture::create(attachment_config);
-    hdr_buffer_config.m_depth_attachment->set_data(format::depth_component32f, w, h, format::depth_component, format::t_float, nullptr);
+    attachment_config.generate_mipmaps  = calculate_mip_count(w, h);
+    hdr_buffer_config.color_attachment0 = texture::create(attachment_config);
+    hdr_buffer_config.color_attachment0->set_data(format::rgba32f, w, h, format::rgba, format::t_float, nullptr);
+    attachment_config.generate_mipmaps = 1;
+    hdr_buffer_config.depth_attachment = texture::create(attachment_config);
+    hdr_buffer_config.depth_attachment->set_data(format::depth_component32f, w, h, format::depth_component, format::t_float, nullptr);
 
-    hdr_buffer_config.m_width  = w;
-    hdr_buffer_config.m_height = h;
+    hdr_buffer_config.width  = w;
+    hdr_buffer_config.height = h;
 
     m_hdr_buffer = framebuffer::create(hdr_buffer_config);
 
-    if (!check_creation(m_hdr_buffer.get(), "hdr buffer", "Render System"))
+    if (!check_creation(m_hdr_buffer.get(), "hdr buffer"))
         return false;
 
     // backbuffer
 
     framebuffer_configuration backbuffer_config;
-    backbuffer_config.m_color_attachment0 = texture::create(attachment_config);
-    backbuffer_config.m_color_attachment0->set_data(format::rgb8, w, h, format::rgb, format::t_unsigned_int, nullptr);
-    backbuffer_config.m_depth_attachment = texture::create(attachment_config);
-    backbuffer_config.m_depth_attachment->set_data(format::depth_component32f, w, h, format::depth_component, format::t_float, nullptr);
+    backbuffer_config.color_attachment0 = texture::create(attachment_config);
+    backbuffer_config.color_attachment0->set_data(format::rgb8, w, h, format::rgb, format::t_unsigned_int, nullptr);
+    backbuffer_config.depth_attachment = texture::create(attachment_config);
+    backbuffer_config.depth_attachment->set_data(format::depth_component32f, w, h, format::depth_component, format::t_float, nullptr);
 
-    backbuffer_config.m_width  = w;
-    backbuffer_config.m_height = h;
+    backbuffer_config.width  = w;
+    backbuffer_config.height = h;
 
     m_backbuffer = framebuffer::create(backbuffer_config);
 
-    if (!check_creation(m_backbuffer.get(), "backbuffer", "Render System"))
+    if (!check_creation(m_backbuffer.get(), "backbuffer"))
         return false;
 
     // frame uniform buffer
     m_frame_uniform_buffer = gpu_buffer::create();
-    if (!check_creation(m_frame_uniform_buffer.get(), "framw uniform buffer", "Render System"))
+    if (!check_creation(m_frame_uniform_buffer.get(), "frame uniform buffer"))
         return false;
 
-    if (!m_frame_uniform_buffer->init(524288, buffer_technique::triple_buffering)) // Triple Buffering with 0.5 MiB per Frame.
+    if (!m_frame_uniform_buffer->init(524288 * 2, buffer_technique::triple_buffering)) // Triple Buffering with 1 MiB per Frame.
         return false;
 
     // scene geometry pass
     shader_configuration shader_config;
-    shader_config.m_path = "res/shader/v_scene_gltf.glsl";
-    shader_config.m_type = shader_type::vertex_shader;
+    shader_config.path = "res/shader/v_scene_gltf.glsl";
+    shader_config.type = shader_type::vertex_shader;
     shader_ptr d_vertex  = shader::create(shader_config);
-    if (!check_creation(d_vertex.get(), "geometry pass vertex shader", "Render System"))
+    if (!check_creation(d_vertex.get(), "geometry pass vertex shader"))
         return false;
 
-    shader_config.m_path  = "res/shader/f_scene_gltf.glsl";
-    shader_config.m_type  = shader_type::fragment_shader;
+    shader_config.path  = "res/shader/f_scene_gltf.glsl";
+    shader_config.type  = shader_type::fragment_shader;
     shader_ptr d_fragment = shader::create(shader_config);
-    if (!check_creation(d_fragment.get(), "geometry pass fragment shader", "Render System"))
+    if (!check_creation(d_fragment.get(), "geometry pass fragment shader"))
         return false;
 
     m_scene_geometry_pass = shader_program::create_graphics_pipeline(d_vertex, nullptr, nullptr, nullptr, d_fragment);
-    if (!check_creation(m_scene_geometry_pass.get(), "geometry pass shader program", "Render System"))
+    if (!check_creation(m_scene_geometry_pass.get(), "geometry pass shader program"))
         return false;
 
     // transparent pass
-    shader_config.m_path = "res/shader/f_scene_transparent_gltf.glsl";
-    shader_config.m_type = shader_type::fragment_shader;
+    shader_config.path = "res/shader/f_scene_transparent_gltf.glsl";
+    shader_config.type = shader_type::fragment_shader;
     d_fragment           = shader::create(shader_config);
-    if (!check_creation(d_fragment.get(), "transparent pass fragment shader", "Render System"))
+    if (!check_creation(d_fragment.get(), "transparent pass fragment shader"))
         return false;
 
     m_transparent_pass = shader_program::create_graphics_pipeline(d_vertex, nullptr, nullptr, nullptr, d_fragment);
-    if (!check_creation(m_transparent_pass.get(), "transparent pass shader program", "Render System"))
+    if (!check_creation(m_transparent_pass.get(), "transparent pass shader program"))
         return false;
 
     // lighting pass
-    shader_config.m_path = "res/shader/v_screen_space_triangle.glsl";
-    shader_config.m_type = shader_type::vertex_shader;
+    shader_config.path = "res/shader/v_screen_space_triangle.glsl";
+    shader_config.type = shader_type::vertex_shader;
     d_vertex             = shader::create(shader_config);
-    if (!check_creation(d_vertex.get(), "screen space triangle vertex shader", "Render System"))
+    if (!check_creation(d_vertex.get(), "screen space triangle vertex shader"))
         return false;
 
-    shader_config.m_path = "res/shader/f_deferred_lighting.glsl";
-    shader_config.m_type = shader_type::fragment_shader;
+    shader_config.path = "res/shader/f_deferred_lighting.glsl";
+    shader_config.type = shader_type::fragment_shader;
     d_fragment           = shader::create(shader_config);
-    if (!check_creation(d_fragment.get(), "lighting pass fragment shader", "Render System"))
+    if (!check_creation(d_fragment.get(), "lighting pass fragment shader"))
         return false;
 
     m_lighting_pass = shader_program::create_graphics_pipeline(d_vertex, nullptr, nullptr, nullptr, d_fragment);
-    if (!check_creation(m_lighting_pass.get(), "lighting pass shader program", "Render System"))
+    if (!check_creation(m_lighting_pass.get(), "lighting pass shader program"))
         return false;
 
     // composing pass
-    shader_config.m_path = "res/shader/f_composing.glsl";
-    shader_config.m_type = shader_type::fragment_shader;
+    shader_config.path = "res/shader/f_composing.glsl";
+    shader_config.type = shader_type::fragment_shader;
     d_fragment           = shader::create(shader_config);
-    if (!check_creation(d_fragment.get(), "composing pass fragment shader", "Render System"))
+    if (!check_creation(d_fragment.get(), "composing pass fragment shader"))
         return false;
 
     m_composing_pass = shader_program::create_graphics_pipeline(d_vertex, nullptr, nullptr, nullptr, d_fragment);
-    if (!check_creation(m_composing_pass.get(), "composing pass shader program", "Render System"))
+    if (!check_creation(m_composing_pass.get(), "composing pass shader program"))
         return false;
 
     // luminance compute for auto exposure
-    shader_config.m_path                  = "res/shader/c_construct_luminance_buffer.glsl";
-    shader_config.m_type                  = shader_type::compute_shader;
+    shader_config.path                  = "res/shader/c_construct_luminance_buffer.glsl";
+    shader_config.type                  = shader_type::compute_shader;
     shader_ptr construct_luminance_buffer = shader::create(shader_config);
-    if (!check_creation(construct_luminance_buffer.get(), "luminance construction compute shader", "Render System"))
+    if (!check_creation(construct_luminance_buffer.get(), "luminance construction compute shader"))
         return false;
 
     m_construct_luminance_buffer = shader_program::create_compute_pipeline(construct_luminance_buffer);
-    if (!check_creation(m_construct_luminance_buffer.get(), "luminance construction compute shader program", "Render System"))
+    if (!check_creation(m_construct_luminance_buffer.get(), "luminance construction compute shader program"))
         return false;
 
-    shader_config.m_path               = "res/shader/c_luminance_buffer_reduction.glsl";
-    shader_config.m_type               = shader_type::compute_shader;
+    shader_config.path               = "res/shader/c_luminance_buffer_reduction.glsl";
+    shader_config.type               = shader_type::compute_shader;
     shader_ptr reduce_luminance_buffer = shader::create(shader_config);
-    if (!check_creation(reduce_luminance_buffer.get(), "luminance reduction compute shader", "Render System"))
+    if (!check_creation(reduce_luminance_buffer.get(), "luminance reduction compute shader"))
         return false;
 
     m_reduce_luminance_buffer = shader_program::create_compute_pipeline(reduce_luminance_buffer);
-    if (!check_creation(m_reduce_luminance_buffer.get(), "luminance reduction compute shader program", "Render System"))
+    if (!check_creation(m_reduce_luminance_buffer.get(), "luminance reduction compute shader program"))
         return false;
 
     buffer_configuration b_config;
-    b_config.m_access            = buffer_access::mapped_access_read_write;
-    b_config.m_size              = 256 * sizeof(uint32) + sizeof(float);
-    b_config.m_target            = buffer_target::shader_storage_buffer;
+    b_config.access            = buffer_access::mapped_access_read_write;
+    b_config.size              = 256 * sizeof(uint32) + sizeof(float);
+    b_config.target            = buffer_target::shader_storage_buffer;
     m_luminance_histogram_buffer = buffer::create(b_config);
 
-    m_luminance_data_mapping = static_cast<luminance_data*>(m_luminance_histogram_buffer->map(0, b_config.m_size, buffer_access::mapped_access_write));
-    if (!check_mapping(m_luminance_data_mapping, "luminance data", "Render System"))
+    m_luminance_data_mapping = static_cast<luminance_data*>(m_luminance_histogram_buffer->map(0, b_config.size, buffer_access::mapped_access_write));
+    if (!check_mapping(m_luminance_data_mapping, "luminance data"))
         return false;
 
     memset(&m_luminance_data_mapping->histogram[0], 0, 256 * sizeof(uint32));
@@ -265,23 +265,23 @@ bool deferred_pbr_render_system::create_renderer_resources()
 
     // default vao needed
     default_vao = vertex_array::create();
-    if (!check_creation(default_vao.get(), "default vertex array object", "Render System"))
+    if (!check_creation(default_vao.get(), "default vertex array object"))
         return false;
     // default textures needed
     default_texture = texture::create(attachment_config);
-    if (!check_creation(default_texture.get(), "default texture", "Render System"))
+    if (!check_creation(default_texture.get(), "default texture"))
         return false;
     g_ubyte albedo[4] = { 127, 127, 127, 255 };
     default_texture->set_data(format::rgba8, 1, 1, format::rgba, format::t_unsigned_byte, albedo);
-    attachment_config.m_is_cubemap = true;
+    attachment_config.is_cubemap = true;
     default_cube_texture           = texture::create(attachment_config);
-    if (!check_creation(default_cube_texture.get(), "default cube texture", "Render System"))
+    if (!check_creation(default_cube_texture.get(), "default cube texture"))
         return false;
     default_cube_texture->set_data(format::rgba8, 1, 1, format::rgba, format::t_unsigned_byte, albedo);
-    attachment_config.m_layers     = 3;
-    attachment_config.m_is_cubemap = false;
+    attachment_config.layers     = 3;
+    attachment_config.is_cubemap = false;
     default_texture_array          = texture::create(attachment_config);
-    if (!check_creation(default_texture_array.get(), "default texture array", "Render System"))
+    if (!check_creation(default_texture_array.get(), "default texture array"))
         return false;
     default_texture_array->set_data(format::rgb8, 1, 1, format::rgb, format::t_unsigned_byte, albedo);
 

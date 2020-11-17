@@ -195,19 +195,20 @@ float sample_blocker_distance(in vec3 shadow_coords, in int cascade_id, in sampl
 
 float pcss(in vec3 shadow_coords, in int cascade_id, in sampler2DArray lookup)
 {
-    int num_samples = int(shadow_map_data.maximum_penumbra * 3.0);
-    int num_blocker_samples = int(shadow_map_data.maximum_penumbra * 1.5);
+    int num_samples = int(max(shadow_map_data.maximum_penumbra * 2.0, 1.0));
+    int num_blocker_samples = int(max(shadow_map_data.maximum_penumbra, 1.0));
     float gradient_noise = interleaved_gradient_noise(gl_FragCoord.xy);
     float penumbra = saturate(sample_blocker_distance(shadow_coords, cascade_id, lookup, num_blocker_samples, gradient_noise, 2.0));
     float shadow = 0.0;
     float max_penumbra = shadow_map_data.maximum_penumbra / shadow_map_data.resolution;
     float d_l = linearize_depth(shadow_coords.z, 1e-5, shadow_map_data.far_planes[cascade_id]);
-    num_samples += int(penumbra * 12.0);
+    penumbra *= max_penumbra;
+    gradient_noise = interleaved_gradient_noise(gl_FragCoord.yx);
 
     for(int i = 0; i < num_samples; ++i)
     {
         vec2 sample_uv = sample_vogel_disc(i, num_samples, gradient_noise);
-        sample_uv = shadow_coords.xy + sample_uv * max(max_penumbra * penumbra, 1.0 / shadow_map_data.resolution);
+        sample_uv = shadow_coords.xy + sample_uv * penumbra;
 
         float z = texture(lookup, vec3(sample_uv, cascade_id)).x;
         float c_l = linearize_depth(z, 1e-5, shadow_map_data.far_planes[cascade_id]);
@@ -219,8 +220,7 @@ float pcss(in vec3 shadow_coords, in int cascade_id, in sampler2DArray lookup)
 
 float directional_shadow(in sampler2DArray lookup, in vec3 world_pos, in int cascade_id, in float interpolation_factor, in int interpolation_mode)
 {
-
-    vec3 bias = get_normal() * 0.1;
+    vec3 bias = get_normal() * 0.01;
     world_pos += bias;
     float shadow = 1.0;
 

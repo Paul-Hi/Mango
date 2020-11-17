@@ -100,6 +100,8 @@ void free_list_allocator::split(int64 wanted, int64 got, free_list_memory_block*
     new_block->size                   = got - wanted - sizeof(free_list_memory_block) + sizeof(free_list_memory_block::data);
     if (last)
         last->next = new_block;
+    else
+        m_head = new_block;
     new_block->next = next;
 }
 

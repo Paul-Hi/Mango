@@ -34,26 +34,26 @@ bool shadow_map_step::setup_shader_programs()
 {
     PROFILE_ZONE;
     shader_configuration shader_config;
-    shader_config.m_path          = "res/shader/v_shadow_pass.glsl";
-    shader_config.m_type          = shader_type::vertex_shader;
+    shader_config.path          = "res/shader/v_shadow_pass.glsl";
+    shader_config.type          = shader_type::vertex_shader;
     shader_ptr shadow_pass_vertex = shader::create(shader_config);
-    if (!check_creation(shadow_pass_vertex.get(), "shadow pass vertex shader", "Render System"))
+    if (!check_creation(shadow_pass_vertex.get(), "shadow pass vertex shader"))
         return false;
 
-    shader_config.m_path            = "res/shader/g_shadow_pass.glsl";
-    shader_config.m_type            = shader_type::geometry_shader;
+    shader_config.path            = "res/shader/g_shadow_pass.glsl";
+    shader_config.type            = shader_type::geometry_shader;
     shader_ptr shadow_pass_geometry = shader::create(shader_config);
-    if (!check_creation(shadow_pass_geometry.get(), "shadow pass geometry shader", "Render System"))
+    if (!check_creation(shadow_pass_geometry.get(), "shadow pass geometry shader"))
         return false;
 
-    shader_config.m_path            = "res/shader/f_shadow_pass.glsl";
-    shader_config.m_type            = shader_type::fragment_shader;
+    shader_config.path            = "res/shader/f_shadow_pass.glsl";
+    shader_config.type            = shader_type::fragment_shader;
     shader_ptr shadow_pass_fragment = shader::create(shader_config);
-    if (!check_creation(shadow_pass_fragment.get(), "shadow pass fragment shader", "Render System"))
+    if (!check_creation(shadow_pass_fragment.get(), "shadow pass fragment shader"))
         return false;
 
     m_shadow_pass = shader_program::create_graphics_pipeline(shadow_pass_vertex, nullptr, nullptr, shadow_pass_geometry, shadow_pass_fragment);
-    if (!check_creation(m_shadow_pass.get(), "shadow pass shader program", "Render System"))
+    if (!check_creation(m_shadow_pass.get(), "shadow pass shader program"))
         return false;
     return true;
 }
@@ -61,25 +61,25 @@ bool shadow_map_step::setup_shader_programs()
 bool shadow_map_step::setup_buffers()
 {
     PROFILE_ZONE;
-    m_shadow_command_buffer = command_buffer<max_key>::create(524288); // 0.5 MiB?
+    m_shadow_command_buffer = command_buffer<max_key>::create(524288 * 2); // 1 MiB?
 
     texture_configuration shadow_map_config;
-    shadow_map_config.m_generate_mipmaps        = 1;
-    shadow_map_config.m_is_standard_color_space = false;
-    shadow_map_config.m_texture_min_filter      = texture_parameter::filter_linear;
-    shadow_map_config.m_texture_mag_filter      = texture_parameter::filter_linear;
-    shadow_map_config.m_texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
-    shadow_map_config.m_texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
-    shadow_map_config.m_layers                  = max_shadow_mapping_cascades;
+    shadow_map_config.generate_mipmaps        = 1;
+    shadow_map_config.is_standard_color_space = false;
+    shadow_map_config.texture_min_filter      = texture_parameter::filter_nearest;
+    shadow_map_config.texture_mag_filter      = texture_parameter::filter_nearest;
+    shadow_map_config.texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
+    shadow_map_config.texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
+    shadow_map_config.layers                  = max_shadow_mapping_cascades;
 
     framebuffer_configuration fb_config;
-    fb_config.m_depth_attachment = texture::create(shadow_map_config);
-    fb_config.m_depth_attachment->set_data(format::depth_component24, m_shadow_data.resolution, m_shadow_data.resolution, format::depth_component, format::t_float, nullptr);
-    fb_config.m_width  = m_shadow_data.resolution;
-    fb_config.m_height = m_shadow_data.resolution;
+    fb_config.depth_attachment = texture::create(shadow_map_config);
+    fb_config.depth_attachment->set_data(format::depth_component24, m_shadow_data.resolution, m_shadow_data.resolution, format::depth_component, format::t_float, nullptr);
+    fb_config.width  = m_shadow_data.resolution;
+    fb_config.height = m_shadow_data.resolution;
 
     m_shadow_buffer = framebuffer::create(fb_config);
-    if (!check_creation(m_shadow_buffer.get(), "shadow buffer", "Render System"))
+    if (!check_creation(m_shadow_buffer.get(), "shadow buffer"))
         return false;
 
     return true;
@@ -254,7 +254,7 @@ void shadow_map_step::on_ui_widget()
         m_shadow_buffer->resize(m_shadow_data.resolution, m_shadow_data.resolution);
     // Offset 1.0 - 32.0
     float& max_penumbra = m_shadow_data.max_penumbra;
-    slider_float_n("Maximum Penumbra Width", &max_penumbra, 1, 3.0f, 1.0f, 32.0f);
+    slider_float_n("Maximum Penumbra Width", &max_penumbra, 1, 3.0f, 0.0f, 32.0f);
     // Offset 0.0 - 100.0
     slider_float_n("Shadow Map Offset", &m_shadow_map_offset, 1, 0.0f, 0.0f, 100.0f);
 

@@ -28,25 +28,25 @@ namespace mango
         //! \param[in] data Optional data for the \a buffer to create.
         buffer_configuration(int64 size, buffer_target target, buffer_access access, void* data = nullptr)
             : graphics_configuration()
-            , m_size(size)
-            , m_target(target)
-            , m_access(access)
+            , size(size)
+            , target(target)
+            , access(access)
         {
           MANGO_UNUSED(data);
         }
 
         //! \brief Size information.
-        int64 m_size = 0;
+        int64 size = 0;
         //! \brief Target information.
-        buffer_target m_target = buffer_target::none;
+        buffer_target target = buffer_target::none;
         //! \brief Access information.
-        buffer_access m_access = buffer_access::none;
+        buffer_access access = buffer_access::none;
         //! \brief Data.
-        const void* m_data = nullptr;
+        const void* data = nullptr;
 
         bool is_valid() const
         {
-            return (m_size > 0) && (m_access != buffer_access::none || m_data); // Some buffers do not need a target specified.
+            return (size > 0) && (access != buffer_access::none || data); // Some buffers do not need a target specified.
         }
     };
 

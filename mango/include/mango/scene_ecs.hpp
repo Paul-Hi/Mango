@@ -12,7 +12,7 @@
 namespace mango
 {
     //! \brief Maximum number of scene \a pool entries in mango.
-    const uint32 max_pool_entries = 1000; // Extend if necessary.
+    const uint32 max_pool_entries = 10000; // Extend if necessary.
     //! \brief Maximum number of \a entities in mango.
     const uint32 max_entities = max_pool_entries;
 

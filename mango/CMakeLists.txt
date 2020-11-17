@@ -34,8 +34,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/helpers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/signal.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/image_structures.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/model_structures.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_structures.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/timer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_system_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/ecs_internal.hpp
