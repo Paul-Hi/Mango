@@ -24,8 +24,8 @@ bool shadow_map_step::create()
     m_cascade_data.lambda = 0.65f;
 
     bool success = true;
-    success = success & setup_buffers();
-    success = success & setup_shader_programs();
+    success      = success & setup_buffers();
+    success      = success & setup_shader_programs();
 
     return success;
 }
@@ -34,20 +34,20 @@ bool shadow_map_step::setup_shader_programs()
 {
     PROFILE_ZONE;
     shader_configuration shader_config;
-    shader_config.path          = "res/shader/v_shadow_pass.glsl";
-    shader_config.type          = shader_type::vertex_shader;
+    shader_config.path            = "res/shader/v_shadow_pass.glsl";
+    shader_config.type            = shader_type::vertex_shader;
     shader_ptr shadow_pass_vertex = shader::create(shader_config);
     if (!check_creation(shadow_pass_vertex.get(), "shadow pass vertex shader"))
         return false;
 
-    shader_config.path            = "res/shader/g_shadow_pass.glsl";
-    shader_config.type            = shader_type::geometry_shader;
+    shader_config.path              = "res/shader/g_shadow_pass.glsl";
+    shader_config.type              = shader_type::geometry_shader;
     shader_ptr shadow_pass_geometry = shader::create(shader_config);
     if (!check_creation(shadow_pass_geometry.get(), "shadow pass geometry shader"))
         return false;
 
-    shader_config.path            = "res/shader/f_shadow_pass.glsl";
-    shader_config.type            = shader_type::fragment_shader;
+    shader_config.path              = "res/shader/f_shadow_pass.glsl";
+    shader_config.type              = shader_type::fragment_shader;
     shader_ptr shadow_pass_fragment = shader::create(shader_config);
     if (!check_creation(shadow_pass_fragment.get(), "shadow pass fragment shader"))
         return false;
@@ -95,12 +95,15 @@ void shadow_map_step::attach() {}
 void shadow_map_step::configure(const shadow_step_configuration& configuration)
 {
     m_shadow_data.resolution    = configuration.get_resolution();
-    m_shadow_data.max_penumbra  = configuration.get_max_penumbra();
+    m_shadow_data.sample_count  = configuration.get_sample_count();
     m_shadow_map_offset         = configuration.get_offset();
     m_shadow_data.cascade_count = configuration.get_cascade_count();
+    m_shadow_data.slope_bias    = configuration.get_slope_bias();
+    m_shadow_data.normal_bias   = configuration.get_normal_bias();
+    m_shadow_data.filter_mode   = static_cast<int32>(configuration.get_filter_mode());
     m_cascade_data.lambda       = configuration.get_split_lambda();
     MANGO_ASSERT(m_shadow_data.resolution % 2 == 0, "Shadow Map Resolution has to be a multiple of 2!");
-    MANGO_ASSERT(m_shadow_data.max_penumbra > 1.0f && m_shadow_data.max_penumbra < 32.0f, "Maximum Penumbra value is not in valid range 1 - 32!");
+    MANGO_ASSERT(m_shadow_data.sample_count >= 16 && m_shadow_data.sample_count <= 64, "Sample count is not in valid range 16 - 64!");
     MANGO_ASSERT(m_shadow_data.cascade_count > 0 && m_shadow_data.cascade_count < 5, "Cascade count has to be between 1 and 4!");
     MANGO_ASSERT(m_cascade_data.lambda > 0.0f && m_cascade_data.lambda < 1.0f, "Lambda has to be between 0.0 and 1.0!");
     m_dirty_cascades = true;
@@ -252,11 +255,26 @@ void shadow_map_step::on_ui_widget()
     m_shadow_data.resolution = 512 * static_cast<int32>(glm::pow(2, current));
     if (m_shadow_data.resolution != r)
         m_shadow_buffer->resize(m_shadow_data.resolution, m_shadow_data.resolution);
-    // Offset 1.0 - 32.0
-    float& max_penumbra = m_shadow_data.max_penumbra;
-    slider_float_n("Maximum Penumbra Width", &max_penumbra, 1, 3.0f, 0.0f, 32.0f);
+
+    // Type 512, 1024, 2048, 4096
+    const char* filter[4] = { "Hard Shadows", "Softer Shadows", "Soft Shadows", "PCSS Shadows" };
+    int32& current_filter = m_shadow_data.filter_mode;
+    combo("Shadow Filter Mode", filter, 4, current_filter, 1);
+
+    if (m_shadow_data.filter_mode > 0)
+    {
+        int32& sample_count = m_shadow_data.sample_count;
+        slider_int_n("Sample Count", &sample_count, 1, 16, 16, 64);
+    }
+
     // Offset 0.0 - 100.0
     slider_float_n("Shadow Map Offset", &m_shadow_map_offset, 1, 0.0f, 0.0f, 100.0f);
+
+    float& s_bias = m_shadow_data.slope_bias;
+    drag_float_n("Shadow Map Slope Bias", &s_bias, 1, 0.005f, 0.001f, 0.0f, 0.5f);
+
+    float& n_bias = m_shadow_data.normal_bias;
+    drag_float_n("Shadow Map Normal Bias", &n_bias, 1, 0.01f, 0.001f, 0.0f, 0.5f);
 
     // Cascades 1, 2, 3, 4
     int32& shadow_cascades = m_shadow_data.cascade_count;

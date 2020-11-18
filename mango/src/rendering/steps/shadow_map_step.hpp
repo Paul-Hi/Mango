@@ -84,9 +84,12 @@ namespace mango
             std140_vec4 far_planes;                                          //!< The far planes of the shadow views.
             std140_int resolution                    = 2048;                 //!< The shadow map resolution.
             std140_int cascade_count                 = 3;                    //!< The number of cascades.
-            std140_float cascade_interpolation_range = 0.5f; //!< The range to use for interpolating the cascades. Larger values mean smoother transition, but less quality and performance impact.
-            std140_float max_penumbra                = 3.0f; //!< The maximum penumra radius in pixels. Larger values can look more natural, but may cause artefacts and performance drops.
-        } m_shadow_data; //!< Current shadow_data.
+            std140_float cascade_interpolation_range = 0.5f;   //!< The range to use for interpolating the cascades. Larger values mean smoother transition, but less quality and performance impact.
+            std140_int sample_count                  = 16;     //!< The sample count. Larger values can look more natural, but may cause artefacts and performance drops.
+            std140_float slope_bias                  = 0.005f; //!< The slope bias.
+            std140_float normal_bias                 = 0.01f;  //!< The bias along the normal.
+            std140_int filter_mode                   = 0;      //!< shadow_filtering parameter.
+        } m_shadow_data;                                       //!< Current shadow_data.
 
         struct
         {

@@ -14,7 +14,10 @@ layout(binding = 4, std140) uniform shadow_data
     int   resolution;
     int   cascade_count;
     float shadow_cascade_interpolation_range;
-    float maximum_penumbra;
+    int sample_count;
+    float slope_bias;
+    float normal_bias;
+    int filter_mode;
 };
 
 in shared_data
