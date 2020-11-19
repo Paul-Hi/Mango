@@ -256,7 +256,7 @@ void shadow_map_step::on_ui_widget()
     if (m_shadow_data.resolution != r)
         m_shadow_buffer->resize(m_shadow_data.resolution, m_shadow_data.resolution);
 
-    // Type 512, 1024, 2048, 4096
+    // Filter Type
     const char* filter[4] = { "Hard Shadows", "Softer Shadows", "Soft Shadows", "PCSS Shadows" };
     int32& current_filter = m_shadow_data.filter_mode;
     combo("Shadow Filter Mode", filter, 4, current_filter, 1);

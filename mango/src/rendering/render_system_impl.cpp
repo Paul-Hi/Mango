@@ -70,6 +70,12 @@ void render_system_impl::setup_shadow_map_step(const shadow_step_configuration& 
     m_current_render_system->setup_shadow_map_step(configuration);
 }
 
+void render_system_impl::setup_fxaa_step(const fxaa_step_configuration& configuration)
+{
+    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
+    m_current_render_system->setup_fxaa_step(configuration);
+}
+
 void render_system_impl::begin_render()
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");

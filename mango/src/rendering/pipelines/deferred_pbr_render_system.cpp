@@ -164,6 +164,19 @@ bool deferred_pbr_render_system::create_renderer_resources()
     if (!check_creation(m_backbuffer.get(), "backbuffer"))
         return false;
 
+    // postprocessing buffer is the same as an backbuffer
+    backbuffer_config.depth_attachment = texture::create(attachment_config);
+    backbuffer_config.depth_attachment->set_data(format::depth_component32f, w, h, format::depth_component, format::t_float, nullptr);
+    // need linear here
+    attachment_config.texture_min_filter = texture_parameter::filter_linear;
+    attachment_config.texture_mag_filter = texture_parameter::filter_linear;
+    backbuffer_config.color_attachment0  = texture::create(attachment_config);
+    backbuffer_config.color_attachment0->set_data(format::rgb8, w, h, format::rgb, format::t_unsigned_int, nullptr);
+    m_post_buffer = framebuffer::create(backbuffer_config);
+
+    if (!check_creation(m_post_buffer.get(), "postprocessing buffer"))
+        return false;
+
     // frame uniform buffer
     m_frame_uniform_buffer = gpu_buffer::create();
     if (!check_creation(m_frame_uniform_buffer.get(), "frame uniform buffer"))
@@ -174,14 +187,14 @@ bool deferred_pbr_render_system::create_renderer_resources()
 
     // scene geometry pass
     shader_configuration shader_config;
-    shader_config.path = "res/shader/v_scene_gltf.glsl";
-    shader_config.type = shader_type::vertex_shader;
-    shader_ptr d_vertex  = shader::create(shader_config);
+    shader_config.path  = "res/shader/v_scene_gltf.glsl";
+    shader_config.type  = shader_type::vertex_shader;
+    shader_ptr d_vertex = shader::create(shader_config);
     if (!check_creation(d_vertex.get(), "geometry pass vertex shader"))
         return false;
 
-    shader_config.path  = "res/shader/f_scene_gltf.glsl";
-    shader_config.type  = shader_type::fragment_shader;
+    shader_config.path    = "res/shader/f_scene_gltf.glsl";
+    shader_config.type    = shader_type::fragment_shader;
     shader_ptr d_fragment = shader::create(shader_config);
     if (!check_creation(d_fragment.get(), "geometry pass fragment shader"))
         return false;
@@ -193,7 +206,7 @@ bool deferred_pbr_render_system::create_renderer_resources()
     // transparent pass
     shader_config.path = "res/shader/f_scene_transparent_gltf.glsl";
     shader_config.type = shader_type::fragment_shader;
-    d_fragment           = shader::create(shader_config);
+    d_fragment         = shader::create(shader_config);
     if (!check_creation(d_fragment.get(), "transparent pass fragment shader"))
         return false;
 
@@ -204,13 +217,13 @@ bool deferred_pbr_render_system::create_renderer_resources()
     // lighting pass
     shader_config.path = "res/shader/v_screen_space_triangle.glsl";
     shader_config.type = shader_type::vertex_shader;
-    d_vertex             = shader::create(shader_config);
+    d_vertex           = shader::create(shader_config);
     if (!check_creation(d_vertex.get(), "screen space triangle vertex shader"))
         return false;
 
     shader_config.path = "res/shader/f_deferred_lighting.glsl";
     shader_config.type = shader_type::fragment_shader;
-    d_fragment           = shader::create(shader_config);
+    d_fragment         = shader::create(shader_config);
     if (!check_creation(d_fragment.get(), "lighting pass fragment shader"))
         return false;
 
@@ -221,7 +234,7 @@ bool deferred_pbr_render_system::create_renderer_resources()
     // composing pass
     shader_config.path = "res/shader/f_composing.glsl";
     shader_config.type = shader_type::fragment_shader;
-    d_fragment           = shader::create(shader_config);
+    d_fragment         = shader::create(shader_config);
     if (!check_creation(d_fragment.get(), "composing pass fragment shader"))
         return false;
 
@@ -230,8 +243,8 @@ bool deferred_pbr_render_system::create_renderer_resources()
         return false;
 
     // luminance compute for auto exposure
-    shader_config.path                  = "res/shader/c_construct_luminance_buffer.glsl";
-    shader_config.type                  = shader_type::compute_shader;
+    shader_config.path                    = "res/shader/c_construct_luminance_buffer.glsl";
+    shader_config.type                    = shader_type::compute_shader;
     shader_ptr construct_luminance_buffer = shader::create(shader_config);
     if (!check_creation(construct_luminance_buffer.get(), "luminance construction compute shader"))
         return false;
@@ -240,8 +253,8 @@ bool deferred_pbr_render_system::create_renderer_resources()
     if (!check_creation(m_construct_luminance_buffer.get(), "luminance construction compute shader program"))
         return false;
 
-    shader_config.path               = "res/shader/c_luminance_buffer_reduction.glsl";
-    shader_config.type               = shader_type::compute_shader;
+    shader_config.path                 = "res/shader/c_luminance_buffer_reduction.glsl";
+    shader_config.type                 = shader_type::compute_shader;
     shader_ptr reduce_luminance_buffer = shader::create(shader_config);
     if (!check_creation(reduce_luminance_buffer.get(), "luminance reduction compute shader"))
         return false;
@@ -251,9 +264,9 @@ bool deferred_pbr_render_system::create_renderer_resources()
         return false;
 
     buffer_configuration b_config;
-    b_config.access            = buffer_access::mapped_access_read_write;
-    b_config.size              = 256 * sizeof(uint32) + sizeof(float);
-    b_config.target            = buffer_target::shader_storage_buffer;
+    b_config.access              = buffer_access::mapped_access_read_write;
+    b_config.size                = 256 * sizeof(uint32) + sizeof(float);
+    b_config.target              = buffer_target::shader_storage_buffer;
     m_luminance_histogram_buffer = buffer::create(b_config);
 
     m_luminance_data_mapping = static_cast<luminance_data*>(m_luminance_histogram_buffer->map(0, b_config.size, buffer_access::mapped_access_write));
@@ -274,13 +287,13 @@ bool deferred_pbr_render_system::create_renderer_resources()
     g_ubyte albedo[4] = { 127, 127, 127, 255 };
     default_texture->set_data(format::rgba8, 1, 1, format::rgba, format::t_unsigned_byte, albedo);
     attachment_config.is_cubemap = true;
-    default_cube_texture           = texture::create(attachment_config);
+    default_cube_texture         = texture::create(attachment_config);
     if (!check_creation(default_cube_texture.get(), "default cube texture"))
         return false;
     default_cube_texture->set_data(format::rgba8, 1, 1, format::rgba, format::t_unsigned_byte, albedo);
     attachment_config.layers     = 3;
     attachment_config.is_cubemap = false;
-    default_texture_array          = texture::create(attachment_config);
+    default_texture_array        = texture::create(attachment_config);
     if (!check_creation(default_texture_array.get(), "default texture array"))
         return false;
     default_texture_array->set_data(format::rgb8, 1, 1, format::rgb, format::t_unsigned_byte, albedo);
@@ -311,6 +324,12 @@ void deferred_pbr_render_system::configure(const render_configuration& configura
         step_shadow_map->create();
         m_pipeline_steps[mango::render_step::shadow_map] = std::static_pointer_cast<pipeline_step>(step_shadow_map);
     }
+    if (configuration.get_render_steps()[mango::render_step::fxaa])
+    {
+        auto step_fxaa = std::make_shared<fxaa_step>();
+        step_fxaa->create();
+        m_pipeline_steps[mango::render_step::fxaa] = std::static_pointer_cast<pipeline_step>(step_fxaa);
+    }
 }
 
 void deferred_pbr_render_system::setup_ibl_step(const ibl_step_configuration& configuration)
@@ -327,6 +346,15 @@ void deferred_pbr_render_system::setup_shadow_map_step(const shadow_step_configu
     if (m_pipeline_steps[mango::render_step::shadow_map])
     {
         auto step = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map]);
+        step->configure(configuration);
+    }
+}
+
+void deferred_pbr_render_system::setup_fxaa_step(const fxaa_step_configuration& configuration)
+{
+    if (m_pipeline_steps[mango::render_step::fxaa])
+    {
+        auto step = std::static_pointer_cast<fxaa_step>(m_pipeline_steps[mango::render_step::fxaa]);
         step->configure(configuration);
     }
 }
@@ -382,6 +410,13 @@ void deferred_pbr_render_system::clear_framebuffers()
 
     cf                     = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::no_sort);
     cf->framebuffer_name   = m_backbuffer->get_name();
+    cf->buffer_mask        = clear_buffer_mask::color_and_depth;
+    cf->fb_attachment_mask = attachment_mask::draw_buffer0 | attachment_mask::depth_buffer;
+    cf->r = cf->g = cf->b = 0.0f;
+    cf->a = cf->depth = 1.0f;
+
+    cf                     = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::no_sort);
+    cf->framebuffer_name   = m_post_buffer->get_name();
     cf->buffer_mask        = clear_buffer_mask::color_and_depth;
     cf->fb_attachment_mask = attachment_mask::draw_buffer0 | attachment_mask::depth_buffer;
     cf->r = cf->g = cf->b = 0.0f;
@@ -538,12 +573,16 @@ void deferred_pbr_render_system::finish_render(float dt)
     auto env             = scene->get_active_environment_data();
     auto step_shadow_map = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map]);
     auto step_ibl        = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
+    auto step_fxaa       = std::static_pointer_cast<fxaa_step>(m_pipeline_steps[mango::render_step::fxaa]);
     command_buffer_ptr<max_key> shadow_command_buffer;
     command_buffer_ptr<min_key> ibl_command_buffer;
+    command_buffer_ptr<min_key> fxaa_command_buffer;
     if (step_shadow_map)
         shadow_command_buffer = step_shadow_map->get_shadow_commands();
     if (step_ibl)
         ibl_command_buffer = step_ibl->get_ibl_commands();
+    if (step_fxaa)
+        fxaa_command_buffer = step_fxaa->get_fxaa_commands();
 
     if (camera.active_camera_entity == invalid_entity)
     {
@@ -565,6 +604,10 @@ void deferred_pbr_render_system::finish_render(float dt)
         if (ibl_command_buffer)
         {
             ibl_command_buffer->invalidate();
+        }
+        if (fxaa_command_buffer)
+        {
+            fxaa_command_buffer->invalidate();
         }
         m_transparent_commands->invalidate();
         m_exposure_commands->invalidate();
@@ -625,13 +668,21 @@ void deferred_pbr_render_system::finish_render(float dt)
     if (camera.camera_info && camera.camera_info->physical.adaptive_exposure && !m_lighting_pass_data.debug_view_enabled)
         calculate_auto_exposure(dt);
 
+    bool fxaa_enabled = step_fxaa != nullptr;
     if (m_composite_commands->dirty())
-        composite_pass();
+        composite_pass(fxaa_enabled);
+
+    if (step_fxaa)
+    {
+        step_fxaa->set_input_texture(m_post_buffer->get_attachment(framebuffer_attachment::color_attachment0));
+        step_fxaa->set_output_framebuffer(m_backbuffer);
+        step_fxaa->execute(m_frame_uniform_buffer);
+    }
 
     end_frame_and_sync();
 
     // Execute commands.
-    execute_commands(ibl_command_buffer, shadow_command_buffer);
+    execute_commands(ibl_command_buffer, shadow_command_buffer, fxaa_command_buffer);
 }
 
 void deferred_pbr_render_system::finalize_lighting_pass(const std::shared_ptr<ibl_step>& step_ibl, const std::shared_ptr<shadow_map_step>& step_shadow_map)
@@ -761,7 +812,7 @@ void deferred_pbr_render_system::calculate_auto_exposure(float dt)
     amb->barrier_bit = memory_barrier_bit::shader_image_access_barrier_bit;
 }
 
-void deferred_pbr_render_system::composite_pass()
+void deferred_pbr_render_system::composite_pass(bool render_to_pp)
 {
     set_depth_test_command* sdt      = m_composite_commands->create<set_depth_test_command>(command_keys::no_sort);
     sdt->enabled                     = true;
@@ -779,7 +830,7 @@ void deferred_pbr_render_system::composite_pass()
     set_cull_face_command* scf       = m_composite_commands->create<set_cull_face_command>(command_keys::no_sort);
     scf->face                        = polygon_face::face_back;
     bind_framebuffer_command* bf     = m_composite_commands->create<bind_framebuffer_command>(command_keys::no_sort);
-    bf->framebuffer_name             = m_backbuffer->get_name();
+    bf->framebuffer_name             = render_to_pp ? m_post_buffer->get_name() : m_backbuffer->get_name();
     bind_shader_program_command* bsp = m_composite_commands->create<bind_shader_program_command>(command_keys::no_sort);
     bsp->shader_program_name         = m_composing_pass->get_name();
 
@@ -823,7 +874,8 @@ void deferred_pbr_render_system::end_frame_and_sync()
     m_finish_render_commands->create<end_frame_command>(command_keys::no_sort);
 }
 
-void deferred_pbr_render_system::execute_commands(const command_buffer_ptr<min_key>& ibl_command_buffer, const command_buffer_ptr<max_key>& shadow_command_buffer)
+void deferred_pbr_render_system::execute_commands(const command_buffer_ptr<min_key>& ibl_command_buffer, const command_buffer_ptr<max_key>& shadow_command_buffer,
+                                                  const command_buffer_ptr<min_key>& fxaa_command_buffer)
 {
     NAMED_PROFILE_ZONE("Execute Command Buffers")
     GL_NAMED_PROFILE_ZONE("Execute Command Buffers");
@@ -898,6 +950,13 @@ void deferred_pbr_render_system::execute_commands(const command_buffer_ptr<min_k
         m_composite_commands->execute();
         // m_composite_commands->invalidate();
     }
+    if (fxaa_command_buffer)
+    {
+        NAMED_PROFILE_ZONE("FXAA Commands Execute")
+        GL_NAMED_PROFILE_ZONE("FXAA Commands Execute");
+        fxaa_command_buffer->execute();
+        fxaa_command_buffer->invalidate();
+    }
     {
         NAMED_PROFILE_ZONE("Deferred Renderer Finish")
         GL_NAMED_PROFILE_ZONE("Deferred Renderer Finish");
@@ -916,6 +975,7 @@ void deferred_pbr_render_system::set_viewport(int32 x, int32 y, int32 width, int
     m_gbuffer->resize(width, height);
     m_backbuffer->resize(width, height);
     m_hdr_buffer->resize(width, height);
+    m_post_buffer->resize(width, height);
 
     m_renderer_info.canvas.x      = x;
     m_renderer_info.canvas.y      = y;
@@ -1455,6 +1515,7 @@ void deferred_pbr_render_system::on_ui_widget()
     ImGui::Separator();
     bool has_ibl        = m_pipeline_steps[mango::render_step::ibl] != nullptr;
     bool has_shadow_map = m_pipeline_steps[mango::render_step::shadow_map] != nullptr;
+    bool has_fxaa       = m_pipeline_steps[mango::render_step::fxaa] != nullptr;
     if (ImGui::TreeNodeEx("Steps", flags | ImGuiTreeNodeFlags_Framed))
     {
         bool open = ImGui::CollapsingHeader("IBL Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_ibl ? ImGuiTreeNodeFlags_Leaf : 0));
@@ -1511,6 +1572,30 @@ void deferred_pbr_render_system::on_ui_widget()
         if (has_shadow_map && open)
         {
             m_pipeline_steps[mango::render_step::shadow_map]->on_ui_widget();
+        }
+
+        open = ImGui::CollapsingHeader("FXAA Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_shadow_map ? ImGuiTreeNodeFlags_Leaf : 0));
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x);
+        ImGui::PushID("enable_fxaa_step");
+        value_changed = ImGui::Checkbox("", &has_fxaa);
+        ImGui::PopID();
+        if (value_changed)
+        {
+            m_composite_commands->invalidate();
+            if (has_fxaa)
+            {
+                auto step_fxaa = std::make_shared<fxaa_step>();
+                step_fxaa->create();
+                m_pipeline_steps[mango::render_step::fxaa] = std::static_pointer_cast<pipeline_step>(step_fxaa);
+            }
+            else
+            {
+                m_pipeline_steps[mango::render_step::fxaa] = nullptr;
+            }
+        }
+        if (has_fxaa && open)
+        {
+            m_pipeline_steps[mango::render_step::fxaa]->on_ui_widget();
         }
         ImGui::TreePop();
     }

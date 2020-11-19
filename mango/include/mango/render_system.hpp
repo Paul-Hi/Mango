@@ -31,6 +31,7 @@ namespace mango
     {
         ibl,
         shadow_map,
+        fxaa,
         // ssao,
         // voxel_gi,
         // dof,
@@ -355,6 +356,73 @@ namespace mango
         float m_render_level;
     };
 
+    enum class fxaa_quality_preset : uint8
+    {
+        low_quality     = 0,
+        default_quality = 1,
+        high_quality    = 2,
+        count           = 3
+    };
+
+    //! \brief The configuration for the \a fxaa_step.
+    class fxaa_step_configuration
+    {
+      public:
+        //! \brief Default constructor to set some default values.
+        fxaa_step_configuration()
+            : m_quality(fxaa_quality_preset::default_quality)
+            , m_subpixel_filter(0.0f)
+        {
+        }
+
+        //! \brief Constructs a \a fxaa_step_configuration with specific values.
+        //! \param[in] quality The configurated \a fxaa_quality_preset to render the fxaa with.
+        //! \param[in] subpixel_filter The configurated subpixel filter value to render the fxaa with.
+        fxaa_step_configuration(fxaa_quality_preset quality, float subpixel_filter)
+            : m_quality(quality)
+            , m_subpixel_filter(subpixel_filter)
+        {
+        }
+
+        //! \brief Sets the \a fxaa_quality_preset to render the fxaa with.
+        //! \param[in] render_level The \a fxaa_quality_preset to render the fxaa with.
+        //! \return A reference to the modified \a fxaa_step_configuration.
+        inline fxaa_step_configuration& set_quality_preset(fxaa_quality_preset quality)
+        {
+            m_quality = quality;
+            return *this;
+        }
+
+        //! \brief Retrieves and returns the \a fxaa_quality_preset to render the fxaa with.
+        //! \return The configurated \a fxaa_quality_preset to render the fxaa with.
+        inline fxaa_quality_preset get_quality_preset() const
+        {
+            return m_quality;
+        }
+
+        //! \brief Sets the  subpixel filter value to render the fxaa with.
+        //! \param[in] render_level The  subpixel filter value to render the fxaa with.
+        //! \return A reference to the modified \a fxaa_step_configuration.
+        inline fxaa_step_configuration& set_subpixel_filter(float subpixel_filter)
+        {
+            m_subpixel_filter = subpixel_filter;
+            return *this;
+        }
+
+        //! \brief Retrieves and returns the  subpixel filter value to render the fxaa with.
+        //! \return The configurated subpixel filter value to render the fxaa with.
+        inline float get_subpixel_filter() const
+        {
+            return m_subpixel_filter;
+        }
+
+      private:
+        //! \brief The \a fxaa_quality_preset.
+        fxaa_quality_preset m_quality;
+        //!\brief The filter value for subpixels.
+        float m_subpixel_filter;
+    };
+
     //! \brief A system for window creation and handling.
     //! \details The \a render_system manages the handle of the window, swaps buffers after rendering and polls for input.
     class render_system : public system
@@ -374,6 +442,10 @@ namespace mango
         //! \details After configuration this function should be called.
         //! \param[in] configuration The \a shadow_step_configuration to use.
         virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) = 0;
+        //! \brief Does the setup of the \a fxaa_step.
+        //! \details After configuration this function should be called.
+        //! \param[in] configuration The \a fxaa_step_configuration to use.
+        virtual void setup_fxaa_step(const fxaa_step_configuration& configuration) = 0;
 
       protected:
         virtual bool create()         = 0;

@@ -29,6 +29,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/pipeline_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/ibl_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/gpu_buffer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/hashing.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/helpers.hpp
@@ -79,6 +80,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/ibl_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/gpu_buffer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene.cpp

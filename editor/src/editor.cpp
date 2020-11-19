@@ -24,7 +24,11 @@ bool editor::create()
     mango_ws->configure(window_config);
 
     render_configuration render_config;
-    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(true).enable_render_step(mango::render_step::ibl).enable_render_step(mango::render_step::shadow_map);
+    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr)
+        .set_vsync(true)
+        .enable_render_step(mango::render_step::ibl)
+        .enable_render_step(mango::render_step::shadow_map)
+        .enable_render_step(mango::render_step::fxaa);
     shared_ptr<render_system> mango_rs = mango_context->get_render_system().lock();
     MANGO_ASSERT(mango_rs, "Render System is expired!");
     mango_rs->configure(render_config);
@@ -71,15 +75,20 @@ bool editor::create()
     // test settings comment in to have some example scene
     {
         ibl_step_configuration ibl_config;
-        ibl_config.set_render_level(0.1f);
+        ibl_config.set_render_level(2.5f);
         mango_rs->setup_ibl_step(ibl_config);
 
         shadow_step_configuration shadow_config;
-        shadow_config.set_resolution(2048).set_sample_count(16).set_offset(12.0f).set_cascade_count(3).set_split_lambda(0.5f);
+        shadow_config.set_resolution(2048).set_sample_count(16).set_offset(25.0f).set_cascade_count(4).set_split_lambda(0.5f);
         mango_rs->setup_shadow_map_step(shadow_config);
 
-        application_scene->create_entities_from_model("res/models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.glb");
-        entity lighting                                                              = application_scene->create_environment_from_hdr("res/textures/venice_sunset_4k.hdr");
+        fxaa_step_configuration fxaa_config;
+        fxaa_config.set_quality_preset(fxaa_quality_preset::high_quality).set_subpixel_filter(0.0f);
+        mango_rs->setup_fxaa_step(fxaa_config);
+
+        entity sp                                                        = application_scene->create_entities_from_model("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/sponza.gltf");
+        application_scene->get_component<transform_component>(sp)->scale = glm::vec3(0.5);
+        entity lighting                                                  = application_scene->create_environment_from_hdr("res/textures/venice_sunset_4k.hdr");
         application_scene->get_component<tag_component>(lighting)->tag_name          = "Global Lighting";
         application_scene->get_component<environment_component>(lighting)->intensity = 4000.0f;
         auto l_c                                                                     = application_scene->add_component<light_component>(lighting);

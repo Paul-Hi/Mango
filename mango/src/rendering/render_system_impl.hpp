@@ -37,8 +37,8 @@ namespace mango
             int32 draw_calls; //!< The number of draw calls.
             int32 meshes;     //!< The number of meshes.
             int32 primitives; //!< The number of primitives.
-            int32 vertices; //!< The number of vertices.
-            int32 triangles; //!< The number of triangles (approx.).
+            int32 vertices;   //!< The number of vertices.
+            int32 triangles;  //!< The number of triangles (approx.).
             int32 materials;  //!< The number of materials.
         } last_frame;         //!< Measured stats from the last rendered frame.
     };
@@ -67,6 +67,7 @@ namespace mango
         virtual void configure(const render_configuration& configuration) override;
         virtual void setup_ibl_step(const ibl_step_configuration& configuration) override;
         virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) override;
+        virtual void setup_fxaa_step(const fxaa_step_configuration& configuration) override;
         virtual void on_ui_widget() override;
 
         //! \brief Does all the setup and has to be called before rendering the scene.

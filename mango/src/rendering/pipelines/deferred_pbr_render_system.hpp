@@ -10,6 +10,7 @@
 #include <graphics/framebuffer.hpp>
 #include <graphics/gpu_buffer.hpp>
 #include <rendering/render_system_impl.hpp>
+#include <rendering/steps/fxaa_step.hpp>
 #include <rendering/steps/ibl_step.hpp>
 #include <rendering/steps/pipeline_step.hpp>
 #include <rendering/steps/shadow_map_step.hpp>
@@ -33,6 +34,7 @@ namespace mango
         virtual void configure(const render_configuration& configuration) override;
         virtual void setup_ibl_step(const ibl_step_configuration& configuration) override;
         virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) override;
+        virtual void setup_fxaa_step(const fxaa_step_configuration& configuration) override;
         virtual void begin_render() override;
         virtual void finish_render(float dt) override;
         virtual void set_viewport(int32 x, int32 y, int32 width, int32 height) override;
@@ -58,6 +60,8 @@ namespace mango
         framebuffer_ptr m_gbuffer;
         //! \brief The backbuffer of the deferred pipeline.
         framebuffer_ptr m_backbuffer;
+        //! \brief A \a framebuffer for postprocessing steps of the deferred pipeline.
+        framebuffer_ptr m_post_buffer;
         //! \brief The hdr buffer of the deferred pipeline. Used for auto exposure.
         framebuffer_ptr m_hdr_buffer;
 
@@ -286,13 +290,16 @@ namespace mango
         //! \param[in] dt Past time since last call.
         void calculate_auto_exposure(float dt);
         //! \brief Composite pass done in finish_render().
-        void composite_pass();
+        //! \details Renders to backbuffer, when this is the last pass, else to the post buffer.
+        //! \param[in] render_to_pp True if there are other passes after composite, else False.
+        void composite_pass(bool render_to_pp);
         //! \brief Frame finalization pass with setup for next frame done in finish_render().
         void end_frame_and_sync();
         //! \brief Sorts and executes all \a command_buffers in the correct order.
         //! \param[in] ibl_command_buffer The shared pointer to the \a command_buffer of the \a ibl_step, or null.
         //! \param[in] shadow_command_buffer The shared pointer to the \a command_buffer of the \a shadow_map_step, or null.
-        void execute_commands(const command_buffer_ptr<min_key>& ibl_command_buffer, const command_buffer_ptr<max_key>& shadow_command_buffer);
+        //! \param[in] fxaa_command_buffer The shared pointer to the \a command_buffer of the \a fxaa_step, or null.
+        void execute_commands(const command_buffer_ptr<min_key>& ibl_command_buffer, const command_buffer_ptr<max_key>& shadow_command_buffer, const command_buffer_ptr<min_key>& fxaa_command_buffer);
 
         bind_texture_command* begin_mesh_draw(const command_buffer_ptr<max_key>& draw_buffer, max_key mesh_key, bool simplified = false);
         bind_texture_command* bind_material_textures(const command_buffer_ptr<max_key>& draw_buffer, bind_buffer_command* last_command);
