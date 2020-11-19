@@ -75,20 +75,19 @@ bool editor::create()
     // test settings comment in to have some example scene
     {
         ibl_step_configuration ibl_config;
-        ibl_config.set_render_level(2.5f);
+        ibl_config.set_render_level(0.1f);
         mango_rs->setup_ibl_step(ibl_config);
 
         shadow_step_configuration shadow_config;
-        shadow_config.set_resolution(2048).set_sample_count(16).set_offset(25.0f).set_cascade_count(4).set_split_lambda(0.5f);
+        shadow_config.set_resolution(2048).set_sample_count(16).set_offset(12.0f).set_cascade_count(3).set_split_lambda(0.5f);
         mango_rs->setup_shadow_map_step(shadow_config);
 
         fxaa_step_configuration fxaa_config;
-        fxaa_config.set_quality_preset(fxaa_quality_preset::high_quality).set_subpixel_filter(0.0f);
+        fxaa_config.set_quality_preset(fxaa_quality_preset::high_quality).set_subpixel_filter(0.1f);
         mango_rs->setup_fxaa_step(fxaa_config);
 
-        entity sp                                                        = application_scene->create_entities_from_model("C:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/sponza.gltf");
-        application_scene->get_component<transform_component>(sp)->scale = glm::vec3(0.5);
-        entity lighting                                                  = application_scene->create_environment_from_hdr("res/textures/venice_sunset_4k.hdr");
+        application_scene->create_entities_from_model("res/models/BoomBox/BoomBox.glb");
+        entity lighting                                                              = application_scene->create_environment_from_hdr("res/textures/venice_sunset_4k.hdr");
         application_scene->get_component<tag_component>(lighting)->tag_name          = "Global Lighting";
         application_scene->get_component<environment_component>(lighting)->intensity = 4000.0f;
         auto l_c                                                                     = application_scene->add_component<light_component>(lighting);
