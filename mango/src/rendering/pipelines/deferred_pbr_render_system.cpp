@@ -924,6 +924,8 @@ void deferred_pbr_render_system::execute_commands(const command_buffer_ptr<min_k
         NAMED_PROFILE_ZONE("Lighting Commands Execute")
         GL_NAMED_PROFILE_ZONE("Lighting Commands Execute");
         m_lighting_pass_commands->execute();
+        if(m_sun_changed) // TODO Paul: Better way?
+            m_lighting_pass_commands->invalidate();
     }
     if (ibl_command_buffer)
     {
@@ -1373,14 +1375,35 @@ bind_texture_command* deferred_pbr_render_system::bind_material_textures(const c
     return bt;
 }
 
-void deferred_pbr_render_system::set_environment_texture(const texture_ptr& hdr_texture)
+void deferred_pbr_render_system::set_environment(const texture_ptr& hdr_texture)
 {
     PROFILE_ZONE;
     if (m_pipeline_steps[mango::render_step::ibl])
     {
         m_lighting_pass_commands->invalidate();
         auto ibl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
-        ibl->load_from_hdr(hdr_texture);
+        if (hdr_texture)
+            ibl->load_from_hdr(hdr_texture);
+        else
+            ibl->clear();
+    }
+}
+
+void deferred_pbr_render_system::set_environment(const glm::vec3& sun_direction, float sun_intensity)
+{
+    PROFILE_ZONE;
+    if (m_pipeline_steps[mango::render_step::ibl])
+    {
+        m_lighting_pass_commands->invalidate();
+        auto ibl        = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
+        glm::vec3 dir   = sun_direction;
+        float intensity = sun_intensity;
+        if (intensity < 0.0f)
+        {
+            dir       = m_lighting_pass_data.directional.direction;
+            intensity = m_lighting_pass_data.directional.intensity;
+        }
+        ibl->create_with_atmosphere(dir, intensity);
     }
 }
 
@@ -1390,10 +1413,23 @@ void deferred_pbr_render_system::submit_light(light_type type, light_data* data)
     if (type == light_type::directional) // currently always true
     {
         auto directional_data                         = static_cast<directional_light_data*>(data);
-        m_lighting_pass_data.directional.direction    = directional_data->direction;
         m_lighting_pass_data.directional.color        = static_cast<glm::vec3>(directional_data->light_color);
-        m_lighting_pass_data.directional.intensity    = directional_data->intensity;
         m_lighting_pass_data.directional.cast_shadows = directional_data->cast_shadows;
+        auto scene                                    = m_shared_context->get_current_scene();
+        auto env                                      = scene->get_active_environment_data();
+        if (m_pipeline_steps[mango::render_step::ibl] && env.environment_info && env.environment_info->procedural_atmosphere &&
+            (m_lighting_pass_data.directional.intensity != directional_data->intensity || glm::vec3(m_lighting_pass_data.directional.direction) != directional_data->direction))
+        {
+            auto ibl        = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
+            glm::vec3 dir   = directional_data->direction;
+            float intensity = directional_data->intensity;
+            ibl->create_with_atmosphere(dir, intensity);
+            m_sun_changed = true;
+        }
+        else
+            m_sun_changed = false;
+        m_lighting_pass_data.directional.direction = directional_data->direction;
+        m_lighting_pass_data.directional.intensity = directional_data->intensity;
     }
 }
 
@@ -1424,9 +1460,6 @@ void deferred_pbr_render_system::bind_lighting_pass_buffer(camera_data& camera, 
     bb->size                = sizeof(lighting_pass_data);
     bb->buffer_name         = m_frame_uniform_buffer->buffer_name();
     bb->offset              = m_frame_uniform_buffer->write_data(sizeof(lighting_pass_data), &m_lighting_pass_data);
-
-    // cleanup lighting uniforms...
-    m_lighting_pass_data.directional.intensity = 0.0f;
 }
 
 void deferred_pbr_render_system::bind_renderer_data_buffer(camera_data& camera, float camera_exposure)
@@ -1535,7 +1568,12 @@ void deferred_pbr_render_system::on_ui_widget()
                 auto scene = m_shared_context->get_current_scene();
                 auto env   = scene->get_active_environment_data();
                 if (env.environment_info)
-                    step_ibl->load_from_hdr(env.environment_info->hdr_texture);
+                {
+                    if (env.environment_info->hdr_texture)
+                        step_ibl->load_from_hdr(env.environment_info->hdr_texture);
+                    else
+                        step_ibl->clear();
+                }
             }
             else
             {

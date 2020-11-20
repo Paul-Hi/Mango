@@ -180,6 +180,11 @@ void bind_single_uniform(const void* data)
         glUniformMatrix4fv(cmd->location, cmd->count, GL_FALSE, static_cast<g_float*>(cmd->uniform_value));
         return;
     }
+    case shader_resource_type::bsingle:
+    {
+        glUniform1i(cmd->location, *static_cast<g_bool*>(cmd->uniform_value));
+        return;
+    }
     default:
         MANGO_LOG_ERROR("Unknown uniform type!");
     }

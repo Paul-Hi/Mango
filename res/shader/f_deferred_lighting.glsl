@@ -476,10 +476,6 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     vec3 light_col        = directional_color.rgb;
     float roughness       = (perceptual_roughness * perceptual_roughness);
 
-    // adjust roughness to approximate small disk
-    float lightRoughness = 0.1 * 696340.0 / 14960000.0; // sun radius / sun distance * 0.1 -> some approximation.
-    float specular_roughness = saturate(lightRoughness + roughness);
-
     vec3 lighting = vec3(0.0);
 
     vec3 halfway  = normalize(light_dir + view_dir);
@@ -487,9 +483,9 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     float n_dot_h = saturate(dot(normal, halfway));
     float l_dot_h = saturate(dot(light_dir, halfway));
 
-    float D = D_GGX(n_dot_h, specular_roughness);
+    float D = D_GGX(n_dot_h, roughness);
     vec3 F  = F_Schlick(l_dot_h, f0, 1.0);
-    float V = V_SmithGGXCorrelated(n_dot_v, n_dot_l, specular_roughness);
+    float V = V_SmithGGXCorrelated(n_dot_v, n_dot_l, roughness);
 
     // Fr energy compensation
     vec3 Fr = D * V * F * (1.0 / PI);

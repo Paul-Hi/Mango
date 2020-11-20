@@ -66,6 +66,7 @@ entity scene::create_empty()
     entity new_entity = m_free_entities.front();
     m_free_entities.pop_front();
     MANGO_LOG_DEBUG("Created entity {0}, {1} left", new_entity, m_free_entities.size());
+    m_tags.create_component_for(new_entity);
     return new_entity;
 }
 
@@ -283,11 +284,30 @@ entity scene::create_environment_from_hdr(const string& path)
 
     hdr_texture->set_data(internal, hdr_image->width, hdr_image->height, f, type, hdr_image->data);
 
-    environment.hdr_texture = hdr_texture;
+    environment.hdr_texture           = hdr_texture;
+    environment.procedural_atmosphere = false;
 
     set_active_environment(environment_entity); // TODO Paul: Transformation?
 
     res->release(hdr_image);
+    return environment_entity;
+}
+
+entity scene::create_atmospheric_environment(const glm::vec3& sun_direction, float sun_intensity)
+{
+    PROFILE_ZONE;
+    entity environment_entity = create_empty();
+    attach(environment_entity, m_scene_root);
+    auto& environment = m_environments.create_component_for(environment_entity);
+
+    // default rotation and scale
+    environment.rotation_scale_matrix = glm::mat3(1.0f);
+
+    environment.hdr_texture           = nullptr;
+    environment.procedural_atmosphere = true;
+
+    set_active_environment(environment_entity); // TODO Paul: Transformation?
+
     return environment_entity;
 }
 
@@ -298,7 +318,7 @@ void scene::set_active_environment(entity e)
     if (e == invalid_entity)
     {
         m_active.environment = e;
-        rs->set_environment_texture(nullptr);
+        rs->set_environment(nullptr);
         return;
     }
     auto next_comp = m_environments.get_component_for_entity(e);
@@ -306,7 +326,10 @@ void scene::set_active_environment(entity e)
         return;
 
     m_active.environment = e;
-    rs->set_environment_texture(next_comp->hdr_texture);
+    if (next_comp->procedural_atmosphere)
+        rs->set_environment(glm::vec3(-1.0), -1.0f);
+    else if (next_comp->hdr_texture)
+        rs->set_environment(next_comp->hdr_texture);
 }
 
 void scene::update(float dt)

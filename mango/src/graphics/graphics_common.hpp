@@ -1294,7 +1294,7 @@ namespace mango
         // uvec2,
         // uvec3,
         // uvec4,
-        // bool,
+        bsingle,
         // bvec2,
         // bvec3,
         // bvec4,
@@ -1326,7 +1326,7 @@ namespace mango
         case GL_INT_VEC4:
             return shader_resource_type::ivec4;
         case GL_BOOL:
-            return shader_resource_type::isingle;
+            return shader_resource_type::bsingle;
         case GL_FLOAT_MAT3:
             return shader_resource_type::mat3;
         case GL_FLOAT_MAT4:

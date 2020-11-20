@@ -123,7 +123,12 @@ namespace mango
 
         //! \brief Sets the \a texture for a environment.
         //! \param[in] hdr_texture The pointer to the hdr \a texture to use as an environment.
-        virtual void set_environment_texture(const texture_ptr& hdr_texture);
+        virtual void set_environment(const texture_ptr& hdr_texture);
+
+        //! \brief Sets the environment to an atmosphere.
+        //! \param[in] sun_direction The sun direction to use in the environment.
+        //! \param[in] sun_intensity The sun intensity to use in the environment.
+        virtual void set_environment(const glm::vec3& sun_direction, float sun_intensity);
 
         //! \brief Submits a light to the \a render_system.
         //! \param[in] type The submitted \a light_type.

@@ -919,6 +919,8 @@ namespace mango
                     bool changed  = false;
                     bool load_new = false;
                     changed |= image_load("Environment Image", environment_comp->hdr_texture ? environment_comp->hdr_texture->get_name() : -1, glm::vec2(128, 64), load_new);
+                    ImGui::Separator();
+                    changed |= checkbox("Atmosphere", &environment_comp->procedural_atmosphere, true);
                     if (load_new)
                     {
                         texture_configuration tex_config;
@@ -932,19 +934,17 @@ namespace mango
                         char const* filter[1] = { "*.hdr" };
 
                         environment_comp->hdr_texture = details::load_texture(tex_config, rs, filter, 1);
+                        environment_comp->procedural_atmosphere = false;
                     }
                     else if (changed)
                     {
                         environment_comp->hdr_texture = nullptr;
-                        active                        = false;
+                        active                        = environment_comp->procedural_atmosphere;
                     }
-                    if (environment_comp->hdr_texture)
-                    {
-                        ImGui::Separator();
-                        changed |= checkbox("Set Active", &active, false);
-                        ImGui::Separator();
-                        slider_float_n("Intensity", &environment_comp->intensity, 1, mango::default_environment_intensity, 0.0f, 50000.0f, "%.1f", false);
-                    }
+                    ImGui::Separator();
+                    changed |= checkbox("Set Active", &active, false);
+                    ImGui::Separator();
+                    slider_float_n("Intensity", &environment_comp->intensity, 1, mango::default_environment_intensity, 0.0f, 50000.0f, "%.1f", false);
                     if ((changed || env != e) && active)
                         application_scene->set_active_environment(e);
                     else if (env == e && changed && !active)

@@ -27,10 +27,18 @@ namespace mango
 
         void destroy() override;
 
-        //! \brief Loads and creates an image based light step from a hdr texture.
+        //! \brief Loads a environment from from a hdr texture.
         //! \details Creates irradiance map and prefiltered specular map.
         //! \param[in] hdr_texture The texture with the hdr image data.
         void load_from_hdr(const texture_ptr& hdr_texture);
+
+        //! \brief Creates an environment with atmospheric scattering.
+        //! \details Creates irradiance map and prefiltered specular map.
+        //! \param[in] sun_dir The direction to the sun.
+        //! \param[in] sun_intensity The sun intensity.
+        void create_with_atmosphere(const glm::vec3& sun_dir, float sun_intensity);
+
+        void clear();
 
         //! \brief Returns a shared_ptr to the \a command_buffer of the ibl step.
         //! \details The returned \a command_buffer gets executed by the rendering system.
@@ -56,6 +64,8 @@ namespace mango
         bool setup_shader_programs() override;
         bool setup_buffers() override;
 
+        void calculate_ibl_maps(const command_buffer_ptr<min_key>& compute_commands);
+
         //! \brief The \a command_buffer storing all ibl step related commands.
         command_buffer_ptr<min_key> m_ibl_command_buffer;
         //! \brief Cubemap texture.
@@ -71,6 +81,8 @@ namespace mango
 
         //! \brief Compute shader program converting a equirectangular hdr to a cubemap.
         shader_program_ptr m_equi_to_cubemap;
+        //! \brief Compute shader program createing a cubemap with atmospheric scattering.
+        shader_program_ptr m_atmospheric_cubemap;
         //! \brief Compute shader program building a irradiance map from a cubemap.
         shader_program_ptr m_build_irradiance_map;
         //! \brief Compute shader program building the prefiltered specular map from a cubemap.

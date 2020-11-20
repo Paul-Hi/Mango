@@ -437,7 +437,7 @@ void main()
     float perceptual_roughness           = occlusion_roughness_metallic.g;
     float metallic                       = occlusion_roughness_metallic.b;
     vec3 emissive                        = get_emissive();
-    float reflectance                    = 0.5; // TODO Paul: Make tweakable.
+    float reflectance                    = 1.0; // TODO Paul: Make tweakable.
 
     vec3 f0          = 0.16 * reflectance * reflectance * (1.0 - metallic) + base_color.rgb * metallic;
     vec3 real_albedo = base_color.rgb * (1.0 - metallic);
@@ -455,7 +455,7 @@ void main()
 
     lighting += emissive * 50000.0; // TODO Paul: Remove hardcoded intensity for all emissive values -.-
 
-    hdr_out = vec4(lighting, 1.0);
+    hdr_out = vec4(lighting * base_color.a, base_color.a); // Premultiplied alpha?
 }
 
 vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor)
@@ -493,10 +493,6 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     vec3 light_col        = directional_color.rgb;
     float roughness       = (perceptual_roughness * perceptual_roughness);
 
-    // adjust roughness to approximate small disk
-    float lightRoughness = 0.1 * 696340.0 / 14960000.0; // sun radius / sun distance * 0.1 -> some approximation.
-    float specular_roughness = saturate(lightRoughness + roughness);
-
     vec3 lighting = vec3(0.0);
 
     vec3 halfway  = normalize(light_dir + view_dir);
@@ -504,9 +500,9 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     float n_dot_h = saturate(dot(normal, halfway));
     float l_dot_h = saturate(dot(light_dir, halfway));
 
-    float D = D_GGX(n_dot_h, specular_roughness);
+    float D = D_GGX(n_dot_h, roughness);
     vec3 F  = F_Schlick(l_dot_h, f0, 1.0);
-    float V = V_SmithGGXCorrelated(n_dot_v, n_dot_l, specular_roughness);
+    float V = V_SmithGGXCorrelated(n_dot_v, n_dot_l, roughness);
 
     // Fr energy compensation
     vec3 Fr = D * V * F * (1.0 / PI);

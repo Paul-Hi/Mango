@@ -71,6 +71,14 @@ namespace mango
         //! \return The created environment entity.
         entity create_environment_from_hdr(const string& path);
 
+        //! \brief Creates an environment entity.
+        //! \details An entity with \a environment_component.
+        //! The atmosphere is generated, preprocessed, prefiltered and can be rendered as a cube. This is done with a \a pipeline_step.
+        //! \param[in] sun_direction The sun direction to use or vec3(-1.0f) if renderer should choose the sun.
+        //! \param[in] sun_intensity The sun intensity to use or -1.0f if renderer should choose the sun.
+        //! \return The created environment entity.
+        entity create_atmospheric_environment(const glm::vec3& sun_direction = glm::vec3(-1.0f), float sun_intensity = -1.0f);
+
         //! \brief Attach an \a entity to another entity in a child <-> parent realationship.
         //! \details Adds a \a node_component. Used for building hierarchies.
         //! \param[in] child The \a entity used as a child.

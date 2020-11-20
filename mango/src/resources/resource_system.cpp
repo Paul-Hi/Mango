@@ -64,6 +64,8 @@ const image_resource* resource_system::acquire(const image_resource_configuratio
     if (cached == m_resource_cache.end())
     {
         image_resource* img = load_image_from_file(configuration);
+        if(!img)
+            return nullptr;
         m_resource_cache.insert({ res_id, img });
         img->reference_count = 1;
         return img;
@@ -105,6 +107,8 @@ const model_resource* resource_system::acquire(const model_resource_configuratio
     if (cached == m_resource_cache.end())
     {
         model_resource* m = load_model_from_file(configuration);
+        if(!m)
+            return nullptr;
         m_resource_cache.insert({ res_id, m });
         m->reference_count = 1;
         return m;

@@ -191,6 +191,7 @@ namespace mango
     {
         glm::mat3 rotation_scale_matrix = glm::mat3(1.0f); //!< The rotation and scale of the environment.
         shared_ptr<texture> hdr_texture;                   //!< The hdr texture used to build the environment.
+        bool procedural_atmosphere;                        //!< True if environment has no texture and should generate procedural atmosphere.
         float intensity = default_environment_intensity;   //!< Intensity in cd/m^2. Default 30000 (sunny sky).
     };
 

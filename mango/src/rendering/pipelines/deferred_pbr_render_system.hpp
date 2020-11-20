@@ -46,7 +46,8 @@ namespace mango
         void end_mesh() override;
         void use_material(const material_ptr& mat) override;
         void draw_mesh(const vertex_array_ptr& vertex_array, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
-        void set_environment_texture(const texture_ptr& hdr_texture) override;
+        void set_environment(const texture_ptr& hdr_texture) override;
+        void set_environment(const glm::vec3& sun_direction, float sun_intensity) override;
         void submit_light(light_type type, light_data* data) override;
         void on_ui_widget() override;
 
@@ -212,6 +213,8 @@ namespace mango
 
             std140_float padding0; //!< padding.
         } m_lighting_pass_data;    //!< Current lighting_pass_data.
+
+        bool m_sun_changed = false;
 
         //! \brief Structure used to cache the \a commands regarding the rendering of the current model/mesh.
         struct model_cache
