@@ -261,27 +261,34 @@ void shadow_map_step::on_ui_widget()
     int32& current_filter = m_shadow_data.filter_mode;
     combo("Shadow Filter Mode", filter, 4, current_filter, 1);
 
+    int32 default_ivalue[1] = { 16 };
+
     if (m_shadow_data.filter_mode > 0)
     {
         int32& sample_count = m_shadow_data.sample_count;
-        slider_int_n("Sample Count", &sample_count, 1, 16, 16, 64);
+        slider_int_n("Sample Count", &sample_count, 1, default_ivalue, 16, 64);
     }
 
+    float default_value[1] = { 0.0f };
     // Offset 0.0 - 100.0
-    slider_float_n("Shadow Map Offset", &m_shadow_map_offset, 1, 0.0f, 0.0f, 100.0f);
+    slider_float_n("Shadow Map Offset", &m_shadow_map_offset, 1, default_value, 0.0f, 100.0f);
 
     float& s_bias = m_shadow_data.slope_bias;
-    drag_float_n("Shadow Map Slope Bias", &s_bias, 1, 0.005f, 0.001f, 0.0f, 0.5f);
+    default_value[0] = 0.005f;
+    drag_float_n("Shadow Map Slope Bias", &s_bias, 1, default_value, 0.001f, 0.0f, 0.5f);
 
     float& n_bias = m_shadow_data.normal_bias;
-    drag_float_n("Shadow Map Normal Bias", &n_bias, 1, 0.01f, 0.001f, 0.0f, 0.5f);
+    default_value[0] = 0.01f;
+    drag_float_n("Shadow Map Normal Bias", &n_bias, 1,default_value, 0.001f, 0.0f, 0.5f);
 
     // Cascades 1, 2, 3, 4
     int32& shadow_cascades = m_shadow_data.cascade_count;
-    slider_int_n("Number Of Shadow Cascades", &shadow_cascades, 1, 3, 1, 4);
+    default_ivalue[0]      = 3;
+    slider_int_n("Number Of Shadow Cascades", &shadow_cascades, 1, default_ivalue, 1, 4);
     float& interpolation_range = m_shadow_data.cascade_interpolation_range;
-    slider_float_n("Cascade Interpolation Range", &interpolation_range, 1, 0.5f, 0.0f, 10.0f);
-    slider_float_n("Cascade Splits Lambda", &m_cascade_data.lambda, 1, 0.5f, 0.0f, 1.0f);
+    default_value[0] = 0.5f;
+    slider_float_n("Cascade Interpolation Range", &interpolation_range, 1, default_value, 0.0f, 10.0f);
+    slider_float_n("Cascade Splits Lambda", &m_cascade_data.lambda, 1, default_value, 0.0f, 1.0f);
     m_dirty_cascades = true; // For now always in debug.
     ImGui::PopID();
 }

@@ -52,6 +52,7 @@ namespace mango
 
     enum class light_type : uint8;
     struct light_data;
+    struct environment_light_data;
 
     //! \brief The implementation of the \a render_system.
     //! \details This class only manages the configuration of the base \a render_system and forwards everything else to the real implementation of the specific configured one.
@@ -121,14 +122,9 @@ namespace mango
         //! \param[in] instance_count The number of instances to draw. Has to be a positive value. For normal drawing pass 1.
         virtual void draw_mesh(const vertex_array_ptr& vertex_array, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count = 1);
 
-        //! \brief Sets the \a texture for a environment.
-        //! \param[in] hdr_texture The pointer to the hdr \a texture to use as an environment.
-        virtual void set_environment(const texture_ptr& hdr_texture);
-
-        //! \brief Sets the environment to an atmosphere.
-        //! \param[in] sun_direction The sun direction to use in the environment.
-        //! \param[in] sun_intensity The sun intensity to use in the environment.
-        virtual void set_environment(const glm::vec3& sun_direction, float sun_intensity);
+        //! \brief Sets the environment.
+        //! \param[in] el_data The pointer to the \a environment_light_data.
+        virtual void set_environment(const mango::environment_light_data* el_data);
 
         //! \brief Submits a light to the \a render_system.
         //! \param[in] type The submitted \a light_type.

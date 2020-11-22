@@ -35,7 +35,6 @@ scene::scene(const string& name)
     , m_transformations()
     , m_meshes()
     , m_cameras()
-    , m_environments()
     , m_lights()
 {
     PROFILE_ZONE;
@@ -48,12 +47,12 @@ scene::scene(const string& name)
     for (uint32 i = 1; i <= max_entities; ++i)
         m_free_entities.push_back(i);
 
-    m_root_entity          = create_empty();
-    auto& tag_component    = m_tags.create_component_for(m_root_entity);
-    tag_component.tag_name = "Root";
-    m_scene_root           = create_empty();
-    auto& scene_tag        = m_tags.create_component_for(m_scene_root);
-    scene_tag.tag_name     = "Scene";
+    m_root_entity           = create_empty();
+    auto tag_component      = m_tags.get_component_for_entity(m_root_entity);
+    tag_component->tag_name = "Root";
+    m_scene_root            = create_empty();
+    auto scene_tag          = m_tags.get_component_for_entity(m_scene_root);
+    scene_tag->tag_name     = "Scene";
     attach(m_scene_root, m_root_entity);
 }
 
@@ -94,14 +93,9 @@ void scene::remove_entity(entity e)
             set_active_camera(invalid_entity);
     }
     del_active = get_active_environment_data().active_environment_entity == e;
-    m_environments.remove_component_from(e);
+    m_lights.remove_component_from(e);
     if (del_active)
-    {
-        if (m_environments.size() > 0)
-            set_active_environment(m_environments.entity_at(0));
-        else
-            set_active_environment(invalid_entity);
-    }
+        set_active_environment(invalid_entity);
     m_free_entities.push_back(e);
     MANGO_LOG_DEBUG("Removed entity {0}, {1} left", e, m_free_entities.size());
 }
@@ -123,8 +117,8 @@ entity scene::create_default_camera()
     attach(camera_entity, m_root_entity);
     auto& camera_component    = m_cameras.create_component_for(camera_entity);
     auto& transform_component = m_transformations.create_component_for(camera_entity);
-    auto& tag_component       = m_tags.create_component_for(camera_entity);
-    tag_component.tag_name    = "Default Camera";
+    auto tag_component        = m_tags.get_component_for_entity(camera_entity);
+    tag_component->tag_name   = "Default Camera";
 
     // default parameters
     camera_component.cam_type                           = camera_type::perspective_camera;
@@ -159,9 +153,9 @@ entity scene::create_entities_from_model(const string& path, entity gltf_root)
     model_comp.model_file_path      = path;
     shared_ptr<resource_system> res = m_shared_context->get_resource_system_internal().lock();
     MANGO_ASSERT(res, "Resource System is expired!");
-    auto start                                      = path.find_last_of("\\/") + 1;
-    auto name                                       = path.substr(start, path.find_last_of(".") - start);
-    m_tags.create_component_for(gltf_root).tag_name = path.substr(start);
+    auto start                                           = path.find_last_of("\\/") + 1;
+    auto name                                            = path.substr(start, path.find_last_of(".") - start);
+    m_tags.get_component_for_entity(gltf_root)->tag_name = path.substr(start);
     model_resource_configuration config;
     config.path                  = path.c_str();
     const model_resource* loaded = res->acquire(config);
@@ -244,21 +238,27 @@ entity scene::create_environment_from_hdr(const string& path)
     PROFILE_ZONE;
     entity environment_entity = create_empty();
     attach(environment_entity, m_scene_root);
-    auto& environment = m_environments.create_component_for(environment_entity);
+    auto& environment = m_lights.create_component_for(environment_entity);
 
-    // default rotation and scale
-    environment.rotation_scale_matrix = glm::mat3(1.0f);
+    environment.type_of_light          = light_type::environment;
+    environment.data                   = std::make_shared<environment_light_data>();
+    auto el_data                       = static_cast<mango::environment_light_data*>(environment.data.get());
+    el_data->intensity                 = default_environment_intensity;
+    el_data->render_sun_as_directional = false;
+    el_data->create_atmosphere         = false;
+    el_data->draw_sun_disc             = false;
+    // sun data is irrelevant as well as scattering parameters, they are all default initialized.
 
     // load image and texture
     shared_ptr<resource_system> res = m_shared_context->get_resource_system_internal().lock();
     MANGO_ASSERT(res, "Resource System is expired!");
 
     image_resource_configuration img_config;
-    auto start                                               = path.find_last_of("\\/") + 1;
-    m_tags.create_component_for(environment_entity).tag_name = path.substr(start);
-    img_config.path                                          = path.c_str();
-    img_config.is_standard_color_space                       = false;
-    img_config.is_hdr                                        = true;
+    auto start                                                    = path.find_last_of("\\/") + 1;
+    m_tags.get_component_for_entity(environment_entity)->tag_name = path.substr(start);
+    img_config.path                                               = path.c_str();
+    img_config.is_standard_color_space                            = false;
+    img_config.is_hdr                                             = true;
 
     auto hdr_image = res->acquire(img_config);
 
@@ -284,29 +284,38 @@ entity scene::create_environment_from_hdr(const string& path)
 
     hdr_texture->set_data(internal, hdr_image->width, hdr_image->height, f, type, hdr_image->data);
 
-    environment.hdr_texture           = hdr_texture;
-    environment.procedural_atmosphere = false;
+    el_data->hdr_texture = hdr_texture;
 
-    set_active_environment(environment_entity); // TODO Paul: Transformation?
+    set_active_environment(environment_entity);
 
     res->release(hdr_image);
     return environment_entity;
 }
 
-entity scene::create_atmospheric_environment(const glm::vec3& sun_direction, float sun_intensity)
+entity scene::create_atmospheric_environment(const glm::vec3& sun_direction, float sun_intensity) // TODO Paul: More settings needed!
 {
     PROFILE_ZONE;
     entity environment_entity = create_empty();
     attach(environment_entity, m_scene_root);
-    auto& environment = m_environments.create_component_for(environment_entity);
 
-    // default rotation and scale
-    environment.rotation_scale_matrix = glm::mat3(1.0f);
+    auto& environment = m_lights.create_component_for(environment_entity);
 
-    environment.hdr_texture           = nullptr;
-    environment.procedural_atmosphere = true;
+    environment.type_of_light          = light_type::environment;
+    environment.data                   = std::make_shared<environment_light_data>();
+    auto el_data                       = static_cast<mango::environment_light_data*>(environment.data.get());
+    el_data->intensity                 = default_environment_intensity;
+    el_data->render_sun_as_directional = true;
+    el_data->create_atmosphere         = true;
+    // sun data as well as scattering parameters are all default initialized.
+    if (sun_intensity > 0.0)
+    {
+        el_data->sun_data.direction = sun_direction;
+        el_data->sun_data.intensity = sun_intensity;
+    }
 
-    set_active_environment(environment_entity); // TODO Paul: Transformation?
+    el_data->hdr_texture = nullptr;
+
+    set_active_environment(environment_entity);
 
     return environment_entity;
 }
@@ -321,15 +330,19 @@ void scene::set_active_environment(entity e)
         rs->set_environment(nullptr);
         return;
     }
-    auto next_comp = m_environments.get_component_for_entity(e);
+
+    auto next_comp = m_lights.get_component_for_entity(e);
     if (!next_comp)
         return;
 
+    if (m_active.environment != invalid_entity)
+        m_lights.get_component_for_entity(m_active.environment)->active = false;
+
     m_active.environment = e;
-    if (next_comp->procedural_atmosphere)
-        rs->set_environment(glm::vec3(-1.0), -1.0f);
-    else if (next_comp->hdr_texture)
-        rs->set_environment(next_comp->hdr_texture);
+    next_comp->active    = true;
+
+    auto el_data = static_cast<mango::environment_light_data*>(next_comp->data.get());
+    rs->set_environment(el_data);
 }
 
 void scene::update(float dt)
@@ -565,9 +578,9 @@ void scene::delete_node(entity node)
 entity scene::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world, const std::map<int, buffer_ptr>& buffer_map)
 {
     PROFILE_ZONE;
-    entity node                                = create_empty();
-    m_tags.create_component_for(node).tag_name = n.name;
-    auto& transform                            = m_transformations.create_component_for(node);
+    entity node                                     = create_empty();
+    m_tags.get_component_for_entity(node)->tag_name = n.name;
+    auto& transform                                 = m_transformations.create_component_for(node);
     if (n.matrix.size() == 16)
     {
         glm::mat4 input = glm::make_mat4(n.matrix.data());

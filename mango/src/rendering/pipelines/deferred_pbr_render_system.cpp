@@ -79,6 +79,9 @@ bool deferred_pbr_render_system::create()
     m_lighting_pass_data.debug_options.show_cascades    = false;
     m_lighting_pass_data.debug_options.draw_shadow_maps = false;
 
+    m_lighting_pass_data.directional.active = false;
+    m_lighting_pass_data.environment.active = false;
+
     return true;
 }
 
@@ -284,7 +287,7 @@ bool deferred_pbr_render_system::create_renderer_resources()
     default_texture = texture::create(attachment_config);
     if (!check_creation(default_texture.get(), "default texture"))
         return false;
-    g_ubyte albedo[4] = { 127, 127, 127, 255 };
+    g_ubyte albedo[4] = { 1, 1, 1, 255 };
     default_texture->set_data(format::rgba8, 1, 1, format::rgba, format::t_unsigned_byte, albedo);
     attachment_config.is_cubemap = true;
     default_cube_texture         = texture::create(attachment_config);
@@ -405,7 +408,7 @@ void deferred_pbr_render_system::clear_framebuffers()
     cf->framebuffer_name   = m_hdr_buffer->get_name();
     cf->buffer_mask        = clear_buffer_mask::color_and_depth;
     cf->fb_attachment_mask = attachment_mask::draw_buffer0 | attachment_mask::depth_buffer;
-    cf->r = cf->g = cf->b = 4096.0f;
+    cf->r = cf->g = cf->b = 30000.0f;
     cf->a = cf->depth = 1.0f;
 
     cf                     = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::no_sort);
@@ -635,7 +638,7 @@ void deferred_pbr_render_system::finish_render(float dt)
     // Bind the renderer uniform buffer.
     bind_renderer_data_buffer(camera, camera_exposure);
     // Bind lighting pass uniform buffer.
-    bind_lighting_pass_buffer(camera, env);
+    bind_lighting_pass_buffer(camera);
 
     // Shadow step execute.
     if (step_shadow_map)
@@ -782,7 +785,7 @@ void deferred_pbr_render_system::calculate_auto_exposure(float dt)
     dc->num_z_groups             = 1;
 
     amb              = m_exposure_commands->create<add_memory_barrier_command>(command_keys::no_sort);
-    amb->barrier_bit = memory_barrier_bit::shader_image_access_barrier_bit;
+    amb->barrier_bit = memory_barrier_bit::shader_storage_barrier_bit;
 
     bsp                      = m_exposure_commands->create<bind_shader_program_command>(command_keys::no_sort);
     bsp->shader_program_name = m_reduce_luminance_buffer->get_name();
@@ -924,7 +927,7 @@ void deferred_pbr_render_system::execute_commands(const command_buffer_ptr<min_k
         NAMED_PROFILE_ZONE("Lighting Commands Execute")
         GL_NAMED_PROFILE_ZONE("Lighting Commands Execute");
         m_lighting_pass_commands->execute();
-        if(m_sun_changed) // TODO Paul: Better way?
+        if (m_sun_changed) // TODO Paul: Better way?
             m_lighting_pass_commands->invalidate();
     }
     if (ibl_command_buffer)
@@ -1375,65 +1378,69 @@ bind_texture_command* deferred_pbr_render_system::bind_material_textures(const c
     return bt;
 }
 
-void deferred_pbr_render_system::set_environment(const texture_ptr& hdr_texture)
+void deferred_pbr_render_system::set_environment(const mango::environment_light_data* el_data)
 {
     PROFILE_ZONE;
     if (m_pipeline_steps[mango::render_step::ibl])
     {
         m_lighting_pass_commands->invalidate();
         auto ibl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
-        if (hdr_texture)
-            ibl->load_from_hdr(hdr_texture);
+        if (el_data)
+            ibl->create_image_based_light_data(el_data);
         else
             ibl->clear();
-    }
-}
-
-void deferred_pbr_render_system::set_environment(const glm::vec3& sun_direction, float sun_intensity)
-{
-    PROFILE_ZONE;
-    if (m_pipeline_steps[mango::render_step::ibl])
-    {
-        m_lighting_pass_commands->invalidate();
-        auto ibl        = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
-        glm::vec3 dir   = sun_direction;
-        float intensity = sun_intensity;
-        if (intensity < 0.0f)
-        {
-            dir       = m_lighting_pass_data.directional.direction;
-            intensity = m_lighting_pass_data.directional.intensity;
-        }
-        ibl->create_with_atmosphere(dir, intensity);
     }
 }
 
 void deferred_pbr_render_system::submit_light(light_type type, light_data* data)
 {
     PROFILE_ZONE;
-    if (type == light_type::directional) // currently always true
+    if (type == light_type::directional)
     {
+        m_lighting_pass_data.directional.active       = true;
         auto directional_data                         = static_cast<directional_light_data*>(data);
         m_lighting_pass_data.directional.color        = static_cast<glm::vec3>(directional_data->light_color);
         m_lighting_pass_data.directional.cast_shadows = directional_data->cast_shadows;
-        auto scene                                    = m_shared_context->get_current_scene();
-        auto env                                      = scene->get_active_environment_data();
-        if (m_pipeline_steps[mango::render_step::ibl] && env.environment_info && env.environment_info->procedural_atmosphere &&
-            (m_lighting_pass_data.directional.intensity != directional_data->intensity || glm::vec3(m_lighting_pass_data.directional.direction) != directional_data->direction))
+        m_lighting_pass_data.directional.direction    = directional_data->direction;
+        m_lighting_pass_data.directional.intensity    = directional_data->intensity;
+
+        return;
+    }
+    if (type == light_type::environment)
+    {
+        auto el_data                               = static_cast<environment_light_data*>(data);
+        m_lighting_pass_data.environment.intensity = el_data->intensity;
+        m_lighting_pass_data.environment.active    = true;
+
+        if (el_data->render_sun_as_directional)
         {
-            auto ibl        = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
-            glm::vec3 dir   = directional_data->direction;
-            float intensity = directional_data->intensity;
-            ibl->create_with_atmosphere(dir, intensity);
+            m_lighting_pass_data.directional.active       = true;
+            m_lighting_pass_data.directional.color        = static_cast<glm::vec3>(el_data->sun_data.light_color);
+            m_lighting_pass_data.directional.cast_shadows = el_data->sun_data.cast_shadows;
+        }
+
+        auto scene = m_shared_context->get_current_scene();
+        if (m_pipeline_steps[mango::render_step::ibl] && (el_data->create_atmosphere || el_data->draw_sun_disc) &&
+            (glm::vec3(m_lighting_pass_data.directional.direction) != el_data->sun_data.direction || m_lighting_pass_data.directional.intensity != el_data->sun_data.intensity))
+        {
+            auto ibl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
+            ibl->create_image_based_light_data(el_data);
             m_sun_changed = true;
         }
         else
             m_sun_changed = false;
-        m_lighting_pass_data.directional.direction = directional_data->direction;
-        m_lighting_pass_data.directional.intensity = directional_data->intensity;
+
+        if (el_data->render_sun_as_directional)
+        {
+            m_lighting_pass_data.directional.direction = el_data->sun_data.direction;
+            m_lighting_pass_data.directional.intensity = el_data->sun_data.intensity;
+        }
+
+        return;
     }
 }
 
-void deferred_pbr_render_system::bind_lighting_pass_buffer(camera_data& camera, environment_data& environment)
+void deferred_pbr_render_system::bind_lighting_pass_buffer(camera_data& camera)
 {
     PROFILE_ZONE;
 
@@ -1448,9 +1455,6 @@ void deferred_pbr_render_system::bind_lighting_pass_buffer(camera_data& camera, 
     {
         MANGO_LOG_ERROR("Lighting pass uniforms can not be set! No active camera!");
     }
-    m_lighting_pass_data.ambient.intensity = mango::default_environment_intensity;
-    if (environment.environment_info && m_pipeline_steps[mango::render_step::ibl])
-        m_lighting_pass_data.ambient.intensity = environment.environment_info->intensity;
 
     m_lighting_pass_data.directional.cast_shadows = m_lighting_pass_data.directional.cast_shadows && (m_pipeline_steps[mango::render_step::shadow_map] != nullptr);
 
@@ -1460,6 +1464,10 @@ void deferred_pbr_render_system::bind_lighting_pass_buffer(camera_data& camera, 
     bb->size                = sizeof(lighting_pass_data);
     bb->buffer_name         = m_frame_uniform_buffer->buffer_name();
     bb->offset              = m_frame_uniform_buffer->write_data(sizeof(lighting_pass_data), &m_lighting_pass_data);
+
+    // reset
+    m_lighting_pass_data.directional.active = false;
+    m_lighting_pass_data.environment.active = false;
 }
 
 void deferred_pbr_render_system::bind_renderer_data_buffer(camera_data& camera, float camera_exposure)
@@ -1569,8 +1577,8 @@ void deferred_pbr_render_system::on_ui_widget()
                 auto env   = scene->get_active_environment_data();
                 if (env.environment_info)
                 {
-                    if (env.environment_info->hdr_texture)
-                        step_ibl->load_from_hdr(env.environment_info->hdr_texture);
+                    if (env.environment_info)
+                        step_ibl->create_image_based_light_data(env.environment_info);
                     else
                         step_ibl->clear();
                 }

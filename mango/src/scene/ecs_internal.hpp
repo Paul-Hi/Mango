@@ -158,7 +158,8 @@ namespace mango
             PROFILE_ZONE;
             lights.for_each(
                 [this, &lights](light_component& c, int32&) {
-                    m_rs->submit_light(c.type_of_light, c.data.get());
+                    if (c.active)
+                        m_rs->submit_light(c.type_of_light, c.data.get());
                 },
                 false);
         }

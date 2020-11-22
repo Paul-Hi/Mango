@@ -20,15 +20,15 @@ namespace mango
 
     void custom_info(const string& label, std::function<void()> component_function, float group_width_modifier = 0.0f, float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
     bool custom_aligned(const string& label, std::function<bool(bool reset)> component_function, float group_width_modifier = 0.0f, float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
-    bool drag_float_n(const string& label, float* values, int32 components, float reset_value, float speed = 1.0f, float min_value = 0.0f, float max_value = 0.0f, const char* format = "%.3f",
+    bool drag_float_n(const string& label, float* values, int32 components, float* reset_value, float speed = 1.0f, float min_value = 0.0f, float max_value = 0.0f, const char* format = "%.3f",
                       bool component_buttons = false, float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
-    bool slider_float_n(const string& label, float* values, int32 components, float reset_value, float min_value = 0.0f, float max_value = 0.0f, const char* format = "%.3f",
+    bool slider_float_n(const string& label, float* values, int32 components, float* reset_value, float min_value = 0.0f, float max_value = 0.0f, const char* format = "%.3f",
                         bool component_buttons = false, float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
 
-    bool slider_int_n(const string& label, int32* values, int32 components, int32 reset_value, int32 min_value = 0, int32 max_value = 0, const char* format = "%d", bool component_buttons = false,
+    bool slider_int_n(const string& label, int32* values, int32 components, int32* reset_value, int32 min_value = 0, int32 max_value = 0, const char* format = "%d", bool component_buttons = false,
                       float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
 
-    bool color_edit(const string& label, float* values, int32 components, float reset_value, float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
+    bool color_edit(const string& label, float* values, int32 components, float* reset_value, float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
     bool checkbox(const string& label, bool* value, bool reset_value, float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
     bool combo(const string& label, const char** list, int32 size, int32& current_idx, int32 reset_value, float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
 

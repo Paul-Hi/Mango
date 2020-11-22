@@ -46,8 +46,7 @@ namespace mango
         void end_mesh() override;
         void use_material(const material_ptr& mat) override;
         void draw_mesh(const vertex_array_ptr& vertex_array, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
-        void set_environment(const texture_ptr& hdr_texture) override;
-        void set_environment(const glm::vec3& sun_direction, float sun_intensity) override;
+        void set_environment(const mango::environment_light_data* el_data) override;
         void submit_light(light_type type, light_data* data) override;
         void on_ui_widget() override;
 
@@ -177,11 +176,13 @@ namespace mango
                 std140_vec3 color;        //!< The light color.
                 std140_float intensity;   //!< The intensity of the directional light in lumen.
                 std140_bool cast_shadows; //!< True, if shadows can be casted.
-            } directional;                //!< Data for the directional light (only one)
+                std140_bool active;       //!< True, if a directional light is active.
+            } directional;                //!< Data for the directional light (max one)
             struct
             {
-                std140_float intensity; //!< The intensity of the directional light in cd/m^2.
-            } ambient;                  //!< Data for the ambient/ibl light (only one)
+                std140_float intensity; //!< The intensity of the environment light in cd/m^2.
+                std140_bool active;     //!< True, if an environment light is active.
+            } environment;              //!< Data for the environment light (max one)
             // struct
             // {
             //     std140_vec3 position;
@@ -212,8 +213,11 @@ namespace mango
             } debug_options;                  //!< The debug options.
 
             std140_float padding0; //!< padding.
+            std140_float padding1; //!< padding.
+            std140_float padding2; //!< padding.
         } m_lighting_pass_data;    //!< Current lighting_pass_data.
 
+        // TODO Paul: This one is sh** ...
         bool m_sun_changed = false;
 
         //! \brief Structure used to cache the \a commands regarding the rendering of the current model/mesh.
@@ -268,8 +272,7 @@ namespace mango
 
         //! \brief Binds the uniform buffer of the lighting pass.
         //! \param[in,out] camera The \a camera_data of the current camera.
-        //! \param[in,out] environment The \a environment_data of the current environment.
-        void bind_lighting_pass_buffer(camera_data& camera, environment_data& environment);
+        void bind_lighting_pass_buffer(camera_data& camera);
 
         //! \brief Calculates exposure and adapts physical camera parameters.
         //! \param[in,out] camera The \a camera_data of the current camera.

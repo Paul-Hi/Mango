@@ -147,12 +147,12 @@ bool graphics_state::bind_framebuffer(g_uint name)
     return false;
 }
 
-bool graphics_state::bind_buffer(int32 slot, int64 offset)
+bool graphics_state::bind_buffer(g_uint name, int32 slot, int64 offset)
 {
     PROFILE_ZONE;
-    if (m_internal_state.buffer_offsets[slot] != offset)
+    if (m_internal_state.buffer_name_offset[slot] != glm::ivec2(name, offset))
     {
-        m_internal_state.buffer_offsets[slot] = offset;
+        m_internal_state.buffer_name_offset[slot] = glm::ivec2(name, offset);
         return true;
     }
     return false;

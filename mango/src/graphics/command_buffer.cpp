@@ -195,7 +195,7 @@ void bind_buffer(const void* data)
 {
     NAMED_PROFILE_ZONE("Bind Buffer");
     const bind_buffer_command* cmd = static_cast<const bind_buffer_command*>(data);
-    if (!m_current_state.bind_buffer(cmd->index, cmd->offset))
+    if (!m_current_state.bind_buffer(cmd->buffer_name, cmd->index, cmd->offset))
         return;
 
     g_enum gl_target = buffer_target_to_gl(cmd->target);

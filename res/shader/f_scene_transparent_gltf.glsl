@@ -81,8 +81,10 @@ layout(binding = 3, std140) uniform lighting_pass_data
     vec4  directional_color; // this is a vec3, but there are annoying bugs with some drivers.
     float directional_intensity;
     bool  cast_shadows;
+    bool  directional_active;
 
-    float ambient_intensity;
+    float environment_intensity;
+    bool  environment_active;
 
     bool debug_view_enabled;
     bool debug_views_position;
@@ -447,19 +449,51 @@ void main()
 
     vec3 lighting = vec3(0.0);
 
+
     // environment
-    lighting += calculate_image_based_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
+    vec3 ambient = calculate_image_based_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
 
     // lights
-    lighting += calculate_directional_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor, position);
+    vec3 directional = calculate_directional_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor, position);
 
+    // shadows (directional)
+    float shadow = 1.0;
+    vec3 cascade_color = vec3(1.0);
+    if(directional_active && cast_shadows)
+    {
+        vec4 view_pos = view * vec4(position, 1.0);
+        int interpolation_mode;
+        float interpolation_factor;
+        int cascade_id = compute_cascade_id(abs(view_pos.z), interpolation_factor, interpolation_mode);
+        vec3 light_dir = normalize(directional_direction.xyz);
+        float n_dot_l = saturate(dot(normal, light_dir));
+        vec3 bias = vec3(clamp(shadow_map_data.slope_bias * tan(acos(n_dot_l)), 0.0,shadow_map_data.slope_bias * 2.0)) + normal * shadow_map_data.normal_bias;
+
+        shadow = directional_shadow(shadow_map, position, cascade_id, interpolation_factor, interpolation_mode, bias);
+        if(show_cascades)
+        {
+            if(cascade_id == 0) cascade_color.gb *= vec2(0.25);
+            if(cascade_id == 1) cascade_color.rb *= vec2(0.25);
+            if(cascade_id == 2) cascade_color.rg *= vec2(0.25);
+            if(cascade_id == 3) cascade_color.b  *= 0.125;
+            if(interpolation_mode != 0) cascade_color *= 0.5;
+        }
+    }
+
+    lighting += ambient;
+    lighting += directional * shadow;
     lighting += emissive * 50000.0; // TODO Paul: Remove hardcoded intensity for all emissive values -.-
+
+    lighting *= cascade_color;
 
     hdr_out = vec4(lighting * base_color.a, base_color.a); // Premultiplied alpha?
 }
 
 vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor)
 {
+    float light_intensity = environment_intensity;
+    if(!environment_active || light_intensity < 1e-5)
+        return vec3(300.0); // TODO Paul: Hardcoded -.-
     const float DFG_TEXTURE_SIZE = 256.0; // TODO Paul: Hardcoded -.-
 
     n_dot_v = clamp(n_dot_v , 0.5 / DFG_TEXTURE_SIZE, 1.0 - 0.5 / DFG_TEXTURE_SIZE);
@@ -481,17 +515,21 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     vec3 energy_compensation = 1.0 + f0 * (1.0 / dfg.y - 1.0);
     specular_ibl *= energy_compensation;
 
-    return (diffuse_ibl * occlusion_factor + specular_ibl) * ambient_intensity;
+    return (diffuse_ibl * occlusion_factor + specular_ibl) * light_intensity;
 }
 
 vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor, in vec3 world_pos)
 {
     float light_intensity = directional_intensity;
-    if(light_intensity < 1e-5)
+    if(!directional_active || light_intensity < 1e-5)
         return vec3(0.0);
     vec3 light_dir        = normalize(directional_direction.xyz);
     vec3 light_col        = directional_color.rgb;
     float roughness       = (perceptual_roughness * perceptual_roughness);
+
+    // adjust roughness to approximate small disk
+    float lightRoughness = 0.1 * 696340.0 / 14960000.0; // sun radius / sun distance * 0.1 -> some approximation.
+    float specular_roughness = saturate(lightRoughness + roughness);
 
     vec3 lighting = vec3(0.0);
 
@@ -500,9 +538,9 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     float n_dot_h = saturate(dot(normal, halfway));
     float l_dot_h = saturate(dot(light_dir, halfway));
 
-    float D = D_GGX(n_dot_h, roughness);
+    float D = D_GGX(n_dot_h, specular_roughness);
     vec3 F  = F_Schlick(l_dot_h, f0, 1.0);
-    float V = V_SmithGGXCorrelated(n_dot_v, n_dot_l, roughness);
+    float V = V_SmithGGXCorrelated(n_dot_v, n_dot_l, specular_roughness);
 
     // Fr energy compensation
     vec3 Fr = D * V * F * (1.0 / PI);
@@ -513,26 +551,6 @@ vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 
     vec3 specular = n_dot_l * Fr;
 
     lighting += (diffuse * occlusion_factor + specular) * light_col * light_intensity;
-
-    if(cast_shadows)
-    {
-        vec4 view_pos = view * vec4(world_pos, 1.0);
-        int interpolation_mode;
-        float interpolation_factor;
-        int cascade_id = compute_cascade_id(abs(view_pos.z), interpolation_factor, interpolation_mode);
-        vec3 bias = vec3(clamp(shadow_map_data.slope_bias * tan(acos(n_dot_l)), 0.0,shadow_map_data.slope_bias * 2.0)) + get_normal() * shadow_map_data.normal_bias;
-
-        float shadow = cast_shadows ? directional_shadow(shadow_map, world_pos, cascade_id, interpolation_factor, interpolation_mode, bias) : 1.0;
-        lighting = lighting * shadow;
-        if(show_cascades)
-        {
-            if(cascade_id == 0) lighting.gb *= vec2(0.25);
-            if(cascade_id == 1) lighting.rb *= vec2(0.25);
-            if(cascade_id == 2) lighting.rg *= vec2(0.25);
-            if(cascade_id == 3) lighting.b  *= 0.125;
-            if(interpolation_mode != 0) lighting *= 0.5;
-        }
-    }
 
     return lighting;
 }

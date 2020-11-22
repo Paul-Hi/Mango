@@ -125,16 +125,10 @@ void render_system_impl::draw_mesh(const vertex_array_ptr& vertex_array, primiti
     m_current_render_system->draw_mesh(vertex_array, topology, first, count, type, instance_count);
 }
 
-void render_system_impl::set_environment(const texture_ptr& hdr_texture)
+void render_system_impl::set_environment(const mango::environment_light_data* el_data)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->set_environment(hdr_texture);
-}
-
-void render_system_impl::set_environment(const glm::vec3& sun_direction, float sun_intensity)
-{
-    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->set_environment(sun_direction, sun_intensity);
+    m_current_render_system->set_environment(el_data);
 }
 
 void render_system_impl::submit_light(light_type type, light_data* data)

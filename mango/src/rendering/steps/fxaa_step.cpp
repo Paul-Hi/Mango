@@ -150,7 +150,8 @@ void fxaa_step::on_ui_widget()
     combo("Shadow Filter Mode", presets, 3, current_filter, 1);
     m_quality_preset = static_cast<fxaa_quality_preset>(current_filter);
 
-    slider_float_n("Subpixel Filter", &m_subpixel_filter, 1, 0.0f, 0.0f, 1.0f);
+    float default_value = 0.0f;
+    slider_float_n("Subpixel Filter", &m_subpixel_filter, 1, &default_value, 0.0f, 1.0f);
 
     ImGui::PopID();
 }

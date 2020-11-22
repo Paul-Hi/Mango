@@ -89,6 +89,7 @@ namespace mango
             std140_float slope_bias                  = 0.005f; //!< The slope bias.
             std140_float normal_bias                 = 0.01f;  //!< The bias along the normal.
             std140_int filter_mode                   = 0;      //!< shadow_filtering parameter.
+            std140_float pad                         = 0;      //!< padding;
         } m_shadow_data;                                       //!< Current shadow_data.
 
         struct

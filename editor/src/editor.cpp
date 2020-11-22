@@ -87,18 +87,20 @@ bool editor::create()
         mango_rs->setup_fxaa_step(fxaa_config);
 
         application_scene->create_entities_from_model("res/models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.glb");
-        entity lighting                                                              = application_scene->create_atmospheric_environment();
-        application_scene->get_component<tag_component>(lighting)->tag_name          = "Global Lighting";
-        application_scene->get_component<environment_component>(lighting)->intensity = 4000.0f;
-        auto l_c                                                                     = application_scene->add_component<light_component>(lighting);
+        entity lighting                                                     = application_scene->create_atmospheric_environment();
+        application_scene->get_component<tag_component>(lighting)->tag_name = "Global Lighting";
+        auto l_c                                                            = application_scene->get_component<light_component>(lighting);
         if (l_c)
         {
-            l_c->type_of_light             = mango::light_type::directional;
-            auto directional_data          = static_cast<mango::directional_light_data*>(l_c->data.get());
-            directional_data->direction    = glm::vec3(0.9f, 0.05f, 0.65f);
-            directional_data->intensity    = 89000.0f;
-            directional_data->light_color  = mango::color_rgb({ 1.0f, 0.387f, 0.207f });
-            directional_data->cast_shadows = true;
+            l_c->type_of_light             = mango::light_type::environment;
+            auto el_data                   = static_cast<mango::environment_light_data*>(l_c->data.get());
+            el_data->intensity             = 4000.0f;
+            el_data->create_atmosphere     = true;
+            el_data->draw_sun_disc         = true;
+            el_data->sun_data.direction    = glm::vec3(0.9f, 0.05f, 0.65f);
+            el_data->sun_data.intensity    = 89000.0f;
+            el_data->sun_data.light_color  = mango::color_rgb({ 1.0f, 0.387f, 0.207f });
+            el_data->sun_data.cast_shadows = true;
         }
     }
     // test end

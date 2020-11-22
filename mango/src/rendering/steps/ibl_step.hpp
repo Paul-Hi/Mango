@@ -27,16 +27,9 @@ namespace mango
 
         void destroy() override;
 
-        //! \brief Loads a environment from from a hdr texture.
-        //! \details Creates irradiance map and prefiltered specular map.
-        //! \param[in] hdr_texture The texture with the hdr image data.
-        void load_from_hdr(const texture_ptr& hdr_texture);
-
-        //! \brief Creates an environment with atmospheric scattering.
-        //! \details Creates irradiance map and prefiltered specular map.
-        //! \param[in] sun_dir The direction to the sun.
-        //! \param[in] sun_intensity The sun intensity.
-        void create_with_atmosphere(const glm::vec3& sun_dir, float sun_intensity);
+        //! \brief Creates all ibl data for an environment.
+        //! \param[in] el_data The pointer to the \a environment_light_data.
+        void create_image_based_light_data(const mango::environment_light_data* el_data);
 
         void clear();
 
@@ -63,6 +56,16 @@ namespace mango
       private:
         bool setup_shader_programs() override;
         bool setup_buffers() override;
+
+        //! \brief Loads a environment from from a hdr texture.
+        //! \details Creates irradiance map and prefiltered specular map.
+        //! \param[in] el_data The pointer to the \a environment_light_data.
+        void load_from_hdr(const mango::environment_light_data* el_data);
+
+        //! \brief Creates an environment with atmospheric scattering.
+        //! \details Creates irradiance map and prefiltered specular map.
+        //! \param[in] el_data The pointer to the \a environment_light_data.
+        void create_with_atmosphere(const mango::environment_light_data* el_data);
 
         void calculate_ibl_maps(const command_buffer_ptr<min_key>& compute_commands);
 
@@ -118,6 +121,23 @@ namespace mango
             std140_float p1;                    //!< Padding.
             std140_float p2;                    //!< Padding.
         } m_ibl_data;                           //!< Current ibl_data.
+
+        buffer_ptr m_atmosphere_data_buffer;
+        struct atmosphere_ub_data
+        {
+            std140_vec3 sun_dir;
+            std140_vec3 rayleigh_scattering_coefficients;
+            std140_vec3 ray_origin;
+            std140_vec2 density_multiplier;
+            std140_float sun_intensity;
+            std140_float mie_scattering_coefficient;
+            std140_float ground_radius;
+            std140_float atmosphere_radius;
+            std140_float mie_preferred_scattering_dir;
+            std140_int scatter_points;
+            std140_int scatter_points_second_ray;
+        };
+        atmosphere_ub_data* m_atmosphere_data_mapping;
 
         //! \brief Default texture that is bound to every texture unit not in use to prevent warnings.
         texture_ptr m_default_ibl_texture;

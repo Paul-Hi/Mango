@@ -65,14 +65,14 @@ namespace mango
         entity create_entities_from_model(const string& path, entity gltf_root = invalid_entity);
 
         //! \brief Creates an environment entity.
-        //! \details An entity with \a environment_component.
+        //! \details An entity with \a environment_component. ATTENTION: This creates the \a light_data and fills it. Do not recreate it.
         //! The environment texture is preprocessed, prefiltered and can be rendered as a cube. This is done with a \a pipeline_step.
         //! \param[in] path The path to the hdr image to load.
         //! \return The created environment entity.
         entity create_environment_from_hdr(const string& path);
 
         //! \brief Creates an environment entity.
-        //! \details An entity with \a environment_component.
+        //! \details An entity with \a environment_component. ATTENTION: This creates the \a light_data and fills it. Do not recreate it.
         //! The atmosphere is generated, preprocessed, prefiltered and can be rendered as a cube. This is done with a \a pipeline_step.
         //! \param[in] sun_direction The sun direction to use or vec3(-1.0f) if renderer should choose the sun.
         //! \param[in] sun_intensity The sun intensity to use or -1.0f if renderer should choose the sun.
@@ -118,8 +118,6 @@ namespace mango
             case 7:
                 return (comp*)m_cameras.get_component_for_entity(e);
             case 8:
-                return (comp*)m_environments.get_component_for_entity(e);
-            case 9:
                 return (comp*)m_lights.get_component_for_entity(e);
             default:
                 MANGO_LOG_ERROR("No component id matches the component!");
@@ -156,8 +154,6 @@ namespace mango
             case 7:
                 return (comp*)m_cameras.get_component_for_entity(e, true);
             case 8:
-                return (comp*)m_environments.get_component_for_entity(e, true);
-            case 9:
                 return (comp*)m_lights.get_component_for_entity(e, true);
             default:
                 MANGO_LOG_ERROR("No component id matches the component!");
@@ -185,7 +181,8 @@ namespace mango
                 return nullptr;
             case 4:
                 MANGO_LOG_CRITICAL("Can not directly create material components! Try create them with create_entities_from_model(...).");
-                return nullptr;;
+                return nullptr;
+                ;
             case 5:
                 return (comp*)&m_models.create_component_for(e);
             case 6:
@@ -193,8 +190,6 @@ namespace mango
             case 7:
                 return (comp*)&m_cameras.create_component_for(e);
             case 8:
-                return (comp*)&m_environments.create_component_for(e);
-            case 9:
                 return (comp*)&m_lights.create_component_for(e);
             default:
                 MANGO_LOG_CRITICAL("No component id matches the component!");
@@ -239,9 +234,6 @@ namespace mango
                 m_cameras.remove_component_from(e);
                 return;
             case 8:
-                m_environments.remove_component_from(e);
-                return;
-            case 9:
                 m_lights.remove_component_from(e);
                 return;
             default:
@@ -290,15 +282,16 @@ namespace mango
         //! \return The \a environment_data.
         inline environment_data get_active_environment_data()
         {
+            auto lc = m_lights.get_component_for_entity(m_active.environment, true);
             environment_data result;
-            result.active_environment_entity = m_active.environment;
-            result.environment_info          = m_environments.get_component_for_entity(m_active.environment, true);
-            if (result.active_environment_entity == invalid_entity || !result.environment_info)
+            if (m_active.environment == invalid_entity || !lc)
             {
                 result.active_environment_entity = invalid_entity;
                 result.environment_info          = nullptr;
                 return result;
             }
+            result.active_environment_entity = m_active.environment;
+            result.environment_info = static_cast<mango::environment_light_data*>(lc->data.get());
             return result;
         }
 
@@ -406,8 +399,6 @@ namespace mango
         scene_component_pool<mesh_component> m_meshes;
         //! \brief All \a camera_components.
         scene_component_pool<camera_component> m_cameras;
-        //! \brief All \a environment_components. There is only one unique at the moment.
-        scene_component_pool<environment_component> m_environments;
         //! \brief All \a light_components.
         scene_component_pool<light_component> m_lights;
         //! \brief The root entity of the ecs.

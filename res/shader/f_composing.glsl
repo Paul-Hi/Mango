@@ -32,8 +32,10 @@ layout(binding = 3, std140) uniform lighting_pass_data
     vec4  directional_color; // this is a vec3, but there are annoying bugs with some drivers.
     float directional_intensity;
     bool  cast_shadows;
+    bool  directional_active;
 
-    float ambient_intensity;
+    float environment_intensity;
+    bool  environment_active;
 
     bool debug_view_enabled;
     bool debug_views_position;
@@ -65,6 +67,7 @@ void main()
         frag_color = texture(hdr_input, texcoord);
         return;
     }
+
     frag_color = tonemap_with_gamma_correction(texture(hdr_input, texcoord));
 }
 

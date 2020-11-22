@@ -186,19 +186,11 @@ namespace mango
     //! \brief The default intensity of an environment. Is approx. the intensity of a sunny sky.
     const float default_environment_intensity = 30000.0f;
 
-    //! \brief Component used for the scene environment.
-    struct environment_component
-    {
-        glm::mat3 rotation_scale_matrix = glm::mat3(1.0f); //!< The rotation and scale of the environment.
-        shared_ptr<texture> hdr_texture;                   //!< The hdr texture used to build the environment.
-        bool procedural_atmosphere;                        //!< True if environment has no texture and should generate procedural atmosphere.
-        float intensity = default_environment_intensity;   //!< Intensity in cd/m^2. Default 30000 (sunny sky).
-    };
-
     //! \brief Light types used in \a light_components.
     enum class light_type : uint8
     {
-        directional //!< Simple directional light.
+        directional, //!< Simple directional light.
+        environment  //!< Light type with environmental light, sometimes with directional shadow casting sun.
     };
 
     //! \brief Base light data for every light.
@@ -218,11 +210,33 @@ namespace mango
         bool cast_shadows = false;                         //!< True if the light should cast shadows.
     };
 
+    struct environment_light_data : public light_data
+    {
+        shared_ptr<texture> hdr_texture;
+        float intensity                = default_environment_intensity;
+        bool render_sun_as_directional = true;
+        directional_light_data sun_data;
+
+        // scattering parameters
+        bool create_atmosphere                     = false;
+        bool draw_sun_disc                         = true;
+        int32 scatter_points                       = 32;
+        int32 scatter_points_second_ray            = 8;
+        glm::vec3 rayleigh_scattering_coefficients = glm::vec3(5.8e-6f, 13.5e-6f, 33.1e-6f);
+        float mie_scattering_coefficient           = 21e-6f;
+        glm::vec2 density_multiplier               = glm::vec2(8e3f, 1.2e3f);
+        float ground_radius                        = 6360e3f;
+        float atmosphere_radius                    = 6420e3f;
+        float view_height                          = 1e3f;
+        float mie_preferred_scattering_dir         = 0.758f;
+    };
+
     //! \brief Component used for all lights excluding image based lights.
     struct light_component
     {
-        light_type type_of_light    = light_type::directional;                    //!< The type of the light.
-        shared_ptr<light_data> data = std::make_shared<directional_light_data>(); //!< Light specific data.
+        bool active                 = false;
+        light_type type_of_light    = light_type::environment;                    //!< The type of the light.
+        shared_ptr<light_data> data = std::make_shared<environment_light_data>(); //!< Light specific data.
     };
 
     //! \brief Structure used for collecting all the camera data of the current active camera.
@@ -236,8 +250,8 @@ namespace mango
     //! \brief Structure used for collecting all the environment data of the current active environment.
     struct environment_data
     {
-        entity active_environment_entity;        //!< The entity.
-        environment_component* environment_info; //!< The environment info.
+        entity active_environment_entity;         //!< The entity.
+        environment_light_data* environment_info; //!< The environment light info.
     };
 
     // TODO Paul: This will be reworked when we need the reflection for the components.
@@ -361,19 +375,6 @@ namespace mango
         }
     };
     template <>
-    struct type_name<environment_component>
-    {
-        static const char* get()
-        {
-            return "Environment Component";
-        }
-
-        static const int32 id()
-        {
-            return 8;
-        }
-    };
-    template <>
     struct type_name<light_component>
     {
         static const char* get()
@@ -383,7 +384,7 @@ namespace mango
 
         static const int32 id()
         {
-            return 9;
+            return 8;
         }
     };
     //! \endcond

@@ -170,11 +170,20 @@ bool ibl_step::setup_buffers()
 
     m_ibl_command_buffer = command_buffer<min_key>::create(512);
 
+    buffer_configuration b_config;
+    b_config.access          = buffer_access::mapped_access_read_write;
+    b_config.size            = sizeof(atmosphere_ub_data);
+    b_config.target          = buffer_target::shader_storage_buffer;
+    m_atmosphere_data_buffer = buffer::create(b_config);
+
+    m_atmosphere_data_mapping = static_cast<atmosphere_ub_data*>(m_atmosphere_data_buffer->map(0, b_config.size, buffer_access::mapped_access_write));
+    if (!check_mapping(m_atmosphere_data_mapping, "atmosphere compute shader data"))
+        return false;
+
     m_cube_geometry = vertex_array::create();
     if (!check_creation(m_cube_geometry.get(), "cubemap geometry vertex array"))
         return false;
 
-    buffer_configuration b_config;
     b_config.access     = buffer_access::none;
     b_config.size       = sizeof(cubemap_vertices);
     b_config.target     = buffer_target::vertex_buffer;
@@ -218,7 +227,7 @@ bool ibl_step::setup_buffers()
     if (!check_creation(m_default_ibl_texture.get(), "default ibl texture"))
         return false;
 
-    g_ubyte albedo[4] = { 127, 127, 127, 255 };
+    g_ubyte albedo[4] = { 1, 1, 1, 255 };
     m_default_ibl_texture->set_data(format::rgba8, 1, 1, format::rgba, format::t_unsigned_byte, albedo);
 
     return true;
@@ -306,10 +315,25 @@ void ibl_step::clear()
     return;
 }
 
-void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
+void ibl_step::create_image_based_light_data(const mango::environment_light_data* el_data)
+{
+    if (!el_data->create_atmosphere)
+    {
+        if (el_data->hdr_texture)
+            load_from_hdr(el_data);
+        else
+            clear();
+    }
+    else
+    {
+        create_with_atmosphere(el_data);
+    }
+}
+
+void ibl_step::load_from_hdr(const mango::environment_light_data* el_data)
 {
     PROFILE_ZONE;
-    if (!hdr_texture)
+    if (!el_data->hdr_texture)
         return;
     texture_configuration texture_config;
     texture_config.generate_mipmaps        = calculate_mip_count(m_cube_width, m_cube_height);
@@ -339,7 +363,7 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
     bind_texture_command* bt = compute_commands->create<bind_texture_command>(command_keys::no_sort);
     bt->binding              = 0;
     bt->sampler_location     = 0;
-    bt->texture_name         = hdr_texture->get_name();
+    bt->texture_name         = el_data->hdr_texture->get_name();
 
     // bind output cubemap
     bind_image_texture_command* bit = compute_commands->create<bind_image_texture_command>(command_keys::no_sort);
@@ -381,9 +405,21 @@ void ibl_step::load_from_hdr(const texture_ptr& hdr_texture)
     }
 }
 
-void ibl_step::create_with_atmosphere(const glm::vec3& sun_dir, float sun_intensity)
+void ibl_step::create_with_atmosphere(const mango::environment_light_data* el_data)
 {
     PROFILE_ZONE;
+    m_atmosphere_data_mapping->sun_dir                          = glm::normalize(el_data->sun_data.direction);
+    m_atmosphere_data_mapping->sun_intensity                    = el_data->sun_data.intensity * 0.0025f;
+    m_atmosphere_data_mapping->scatter_points                   = el_data->scatter_points;
+    m_atmosphere_data_mapping->scatter_points_second_ray        = el_data->scatter_points_second_ray;
+    m_atmosphere_data_mapping->rayleigh_scattering_coefficients = el_data->rayleigh_scattering_coefficients;
+    m_atmosphere_data_mapping->mie_scattering_coefficient       = el_data->mie_scattering_coefficient;
+    m_atmosphere_data_mapping->density_multiplier               = el_data->density_multiplier;
+    m_atmosphere_data_mapping->ground_radius                    = el_data->ground_radius;
+    m_atmosphere_data_mapping->atmosphere_radius                = el_data->atmosphere_radius;
+    m_atmosphere_data_mapping->ray_origin                       = glm::vec3(0.0f, el_data->ground_radius + el_data->view_height, 0.0f);
+    m_atmosphere_data_mapping->mie_preferred_scattering_dir     = el_data->mie_preferred_scattering_dir;
+
     texture_configuration texture_config;
     texture_config.generate_mipmaps        = calculate_mip_count(m_cube_width, m_cube_height);
     texture_config.is_standard_color_space = false;
@@ -427,13 +463,12 @@ void ibl_step::create_with_atmosphere(const glm::vec3& sun_dir, float sun_intens
     bsu->uniform_value               = compute_commands->map_spare<bind_single_uniform_command>();
     memcpy(bsu->uniform_value, &out, sizeof(out));
 
-    glm::vec4 sun_data = glm::vec4(sun_dir, sun_intensity * 0.005f);
-    bsu                = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(sun_data));
-    bsu->count         = 1;
-    bsu->location      = 1;
-    bsu->type          = shader_resource_type::fvec4;
-    bsu->uniform_value = compute_commands->map_spare<bind_single_uniform_command>();
-    memcpy(bsu->uniform_value, &sun_data, sizeof(sun_data));
+    bind_buffer_command* bb = compute_commands->create<bind_buffer_command>(command_keys::no_sort);
+    bb->index               = UB_SLOT_COMPUTE_DATA;
+    bb->buffer_name         = m_atmosphere_data_buffer->get_name();
+    bb->offset              = 0;
+    bb->target              = buffer_target::uniform_buffer;
+    bb->size                = m_atmosphere_data_buffer->byte_length();
 
     // execute compute
     dispatch_compute_command* dp = compute_commands->create<dispatch_compute_command>(command_keys::no_sort);
@@ -486,7 +521,8 @@ void ibl_step::on_ui_widget()
     {
         m_ibl_data.render_level = tmp;
         float& render_level     = m_ibl_data.render_level;
-        slider_float_n("Blur Level", &render_level, 1, 0.0f, 0.0f, 8.0f);
+        float default_value     = 0.0f;
+        slider_float_n("Blur Level", &render_level, 1, &default_value, 0.0f, 8.0f);
         tmp = m_ibl_data.render_level;
     }
     ImGui::PopID();

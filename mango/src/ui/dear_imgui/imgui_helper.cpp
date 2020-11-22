@@ -115,7 +115,7 @@ bool mango::custom_aligned(const string& label, std::function<bool(bool reset)> 
     return value_changed;
 }
 
-bool mango::drag_float_n(const string& label, float* values, int32 components, float reset_value, float speed, float min_value, float max_value, const char* format, bool component_buttons,
+bool mango::drag_float_n(const string& label, float* values, int32 components, float* reset_value, float speed, float min_value, float max_value, const char* format, bool component_buttons,
                          float column_width)
 {
     ImGuiContext& g   = *GImGui;
@@ -141,11 +141,11 @@ bool mango::drag_float_n(const string& label, float* values, int32 components, f
                 if (component_buttons)
                 {
                     if (ImGui::Button(v[i > 4 ? 4 : i], button_size) || reset)
-                        *values = reset_value;
+                        *values = reset_value[i];
                     ImGui::SameLine(0, 0);
                 }
                 else if (reset)
-                    *values = reset_value;
+                    *values = reset_value[i];
 
                 value_changed |= ImGui::DragFloat("", values, speed, min_value, max_value, format);
                 ImGui::PopID();
@@ -161,7 +161,7 @@ bool mango::drag_float_n(const string& label, float* values, int32 components, f
         -line_height * components, column_width);
 }
 
-bool mango::slider_float_n(const string& label, float* values, int32 components, float reset_value, float min_value, float max_value, const char* format, bool component_buttons, float column_width)
+bool mango::slider_float_n(const string& label, float* values, int32 components, float* reset_value, float min_value, float max_value, const char* format, bool component_buttons, float column_width)
 {
     ImGuiContext& g   = *GImGui;
     float line_height = component_buttons ? g.Font->FontSize + g.Style.FramePadding.y * 2.0f : 0.0f;
@@ -186,11 +186,11 @@ bool mango::slider_float_n(const string& label, float* values, int32 components,
                 if (component_buttons)
                 {
                     if (ImGui::Button(v[i > 4 ? 4 : i], button_size) || reset)
-                        *values = reset_value;
+                        *values = reset_value[i];
                     ImGui::SameLine(0, 0);
                 }
                 else if (reset)
-                    *values = reset_value;
+                    *values = reset_value[i];
 
                 value_changed |= ImGui::SliderFloat("", values, min_value, max_value, format);
                 ImGui::PopID();
@@ -206,7 +206,7 @@ bool mango::slider_float_n(const string& label, float* values, int32 components,
         -line_height * components, column_width);
 }
 
-bool mango::slider_int_n(const string& label, int32* values, int32 components, int32 reset_value, int32 min_value, int32 max_value, const char* format, bool component_buttons, float column_width)
+bool mango::slider_int_n(const string& label, int32* values, int32 components, int32* reset_value, int32 min_value, int32 max_value, const char* format, bool component_buttons, float column_width)
 {
     ImGuiContext& g   = *GImGui;
     float line_height = component_buttons ? g.Font->FontSize + g.Style.FramePadding.y * 2.0f : 0.0f;
@@ -231,11 +231,11 @@ bool mango::slider_int_n(const string& label, int32* values, int32 components, i
                 if (component_buttons)
                 {
                     if (ImGui::Button(v[i > 4 ? 4 : i], button_size) || reset)
-                        *values = reset_value;
+                        *values = reset_value[i];
                     ImGui::SameLine(0, 0);
                 }
                 else if (reset)
-                    *values = reset_value;
+                    *values = reset_value[i];
 
                 value_changed |= ImGui::SliderInt("", values, min_value, max_value, format);
                 ImGui::PopID();
@@ -251,7 +251,7 @@ bool mango::slider_int_n(const string& label, int32* values, int32 components, i
         -line_height * components, column_width);
 }
 
-bool mango::color_edit(const string& label, float* values, int32 components, float reset_value, float column_width)
+bool mango::color_edit(const string& label, float* values, int32 components, float* reset_value, float column_width)
 {
     return custom_aligned(
         label,
@@ -267,7 +267,7 @@ bool mango::color_edit(const string& label, float* values, int32 components, flo
             {
                 for (int32 i = 0; i < components; i++)
                 {
-                    *values = reset_value;
+                    *values = reset_value[i];
                     values  = (float*)((char*)values + sizeof(float));
                 }
             }

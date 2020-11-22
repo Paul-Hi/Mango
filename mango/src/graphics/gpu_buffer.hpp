@@ -32,6 +32,8 @@ namespace mango
 #define UB_SLOT_SHADOW_DATA 4
 //! \brief Slot for the shader storage buffer used for automatic exposure calculation.
 #define SSB_SLOT_EXPOSURE 4
+//! \brief Slot for the uniform buffers used in compute shaders.
+#define UB_SLOT_COMPUTE_DATA 6
 
     //! \brief Structure describing various buffering techniques.
     enum class buffer_technique : uint8
