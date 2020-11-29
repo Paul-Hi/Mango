@@ -3,7 +3,7 @@
 layout (location = 0, binding = 0) uniform sampler2D sampler_base_color;
 
 // Uniform Buffer Material.
-layout(binding = 2, std140) uniform material_data
+layout(binding = 3, std140) uniform material_data
 {
     vec4  base_color;
     vec4  emissive_color; // this is a vec3, but there are annoying bugs with some drivers.

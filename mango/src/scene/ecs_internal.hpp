@@ -143,7 +143,7 @@ namespace mango
     };
 
     //! \brief An \a ecsystem for light submission.
-    class light_submission_system : public ecsystem_1<light_component>
+    class light_submission_system : public ecsystem_3<directional_light_component, atmosphere_light_component, skylight_component>
     {
       public:
         //! \brief Setup for the \a light_submission_system. Needs to be called before executing.
@@ -153,13 +153,26 @@ namespace mango
             m_rs = rs;
         }
 
-        void execute(float, scene_component_pool<light_component>& lights) override
+        void execute(float, scene_component_pool<directional_light_component>& d_lights, scene_component_pool<atmosphere_light_component>& a_lights,
+                     scene_component_pool<skylight_component>& s_lights) override
         {
             PROFILE_ZONE;
-            lights.for_each(
-                [this, &lights](light_component& c, int32&) {
+            d_lights.for_each(
+                [this, &d_lights](directional_light_component& c, int32&) {
                     if (c.active)
-                        m_rs->submit_light(c.type_of_light, c.data.get());
+                        m_rs->submit_light(c.l_id, &c.light);
+                },
+                false);
+            a_lights.for_each(
+                [this, &a_lights](atmosphere_light_component& c, int32&) {
+                    if (c.active)
+                        m_rs->submit_light(c.l_id, &c.light);
+                },
+                false);
+            s_lights.for_each(
+                [this, &s_lights](skylight_component& c, int32&) {
+                    if (c.active)
+                        m_rs->submit_light(c.l_id, &c.light);
                 },
                 false);
         }

@@ -6,7 +6,7 @@ layout(triangle_strip, max_vertices = 12) out;
 #define max_cascades 4
 
 // Uniform Buffer Shadow.
-layout(binding = 4, std140) uniform shadow_data
+layout(binding = 6, std140) uniform shadow_data
 {
     mat4  view_projection_matrices[max_cascades];
     float split_depth[max_cascades + 1];

@@ -35,12 +35,13 @@ scene::scene(const string& name)
     , m_transformations()
     , m_meshes()
     , m_cameras()
-    , m_lights()
+    , m_directional_lights()
+    , m_atmosphere_lights()
+    , m_skylights()
 {
     PROFILE_ZONE;
     MANGO_UNUSED(name);
     m_active.camera        = invalid_entity;
-    m_active.environment   = invalid_entity;
     m_scene_boundaries.max = glm::vec3(-3.402823e+38f);
     m_scene_boundaries.min = glm::vec3(3.402823e+38f);
 
@@ -92,10 +93,9 @@ void scene::remove_entity(entity e)
         else
             set_active_camera(invalid_entity);
     }
-    del_active = get_active_environment_data().active_environment_entity == e;
-    m_lights.remove_component_from(e);
-    if (del_active)
-        set_active_environment(invalid_entity);
+    m_directional_lights.remove_component_from(e);
+    m_atmosphere_lights.remove_component_from(e);
+    m_skylights.remove_component_from(e);
     m_free_entities.push_back(e);
     MANGO_LOG_DEBUG("Removed entity {0}, {1} left", e, m_free_entities.size());
 }
@@ -233,32 +233,27 @@ entity scene::create_entities_from_model(const string& path, entity gltf_root)
     return gltf_root;
 }
 
-entity scene::create_environment_from_hdr(const string& path)
+entity scene::create_skylight_from_hdr(const string& path)
 {
     PROFILE_ZONE;
-    entity environment_entity = create_empty();
-    attach(environment_entity, m_scene_root);
-    auto& environment = m_lights.create_component_for(environment_entity);
+    entity skylight_entity = create_empty();
+    attach(skylight_entity, m_scene_root);
+    auto& light = m_skylights.create_component_for(skylight_entity);
 
-    environment.type_of_light          = light_type::environment;
-    environment.data                   = std::make_shared<environment_light_data>();
-    auto el_data                       = static_cast<mango::environment_light_data*>(environment.data.get());
-    el_data->intensity                 = default_environment_intensity;
-    el_data->render_sun_as_directional = false;
-    el_data->create_atmosphere         = false;
-    el_data->draw_sun_disc             = false;
-    // sun data is irrelevant as well as scattering parameters, they are all default initialized.
+    light.light.intensity   = default_environment_intensity;
+    light.light.use_texture = true;
+    // Other settings are correct by default.
 
     // load image and texture
     shared_ptr<resource_system> res = m_shared_context->get_resource_system_internal().lock();
     MANGO_ASSERT(res, "Resource System is expired!");
 
     image_resource_configuration img_config;
-    auto start                                                    = path.find_last_of("\\/") + 1;
-    m_tags.get_component_for_entity(environment_entity)->tag_name = path.substr(start);
-    img_config.path                                               = path.c_str();
-    img_config.is_standard_color_space                            = false;
-    img_config.is_hdr                                             = true;
+    auto start                                                 = path.find_last_of("\\/") + 1;
+    m_tags.get_component_for_entity(skylight_entity)->tag_name = path.substr(start);
+    img_config.path                                            = path.c_str();
+    img_config.is_standard_color_space                         = false;
+    img_config.is_hdr                                          = true;
 
     auto hdr_image = res->acquire(img_config);
 
@@ -284,66 +279,37 @@ entity scene::create_environment_from_hdr(const string& path)
 
     hdr_texture->set_data(internal, hdr_image->width, hdr_image->height, f, type, hdr_image->data);
 
-    el_data->hdr_texture = hdr_texture;
-
-    set_active_environment(environment_entity);
+    light.light.hdr_texture = hdr_texture;
 
     res->release(hdr_image);
-    return environment_entity;
+    return skylight_entity;
 }
 
-entity scene::create_atmospheric_environment(const glm::vec3& sun_direction, float sun_intensity) // TODO Paul: More settings needed!
-{
-    PROFILE_ZONE;
-    entity environment_entity = create_empty();
-    attach(environment_entity, m_scene_root);
-
-    auto& environment = m_lights.create_component_for(environment_entity);
-
-    environment.type_of_light          = light_type::environment;
-    environment.data                   = std::make_shared<environment_light_data>();
-    auto el_data                       = static_cast<mango::environment_light_data*>(environment.data.get());
-    el_data->intensity                 = default_environment_intensity;
-    el_data->render_sun_as_directional = true;
-    el_data->create_atmosphere         = true;
-    // sun data as well as scattering parameters are all default initialized.
-    if (sun_intensity > 0.0)
-    {
-        el_data->sun_data.direction = sun_direction;
-        el_data->sun_data.intensity = sun_intensity;
-    }
-
-    el_data->hdr_texture = nullptr;
-
-    set_active_environment(environment_entity);
-
-    return environment_entity;
-}
-
-void scene::set_active_environment(entity e)
-{
-    shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
-    MANGO_ASSERT(rs, "Render System is expired!");
-    if (e == invalid_entity)
-    {
-        m_active.environment = e;
-        rs->set_environment(nullptr);
-        return;
-    }
-
-    auto next_comp = m_lights.get_component_for_entity(e);
-    if (!next_comp)
-        return;
-
-    if (m_active.environment != invalid_entity)
-        m_lights.get_component_for_entity(m_active.environment)->active = false;
-
-    m_active.environment = e;
-    next_comp->active    = true;
-
-    auto el_data = static_cast<mango::environment_light_data*>(next_comp->data.get());
-    rs->set_environment(el_data);
-}
+// entity scene::create_atmospheric_environment(const glm::vec3& sun_direction, float sun_intensity) // TODO Paul: More settings needed!
+// {
+//     PROFILE_ZONE;
+//     entity environment_entity = create_empty();
+//     attach(environment_entity, m_scene_root);
+//
+//     auto& environment = m_lights.create_component_for(environment_entity);
+//
+//     environment.type_of_light          = light_type::environment;
+//     environment.data                   = std::make_shared<environment_light_data>();
+//     auto el_data                       = static_cast<mango::environment_light_data*>(environment.data.get());
+//     el_data->intensity                 = default_environment_intensity;
+//     el_data->render_sun_as_directional = true;
+//     el_data->create_atmosphere         = true;
+//     // sun data as well as scattering parameters are all default initialized.
+//     if (sun_intensity > 0.0)
+//     {
+//         el_data->sun_data.direction = sun_direction;
+//         el_data->sun_data.intensity = sun_intensity;
+//     }
+//
+//     el_data->hdr_texture = nullptr;
+//
+//     return environment_entity;
+// }
 
 void scene::update(float dt)
 {
@@ -361,7 +327,7 @@ void scene::render()
     MANGO_ASSERT(rs, "Render System is expired!");
 
     light_submission.setup(rs);
-    light_submission.execute(0.0f, m_lights);
+    light_submission.execute(0.0f, m_directional_lights, m_atmosphere_lights, m_skylights);
     render_mesh.setup(rs);
     render_mesh.execute(0.0f, m_meshes, m_transformations);
 }

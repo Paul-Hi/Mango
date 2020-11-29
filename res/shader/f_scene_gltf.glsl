@@ -33,7 +33,7 @@ layout(binding = 0, std140) uniform renderer_data
 };
 
 // Uniform Buffer Model.
-layout(binding = 1, std140) uniform model_data
+layout(binding = 2, std140) uniform model_data
 {
     mat4 model_matrix;
     mat3 normal_matrix;
@@ -42,7 +42,7 @@ layout(binding = 1, std140) uniform model_data
 };
 
 // Uniform Buffer Material.
-layout(binding = 2, std140) uniform material_data
+layout(binding = 3, std140) uniform material_data
 {
     vec4  base_color;
     vec4  emissive_color; // this is a vec3, but there are annoying bugs with some drivers.

@@ -9,21 +9,12 @@ in vec3 shared_texcoord;
 layout (location = 0, binding = 0) uniform samplerCube skybox;
 
 // Uniform Buffer Lighting Pass.
-layout(binding = 3, std140) uniform lighting_pass_data
+layout(binding = 1, std140) uniform lighting_pass_data
 {
     mat4 inverse_view_projection;
     mat4 view;
     vec4 camera_position; // this is a vec3, but there are annoying bugs with some drivers.
     vec4 camera_params; // near, far, (zw) unused
-
-    vec4  directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
-    vec4  directional_color; // this is a vec3, but there are annoying bugs with some drivers.
-    float directional_intensity;
-    bool  cast_shadows;
-    bool  directional_active;
-
-    float environment_intensity;
-    bool  environment_active;
 
     bool debug_view_enabled;
     bool debug_views_position;
@@ -39,10 +30,22 @@ layout(binding = 3, std140) uniform lighting_pass_data
     bool draw_shadow_maps;
 };
 
-// Uniform Buffer IBL.
-layout(binding = 5, std140) uniform ibl_data
+layout(binding = 4, std140) uniform light_data
 {
-    mat3 current_rotation_scale;
+    vec4  directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
+    vec4  directional_color; // this is a vec3, but there are annoying bugs with some drivers.
+    float directional_intensity;
+    bool  directional_cast_shadows;
+    bool  directional_valid;
+
+    float skylight_intensity;
+    bool  skylight_valid;
+};
+
+// Uniform Buffer Cubemap.
+layout(binding = 5, std140) uniform cubemap_data
+{
+    mat4 model_matrix;
     float render_level;
 };
 
@@ -76,9 +79,9 @@ vec2 intersect_ray_sphere(vec3 origin, vec3 dir, float sphere_radius) {
 void main()
 {
     vec3 color;
-    if(environment_active && environment_intensity > 1e-5)
+    if(skylight_valid && skylight_intensity > 1e-5)
     {
-        color = (textureLod(skybox, shared_texcoord, render_level) * environment_intensity).rgb;
+        color = (textureLod(skybox, shared_texcoord, render_level) * skylight_intensity).rgb;
 
         vec3 ray_dir = normalize(shared_texcoord);
         vec2 ground_intersect = intersect_ray_sphere(ray_origin.xyz, ray_dir, ground_radius);
@@ -86,7 +89,7 @@ void main()
         vec3 sun = vec3(pow(smoothstep(0.997, 1.0, dot(ray_dir, sun_dir.xyz)), 16.0));
         sun *= saturate(pow(smoothstep(0.0, ground_radius, abs(ground_intersect.x) - ground_intersect.y), 2.0));
 
-        color += directional_color.rgb * directional_intensity * environment_intensity * sun * 0.007;
+        color += directional_color.rgb * directional_intensity * skylight_intensity * sun * 0.007;
     }
     else
         color = vec3(30000.0); // TODO Paul: Hardcoded -.-

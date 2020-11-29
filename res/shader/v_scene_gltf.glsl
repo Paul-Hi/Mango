@@ -16,7 +16,7 @@ layout(binding = 0, std140) uniform renderer_data
 };
 
 // Uniform Buffer Model.
-layout(binding = 1, std140) uniform model_data
+layout(binding = 2, std140) uniform model_data
 {
     mat4 model_matrix;
     mat3 normal_matrix;

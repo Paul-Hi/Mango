@@ -11,10 +11,10 @@ layout(binding = 0, std140) uniform renderer_data
     float camera_exposure;
 };
 
-// Uniform Buffer IBL.
-layout(binding = 5, std140) uniform ibl_data
+// Uniform Buffer Cubemap.
+layout(binding = 5, std140) uniform cubemap_data
 {
-    mat3 current_rotation_scale;
+    mat4 model_matrix;
     float render_level;
 };
 
@@ -24,6 +24,6 @@ void main()
 {
     shared_texcoord = vertex_data_position;
     mat4 view_no_translation = mat4(mat3(view_matrix));
-    vec4 pos = projection_matrix * view_no_translation * vec4(current_rotation_scale * vertex_data_position, 1.0);
+    vec4 pos = projection_matrix * view_no_translation * model_matrix * vec4(vertex_data_position, 1.0);
     gl_Position = pos.xyww;
 }

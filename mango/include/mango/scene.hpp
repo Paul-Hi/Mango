@@ -69,15 +69,15 @@ namespace mango
         //! The environment texture is preprocessed, prefiltered and can be rendered as a cube. This is done with a \a pipeline_step.
         //! \param[in] path The path to the hdr image to load.
         //! \return The created environment entity.
-        entity create_environment_from_hdr(const string& path);
+        entity create_skylight_from_hdr(const string& path);
 
-        //! \brief Creates an environment entity.
-        //! \details An entity with \a environment_component. ATTENTION: This creates the \a light_data and fills it. Do not recreate it.
-        //! The atmosphere is generated, preprocessed, prefiltered and can be rendered as a cube. This is done with a \a pipeline_step.
-        //! \param[in] sun_direction The sun direction to use or vec3(-1.0f) if renderer should choose the sun.
-        //! \param[in] sun_intensity The sun intensity to use or -1.0f if renderer should choose the sun.
-        //! \return The created environment entity.
-        entity create_atmospheric_environment(const glm::vec3& sun_direction = glm::vec3(-1.0f), float sun_intensity = -1.0f);
+        // //! \brief Creates an environment entity.
+        // //! \details An entity with \a environment_component. ATTENTION: This creates the \a light_data and fills it. Do not recreate it.
+        // //! The atmosphere is generated, preprocessed, prefiltered and can be rendered as a cube. This is done with a \a pipeline_step.
+        // //! \param[in] sun_direction The sun direction to use or vec3(-1.0f) if renderer should choose the sun.
+        // //! \param[in] sun_intensity The sun intensity to use or -1.0f if renderer should choose the sun.
+        // //! \return The created environment entity.
+        // entity create_atmospheric_environment(const glm::vec3& sun_direction = glm::vec3(-1.0f), float sun_intensity = -1.0f);
 
         //! \brief Attach an \a entity to another entity in a child <-> parent realationship.
         //! \details Adds a \a node_component. Used for building hierarchies.
@@ -118,7 +118,11 @@ namespace mango
             case 7:
                 return (comp*)m_cameras.get_component_for_entity(e);
             case 8:
-                return (comp*)m_lights.get_component_for_entity(e);
+                return (comp*)m_directional_lights.get_component_for_entity(e);
+            case 9:
+                return (comp*)m_atmosphere_lights.get_component_for_entity(e);
+            case 10:
+                return (comp*)m_skylights.get_component_for_entity(e);
             default:
                 MANGO_LOG_ERROR("No component id matches the component!");
                 return nullptr;
@@ -154,7 +158,11 @@ namespace mango
             case 7:
                 return (comp*)m_cameras.get_component_for_entity(e, true);
             case 8:
-                return (comp*)m_lights.get_component_for_entity(e, true);
+                return (comp*)m_directional_lights.get_component_for_entity(e, true);
+            case 9:
+                return (comp*)m_atmosphere_lights.get_component_for_entity(e, true);
+            case 10:
+                return (comp*)m_skylights.get_component_for_entity(e, true);
             default:
                 MANGO_LOG_ERROR("No component id matches the component!");
                 return nullptr;
@@ -190,7 +198,11 @@ namespace mango
             case 7:
                 return (comp*)&m_cameras.create_component_for(e);
             case 8:
-                return (comp*)&m_lights.create_component_for(e);
+                return (comp*)&m_directional_lights.create_component_for(e);
+            case 9:
+                return (comp*)&m_atmosphere_lights.create_component_for(e);
+            case 10:
+                return (comp*)&m_skylights.create_component_for(e);
             default:
                 MANGO_LOG_CRITICAL("No component id matches the component!");
                 return nullptr;
@@ -234,7 +246,13 @@ namespace mango
                 m_cameras.remove_component_from(e);
                 return;
             case 8:
-                m_lights.remove_component_from(e);
+                m_directional_lights.remove_component_from(e);
+                return;
+            case 9:
+                m_atmosphere_lights.remove_component_from(e);
+                return;
+            case 10:
+                m_skylights.remove_component_from(e);
                 return;
             default:
                 MANGO_LOG_ERROR("No component id matches the component!");
@@ -276,28 +294,6 @@ namespace mango
 
             m_active.camera = e;
         }
-
-        //! \brief Retrieves the \a environment_data for the currently active environment.
-        //! \details Has to be checked if pointers are null. Also can only be used for a short time.
-        //! \return The \a environment_data.
-        inline environment_data get_active_environment_data()
-        {
-            auto lc = m_lights.get_component_for_entity(m_active.environment, true);
-            environment_data result;
-            if (m_active.environment == invalid_entity || !lc)
-            {
-                result.active_environment_entity = invalid_entity;
-                result.environment_info          = nullptr;
-                return result;
-            }
-            result.active_environment_entity = m_active.environment;
-            result.environment_info = static_cast<mango::environment_light_data*>(lc->data.get());
-            return result;
-        }
-
-        //! \brief Sets the active environment to an \a entity.
-        //! \param[in] e The \a entity to set the active environment to.
-        void set_active_environment(entity e);
 
         //! \brief Retrieves the \a scene root \a entity.
         //! \return The \a scene root \a entity.
@@ -399,8 +395,12 @@ namespace mango
         scene_component_pool<mesh_component> m_meshes;
         //! \brief All \a camera_components.
         scene_component_pool<camera_component> m_cameras;
-        //! \brief All \a light_components.
-        scene_component_pool<light_component> m_lights;
+        //! \brief All \a directional_light_component.
+        scene_component_pool<directional_light_component> m_directional_lights;
+        //! \brief All \a atmosphere_light_component.
+        scene_component_pool<atmosphere_light_component> m_atmosphere_lights;
+        //! \brief All \a skylight_component.
+        scene_component_pool<skylight_component> m_skylights;
         //! \brief The root entity of the ecs.
         entity m_root_entity;
         //! \brief The current root entity of the scene.
@@ -410,8 +410,6 @@ namespace mango
         {
             //! \brief The currently active camera entity.
             entity camera;
-            //! \brief The currently active environment entity.
-            entity environment;
         } m_active; //!< Storage for active scene singleton entities.
 
         //! \brief Scene boundaries.

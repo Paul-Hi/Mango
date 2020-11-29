@@ -29,7 +29,7 @@ namespace mango
     //! Some steps may not be available on certain \a render_systems and \a render_pipelines.
     enum render_step
     {
-        ibl,
+        cubemap,
         shadow_map,
         fxaa,
         // ssao,
@@ -318,34 +318,34 @@ namespace mango
         shadow_filtering m_filter_mode;
     };
 
-    //! \brief The configuration for the \a ibl_step.
-    class ibl_step_configuration
+    //! \brief The configuration for the \a cubemap_step.
+    class cubemap_step_configuration
     {
       public:
         //! \brief Default constructor to set some default values.
-        ibl_step_configuration()
+        cubemap_step_configuration()
             : m_render_level(0.0f)
         {
         }
 
-        //! \brief Constructs a \a ibl_step_configuration with specific values.
-        //! \param[in] render_level The configurated render_level to render the ibl with.
-        ibl_step_configuration(float render_level)
+        //! \brief Constructs a \a cubemap_step_configuration with specific values.
+        //! \param[in] render_level The configurated render_level to render the cubemap with.
+        cubemap_step_configuration(float render_level)
             : m_render_level(render_level)
         {
         }
 
-        //! \brief Sets the render level to render the ibl with.
-        //! \param[in] render_level The render_level to render the ibl with.
-        //! \return A reference to the modified \a ibl_step_configuration.
-        inline ibl_step_configuration& set_render_level(float render_level)
+        //! \brief Sets the render level to render the cubemap with.
+        //! \param[in] render_level The render_level to render the cubemap with.
+        //! \return A reference to the modified \a cubemap_step_configuration.
+        inline cubemap_step_configuration& set_render_level(float render_level)
         {
             m_render_level = render_level;
             return *this;
         }
 
-        //! \brief Retrieves and returns the render level to render the ibl with.
-        //! \return The configurated render_level to render the ibl with.
+        //! \brief Retrieves and returns the render level to render the cubemap with.
+        //! \return The configurated render_level to render the cubemap with.
         inline float get_render_level() const
         {
             return m_render_level;
@@ -434,10 +434,10 @@ namespace mango
         //! \param[in] configuration The \a render_configuration to use for the window.
         virtual void configure(const render_configuration& configuration) = 0;
 
-        //! \brief Does the setup of the \a ibl_step.
+        //! \brief Does the setup of the \a cubemap_step.
         //! \details After configuration this function should be called.
-        //! \param[in] configuration The \a ibl_step_configuration to use.
-        virtual void setup_ibl_step(const ibl_step_configuration& configuration) = 0;
+        //! \param[in] configuration The \a cubemap_step_configuration to use.
+        virtual void setup_cubemap_step(const cubemap_step_configuration& configuration) = 0;
         //! \brief Does the setup of the \a shadow_map_step.
         //! \details After configuration this function should be called.
         //! \param[in] configuration The \a shadow_step_configuration to use.

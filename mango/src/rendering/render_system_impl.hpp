@@ -15,6 +15,7 @@
 #include <graphics/command_buffer.hpp>
 #include <mango/render_system.hpp>
 #include <queue>
+#include <rendering/light_stack.hpp>
 
 namespace mango
 {
@@ -66,7 +67,7 @@ namespace mango
 
         virtual bool create() override;
         virtual void configure(const render_configuration& configuration) override;
-        virtual void setup_ibl_step(const ibl_step_configuration& configuration) override;
+        virtual void setup_cubemap_step(const cubemap_step_configuration& configuration) override;
         virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) override;
         virtual void setup_fxaa_step(const fxaa_step_configuration& configuration) override;
         virtual void on_ui_widget() override;
@@ -122,14 +123,10 @@ namespace mango
         //! \param[in] instance_count The number of instances to draw. Has to be a positive value. For normal drawing pass 1.
         virtual void draw_mesh(const vertex_array_ptr& vertex_array, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count = 1);
 
-        //! \brief Sets the environment.
-        //! \param[in] el_data The pointer to the \a environment_light_data.
-        virtual void set_environment(const mango::environment_light_data* el_data);
-
         //! \brief Submits a light to the \a render_system.
-        //! \param[in] type The submitted \a light_type.
-        //! \param[in] data The \a light_data describing the submitted light.
-        virtual void submit_light(light_type type, light_data* data);
+        //! \param[in] id The id of the submitted \a mango_light.
+        //! \param[in] light The \a mango_light to submit.
+        virtual void submit_light(light_id id, mango_light* light);
 
         //! \brief Returns the backbuffer of the a render_system.
         //! \return The backbuffer.
@@ -146,6 +143,8 @@ namespace mango
       protected:
         //! \brief Mangos internal context for shared usage in all \a render_systems.
         shared_ptr<context_impl> m_shared_context;
+
+        light_stack m_light_stack;
 
         //! \brief The hardware stats.
         renderer_info m_renderer_info;

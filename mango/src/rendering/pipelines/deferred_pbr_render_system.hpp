@@ -10,8 +10,8 @@
 #include <graphics/framebuffer.hpp>
 #include <graphics/gpu_buffer.hpp>
 #include <rendering/render_system_impl.hpp>
+#include <rendering/steps/cubemap_step.hpp>
 #include <rendering/steps/fxaa_step.hpp>
-#include <rendering/steps/ibl_step.hpp>
 #include <rendering/steps/pipeline_step.hpp>
 #include <rendering/steps/shadow_map_step.hpp>
 
@@ -32,7 +32,7 @@ namespace mango
 
         virtual bool create() override;
         virtual void configure(const render_configuration& configuration) override;
-        virtual void setup_ibl_step(const ibl_step_configuration& configuration) override;
+        virtual void setup_cubemap_step(const cubemap_step_configuration& configuration) override;
         virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) override;
         virtual void setup_fxaa_step(const fxaa_step_configuration& configuration) override;
         virtual void begin_render() override;
@@ -46,8 +46,7 @@ namespace mango
         void end_mesh() override;
         void use_material(const material_ptr& mat) override;
         void draw_mesh(const vertex_array_ptr& vertex_array, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count) override;
-        void set_environment(const mango::environment_light_data* el_data) override;
-        void submit_light(light_type type, light_data* data) override;
+        void submit_light(light_id id, mango_light* light) override;
         void on_ui_widget() override;
 
         framebuffer_ptr get_backbuffer() override
@@ -170,26 +169,6 @@ namespace mango
             std140_vec3 camera_position;         //!< Camera position.
             std140_vec4 camera_params;           //!< Camera near and far plane depth value. (zw) unused atm.
 
-            struct
-            {
-                std140_vec3 direction;    //!< The direction to the light.
-                std140_vec3 color;        //!< The light color.
-                std140_float intensity;   //!< The intensity of the directional light in lumen.
-                std140_bool cast_shadows; //!< True, if shadows can be casted.
-                std140_bool active;       //!< True, if a directional light is active.
-            } directional;                //!< Data for the directional light (max one)
-            struct
-            {
-                std140_float intensity; //!< The intensity of the environment light in cd/m^2.
-                std140_bool active;     //!< True, if an environment light is active.
-            } environment;              //!< Data for the environment light (max one)
-            // struct
-            // {
-            //     std140_vec3 position;
-            //     std140_vec3 color;
-            //     std140_float intensity;
-            // } spherical[16];
-
             std140_bool debug_view_enabled; //!< True, if any debug view is enabled.
 
             struct
@@ -211,10 +190,6 @@ namespace mango
                 std140_bool show_cascades;    //!< Show the shadow cascades.
                 std140_bool draw_shadow_maps; //!< Draw the cascade shadow maps.
             } debug_options;                  //!< The debug options.
-
-            std140_float padding0; //!< padding.
-            std140_float padding1; //!< padding.
-            std140_float padding2; //!< padding.
         } m_lighting_pass_data;    //!< Current lighting_pass_data.
 
         // TODO Paul: This one is sh** ...
@@ -289,9 +264,8 @@ namespace mango
         void setup_transparent_pass();
 
         //! \brief Lighting pass finalization done in finish_render().
-        //! \param[in] step_ibl The shared pointer to the \a ibl_step, or null.
         //! \param[in] step_shadow_map The shared pointer to the \a shadow_map_step, or null.
-        void finalize_lighting_pass(const std::shared_ptr<ibl_step>& step_ibl, const std::shared_ptr<shadow_map_step>& step_shadow_map);
+        void finalize_lighting_pass(const std::shared_ptr<shadow_map_step>& step_shadow_map);
         //! \brief Auto exposure compute passes done in finish_render().
         //! \param[in] dt Past time since last call.
         void calculate_auto_exposure(float dt);
@@ -302,7 +276,7 @@ namespace mango
         //! \brief Frame finalization pass with setup for next frame done in finish_render().
         void end_frame_and_sync();
         //! \brief Sorts and executes all \a command_buffers in the correct order.
-        //! \param[in] ibl_command_buffer The shared pointer to the \a command_buffer of the \a ibl_step, or null.
+        //! \param[in] ibl_command_buffer The shared pointer to the \a command_buffer of the \a cubemap_step, or null.
         //! \param[in] shadow_command_buffer The shared pointer to the \a command_buffer of the \a shadow_map_step, or null.
         //! \param[in] fxaa_command_buffer The shared pointer to the \a command_buffer of the \a fxaa_step, or null.
         void execute_commands(const command_buffer_ptr<min_key>& ibl_command_buffer, const command_buffer_ptr<max_key>& shadow_command_buffer, const command_buffer_ptr<min_key>& fxaa_command_buffer);

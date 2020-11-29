@@ -26,7 +26,7 @@ bool editor::create()
     render_configuration render_config;
     render_config.set_base_render_pipeline(render_pipeline::deferred_pbr)
         .set_vsync(true)
-        .enable_render_step(mango::render_step::ibl)
+        .enable_render_step(mango::render_step::cubemap)
         .enable_render_step(mango::render_step::shadow_map)
         .enable_render_step(mango::render_step::fxaa);
     shared_ptr<render_system> mango_rs = mango_context->get_render_system().lock();
@@ -74,9 +74,9 @@ bool editor::create()
 
     // test settings comment in to have some example scene
     {
-        ibl_step_configuration ibl_config;
+        cubemap_step_configuration ibl_config;
         ibl_config.set_render_level(0.1f);
-        mango_rs->setup_ibl_step(ibl_config);
+        mango_rs->setup_cubemap_step(ibl_config);
 
         shadow_step_configuration shadow_config;
         shadow_config.set_resolution(2048).set_sample_count(16).set_offset(12.0f).set_cascade_count(3).set_split_lambda(0.5f);
@@ -87,20 +87,16 @@ bool editor::create()
         mango_rs->setup_fxaa_step(fxaa_config);
 
         application_scene->create_entities_from_model("res/models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.glb");
-        entity lighting                                                     = application_scene->create_atmospheric_environment();
+        entity lighting                                                     = application_scene->create_skylight_from_hdr("res/textures/venice_sunset_4k.hdr");
         application_scene->get_component<tag_component>(lighting)->tag_name = "Global Lighting";
-        auto l_c                                                            = application_scene->get_component<light_component>(lighting);
-        if (l_c)
+        auto d_l_c                                                          = application_scene->add_component<directional_light_component>(lighting);
+        if (d_l_c)
         {
-            l_c->type_of_light             = mango::light_type::environment;
-            auto el_data                   = static_cast<mango::environment_light_data*>(l_c->data.get());
-            el_data->intensity             = 4000.0f;
-            el_data->create_atmosphere     = true;
-            el_data->draw_sun_disc         = true;
-            el_data->sun_data.direction    = glm::vec3(0.9f, 0.05f, 0.65f);
-            el_data->sun_data.intensity    = 89000.0f;
-            el_data->sun_data.light_color  = mango::color_rgb({ 1.0f, 0.387f, 0.207f });
-            el_data->sun_data.cast_shadows = true;
+            d_l_c->light.direction     = glm::vec3(0.9f, 0.05f, 0.65f);
+            d_l_c->light.intensity     = 89000.0f;
+            d_l_c->light.light_color   = mango::color_rgb({ 1.0f, 0.387f, 0.207f });
+            d_l_c->light.cast_shadows  = true;
+            d_l_c->light.atmospherical = true;
         }
     }
     // test end

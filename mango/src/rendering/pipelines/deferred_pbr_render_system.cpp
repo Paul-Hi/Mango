@@ -72,15 +72,15 @@ bool deferred_pbr_render_system::create()
         return false;
     }
 
+    // create light stack
+    m_light_stack.init();
+
     for (int32 i = 0; i < 9; ++i)
         m_lighting_pass_data.debug_views.debug[i] = false;
 
     m_lighting_pass_data.debug_view_enabled             = false;
     m_lighting_pass_data.debug_options.show_cascades    = false;
     m_lighting_pass_data.debug_options.draw_shadow_maps = false;
-
-    m_lighting_pass_data.directional.active = false;
-    m_lighting_pass_data.environment.active = false;
 
     return true;
 }
@@ -98,7 +98,7 @@ bool deferred_pbr_render_system::create_renderer_resources()
     m_renderer_info.canvas.height = h;
 
     m_begin_render_commands   = command_buffer<min_key>::create(512);
-    m_global_binding_commands = command_buffer<min_key>::create(128);
+    m_global_binding_commands = command_buffer<min_key>::create(256);
     m_gbuffer_commands        = command_buffer<max_key>::create(524288 * 2); // 1.0 MiB?
     m_transparent_commands    = command_buffer<max_key>::create(524288 * 2); // 1.0 MiB?
     m_lighting_pass_commands  = command_buffer<min_key>::create(512);
@@ -313,13 +313,13 @@ void deferred_pbr_render_system::configure(const render_configuration& configura
     ws->set_vsync(m_vsync);
 
     // additional render steps
-    if (configuration.get_render_steps()[mango::render_step::ibl])
+    if (configuration.get_render_steps()[mango::render_step::cubemap])
     {
         // create an extra object that is capable to create cubemaps from equirectangular hdr, preprocess everything and
         // do all the rendering for the environment.
-        auto step_ibl = std::make_shared<ibl_step>();
-        step_ibl->create();
-        m_pipeline_steps[mango::render_step::ibl] = std::static_pointer_cast<pipeline_step>(step_ibl);
+        auto step_cubemap = std::make_shared<cubemap_step>();
+        step_cubemap->create();
+        m_pipeline_steps[mango::render_step::cubemap] = std::static_pointer_cast<pipeline_step>(step_cubemap);
     }
     if (configuration.get_render_steps()[mango::render_step::shadow_map])
     {
@@ -335,11 +335,11 @@ void deferred_pbr_render_system::configure(const render_configuration& configura
     }
 }
 
-void deferred_pbr_render_system::setup_ibl_step(const ibl_step_configuration& configuration)
+void deferred_pbr_render_system::setup_cubemap_step(const cubemap_step_configuration& configuration)
 {
-    if (m_pipeline_steps[mango::render_step::ibl])
+    if (m_pipeline_steps[mango::render_step::cubemap])
     {
-        auto step = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
+        auto step = std::static_pointer_cast<cubemap_step>(m_pipeline_steps[mango::render_step::cubemap]);
         step->configure(configuration);
     }
 }
@@ -383,7 +383,7 @@ void deferred_pbr_render_system::begin_render()
     m_renderer_info.last_frame.draw_calls += 2;
     m_renderer_info.last_frame.vertices += 6;
     m_renderer_info.last_frame.triangles += 2;
-    // Ibl
+    // Cubemap
 }
 
 void deferred_pbr_render_system::clear_framebuffers()
@@ -532,14 +532,15 @@ void deferred_pbr_render_system::setup_transparent_pass()
     g_uint shadow_map_name           = default_texture_array->get_name();
 
     auto step_shadow_map = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map]);
-    auto step_ibl        = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
 
-    if (step_ibl)
+    auto irradiance_map = m_light_stack.get_skylight_irradiance_map();
+    if (irradiance_map)
     {
-        irradiance_map_name       = step_ibl->get_irradiance_map()->get_name();
-        prefiltered_specular_name = step_ibl->get_prefiltered_specular()->get_name();
-        brdf_lookup_name          = step_ibl->get_brdf_lookup()->get_name();
+        irradiance_map_name       = irradiance_map->get_name();
+        prefiltered_specular_name = m_light_stack.get_skylight_specular_prefilter_map()->get_name();
+        brdf_lookup_name          = m_light_stack.get_skylight_brdf_lookup()->get_name();
     }
+
     if (step_shadow_map)
     {
         shadow_map_name = step_shadow_map->get_shadow_buffer()->get_attachment(framebuffer_attachment::depth_attachment)->get_name();
@@ -573,17 +574,16 @@ void deferred_pbr_render_system::finish_render(float dt)
     PROFILE_ZONE;
     auto scene           = m_shared_context->get_current_scene();
     auto camera          = scene->get_active_camera_data();
-    auto env             = scene->get_active_environment_data();
     auto step_shadow_map = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_step::shadow_map]);
-    auto step_ibl        = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
+    auto step_cubemap    = std::static_pointer_cast<cubemap_step>(m_pipeline_steps[mango::render_step::cubemap]);
     auto step_fxaa       = std::static_pointer_cast<fxaa_step>(m_pipeline_steps[mango::render_step::fxaa]);
     command_buffer_ptr<max_key> shadow_command_buffer;
-    command_buffer_ptr<min_key> ibl_command_buffer;
+    command_buffer_ptr<min_key> cubemap_command_buffer;
     command_buffer_ptr<min_key> fxaa_command_buffer;
     if (step_shadow_map)
         shadow_command_buffer = step_shadow_map->get_shadow_commands();
-    if (step_ibl)
-        ibl_command_buffer = step_ibl->get_ibl_commands();
+    if (step_cubemap)
+        cubemap_command_buffer = step_cubemap->get_cubemap_commands();
     if (step_fxaa)
         fxaa_command_buffer = step_fxaa->get_fxaa_commands();
 
@@ -604,9 +604,9 @@ void deferred_pbr_render_system::finish_render(float dt)
             shadow_command_buffer->invalidate();
         }
         m_gbuffer_commands->invalidate();
-        if (ibl_command_buffer)
+        if (cubemap_command_buffer)
         {
-            ibl_command_buffer->invalidate();
+            cubemap_command_buffer->invalidate();
         }
         if (fxaa_command_buffer)
         {
@@ -639,32 +639,38 @@ void deferred_pbr_render_system::finish_render(float dt)
     bind_renderer_data_buffer(camera, camera_exposure);
     // Bind lighting pass uniform buffer.
     bind_lighting_pass_buffer(camera);
+    // Bind light buffer.
+    m_light_stack.bind_light_buffers(m_global_binding_commands, m_frame_uniform_buffer);
 
     // Shadow step execute.
     if (step_shadow_map)
     {
-        if (!m_lighting_pass_data.debug_view_enabled && camera.camera_info && m_lighting_pass_data.directional.cast_shadows)
+        auto shadow_casters = m_light_stack.get_shadow_casters(); // currently only directional.
+        if (!m_lighting_pass_data.debug_view_enabled && camera.camera_info && !shadow_casters.empty())
         {
-            step_shadow_map->update_cascades(dt, camera.camera_info->z_near, camera.camera_info->z_far, camera.camera_info->view_projection, m_lighting_pass_data.directional.direction);
-
-            // render shadow maps
-            step_shadow_map->execute(m_frame_uniform_buffer);
+            for (auto sc : shadow_casters)
+            {
+                step_shadow_map->update_cascades(dt, camera.camera_info->z_near, camera.camera_info->z_far, camera.camera_info->view_projection, sc->direction);
+                // render shadow maps
+                step_shadow_map->execute(m_frame_uniform_buffer);
+            }
         }
         else
             shadow_command_buffer->invalidate();
     }
 
     if (m_lighting_pass_commands->dirty())
-        finalize_lighting_pass(step_ibl, step_shadow_map);
+        finalize_lighting_pass(step_shadow_map);
 
-    // Ibl execute / environment drawing.
-    if (step_ibl && !m_lighting_pass_data.debug_view_enabled)
+    // Cubemap execute ->  drawing.
+    if (step_cubemap && !m_lighting_pass_data.debug_view_enabled)
     {
-        // Ibl
+        // Cubemap
         m_renderer_info.last_frame.draw_calls += 1;
         m_renderer_info.last_frame.vertices += 18;
         m_renderer_info.last_frame.triangles += 6;
-        step_ibl->execute(m_frame_uniform_buffer);
+        step_cubemap->set_cubemap(m_light_stack.get_skylight_specular_prefilter_map());
+        step_cubemap->execute(m_frame_uniform_buffer);
     }
 
     // Auto exposure compute shaders.
@@ -685,22 +691,24 @@ void deferred_pbr_render_system::finish_render(float dt)
     end_frame_and_sync();
 
     // Execute commands.
-    execute_commands(ibl_command_buffer, shadow_command_buffer, fxaa_command_buffer);
+    execute_commands(cubemap_command_buffer, shadow_command_buffer, fxaa_command_buffer);
 }
 
-void deferred_pbr_render_system::finalize_lighting_pass(const std::shared_ptr<ibl_step>& step_ibl, const std::shared_ptr<shadow_map_step>& step_shadow_map)
+void deferred_pbr_render_system::finalize_lighting_pass(const std::shared_ptr<shadow_map_step>& step_shadow_map)
 {
     g_uint irradiance_map_name       = default_cube_texture->get_name();
     g_uint prefiltered_specular_name = default_cube_texture->get_name();
     g_uint brdf_lookup_name          = default_texture->get_name();
     g_uint shadow_map_name           = default_texture_array->get_name();
 
-    if (step_ibl)
+    auto irradiance_map = m_light_stack.get_skylight_irradiance_map();
+    if (irradiance_map)
     {
-        irradiance_map_name       = step_ibl->get_irradiance_map()->get_name();
-        prefiltered_specular_name = step_ibl->get_prefiltered_specular()->get_name();
-        brdf_lookup_name          = step_ibl->get_brdf_lookup()->get_name();
+        irradiance_map_name       = irradiance_map->get_name();
+        prefiltered_specular_name = m_light_stack.get_skylight_specular_prefilter_map()->get_name();
+        brdf_lookup_name          = m_light_stack.get_skylight_brdf_lookup()->get_name();
     }
+
     if (step_shadow_map)
     {
         shadow_map_name = step_shadow_map->get_shadow_buffer()->get_attachment(framebuffer_attachment::depth_attachment)->get_name();
@@ -877,7 +885,7 @@ void deferred_pbr_render_system::end_frame_and_sync()
     m_finish_render_commands->create<end_frame_command>(command_keys::no_sort);
 }
 
-void deferred_pbr_render_system::execute_commands(const command_buffer_ptr<min_key>& ibl_command_buffer, const command_buffer_ptr<max_key>& shadow_command_buffer,
+void deferred_pbr_render_system::execute_commands(const command_buffer_ptr<min_key>& cubemap_command_buffer, const command_buffer_ptr<max_key>& shadow_command_buffer,
                                                   const command_buffer_ptr<min_key>& fxaa_command_buffer)
 {
     NAMED_PROFILE_ZONE("Execute Command Buffers")
@@ -892,7 +900,7 @@ void deferred_pbr_render_system::execute_commands(const command_buffer_ptr<min_k
         // This has to sort the commands so that the max_key_to_start is executed before the objects get rendered (and these would be perfect by material and from front to back).
         m_gbuffer_commands->sort();
         // m_lighting_pass_commands->sort(); // They do not need to be sorted atm.
-        // ibl_command_buffer->sort(); // They do not need to be sorted atm.
+        // cubemap_command_buffer->sort(); // They do not need to be sorted atm.
         m_transparent_commands->sort();
         // m_exposure_commands->sort(); // They do not need to be sorted atm.
         // m_composite_commands->sort(); // They do not need to be sorted atm.
@@ -927,15 +935,15 @@ void deferred_pbr_render_system::execute_commands(const command_buffer_ptr<min_k
         NAMED_PROFILE_ZONE("Lighting Commands Execute")
         GL_NAMED_PROFILE_ZONE("Lighting Commands Execute");
         m_lighting_pass_commands->execute();
-        if (m_sun_changed) // TODO Paul: Better way?
-            m_lighting_pass_commands->invalidate();
+        // if (m_sun_changed) // TODO Paul: Better way? Handle with light stack!
+        m_lighting_pass_commands->invalidate();
     }
-    if (ibl_command_buffer)
+    if (cubemap_command_buffer)
     {
-        NAMED_PROFILE_ZONE("IBL Commands Execute")
-        GL_NAMED_PROFILE_ZONE("IBL Commands Execute");
-        ibl_command_buffer->execute();
-        ibl_command_buffer->invalidate();
+        NAMED_PROFILE_ZONE("Cubemap Commands Execute")
+        GL_NAMED_PROFILE_ZONE("Cubemap Commands Execute");
+        cubemap_command_buffer->execute();
+        cubemap_command_buffer->invalidate();
     }
     {
         NAMED_PROFILE_ZONE("Transparent Commands Execute")
@@ -991,6 +999,7 @@ void deferred_pbr_render_system::set_viewport(int32 x, int32 y, int32 width, int
 void deferred_pbr_render_system::update(float dt)
 {
     MANGO_UNUSED(dt);
+    m_light_stack.update();
 }
 
 void deferred_pbr_render_system::destroy() {}
@@ -1378,66 +1387,53 @@ bind_texture_command* deferred_pbr_render_system::bind_material_textures(const c
     return bt;
 }
 
-void deferred_pbr_render_system::set_environment(const mango::environment_light_data* el_data)
+void deferred_pbr_render_system::submit_light(light_id id, mango_light* light)
 {
     PROFILE_ZONE;
-    if (m_pipeline_steps[mango::render_step::ibl])
-    {
-        m_lighting_pass_commands->invalidate();
-        auto ibl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
-        if (el_data)
-            ibl->create_image_based_light_data(el_data);
-        else
-            ibl->clear();
-    }
-}
-
-void deferred_pbr_render_system::submit_light(light_type type, light_data* data)
-{
-    PROFILE_ZONE;
-    if (type == light_type::directional)
-    {
-        m_lighting_pass_data.directional.active       = true;
-        auto directional_data                         = static_cast<directional_light_data*>(data);
-        m_lighting_pass_data.directional.color        = static_cast<glm::vec3>(directional_data->light_color);
-        m_lighting_pass_data.directional.cast_shadows = directional_data->cast_shadows;
-        m_lighting_pass_data.directional.direction    = directional_data->direction;
-        m_lighting_pass_data.directional.intensity    = directional_data->intensity;
-
-        return;
-    }
-    if (type == light_type::environment)
-    {
-        auto el_data                               = static_cast<environment_light_data*>(data);
-        m_lighting_pass_data.environment.intensity = el_data->intensity;
-        m_lighting_pass_data.environment.active    = true;
-
-        if (el_data->render_sun_as_directional)
-        {
-            m_lighting_pass_data.directional.active       = true;
-            m_lighting_pass_data.directional.color        = static_cast<glm::vec3>(el_data->sun_data.light_color);
-            m_lighting_pass_data.directional.cast_shadows = el_data->sun_data.cast_shadows;
-        }
-
-        auto scene = m_shared_context->get_current_scene();
-        if (m_pipeline_steps[mango::render_step::ibl] && (el_data->create_atmosphere || el_data->draw_sun_disc) &&
-            (glm::vec3(m_lighting_pass_data.directional.direction) != el_data->sun_data.direction || m_lighting_pass_data.directional.intensity != el_data->sun_data.intensity))
-        {
-            auto ibl = std::static_pointer_cast<ibl_step>(m_pipeline_steps[mango::render_step::ibl]);
-            ibl->create_image_based_light_data(el_data);
-            m_sun_changed = true;
-        }
-        else
-            m_sun_changed = false;
-
-        if (el_data->render_sun_as_directional)
-        {
-            m_lighting_pass_data.directional.direction = el_data->sun_data.direction;
-            m_lighting_pass_data.directional.intensity = el_data->sun_data.intensity;
-        }
-
-        return;
-    }
+    m_light_stack.push(id, light);
+    // if (type == light_type::directional)
+    // {
+    //     m_lighting_pass_data.directional.active       = true;
+    //     auto directional_data                         = static_cast<directional_light_data*>(data);
+    //     m_lighting_pass_data.directional.color        = static_cast<glm::vec3>(directional_data->light_color);
+    //     m_lighting_pass_data.directional.cast_shadows = directional_data->cast_shadows;
+    //     m_lighting_pass_data.directional.direction    = directional_data->direction;
+    //     m_lighting_pass_data.directional.intensity    = directional_data->intensity;
+    //
+    //     return;
+    // }
+    // if (type == light_type::environment)
+    // {
+    //     auto el_data                               = static_cast<environment_light_data*>(data);
+    //     m_lighting_pass_data.environment.intensity = el_data->intensity;
+    //     m_lighting_pass_data.environment.active    = true;
+    //
+    //     if (el_data->render_sun_as_directional)
+    //     {
+    //         m_lighting_pass_data.directional.active       = true;
+    //         m_lighting_pass_data.directional.color        = static_cast<glm::vec3>(el_data->sun_data.light_color);
+    //         m_lighting_pass_data.directional.cast_shadows = el_data->sun_data.cast_shadows;
+    //     }
+    //
+    //     auto scene = m_shared_context->get_current_scene();
+    //     if (m_pipeline_steps[mango::render_step::cubemap] && (el_data->create_atmosphere || el_data->draw_sun_disc) &&
+    //         (glm::vec3(m_lighting_pass_data.directional.direction) != el_data->sun_data.direction || m_lighting_pass_data.directional.intensity != el_data->sun_data.intensity))
+    //     {
+    //         auto cubemap = std::static_pointer_cast<cubemap_step>(m_pipeline_steps[mango::render_step::cubemap]);
+    //         cubemap->create_image_based_light_data(el_data);
+    //         m_sun_changed = true;
+    //     }
+    //     else
+    //         m_sun_changed = false;
+    //
+    //     if (el_data->render_sun_as_directional)
+    //     {
+    //         m_lighting_pass_data.directional.direction = el_data->sun_data.direction;
+    //         m_lighting_pass_data.directional.intensity = el_data->sun_data.intensity;
+    //     }
+    //
+    //     return;
+    // }
 }
 
 void deferred_pbr_render_system::bind_lighting_pass_buffer(camera_data& camera)
@@ -1456,18 +1452,12 @@ void deferred_pbr_render_system::bind_lighting_pass_buffer(camera_data& camera)
         MANGO_LOG_ERROR("Lighting pass uniforms can not be set! No active camera!");
     }
 
-    m_lighting_pass_data.directional.cast_shadows = m_lighting_pass_data.directional.cast_shadows && (m_pipeline_steps[mango::render_step::shadow_map] != nullptr);
-
     bind_buffer_command* bb = m_global_binding_commands->create<bind_buffer_command>(command_keys::no_sort);
     bb->target              = buffer_target::uniform_buffer;
     bb->index               = UB_SLOT_LIGHTING_PASS_DATA;
     bb->size                = sizeof(lighting_pass_data);
     bb->buffer_name         = m_frame_uniform_buffer->buffer_name();
     bb->offset              = m_frame_uniform_buffer->write_data(sizeof(lighting_pass_data), &m_lighting_pass_data);
-
-    // reset
-    m_lighting_pass_data.directional.active = false;
-    m_lighting_pass_data.environment.active = false;
 }
 
 void deferred_pbr_render_system::bind_renderer_data_buffer(camera_data& camera, float camera_exposure)
@@ -1554,45 +1544,31 @@ void deferred_pbr_render_system::on_ui_widget()
         ws->set_vsync(m_vsync);
     }
     ImGui::Separator();
-    bool has_ibl        = m_pipeline_steps[mango::render_step::ibl] != nullptr;
+    bool has_cubemap    = m_pipeline_steps[mango::render_step::cubemap] != nullptr;
     bool has_shadow_map = m_pipeline_steps[mango::render_step::shadow_map] != nullptr;
     bool has_fxaa       = m_pipeline_steps[mango::render_step::fxaa] != nullptr;
     if (ImGui::TreeNodeEx("Steps", flags | ImGuiTreeNodeFlags_Framed))
     {
-        bool open = ImGui::CollapsingHeader("IBL Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_ibl ? ImGuiTreeNodeFlags_Leaf : 0));
+        bool open = ImGui::CollapsingHeader("Cubemap Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_cubemap ? ImGuiTreeNodeFlags_Leaf : 0));
         ImGui::SameLine(ImGui::GetContentRegionAvail().x);
-        ImGui::PushID("enable_ibl_step");
-        bool value_changed = ImGui::Checkbox("", &has_ibl);
+        ImGui::PushID("enable_cubemap_step");
+        bool value_changed = ImGui::Checkbox("", &has_cubemap);
         ImGui::PopID();
         if (value_changed)
         {
             m_lighting_pass_commands->invalidate();
-            if (has_ibl)
+            if (has_cubemap)
             {
-                auto step_ibl = std::make_shared<ibl_step>();
-                step_ibl->create();
-                m_pipeline_steps[mango::render_step::ibl] = std::static_pointer_cast<pipeline_step>(step_ibl);
+                auto step_cubemap = std::make_shared<cubemap_step>();
+                step_cubemap->create();
+                m_pipeline_steps[mango::render_step::cubemap] = std::static_pointer_cast<pipeline_step>(step_cubemap);
 
                 auto scene = m_shared_context->get_current_scene();
-                auto env   = scene->get_active_environment_data();
-                if (env.environment_info)
-                {
-                    if (env.environment_info)
-                        step_ibl->create_image_based_light_data(env.environment_info);
-                    else
-                        step_ibl->clear();
-                }
-            }
-            else
-            {
-                m_pipeline_steps[mango::render_step::ibl] = nullptr;
-                auto scene                                = m_shared_context->get_current_scene();
-                scene->set_active_environment(invalid_entity);
             }
         }
-        if (has_ibl && open)
+        if (has_cubemap && open)
         {
-            m_pipeline_steps[mango::render_step::ibl]->on_ui_widget();
+            m_pipeline_steps[mango::render_step::cubemap]->on_ui_widget();
         }
         ImGui::Separator();
 

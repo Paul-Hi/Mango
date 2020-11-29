@@ -42,7 +42,7 @@ layout(binding = 0, std140) uniform renderer_data
 };
 
 // Uniform Buffer Model.
-layout(binding = 1, std140) uniform model_data
+layout(binding = 2, std140) uniform model_data
 {
     mat4 model_matrix;
     mat3 normal_matrix;
@@ -51,7 +51,7 @@ layout(binding = 1, std140) uniform model_data
 };
 
 // Uniform Buffer Material.
-layout(binding = 2, std140) uniform material_data
+layout(binding = 3, std140) uniform material_data
 {
     vec4  base_color;
     vec4  emissive_color; // this is a vec3, but there are annoying bugs with some drivers.
@@ -70,21 +70,12 @@ layout(binding = 2, std140) uniform material_data
 };
 
 // Uniform Buffer Lighting Pass.
-layout(binding = 3, std140) uniform lighting_pass_data
+layout(binding = 1, std140) uniform lighting_pass_data
 {
     mat4 inverse_view_projection;
     mat4 view;
     vec4 camera_position; // this is a vec3, but there are annoying bugs with some drivers.
     vec4 camera_params; // near, far, (zw) unused
-
-    vec4  directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
-    vec4  directional_color; // this is a vec3, but there are annoying bugs with some drivers.
-    float directional_intensity;
-    bool  cast_shadows;
-    bool  directional_active;
-
-    float environment_intensity;
-    bool  environment_active;
 
     bool debug_view_enabled;
     bool debug_views_position;
@@ -100,8 +91,20 @@ layout(binding = 3, std140) uniform lighting_pass_data
     bool draw_shadow_maps;
 };
 
+layout(binding = 4, std140) uniform light_data
+{
+    vec4  directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
+    vec4  directional_color; // this is a vec3, but there are annoying bugs with some drivers.
+    float directional_intensity;
+    bool  directional_cast_shadows;
+    bool  directional_valid;
+
+    float skylight_intensity;
+    bool  skylight_valid;
+};
+
 // Uniform Buffer Shadow.
-layout(binding = 4, std140) uniform shadow_data
+layout(binding = 6, std140) uniform shadow_data
 {
     mat4  view_projection_matrices[max_cascades];
     float split_depth[max_cascades + 1];
@@ -450,7 +453,7 @@ void main()
     vec3 lighting = vec3(0.0);
 
 
-    // environment
+    // skylight
     vec3 ambient = calculate_image_based_light(real_albedo, n_dot_v, view_dir, normal, perceptual_roughness, f0, occlusion_factor);
 
     // lights
@@ -459,7 +462,7 @@ void main()
     // shadows (directional)
     float shadow = 1.0;
     vec3 cascade_color = vec3(1.0);
-    if(directional_active && cast_shadows)
+    if(directional_valid && directional_cast_shadows)
     {
         vec4 view_pos = view * vec4(position, 1.0);
         int interpolation_mode;
@@ -491,8 +494,8 @@ void main()
 
 vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor)
 {
-    float light_intensity = environment_intensity;
-    if(!environment_active || light_intensity < 1e-5)
+    float light_intensity = skylight_intensity;
+    if(!skylight_valid || light_intensity < 1e-5)
         return vec3(300.0); // TODO Paul: Hardcoded -.-
     const float DFG_TEXTURE_SIZE = 256.0; // TODO Paul: Hardcoded -.-
 
@@ -521,7 +524,7 @@ vec3 calculate_image_based_light(in vec3 real_albedo, in float n_dot_v, in vec3 
 vec3 calculate_directional_light(in vec3 real_albedo, in float n_dot_v, in vec3 view_dir, in vec3 normal, in float perceptual_roughness, in vec3 f0, in float occlusion_factor, in vec3 world_pos)
 {
     float light_intensity = directional_intensity;
-    if(!directional_active || light_intensity < 1e-5)
+    if(!directional_valid || light_intensity < 1e-5)
         return vec3(0.0);
     vec3 light_dir        = normalize(directional_direction.xyz);
     vec3 light_col        = directional_color.rgb;

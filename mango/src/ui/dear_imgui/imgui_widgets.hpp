@@ -156,7 +156,8 @@ namespace mango
                 return string(ICON_FA_DICE_D6);
             else if (application_scene->query_component<camera_component>(e))
                 return string(ICON_FA_VIDEO);
-            else if (application_scene->query_component<light_component>(e))
+            else if (application_scene->query_component<directional_light_component>(e) || application_scene->query_component<atmosphere_light_component>(e) ||
+                     application_scene->query_component<skylight_component>(e))
                 return string(ICON_FA_LIGHTBULB);
             else if (application_scene->query_component<transform_component>(e))
                 return string(ICON_FA_VECTOR_SQUARE);
@@ -659,7 +660,9 @@ namespace mango
             auto model_comp     = application_scene->query_component<model_component>(e);
             auto mesh_comp      = application_scene->query_component<mesh_component>(e);
             auto camera_comp    = application_scene->query_component<camera_component>(e);
-            auto light_comp     = application_scene->query_component<light_component>(e);
+            auto d_light_comp   = application_scene->query_component<directional_light_component>(e);
+            auto a_light_comp   = application_scene->query_component<atmosphere_light_component>(e);
+            auto s_light_comp   = application_scene->query_component<skylight_component>(e);
 
             ImGui::PushID(e);
 
@@ -702,9 +705,17 @@ namespace mango
                 {
                     camera_comp = application_scene->add_component<camera_component>(e);
                 }
-                if (!light_comp && ImGui::Selectable("Light Component"))
+                if (!d_light_comp && ImGui::Selectable("Directional Light Component"))
                 {
-                    light_comp = application_scene->add_component<light_component>(e);
+                    d_light_comp = application_scene->add_component<directional_light_component>(e);
+                }
+                if (!a_light_comp && ImGui::Selectable("Atmosphere Light Component"))
+                {
+                    a_light_comp = application_scene->add_component<atmosphere_light_component>(e);
+                }
+                if (!s_light_comp && ImGui::Selectable("Skylight Component"))
+                {
+                    s_light_comp = application_scene->add_component<skylight_component>(e);
                 }
 
                 ImGui::EndPopup();
@@ -928,65 +939,100 @@ namespace mango
                     return true;
                 });
 
-            // Light
-            details::draw_component<mango::light_component>(
-                light_comp,
-                [e, &application_scene, &light_comp, &rs]() {
-                    light_type& current     = light_comp->type_of_light;
-                    const char* possible[2] = { "Directional Light", "Environment Light" };
-                    int32 idx               = static_cast<int32>(current);
-                    bool changed            = combo("Light Type", possible, 2, idx, 0);
-                    current                 = static_cast<light_type>(idx);
-                    if (changed)
+            // Lights
+            details::draw_component<mango::directional_light_component>(
+                d_light_comp,
+                [e, &application_scene, &d_light_comp, &rs]() {
+                    float default_fl3[3] = { 1.0f, 1.0f, 1.0f };
+                    drag_float_n("Direction", &d_light_comp->light.direction[0], 3, default_fl3, 0.08f, 0.0f, 0.0f, "%.2f", true);
+
+                    color_edit("Color", &d_light_comp->light.light_color[0], 3, default_fl3);
+
+                    float default_value[1] = { mango::default_directional_intensity };
+                    slider_float_n("Intensity", &d_light_comp->light.intensity, 1, default_value, 0.0f, 500000.0f, "%.1f", false);
+
+                    checkbox("Cast Shadows", &d_light_comp->light.cast_shadows, false);
+
+                    checkbox("Contribute To Atmosphere", &d_light_comp->light.atmospherical, false);
+                },
+                [e, &application_scene]() {
+                    if (ImGui::Selectable("Remove"))
                     {
-                        if (idx == 0) // from environment to directional
-                        {
-                            application_scene->set_active_environment(invalid_entity);
-                            light_comp->data = std::make_shared<directional_light_data>();
-                        }
-                        if (idx == 1) // from directional to environment
-                        {
-                            light_comp->data = std::make_shared<environment_light_data>();
-                            application_scene->set_active_environment(e);
-                        }
+                        application_scene->remove_component<directional_light_component>(e);
+                        return false;
                     }
+                    return true;
+                });
 
-                    ImGui::Separator();
-
-                    if (current == light_type::directional)
+            details::draw_component<mango::atmosphere_light_component>(
+                a_light_comp,
+                [e, &application_scene, &a_light_comp, &rs]() {
+                    ImGui::Text("TEMPORAL");
+                    // float default_fl3[3] = { 1.0f, 1.0f, 1.0f };
+                    // ImGui::PushID("atmosphere");
+                    // int32 default_ivalue[1] = { 32 };
+                    // changed |= slider_int_n("Scatter Points", &el_data->scatter_points, 1, default_ivalue, 1, 64);
+                    // default_ivalue[0] = 8;
+                    // changed |= slider_int_n("Scatter Points Second Ray", &el_data->scatter_points_second_ray, 1, default_ivalue, 1, 32);
+                    // float default_fl3[3]              = { 5.8f, 13.5f, 33.1f };
+                    // glm::vec3 coefficients_normalized = el_data->rayleigh_scattering_coefficients * 1e6f;
+                    // changed |= drag_float_n("Rayleigh Scattering Coefficients (e-6)", &coefficients_normalized.x, 3, default_fl3);
+                    // el_data->rayleigh_scattering_coefficients = coefficients_normalized * 1e-6f;
+                    // default_value[0]                          = 21.0f;
+                    // float coefficient_normalized              = el_data->mie_scattering_coefficient * 1e6f;
+                    // changed |= drag_float_n("Mie Scattering Coefficients (e-6)", &coefficient_normalized, 1, default_value);
+                    // el_data->mie_scattering_coefficient = coefficient_normalized * 1e-6f;
+                    // float default_fl2[2]                = { 8e3f, 1.2e3f };
+                    // changed |= drag_float_n("Density Multipler", &el_data->density_multiplier.x, 2, default_fl2);
+                    // default_value[0] = 0.758f;
+                    // changed |= slider_float_n("Preferred Mie Scattering Direction", &el_data->mie_preferred_scattering_dir, 1, default_value, 0.0f, 1.0f);
+                    // default_value[0] = 6360e3f;
+                    // changed |= drag_float_n("Ground Height", &el_data->ground_radius, 1, default_value);
+                    // default_value[0] = 6420e3f;
+                    // changed |= drag_float_n("Atmosphere Height", &el_data->atmosphere_radius, 1, default_value);
+                    // default_value[0] = 1e3f;
+                    // changed |= drag_float_n("View Height", &el_data->view_height, 1, default_value);
+                    //
+                    // default_fl3[0] = 1.0f;
+                    // default_fl3[1] = 1.0f;
+                    // default_fl3[2] = 1.0f;
+                    // changed |= drag_float_n("Sun Direction", &el_data->sun_data.direction[0], 3, default_fl3, 0.08f, 0.0f, 0.0f, "%.2f", true);
+                    // default_value[0] = mango::default_directional_intensity;
+                    // changed |= slider_float_n("Sun Intensity", &el_data->sun_data.intensity, 1, default_value, 0.0f, 500000.0f, "%.1f", false);
+                    // changed |= checkbox("Draw Sun Disc (Always On ATM)", &el_data->draw_sun_disc, false);
+                },
+                [e, &application_scene]() {
+                    if (ImGui::Selectable("Remove"))
                     {
-                        auto d_data = static_cast<directional_light_data*>(light_comp->data.get());
-
-                        float default_fl3[3] = { 1.0f, 1.0f, 1.0f };
-                        drag_float_n("Direction", &d_data->direction[0], 3, default_fl3, 0.08f, 0.0f, 0.0f, "%.2f", true);
-
-                        color_edit("Color", &d_data->light_color[0], 3, default_fl3);
-
-                        float default_value[1] = { mango::default_directional_intensity };
-                        slider_float_n("Intensity", &d_data->intensity, 1, default_value, 0.0f, 500000.0f, "%.1f", false);
-
-                        checkbox("Cast Shadows", &d_data->cast_shadows, false);
+                        application_scene->remove_component<atmosphere_light_component>(e);
+                        return false;
                     }
-                    else if (current == light_type::environment)
+                    return true;
+                });
+
+            details::draw_component<mango::skylight_component>(
+                s_light_comp,
+                [e, &application_scene, &s_light_comp, &rs]() {
+                    checkbox("Use HDR Texture", &s_light_comp->light.use_texture, false);
+                    if (s_light_comp->light.use_texture) // hdr texture
                     {
-                        auto el_data           = static_cast<environment_light_data*>(light_comp->data.get());
-                        float default_value[1] = { mango::default_environment_intensity };
-                        slider_float_n("Environment Intensity", &el_data->intensity, 1, default_value, 0.0f, 50000.0f, "%.1f", false);
-
-                        ImGui::Separator();
-                        const char* environment_type[2] = { "HDR Image", "Atmosphere" };
-                        int32 tp_idx                    = el_data->create_atmosphere ? 1 : 0;
-                        changed |= combo("Environment Type", environment_type, 2, tp_idx, 0);
-                        el_data->create_atmosphere = tp_idx;
-                        ImGui::Separator();
-
-                        entity env  = application_scene->get_active_environment_data().active_environment_entity;
-                        bool active = env == e;
-                        if (!el_data->create_atmosphere) // hdr texture
+                        if (!s_light_comp->light.hdr_texture)
+                        {
+                            texture_configuration tex_config;
+                            tex_config.generate_mipmaps        = 1;
+                            tex_config.is_standard_color_space = false;
+                            tex_config.texture_min_filter      = texture_parameter::filter_linear;
+                            tex_config.texture_mag_filter      = texture_parameter::filter_linear;
+                            tex_config.texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
+                            tex_config.texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
+                            char const* filter[1]              = { "*.hdr" };
+                            s_light_comp->light.hdr_texture    = details::load_texture(tex_config, rs, filter, 1);
+                        }
+                        else
                         {
                             ImGui::PushID("hdr_texture");
                             bool load_new = false;
-                            changed |= image_load("Environment Image", el_data->hdr_texture ? el_data->hdr_texture->get_name() : -1, glm::vec2(128, 64), load_new);
+                            image_load("Environment Image", s_light_comp->light.hdr_texture ? s_light_comp->light.hdr_texture->get_name() : -1, glm::vec2(128, 64), load_new);
                             ImGui::Separator();
                             if (load_new)
                             {
@@ -998,82 +1044,22 @@ namespace mango
                                 tex_config.texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
                                 tex_config.texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
                                 char const* filter[1]              = { "*.hdr" };
-                                el_data->hdr_texture               = details::load_texture(tex_config, rs, filter, 1);
-                            }
-                            if (checkbox("Sun As Directional Light", &el_data->render_sun_as_directional, false) || el_data->render_sun_as_directional)
-                            {
-                                float default_fl3[3] = { 1.0f, 1.0f, 1.0f };
-                                drag_float_n("Sun Direction", &el_data->sun_data.direction[0], 3, default_fl3, 0.08f, 0.0f, 0.0f, "%.2f", true);
-
-                                color_edit("Sun Color", &el_data->sun_data.light_color[0], 3, default_fl3);
-
-                                default_value[0] = mango::default_directional_intensity;
-                                slider_float_n("Sun Intensity", &el_data->sun_data.intensity, 1, default_value, 0.0f, 500000.0f, "%.1f", false);
-
-                                checkbox("Sun Cast Shadows", &el_data->sun_data.cast_shadows, false);
+                                s_light_comp->light.hdr_texture    = details::load_texture(tex_config, rs, filter, 1);
                             }
 
-                            changed |= checkbox("Draw Sun Disc (Always Off ATM)", &el_data->draw_sun_disc, false);
-                            ImGui::PopID();
-                        }
-                        else // atmosphere
-                        {
-                            ImGui::PushID("atmosphere");
-                            int32 default_ivalue[1] = { 32 };
-                            changed |= slider_int_n("Scatter Points", &el_data->scatter_points, 1, default_ivalue, 1, 64);
-                            default_ivalue[0] = 8;
-                            changed |= slider_int_n("Scatter Points Second Ray", &el_data->scatter_points_second_ray, 1, default_ivalue, 1, 32);
-                            float default_fl3[3]              = { 5.8f, 13.5f, 33.1f };
-                            glm::vec3 coefficients_normalized = el_data->rayleigh_scattering_coefficients * 1e6f;
-                            changed |= drag_float_n("Rayleigh Scattering Coefficients (e-6)", &coefficients_normalized.x, 3, default_fl3);
-                            el_data->rayleigh_scattering_coefficients = coefficients_normalized * 1e-6f;
-                            default_value[0]                          = 21.0f;
-                            float coefficient_normalized              = el_data->mie_scattering_coefficient * 1e6f;
-                            changed |= drag_float_n("Mie Scattering Coefficients (e-6)", &coefficient_normalized, 1, default_value);
-                            el_data->mie_scattering_coefficient = coefficient_normalized * 1e-6f;
-                            float default_fl2[2]                = { 8e3f, 1.2e3f };
-                            changed |= drag_float_n("Density Multipler", &el_data->density_multiplier.x, 2, default_fl2);
-                            default_value[0] = 0.758f;
-                            changed |= slider_float_n("Preferred Mie Scattering Direction", &el_data->mie_preferred_scattering_dir, 1, default_value, 0.0f, 1.0f);
-                            default_value[0] = 6360e3f;
-                            changed |= drag_float_n("Ground Height", &el_data->ground_radius, 1, default_value);
-                            default_value[0] = 6420e3f;
-                            changed |= drag_float_n("Atmosphere Height", &el_data->atmosphere_radius, 1, default_value);
-                            default_value[0] = 1e3f;
-                            changed |= drag_float_n("View Height", &el_data->view_height, 1, default_value);
-
-                            default_fl3[0] = 1.0f;
-                            default_fl3[1] = 1.0f;
-                            default_fl3[2] = 1.0f;
-                            changed |= drag_float_n("Sun Direction", &el_data->sun_data.direction[0], 3, default_fl3, 0.08f, 0.0f, 0.0f, "%.2f", true);
-                            default_value[0] = mango::default_directional_intensity;
-                            changed |= slider_float_n("Sun Intensity", &el_data->sun_data.intensity, 1, default_value, 0.0f, 500000.0f, "%.1f", false);
-                            changed |= checkbox("Draw Sun Disc (Always On ATM)", &el_data->draw_sun_disc, false);
-
-                            if (checkbox("Sun As Directional Light", &el_data->render_sun_as_directional, false) || el_data->render_sun_as_directional)
-                            {
-                                float default_fl3[3] = { 1.0f, 1.0f, 1.0f };
-                                color_edit("Sun Color", &el_data->sun_data.light_color[0], 3, default_fl3);
-                                checkbox("Sun Cast Shadows", &el_data->sun_data.cast_shadows, false);
-                            }
+                            if (!s_light_comp->light.hdr_texture)
+                                s_light_comp->light.use_texture = false;
 
                             ImGui::PopID();
                         }
-
-                        ImGui::Separator();
-                        changed |= checkbox("Set Active", &active, false);
-                        if ((changed || env != e) && active)
-                            application_scene->set_active_environment(e);
-                        else if (env == e && changed && !active)
-                            application_scene->set_active_environment(invalid_entity);
+                        float default_value[1] = { mango::default_environment_intensity };
+                        slider_float_n("Skylight Intensity", &s_light_comp->light.intensity, 1, default_value, 0.0f, 50000.0f, "%.1f", false);
                     }
                 },
                 [e, &application_scene]() {
                     if (ImGui::Selectable("Remove"))
                     {
-                        if (application_scene->get_active_environment_data().active_environment_entity == e)
-                            application_scene->set_active_environment(invalid_entity);
-                        application_scene->remove_component<light_component>(e);
+                        application_scene->remove_component<skylight_component>(e);
                         return false;
                     }
                     return true;
@@ -1081,7 +1067,7 @@ namespace mango
 
             ImGui::PopStyleVar();
             ImGui::PopID();
-        }
+        } // namespace mango
         ImGui::End();
     } // namespace mango
 

@@ -47,6 +47,19 @@ namespace mango
         virtual void execute(float dt, scene_component_pool<component_1>& components_1, scene_component_pool<component_2>& components_2);
     };
 
+    //! \brief A templated base class for all ecs systems that require three components.
+    template <typename component_1, typename component_2, typename component_3>
+    class ecsystem_3
+    {
+      public:
+        //! \brief The execute function for the \a ecsystem.
+        //! \param[in] dt The time since the last call.
+        //! \param[in] components_1 First \a component_pool.
+        //! \param[in] components_2 Second \a component_pool.
+        //! \param[in] components_3 Third \a component_pool.
+        virtual void execute(float dt, scene_component_pool<component_1>& components_1, scene_component_pool<component_2>& components_2, scene_component_pool<component_3>& components_3);
+    };
+
     // fwd
     class vertex_array;
     struct material;
@@ -183,60 +196,28 @@ namespace mango
         glm::mat4 view_projection;
     };
 
-    //! \brief The default intensity of an environment. Is approx. the intensity of a sunny sky.
-    const float default_environment_intensity = 30000.0f;
-
-    //! \brief Light types used in \a light_components.
-    enum class light_type : uint8
+    struct base_light_component
     {
-        directional, //!< Simple directional light.
-        environment  //!< Light type with environmental light, sometimes with directional shadow casting sun.
+        uint32 l_id ;
+        base_light_component() { static uint32 id = 0; l_id = id++; } // TODO Paul: These should be done differently!
+        bool active = true;
     };
 
-    //! \brief Base light data for every light.
-    struct light_data
+    // Directional light. Can be used for atmosphere lights.
+    struct directional_light_component : base_light_component
     {
+        directional_light light;
     };
 
-    //! \brief The default intensity of a directional light. Is approx. the intensity of the sun.
-    const float default_directional_intensity = 110000.0f;
-
-    //! \brief Light data for directional lights.
-    struct directional_light_data : public light_data
+    // Captures distant objects to use for image based lighting.
+    struct skylight_component : base_light_component
     {
-        glm::vec3 direction = glm::vec3(1.0f);             //!< The light direction.
-        color_rgb light_color;                             //!< The light color. Will get multiplied by the intensity.
-        float intensity   = default_directional_intensity; //!< The instensity of the light in lumen (111000 would f.e. be a basic sun)
-        bool cast_shadows = false;                         //!< True if the light should cast shadows.
+        skylight light;
     };
 
-    struct environment_light_data : public light_data
+    struct atmosphere_light_component : base_light_component
     {
-        shared_ptr<texture> hdr_texture;
-        float intensity                = default_environment_intensity;
-        bool render_sun_as_directional = true;
-        directional_light_data sun_data;
-
-        // scattering parameters
-        bool create_atmosphere                     = false;
-        bool draw_sun_disc                         = true;
-        int32 scatter_points                       = 32;
-        int32 scatter_points_second_ray            = 8;
-        glm::vec3 rayleigh_scattering_coefficients = glm::vec3(5.8e-6f, 13.5e-6f, 33.1e-6f);
-        float mie_scattering_coefficient           = 21e-6f;
-        glm::vec2 density_multiplier               = glm::vec2(8e3f, 1.2e3f);
-        float ground_radius                        = 6360e3f;
-        float atmosphere_radius                    = 6420e3f;
-        float view_height                          = 1e3f;
-        float mie_preferred_scattering_dir         = 0.758f;
-    };
-
-    //! \brief Component used for all lights excluding image based lights.
-    struct light_component
-    {
-        bool active                 = false;
-        light_type type_of_light    = light_type::environment;                    //!< The type of the light.
-        shared_ptr<light_data> data = std::make_shared<environment_light_data>(); //!< Light specific data.
+        atmosphere_light light;
     };
 
     //! \brief Structure used for collecting all the camera data of the current active camera.
@@ -245,13 +226,6 @@ namespace mango
         entity active_camera_entity;    //!< The entity.
         camera_component* camera_info;  //!< The camera info.
         transform_component* transform; //!< The cameras transform.
-    };
-
-    //! \brief Structure used for collecting all the environment data of the current active environment.
-    struct environment_data
-    {
-        entity active_environment_entity;         //!< The entity.
-        environment_light_data* environment_info; //!< The environment light info.
     };
 
     // TODO Paul: This will be reworked when we need the reflection for the components.
@@ -375,16 +349,42 @@ namespace mango
         }
     };
     template <>
-    struct type_name<light_component>
+    struct type_name<directional_light_component>
     {
         static const char* get()
         {
-            return "Light Component";
+            return "Directional Light Component";
         }
 
         static const int32 id()
         {
             return 8;
+        }
+    };
+    template <>
+    struct type_name<atmosphere_light_component>
+    {
+        static const char* get()
+        {
+            return "Atmosphere Light Component";
+        }
+
+        static const int32 id()
+        {
+            return 9;
+        }
+    };
+    template <>
+    struct type_name<skylight_component>
+    {
+        static const char* get()
+        {
+            return "Skylight Component";
+        }
+
+        static const int32 id()
+        {
+            return 10;
         }
     };
     //! \endcond

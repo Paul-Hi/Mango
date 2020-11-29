@@ -27,7 +27,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/input_system_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/pipeline_step.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/ibl_step.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/cubemap_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/gpu_buffer.hpp
@@ -39,6 +39,8 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/timer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_system_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/ecs_internal.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_glfw.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_widgets.hpp
@@ -78,12 +80,14 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/ibl_step.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/cubemap_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/gpu_buffer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_system_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_glfw.cpp

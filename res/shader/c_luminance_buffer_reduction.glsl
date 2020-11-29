@@ -5,7 +5,7 @@
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
-layout(std430, binding = 4) buffer luminance_data
+layout(std430, binding = 6) buffer luminance_data
 {
     uint histogram[256];
     float luminance;

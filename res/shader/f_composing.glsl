@@ -21,21 +21,12 @@ layout(binding = 0, std140) uniform renderer_data
 };
 
 // Uniform Buffer Lighting Pass.
-layout(binding = 3, std140) uniform lighting_pass_data
+layout(binding = 1, std140) uniform lighting_pass_data
 {
     mat4 inverse_view_projection;
     mat4 view;
     vec4 camera_position; // this is a vec3, but there are annoying bugs with some drivers.
     vec4 camera_params; // near, far, (zw) unused
-
-    vec4  directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
-    vec4  directional_color; // this is a vec3, but there are annoying bugs with some drivers.
-    float directional_intensity;
-    bool  cast_shadows;
-    bool  directional_active;
-
-    float environment_intensity;
-    bool  environment_active;
 
     bool debug_view_enabled;
     bool debug_views_position;

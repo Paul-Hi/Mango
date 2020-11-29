@@ -12,6 +12,7 @@ using namespace mango;
 
 render_system_impl::render_system_impl(const shared_ptr<context_impl>& context)
     : m_shared_context(context)
+    , m_light_stack()
 {
 }
 
@@ -58,10 +59,10 @@ void render_system_impl::configure(const render_configuration& configuration)
     }
 }
 
-void render_system_impl::setup_ibl_step(const ibl_step_configuration& configuration)
+void render_system_impl::setup_cubemap_step(const cubemap_step_configuration& configuration)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->setup_ibl_step(configuration);
+    m_current_render_system->setup_cubemap_step(configuration);
 }
 
 void render_system_impl::setup_shadow_map_step(const shadow_step_configuration& configuration)
@@ -125,16 +126,10 @@ void render_system_impl::draw_mesh(const vertex_array_ptr& vertex_array, primiti
     m_current_render_system->draw_mesh(vertex_array, topology, first, count, type, instance_count);
 }
 
-void render_system_impl::set_environment(const mango::environment_light_data* el_data)
+void render_system_impl::submit_light(light_id id, mango_light* light)
 {
     MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->set_environment(el_data);
-}
-
-void render_system_impl::submit_light(light_type type, light_data* data)
-{
-    MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-    m_current_render_system->submit_light(type, data);
+    m_current_render_system->submit_light(id, light);
 }
 
 framebuffer_ptr render_system_impl::get_backbuffer()
