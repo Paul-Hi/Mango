@@ -1,8 +1,5 @@
-#version 430 core
-
-#define saturate(x) clamp(x, 0.0, 1.0)
-#define epsilon 0.005
-#define rgb_to_luminance vec3(0.2125, 0.7154, 0.0721)
+#define COMPUTE
+#include <../include/common_constants_and_functions.glsl>
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
@@ -43,7 +40,7 @@ void main()
 
 uint color_to_luminance_bin(in vec3 pixel_color, in float min_log_luminance, in float inverse_log_luminance_range)
 {
-    float lum = dot(pixel_color, rgb_to_luminance);
+    float lum = luma(pixel_color);
 
     if(lum < epsilon)
         return 0;

@@ -37,7 +37,7 @@ bool fxaa_step::setup_shader_programs()
     if (!check_creation(fxaa_vertex.get(), "screen space triangle vertex shader"))
         return false;
 
-    shader_config.path       = "res/shader/f_fxaa.glsl";
+    shader_config.path       = "res/shader/post/f_fxaa.glsl";
     shader_config.type       = shader_type::fragment_shader;
     shader_ptr fxaa_fragment = shader::create(shader_config);
     if (!check_creation(fxaa_fragment.get(), "fxaa pass fragment shader"))

@@ -55,7 +55,7 @@ void light_stack::create_brdf_lookup()
 
     shader_configuration shader_config;
     // compute shader to build the brdf integration lookup texture for image based lighting. Could be done only once.
-    shader_config.path                  = "res/shader/c_brdf_integration.glsl";
+    shader_config.path                  = "res/shader/pbr_compute/c_brdf_integration.glsl";
     shader_config.type                  = shader_type::compute_shader;
     shader_ptr brdf_integration_compute = shader::create(shader_config);
     if (!check_creation(brdf_integration_compute.get(), "brdf integration compute shader"))

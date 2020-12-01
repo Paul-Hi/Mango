@@ -1,12 +1,10 @@
-#version 430 core
-
-#define saturate(x) clamp(x, 0.0, 1.0)
+#include <../include/common_constants_and_functions.glsl>
 
 out vec4 frag_color;
 
 in vec3 shared_texcoord;
 
-layout (location = 0, binding = 0) uniform samplerCube skybox;
+layout (location = 0) uniform samplerCube skybox;
 
 // Uniform Buffer Lighting Pass.
 layout(binding = 1, std140) uniform lighting_pass_data
@@ -64,17 +62,6 @@ layout(binding = 6, std140) uniform atmosphere_ub_data
     int scatter_points;
     int scatter_points_second_ray;
 };
-
-vec2 intersect_ray_sphere(vec3 origin, vec3 dir, float sphere_radius) {
-    float a = dot(dir, dir);
-    float b = 2.0 * dot(dir, origin);
-    float c = dot(origin, origin) - (sphere_radius * sphere_radius);
-    float d = (b * b) - 4.0 * a * c;
-
-    if (d < 0.0)
-        return vec2(1e5, -1e5);
-    return vec2((-b - sqrt(d)) / (2.0 * a), (-b + sqrt(d)) / (2.0 * a));
-}
 
 void main()
 {

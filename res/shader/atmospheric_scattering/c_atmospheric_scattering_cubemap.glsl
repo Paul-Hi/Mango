@@ -1,11 +1,8 @@
-#version 430 core
+#define COMPUTE
+#include <../include/common_constants_and_functions.glsl>
 
 #define F16_MAX 65500.0
 #define F16_MIN 0.000655
-
-#define saturate(x) clamp(x, 0.0, 1.0)
-
-const float PI = 3.1415926535897932384626433832795;
 
 layout(local_size_x = 32, local_size_y = 32) in;
 
@@ -29,20 +26,7 @@ layout(binding = 6, std140) uniform atmosphere_ub_data
     int scatter_points_second_ray;
 };
 
-
-vec3 cube_to_world(in ivec3 cube_coord, in vec2 cubemap_size);
 vec3 atmospheric_scattering(in vec3 ray_dir);
-
-vec2 intersect_ray_sphere(vec3 origin, vec3 dir, float sphere_radius) {
-    float a = dot(dir, dir);
-    float b = 2.0 * dot(dir, origin);
-    float c = dot(origin, origin) - (sphere_radius * sphere_radius);
-    float d = (b * b) - 4.0 * a * c;
-
-    if (d < 0.0)
-        return vec2(1e5, -1e5);
-    return vec2((-b - sqrt(d)) / (2.0 * a), (-b + sqrt(d)) / (2.0 * a));
-}
 
 void main()
 {
@@ -55,22 +39,6 @@ void main()
     pixel.rgb = clamp(pixel.rgb, vec3(F16_MIN), vec3(F16_MAX));
 
     imageStore(cubemap_out, coords, pixel);
-}
-
-vec3 cube_to_world(in ivec3 cube_coord, in vec2 cubemap_size)
-{
-    vec2 tex_coord = vec2(cube_coord.xy + 0.5) / cubemap_size;
-    tex_coord = tex_coord  * 2.0 - 1.0;
-    switch(cube_coord.z)
-    {
-        case 0: return vec3(1.0, -tex_coord.yx);
-        case 1: return vec3(-1.0, -tex_coord.y, tex_coord.x);
-        case 2: return vec3(tex_coord.x, 1.0, tex_coord.y);
-        case 3: return vec3(tex_coord.x, -1.0, -tex_coord.y);
-        case 4: return vec3(tex_coord.x, -tex_coord.y, 1.0);
-        case 5: return vec3(-tex_coord.xy, -1.0);
-    }
-    return vec3(0.0);
 }
 
 vec3 atmospheric_scattering(in vec3 ray_dir)

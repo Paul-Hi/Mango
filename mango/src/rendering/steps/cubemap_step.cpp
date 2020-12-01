@@ -38,13 +38,13 @@ bool cubemap_step::setup_shader_programs()
     PROFILE_ZONE;
     // cubemap rendering
     shader_configuration shader_config;
-    shader_config.path        = "res/shader/v_cubemap.glsl";
+    shader_config.path        = "res/shader/post/v_cubemap.glsl";
     shader_config.type        = shader_type::vertex_shader;
     shader_ptr cubemap_vertex = shader::create(shader_config);
     if (!check_creation(cubemap_vertex.get(), "cubemap vertex shader"))
         return false;
 
-    shader_config.path          = "res/shader/f_cubemap.glsl";
+    shader_config.path          = "res/shader/post/f_cubemap.glsl";
     shader_config.type          = shader_type::fragment_shader;
     shader_ptr cubemap_fragment = shader::create(shader_config);
     if (!check_creation(cubemap_fragment.get(), "cubemap fragment shader"))

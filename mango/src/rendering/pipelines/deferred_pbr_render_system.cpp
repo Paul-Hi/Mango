@@ -190,15 +190,21 @@ bool deferred_pbr_render_system::create_renderer_resources()
 
     // scene geometry pass
     shader_configuration shader_config;
-    shader_config.path  = "res/shader/v_scene_gltf.glsl";
+    shader_config.path  = "res/shader/forward/v_scene_gltf.glsl";
     shader_config.type  = shader_type::vertex_shader;
+    shader_config.defines.push_back({ "GBUFFER_PREPASS", "" });
+    shader_config.defines.push_back({ "VERTEX", "" });
     shader_ptr d_vertex = shader::create(shader_config);
+    shader_config.defines.clear();
     if (!check_creation(d_vertex.get(), "geometry pass vertex shader"))
         return false;
 
-    shader_config.path    = "res/shader/f_scene_gltf.glsl";
+    shader_config.path    = "res/shader/forward/f_scene_gltf.glsl";
     shader_config.type    = shader_type::fragment_shader;
+    shader_config.defines.push_back({ "GBUFFER_PREPASS", "" });
+    shader_config.defines.push_back({ "FRAGMENT", "" });
     shader_ptr d_fragment = shader::create(shader_config);
+    shader_config.defines.clear();
     if (!check_creation(d_fragment.get(), "geometry pass fragment shader"))
         return false;
 
@@ -207,9 +213,12 @@ bool deferred_pbr_render_system::create_renderer_resources()
         return false;
 
     // transparent pass
-    shader_config.path = "res/shader/f_scene_transparent_gltf.glsl";
+    shader_config.path = "res/shader/forward/f_scene_transparent_gltf.glsl";
     shader_config.type = shader_type::fragment_shader;
+    shader_config.defines.push_back({ "LIGHTING", "" });
+    shader_config.defines.push_back({ "FORWARD", "" });
     d_fragment         = shader::create(shader_config);
+    shader_config.defines.clear();
     if (!check_creation(d_fragment.get(), "transparent pass fragment shader"))
         return false;
 
@@ -224,9 +233,12 @@ bool deferred_pbr_render_system::create_renderer_resources()
     if (!check_creation(d_vertex.get(), "screen space triangle vertex shader"))
         return false;
 
-    shader_config.path = "res/shader/f_deferred_lighting.glsl";
+    shader_config.path = "res/shader/deferred/f_deferred_lighting.glsl";
     shader_config.type = shader_type::fragment_shader;
+    shader_config.defines.push_back({ "LIGHTING", "" });
+    shader_config.defines.push_back({ "DEFERRED", "" });
     d_fragment         = shader::create(shader_config);
+    shader_config.defines.clear();
     if (!check_creation(d_fragment.get(), "lighting pass fragment shader"))
         return false;
 
@@ -235,7 +247,7 @@ bool deferred_pbr_render_system::create_renderer_resources()
         return false;
 
     // composing pass
-    shader_config.path = "res/shader/f_composing.glsl";
+    shader_config.path = "res/shader/post/f_composing.glsl";
     shader_config.type = shader_type::fragment_shader;
     d_fragment         = shader::create(shader_config);
     if (!check_creation(d_fragment.get(), "composing pass fragment shader"))
@@ -246,7 +258,7 @@ bool deferred_pbr_render_system::create_renderer_resources()
         return false;
 
     // luminance compute for auto exposure
-    shader_config.path                    = "res/shader/c_construct_luminance_buffer.glsl";
+    shader_config.path                    = "res/shader/luminance_compute/c_construct_luminance_buffer.glsl";
     shader_config.type                    = shader_type::compute_shader;
     shader_ptr construct_luminance_buffer = shader::create(shader_config);
     if (!check_creation(construct_luminance_buffer.get(), "luminance construction compute shader"))
@@ -256,7 +268,7 @@ bool deferred_pbr_render_system::create_renderer_resources()
     if (!check_creation(m_construct_luminance_buffer.get(), "luminance construction compute shader program"))
         return false;
 
-    shader_config.path                 = "res/shader/c_luminance_buffer_reduction.glsl";
+    shader_config.path                 = "res/shader/luminance_compute/c_luminance_buffer_reduction.glsl";
     shader_config.type                 = shader_type::compute_shader;
     shader_ptr reduce_luminance_buffer = shader::create(shader_config);
     if (!check_creation(reduce_luminance_buffer.get(), "luminance reduction compute shader"))

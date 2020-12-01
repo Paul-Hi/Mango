@@ -11,6 +11,12 @@
 
 namespace mango
 {
+    struct shader_define
+    {
+        const char* name;
+        const char* value;
+    };
+
     //! \brief A configuration for \a shaders.
     class shader_configuration : public graphics_configuration
     {
@@ -23,9 +29,12 @@ namespace mango
 
         //! \brief Constructs a new \a shader_configuration.
         //! \param[in] path The path to the shader source.
-        shader_configuration(const char* path)
+        //! \param[in] type The type of the shader.
+        shader_configuration(const char* path, shader_type type, std::initializer_list<shader_define> defines)
             : graphics_configuration()
             , path(path)
+            , type(type)
+            , defines(defines)
         {
         }
 
@@ -34,6 +43,8 @@ namespace mango
 
         //! \brief The type of the shader described by the source.
         shader_type type = shader_type::none;
+
+        std::vector<shader_define> defines;
 
         bool is_valid() const
         {
@@ -55,7 +66,7 @@ namespace mango
         virtual shader_type get_type() = 0;
 
       protected:
-        shader() = default;
+        shader()  = default;
         ~shader() = default;
     };
 } // namespace mango

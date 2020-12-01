@@ -34,19 +34,19 @@ bool shadow_map_step::setup_shader_programs()
 {
     PROFILE_ZONE;
     shader_configuration shader_config;
-    shader_config.path            = "res/shader/v_shadow_pass.glsl";
+    shader_config.path            = "res/shader/shadow/v_shadow_pass.glsl";
     shader_config.type            = shader_type::vertex_shader;
     shader_ptr shadow_pass_vertex = shader::create(shader_config);
     if (!check_creation(shadow_pass_vertex.get(), "shadow pass vertex shader"))
         return false;
 
-    shader_config.path              = "res/shader/g_shadow_pass.glsl";
+    shader_config.path              = "res/shader/shadow/g_shadow_pass.glsl";
     shader_config.type              = shader_type::geometry_shader;
     shader_ptr shadow_pass_geometry = shader::create(shader_config);
     if (!check_creation(shadow_pass_geometry.get(), "shadow pass geometry shader"))
         return false;
 
-    shader_config.path              = "res/shader/f_shadow_pass.glsl";
+    shader_config.path              = "res/shader/shadow/f_shadow_pass.glsl";
     shader_config.type              = shader_type::fragment_shader;
     shader_ptr shadow_pass_fragment = shader::create(shader_config);
     if (!check_creation(shadow_pass_fragment.get(), "shadow pass fragment shader"))

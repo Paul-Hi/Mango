@@ -32,6 +32,10 @@ namespace mango
         const char* m_path;
         //! \brief The \a shader_type of this \a shader.
         shader_type m_type;
+
+        std::vector<shader_define> m_defines;
+
+        string load_from_file(const string path, bool recursive);
     };
 } // namespace mango
 

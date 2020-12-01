@@ -1,7 +1,5 @@
-#version 430 core
-
-#define saturate(x) clamp(x, 0.0, 1.0)
-#define group_size 256
+#define COMPUTE
+#include <../include/common_constants_and_functions.glsl>
 
 layout(local_size_x = 16, local_size_y = 16) in;
 

@@ -27,12 +27,8 @@ bool skylight_builder::init()
     if (!check_creation(m_equi_to_cubemap.get(), "cubemap compute shader program"))
         return false;
 
-    m_equi_to_cubemap = shader_program::create_compute_pipeline(to_cube_compute);
-    if (!check_creation(m_equi_to_cubemap.get(), "cubemap compute shader program"))
-        return false;
-
     // compute shader to create a cube map with atmospheric scattering.
-    shader_config.path                     = "res/shader/c_atmospheric_scattering_cubemap.glsl";
+    shader_config.path                     = "res/shader/atmospheric_scattering/c_atmospheric_scattering_cubemap.glsl";
     shader_config.type                     = shader_type::compute_shader;
     shader_ptr atmospheric_cubemap_compute = shader::create(shader_config);
     if (!check_creation(atmospheric_cubemap_compute.get(), "atmospheric scattering cubemap compute shader"))
@@ -43,7 +39,7 @@ bool skylight_builder::init()
         return false;
 
     // compute shader to build the irradiance cubemap for image based lighting.
-    shader_config.path                = "res/shader/c_irradiance_map.glsl";
+    shader_config.path                = "res/shader/pbr_compute/c_irradiance_map.glsl";
     shader_config.type                = shader_type::compute_shader;
     shader_ptr irradiance_map_compute = shader::create(shader_config);
     if (!check_creation(irradiance_map_compute.get(), "irradiance map compute shader"))
@@ -54,7 +50,7 @@ bool skylight_builder::init()
         return false;
 
     // compute shader to build the prefiltered specular cubemap for image based lighting.
-    shader_config.path                          = "res/shader/c_prefilter_specular_map.glsl";
+    shader_config.path                          = "res/shader/pbr_compute/c_prefilter_specular_map.glsl";
     shader_config.type                          = shader_type::compute_shader;
     shader_ptr specular_prefiltered_map_compute = shader::create(shader_config);
     if (!check_creation(specular_prefiltered_map_compute.get(), "prefilter specular cubemap compute shader"))
