@@ -199,7 +199,7 @@ namespace mango
     struct base_light_component
     {
         uint32 l_id ;
-        base_light_component() { static uint32 id = 0; l_id = id++; } // TODO Paul: These should be done differently!
+        base_light_component() { static uint32 id = 1; l_id = id++; } // TODO Paul: These should be done differently! 0 is invalid.
         bool active = true;
     };
 

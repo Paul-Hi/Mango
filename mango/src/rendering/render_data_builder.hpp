@@ -13,6 +13,7 @@
 namespace mango
 {
     using light_id = uint32;
+    const light_id invalid_light_id = 0;
 
     struct light_render_data
     {

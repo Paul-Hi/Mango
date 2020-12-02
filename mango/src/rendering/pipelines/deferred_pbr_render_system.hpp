@@ -192,9 +192,6 @@ namespace mango
             } debug_options;                  //!< The debug options.
         } m_lighting_pass_data;    //!< Current lighting_pass_data.
 
-        // TODO Paul: This one is sh** ...
-        bool m_sun_changed = false;
-
         //! \brief Structure used to cache the \a commands regarding the rendering of the current model/mesh.
         struct model_cache
         {

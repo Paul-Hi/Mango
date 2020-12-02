@@ -66,6 +66,11 @@ namespace mango
             return m_brdf_integration_lut;
         }
 
+        inline bool lighting_dirty()
+        {
+            return m_lighting_dirty;
+        }
+
       private:
         struct cache_entry
         {
@@ -90,7 +95,9 @@ namespace mango
 
         std::unordered_map<light_id, cache_entry> m_light_cache;
 
-        light_id m_global_skylight;
+        light_id m_global_skylight = invalid_light_id;
+        light_id m_last_skylight   = invalid_light_id;
+        bool m_lighting_dirty;
 
         std::vector<directional_light*> m_current_shadow_casters;
 

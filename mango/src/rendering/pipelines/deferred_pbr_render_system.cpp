@@ -947,8 +947,8 @@ void deferred_pbr_render_system::execute_commands(const command_buffer_ptr<min_k
         NAMED_PROFILE_ZONE("Lighting Commands Execute")
         GL_NAMED_PROFILE_ZONE("Lighting Commands Execute");
         m_lighting_pass_commands->execute();
-        // if (m_sun_changed) // TODO Paul: Better way? Handle with light stack!
-        m_lighting_pass_commands->invalidate();
+        if (m_light_stack.lighting_dirty())
+            m_lighting_pass_commands->invalidate();
     }
     if (cubemap_command_buffer)
     {
@@ -1577,6 +1577,10 @@ void deferred_pbr_render_system::on_ui_widget()
 
                 auto scene = m_shared_context->get_current_scene();
             }
+            else
+            {
+                m_pipeline_steps[mango::render_step::cubemap] = nullptr;
+            }
         }
         if (has_cubemap && open)
         {
@@ -1608,7 +1612,7 @@ void deferred_pbr_render_system::on_ui_widget()
             m_pipeline_steps[mango::render_step::shadow_map]->on_ui_widget();
         }
 
-        open = ImGui::CollapsingHeader("FXAA Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_shadow_map ? ImGuiTreeNodeFlags_Leaf : 0));
+        open = ImGui::CollapsingHeader("FXAA Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_fxaa ? ImGuiTreeNodeFlags_Leaf : 0));
         ImGui::SameLine(ImGui::GetContentRegionAvail().x);
         ImGui::PushID("enable_fxaa_step");
         value_changed = ImGui::Checkbox("", &has_fxaa);

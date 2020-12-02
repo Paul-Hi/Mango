@@ -143,6 +143,8 @@ void light_stack::update()
 
     m_current_shadow_casters.clear();
 
+    m_lighting_dirty = m_global_skylight != m_last_skylight; // TODO Paul: Make this more clear!
+
     // order is important!
     update_directional_lights();
     update_atmosphere_lights();
@@ -162,6 +164,8 @@ void light_stack::update()
     m_directional_stack.clear();
     m_atmosphere_stack.clear();
     m_skylight_stack.clear();
+    m_last_skylight = m_global_skylight;
+    m_global_skylight = invalid_light_id;
 }
 
 void light_stack::bind_light_buffers(const command_buffer_ptr<min_key>& global_binding_commands, gpu_buffer_ptr frame_uniform_buffer)
