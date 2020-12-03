@@ -154,7 +154,10 @@ void light_stack::update()
     {
         if (it->second.expired)
         {
-            m_allocator.free_memory(it->second.data);
+            if (it->second.data)
+                m_allocator.free_memory(it->second.data);
+            it->second.data = nullptr;
+
             it = m_light_cache.erase(it);
         }
         else
@@ -164,7 +167,7 @@ void light_stack::update()
     m_directional_stack.clear();
     m_atmosphere_stack.clear();
     m_skylight_stack.clear();
-    m_last_skylight = m_global_skylight;
+    m_last_skylight   = m_global_skylight;
     m_global_skylight = invalid_light_id;
 }
 
@@ -344,6 +347,7 @@ void light_stack::update_skylights()
                 m_light_cache.insert({ s.id, new_entry });
             }
         }
+        m_lighting_dirty |= (m_global_skylight == s.id) && s.dirty;
 
         // atm there is only one skylight bound and ist has to be the global one :D
         if (!light->local)

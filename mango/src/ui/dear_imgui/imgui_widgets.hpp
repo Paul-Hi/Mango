@@ -152,7 +152,8 @@ namespace mango
         {
             if (application_scene->query_component<tag_component>(e)->tag_name == "Scene")
                 return string(ICON_FA_SITEMAP);
-            else if (application_scene->query_component<model_component>(e) || application_scene->query_component<mesh_component>(e))
+            else if (application_scene->query_component<model_component>(e) || application_scene->query_component<mesh_primitive_component>(e) ||
+                     application_scene->query_component<material_component>(e))
                 return string(ICON_FA_DICE_D6);
             else if (application_scene->query_component<camera_component>(e))
                 return string(ICON_FA_VIDEO);
@@ -595,55 +596,6 @@ namespace mango
         ImGui::End();
     }
 
-    //! \brief Draws the material inspector for a given entity and it's \a mesh_component in the user interface.
-    //! \details An entity and it's \a mesh_component could have multiple materials.
-    //! \param[in] mesh The \a mesh_component with all materials.
-    //! \param[in,out] enabled True if the window is open, else False.
-    //! \param[in] entity_changed True if the entity changed since last call, else False.
-    //! \param[in] e The entity the \a materials belongs to.
-    //! \param[in] rs A pointer to the \a resource_system.
-    void material_inspector_widget(const mesh_component* mesh, bool& enabled, bool entity_changed, entity e, const shared_ptr<resource_system>& rs)
-    {
-        ImGui::Begin("Material Inspector", &enabled);
-        if (mesh)
-        {
-            ImGui::PushID(e);
-            static int32 current_id = 0;
-            auto current_name       = !mesh->materials[current_id].material_name.empty() ? mesh->materials[current_id].material_name : "Unnamed Material " + std::to_string(current_id);
-            int32 return_id         = current_id;
-            custom_aligned("Materials", [&mesh, &current_name, &return_id](bool reset) {
-                bool value_changed = false;
-                ImGui::PushItemWidth(ImGui::CalcItemWidth());
-                if (ImGui::BeginCombo("", current_name.c_str()))
-                {
-                    for (int32 n = 0; n < static_cast<int32>(mesh->materials.size()); ++n)
-                    {
-                        bool is_selected = (current_name == mesh->materials[n].material_name);
-                        auto name        = !mesh->materials[n].material_name.empty() ? mesh->materials[n].material_name : "Unnamed Material " + std::to_string(n);
-                        if (ImGui::Selectable(name.c_str(), is_selected))
-                        {
-                            return_id     = n;
-                            value_changed = true;
-                        }
-                        if (is_selected)
-                            ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::EndCombo();
-                }
-                ImGui::PopItemWidth();
-                if (reset)
-                    return_id = 0;
-                return value_changed;
-            });
-            current_id = return_id;
-            if (entity_changed)
-                current_id = 0;
-            details::draw_material(mesh->materials[current_id].component_material, rs);
-            ImGui::PopID();
-        }
-        ImGui::End();
-    }
-
     //! \brief Draws the entity component inspector for a given entity in the user interface.
     //! \param[in] application_scene The current \a scene of the \a application.
     //! \param[in,out] enabled True if the window is open, else False.
@@ -658,7 +610,8 @@ namespace mango
             auto tag_comp       = application_scene->query_component<tag_component>(e);
             auto transform_comp = application_scene->query_component<transform_component>(e);
             auto model_comp     = application_scene->query_component<model_component>(e);
-            auto mesh_comp      = application_scene->query_component<mesh_component>(e);
+            auto mesh_comp      = application_scene->query_component<mesh_primitive_component>(e);
+            auto material_comp  = application_scene->query_component<material_component>(e);
             auto camera_comp    = application_scene->query_component<camera_component>(e);
             auto d_light_comp   = application_scene->query_component<directional_light_component>(e);
             auto a_light_comp   = application_scene->query_component<atmosphere_light_component>(e);
@@ -693,13 +646,17 @@ namespace mango
                 {
                     transform_comp = application_scene->add_component<transform_component>(e);
                 }
-                // if (!mesh_comp && ImGui::Selectable("Mesh Component"))
-                //{
-                //    application_scene->add_component<mesh_component>(e);
-                //}
                 if (!model_comp && ImGui::Selectable("Model Component"))
                 {
                     model_comp = application_scene->add_component<model_component>(e);
+                }
+                if (!mesh_comp && ImGui::Selectable("Mesh Primitive Component"))
+                {
+                    application_scene->add_component<mesh_primitive_component>(e);
+                }
+                if (!material_comp && ImGui::Selectable("Material Component"))
+                {
+                    application_scene->add_component<material_component>(e);
                 }
                 if (!camera_comp && ImGui::Selectable("Camera Component"))
                 {
@@ -807,18 +764,14 @@ namespace mango
                 });
 
             // Mesh
-            details::draw_component<mango::mesh_component>(
+            details::draw_component<mango::mesh_primitive_component>(
                 mesh_comp,
                 [e, &application_scene, &mesh_comp]() {
-                    auto primitive_count = mesh_comp->primitives.size();
-                    custom_info("Primitive Count", [primitive_count]() {
+                    // auto vao = mesh_comp->vertex_array_object;
+                    custom_info("Mesh Primitive Type", []() {
                         ImGui::AlignTextToFramePadding();
-                        ImGui::Text((std::to_string(primitive_count)).c_str());
-                    });
-                    auto material_count = mesh_comp->materials.size();
-                    custom_info("Material Count", [material_count]() {
-                        ImGui::AlignTextToFramePadding();
-                        ImGui::Text((std::to_string(material_count)).c_str());
+                        ImGui::Text("CUSTOM - We may add Mango internal mesh primitives here.");
+                        // TODO Paul: Add Mango internal mesh primitives here.
                     });
                     checkbox("Has Normals", &mesh_comp->has_normals, false);
                     checkbox("Has Tangents", &mesh_comp->has_tangents, false);
@@ -826,7 +779,19 @@ namespace mango
                 [e, &application_scene]() {
                     if (ImGui::Selectable("Remove"))
                     {
-                        application_scene->remove_component<mesh_component>(e);
+                        application_scene->remove_component<mesh_primitive_component>(e);
+                        return false;
+                    }
+                    return true;
+                });
+
+            // Material
+            details::draw_component<mango::material_component>(
+                material_comp, [e, &application_scene, &material_comp, &rs]() { details::draw_material(material_comp->component_material, rs); },
+                [e, &application_scene]() {
+                    if (ImGui::Selectable("Remove"))
+                    {
+                        application_scene->remove_component<material_component>(e);
                         return false;
                     }
                     return true;

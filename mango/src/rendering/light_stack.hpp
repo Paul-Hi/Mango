@@ -75,7 +75,7 @@ namespace mango
         struct cache_entry
         {
             int64 light_checksum;
-            light_render_data* data;
+            light_render_data* data = nullptr;
             bool expired;
         };
 

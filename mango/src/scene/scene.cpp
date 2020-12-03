@@ -33,7 +33,8 @@ static void update_scene_boundaries(glm::mat4& trafo, tinygltf::Model& m, tinygl
 scene::scene(const string& name)
     : m_nodes()
     , m_transformations()
-    , m_meshes()
+    , m_mesh_primitives()
+    , m_materials()
     , m_cameras()
     , m_directional_lights()
     , m_atmosphere_lights()
@@ -83,7 +84,8 @@ void scene::remove_entity(entity e)
     }
     delete_node(e);
     m_transformations.remove_component_from(e);
-    m_meshes.remove_component_from(e);
+    m_mesh_primitives.remove_component_from(e);
+    m_materials.remove_component_from(e);
     bool del_active = get_active_camera_data().active_camera_entity == e;
     m_cameras.remove_component_from(e);
     if (del_active)
@@ -329,7 +331,7 @@ void scene::render()
     light_submission.setup(rs);
     light_submission.execute(0.0f, m_directional_lights, m_atmosphere_lights, m_skylights);
     render_mesh.setup(rs);
-    render_mesh.execute(0.0f, m_meshes, m_transformations);
+    render_mesh.execute(0.0f, m_mesh_primitives, m_materials, m_transformations);
 }
 
 void scene::attach(entity child, entity parent)
@@ -605,25 +607,34 @@ entity scene::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const glm:
 void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& mesh, const std::map<int, buffer_ptr>& buffer_map)
 {
     PROFILE_ZONE;
-    auto& component_mesh = m_meshes.create_component_for(node);
 
     for (int32 i = 0; i < static_cast<int32>(mesh.primitives.size()); ++i)
     {
         const tinygltf::Primitive& primitive = mesh.primitives[i];
 
-        primitive_component p;
-        p.vertex_array_object = vertex_array::create();
-        p.topology            = static_cast<primitive_topology>(primitive.mode); // cast is okay.
-        p.instance_count      = 1;
-        bool has_indices      = true;
+        entity mesh_primitive_node = node;
+        if (mesh.primitives.size() > 1)
+        {
+            mesh_primitive_node                                            = create_empty();
+            // If this is the case this does not really have a name by default. We try give them namess by their materials later.
+            m_tags.get_component_for_entity(mesh_primitive_node)->tag_name = "Part " + std::to_string(i);
+            attach(mesh_primitive_node, node);
+        }
+
+        auto& mesh_p = m_mesh_primitives.create_component_for(mesh_primitive_node);
+
+        mesh_p.vertex_array_object = vertex_array::create();
+        mesh_p.topology            = static_cast<primitive_topology>(primitive.mode); // cast is okay.
+        mesh_p.instance_count      = 1;
+        bool has_indices           = true;
 
         if (primitive.indices >= 0)
         {
             const tinygltf::Accessor& index_accessor = m.accessors[primitive.indices];
 
-            p.first      = static_cast<int32>(index_accessor.byteOffset); // TODO Paul: Is int32 big enough?
-            p.count      = static_cast<int32>(index_accessor.count);      // TODO Paul: Is int32 big enough?
-            p.type_index = static_cast<index_type>(index_accessor.componentType);
+            mesh_p.first      = static_cast<int32>(index_accessor.byteOffset); // TODO Paul: Is int32 big enough?
+            mesh_p.count      = static_cast<int32>(index_accessor.count);      // TODO Paul: Is int32 big enough?
+            mesh_p.type_index = static_cast<index_type>(index_accessor.componentType);
 
             auto it = buffer_map.find(index_accessor.bufferView);
             if (it == buffer_map.end())
@@ -631,17 +642,17 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                 MANGO_LOG_ERROR("No buffer data for index bufferView {0}!", index_accessor.bufferView);
                 continue;
             }
-            p.vertex_array_object->bind_index_buffer(it->second);
+            mesh_p.vertex_array_object->bind_index_buffer(it->second);
         }
         else
         {
-            p.first      = 0;
-            p.type_index = index_type::none;
+            mesh_p.first      = 0;
+            mesh_p.type_index = index_type::none;
             // p.count has to be set later.
             has_indices = false;
         }
 
-        material_component mat;
+        auto& mat                          = m_materials.create_component_for(mesh_primitive_node);
         mat.component_material             = std::make_shared<material>();
         mat.component_material->base_color = glm::vec4(glm::vec3(0.9f), 1.0f);
         mat.component_material->metallic   = 0.0f;
@@ -649,11 +660,12 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
 
         load_material(mat, primitive, m);
 
-        component_mesh.materials.push_back(mat);
+        if(!mat.material_name.empty() && node != mesh_primitive_node)
+            m_tags.get_component_for_entity(mesh_primitive_node)->tag_name = mat.material_name + " Part";
 
-        int32 vb_idx                = 0;
-        component_mesh.has_normals  = false;
-        component_mesh.has_tangents = false;
+        int32 vb_idx        = 0;
+        mesh_p.has_normals  = false;
+        mesh_p.has_tangents = false;
 
         for (auto& attrib : primitive.attributes)
         {
@@ -671,14 +683,14 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                 attrib_array = 0;
             if (attrib.first.compare("NORMAL") == 0)
             {
-                component_mesh.has_normals = true;
+                mesh_p.has_normals = true;
                 attrib_array               = 1;
             }
             if (attrib.first.compare("TEXCOORD_0") == 0)
                 attrib_array = 2;
             if (attrib.first.compare("TANGENT") == 0)
             {
-                component_mesh.has_tangents = true;
+                mesh_p.has_tangents = true;
                 attrib_array                = 3;
             }
             if (attrib_array > -1)
@@ -691,12 +703,12 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                 }
                 int32 stride = accessor.ByteStride(m.bufferViews[accessor.bufferView]);
                 MANGO_ASSERT(stride > 0, "Broken gltf model! Attribute stride is {0}!", stride);
-                p.vertex_array_object->bind_vertex_buffer(vb_idx, it->second, accessor.byteOffset, stride);
-                p.vertex_array_object->set_vertex_attribute(attrib_array, vb_idx, attribute_format, 0);
+                mesh_p.vertex_array_object->bind_vertex_buffer(vb_idx, it->second, accessor.byteOffset, stride);
+                mesh_p.vertex_array_object->set_vertex_attribute(attrib_array, vb_idx, attribute_format, 0);
 
                 if (attrib_array == 0 && !has_indices)
                 {
-                    p.count = static_cast<int32>(accessor.count); // TODO Paul: Is int32 big enough?
+                    mesh_p.count = static_cast<int32>(accessor.count); // TODO Paul: Is int32 big enough?
                 }
 
                 vb_idx++;
@@ -706,8 +718,6 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                 MANGO_LOG_DEBUG("Vertex attribute array is ignored: {0}!", attrib.first);
             }
         }
-
-        component_mesh.primitives.push_back(p);
     }
 }
 

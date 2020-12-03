@@ -20,7 +20,7 @@ using namespace mango;
 
 resource_system::resource_system(const shared_ptr<context_impl>& context)
     : m_shared_context(context)
-    , m_allocator(1074000000) // 1 GiB TODO Paul: Size???
+    , m_allocator(1073741824) // 1 GiB TODO Paul: Size???
 {
     m_allocator.init();
 }
@@ -60,11 +60,11 @@ const image_resource* resource_system::acquire(const image_resource_configuratio
 {
     PROFILE_ZONE;
     resource_id res_id = resource_hash::get_id(configuration);
-    auto cached  = m_resource_cache.find(res_id);
+    auto cached        = m_resource_cache.find(res_id);
     if (cached == m_resource_cache.end())
     {
         image_resource* img = load_image_from_file(configuration);
-        if(!img)
+        if (!img)
             return nullptr;
         m_resource_cache.insert({ res_id, img });
         img->reference_count = 1;
@@ -103,11 +103,11 @@ const model_resource* resource_system::acquire(const model_resource_configuratio
 {
     PROFILE_ZONE;
     resource_id res_id = resource_hash::get_id(configuration);
-    auto cached  = m_resource_cache.find(res_id);
+    auto cached        = m_resource_cache.find(res_id);
     if (cached == m_resource_cache.end())
     {
         model_resource* m = load_model_from_file(configuration);
-        if(!m)
+        if (!m)
             return nullptr;
         m_resource_cache.insert({ res_id, m });
         m->reference_count = 1;
@@ -149,11 +149,11 @@ image_resource* resource_system::load_image_from_file(const image_resource_confi
     // stbi_set_flip_vertically_on_load(true); // This is usually needed for OpenGl
 
     int width = 0, height = 0, components = 0;
+    int64 img_len = sizeof(uint8);
     if (!configuration.is_hdr)
     {
         img->bits           = 8;
         unsigned char* data = nullptr;
-        int64 img_len       = width * height * components * sizeof(uint8);
 
         if (stbi_is_16_bit(configuration.path))
         {
@@ -166,6 +166,8 @@ image_resource* resource_system::load_image_from_file(const image_resource_confi
         }
         if (!data)
             data = stbi_load(configuration.path, &width, &height, &components, 0);
+
+        img_len *= width * height * components;
 
         if (!data)
         {
@@ -205,7 +207,7 @@ model_resource* resource_system::load_model_from_file(const model_resource_confi
 {
     PROFILE_ZONE;
 
-    void* mem = m_allocator.allocate(sizeof(model_resource));
+    void* mem         = m_allocator.allocate(sizeof(model_resource));
     model_resource* m = new (mem) model_resource();
 
     tinygltf::TinyGLTF loader;

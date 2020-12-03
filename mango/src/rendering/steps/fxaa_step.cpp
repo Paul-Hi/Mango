@@ -145,9 +145,9 @@ void fxaa_step::on_ui_widget()
     ImGui::PushID("fxaa_step");
 
     // Quality Preset
-    const char* presets[3] = { "Low Quality", "Default Quality", "High Quality" };
+    const char* presets[3] = { "Medium Quality", "Default Quality", "High Quality" };
     int32 current_filter   = static_cast<int32>(m_quality_preset);
-    combo("Shadow Filter Mode", presets, 3, current_filter, 1);
+    combo("FXAA Mode", presets, 3, current_filter, 1);
     m_quality_preset = static_cast<fxaa_quality_preset>(current_filter);
 
     float default_value = 0.0f;

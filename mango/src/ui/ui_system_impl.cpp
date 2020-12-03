@@ -213,7 +213,6 @@ void ui_system_impl::update(float dt)
     static bool render_view_enabled                = true;
     static bool hardware_info_enabled              = true;
     static bool scene_inspector_enabled            = true;
-    static bool material_inspector_enabled         = true;
     static bool entity_component_inspector_enabled = true;
     static bool render_system_widget_enabled       = true;
 
@@ -234,8 +233,6 @@ void ui_system_impl::update(float dt)
                 hardware_info_enabled = true;
             if (widgets[ui_widget::scene_inspector] && ImGui::MenuItem("Scene Inspector"))
                 scene_inspector_enabled = true;
-            if (widgets[ui_widget::material_inspector] && ImGui::MenuItem("Material Inspector"))
-                material_inspector_enabled = true;
             if (widgets[ui_widget::entity_component_inspector] && ImGui::MenuItem("Entity Component Inspector"))
                 entity_component_inspector_enabled = true;
             if (widgets[ui_widget::render_system_ui] && ImGui::MenuItem("Render System Settings"))
@@ -270,7 +267,6 @@ void ui_system_impl::update(float dt)
 
     // Scene Inspector
     static entity selected = invalid_entity;
-    entity tmp             = selected;
     auto application_scene = m_shared_context->get_current_scene();
     if (widgets[ui_widget::scene_inspector] && scene_inspector_enabled && !cinema_view)
     {
@@ -279,17 +275,6 @@ void ui_system_impl::update(float dt)
 
     auto rs = m_shared_context->get_resource_system_internal().lock();
     MANGO_ASSERT(rs, "Resource system is expired!");
-    // Material Inspector
-    if (widgets[ui_widget::material_inspector] && material_inspector_enabled && !cinema_view)
-    {
-        if (selected != invalid_entity)
-        {
-            auto comp = application_scene->query_component<mesh_component>(selected);
-            material_inspector_widget(comp, material_inspector_enabled, tmp != selected, selected, rs);
-        }
-        else
-            material_inspector_widget(nullptr, material_inspector_enabled, tmp != selected, selected, rs);
-    }
 
     // ECS Inspector
     if (widgets[ui_widget::entity_component_inspector] && entity_component_inspector_enabled && !cinema_view)

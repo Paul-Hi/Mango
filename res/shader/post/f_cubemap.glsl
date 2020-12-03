@@ -70,13 +70,14 @@ void main()
     {
         color = (textureLod(skybox, shared_texcoord, render_level) * skylight_intensity).rgb;
 
-        vec3 ray_dir = normalize(shared_texcoord);
-        vec2 ground_intersect = intersect_ray_sphere(ray_origin.xyz, ray_dir, ground_radius);
-        // add a sun disc
-        vec3 sun = vec3(pow(smoothstep(0.997, 1.0, dot(ray_dir, sun_dir.xyz)), 16.0));
-        sun *= saturate(pow(smoothstep(0.0, ground_radius, abs(ground_intersect.x) - ground_intersect.y), 2.0));
+        // vec3 ray_dir = normalize(shared_texcoord);
+        // vec2 ground_intersect = intersect_ray_sphere(ray_origin.xyz, ray_dir, ground_radius);
 
-        color += directional_color.rgb * directional_intensity * skylight_intensity * sun * 0.007;
+        // // add a sun disc
+        // vec3 sun = vec3(pow(smoothstep(0.997, 1.0, dot(ray_dir, sun_dir.xyz)), 16.0));
+        // sun *= saturate(pow(smoothstep(0.0, ground_radius, abs(ground_intersect.x) - ground_intersect.y), 2.0));
+
+        // color += directional_color.rgb * directional_intensity * skylight_intensity * sun * 0.007;
     }
     else
         color = vec3(30000.0); // TODO Paul: Hardcoded -.-

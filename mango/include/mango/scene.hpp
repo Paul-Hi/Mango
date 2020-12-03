@@ -106,22 +106,18 @@ namespace mango
             case 2:
                 return (comp*)m_nodes.get_component_for_entity(e);
             case 3:
-                MANGO_LOG_WARN("Can not directly modify primitive components! Try access them with the mesh_component.");
-                return nullptr;
+                return (comp*)m_mesh_primitives.get_component_for_entity(e);
             case 4:
-                MANGO_LOG_WARN("Can not directly modify material components! Try access them with the mesh_component.");
-                return nullptr;
+                return (comp*)m_materials.get_component_for_entity(e);
             case 5:
                 return (comp*)m_models.get_component_for_entity(e);
             case 6:
-                return (comp*)m_meshes.get_component_for_entity(e);
-            case 7:
                 return (comp*)m_cameras.get_component_for_entity(e);
-            case 8:
+            case 7:
                 return (comp*)m_directional_lights.get_component_for_entity(e);
-            case 9:
+            case 8:
                 return (comp*)m_atmosphere_lights.get_component_for_entity(e);
-            case 10:
+            case 9:
                 return (comp*)m_skylights.get_component_for_entity(e);
             default:
                 MANGO_LOG_ERROR("No component id matches the component!");
@@ -146,22 +142,18 @@ namespace mango
             case 2:
                 return (comp*)m_nodes.get_component_for_entity(e, true);
             case 3:
-                MANGO_LOG_WARN("Can not directly modify primitive components! Try access them with the mesh_component.");
-                return nullptr;
+                return (comp*)m_mesh_primitives.get_component_for_entity(e, true);
             case 4:
-                MANGO_LOG_WARN("Can not directly modify material components! Try access them with the mesh_component.");
-                return nullptr;
+                return (comp*)m_materials.get_component_for_entity(e, true);
             case 5:
                 return (comp*)m_models.get_component_for_entity(e, true);
             case 6:
-                return (comp*)m_meshes.get_component_for_entity(e, true);
-            case 7:
                 return (comp*)m_cameras.get_component_for_entity(e, true);
-            case 8:
+            case 7:
                 return (comp*)m_directional_lights.get_component_for_entity(e, true);
-            case 9:
+            case 8:
                 return (comp*)m_atmosphere_lights.get_component_for_entity(e, true);
-            case 10:
+            case 9:
                 return (comp*)m_skylights.get_component_for_entity(e, true);
             default:
                 MANGO_LOG_ERROR("No component id matches the component!");
@@ -185,23 +177,18 @@ namespace mango
             case 2:
                 return (comp*)&m_nodes.create_component_for(e);
             case 3:
-                MANGO_LOG_CRITICAL("Can not directly create primitive components! Try create them with create_entities_from_model(...).");
-                return nullptr;
+                return (comp*)&m_mesh_primitives.create_component_for(e);
             case 4:
-                MANGO_LOG_CRITICAL("Can not directly create material components! Try create them with create_entities_from_model(...).");
-                return nullptr;
-                ;
+                return (comp*)&m_materials.create_component_for(e);
             case 5:
                 return (comp*)&m_models.create_component_for(e);
             case 6:
-                return (comp*)&m_meshes.create_component_for(e);
-            case 7:
                 return (comp*)&m_cameras.create_component_for(e);
-            case 8:
+            case 7:
                 return (comp*)&m_directional_lights.create_component_for(e);
-            case 9:
+            case 8:
                 return (comp*)&m_atmosphere_lights.create_component_for(e);
-            case 10:
+            case 9:
                 return (comp*)&m_skylights.create_component_for(e);
             default:
                 MANGO_LOG_CRITICAL("No component id matches the component!");
@@ -227,31 +214,28 @@ namespace mango
                 m_nodes.remove_component_from(e);
                 return;
             case 3:
-                MANGO_LOG_WARN("Can not directly remove primitive components! Try access them with the mesh_component.");
+                m_mesh_primitives.remove_component_from(e);
                 return;
             case 4:
-                MANGO_LOG_WARN("Can not directly remove material components! Try create them with the mesh_component.");
+                m_materials.remove_component_from(e);
                 return;
             case 5:
                 m_models.remove_component_from(e);
-                for (auto child : children) // Removes all children at the moment.
+                for (auto child : children) // TODO Paul: Removes all children at the moment.
                 {
                     remove_entity(child);
                 }
                 return;
             case 6:
-                m_meshes.remove_component_from(e);
-                return;
-            case 7:
                 m_cameras.remove_component_from(e);
                 return;
-            case 8:
+            case 7:
                 m_directional_lights.remove_component_from(e);
                 return;
-            case 9:
+            case 8:
                 m_atmosphere_lights.remove_component_from(e);
                 return;
-            case 10:
+            case 9:
                 m_skylights.remove_component_from(e);
                 return;
             default:
@@ -391,8 +375,10 @@ namespace mango
         scene_component_pool<transform_component> m_transformations;
         //! \brief All \a model_components.
         scene_component_pool<model_component> m_models;
-        //! \brief All \a mesh_components.
-        scene_component_pool<mesh_component> m_meshes;
+        //! \brief All \a mesh_primitive_components.
+        scene_component_pool<mesh_primitive_component> m_mesh_primitives;
+        //! \brief All \a material_components.
+        scene_component_pool<material_component> m_materials;
         //! \brief All \a camera_components.
         scene_component_pool<camera_component> m_cameras;
         //! \brief All \a directional_light_component.

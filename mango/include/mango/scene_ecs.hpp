@@ -94,15 +94,17 @@ namespace mango
         entity previous_sibling = invalid_entity; //!< The previous child entity id.
     };
 
-    //! \brief Component used to describe a primitive draw call. Used by \a mesh_component.
-    struct primitive_component
+    //! \brief Component used to describe a mesh primitive draw call.
+    struct mesh_primitive_component
     {
-        shared_ptr<vertex_array> vertex_array_object; //!< The vertex array object of the primitive.
-        primitive_topology topology;                  //!< Topology of the primitive data.
+        shared_ptr<vertex_array> vertex_array_object; //!< The vertex array object of themesh  primitive.
+        primitive_topology topology;                  //!< Topology of the mesh primitive data.
         int32 first;                                  //!< First index.
         int32 count;                                  //!< Number of elements/vertices.
         index_type type_index;                        //!< The type of the values in the index buffer.
         int32 instance_count;                         //!< Number of instances. Usually 1.
+        bool has_normals;                             //!< Specifies if the mesh primitive has normals.
+        bool has_tangents;                            //!< Specifies if the mesh primitive has tangents.
     };
 
     //! \brief Component used for materials.
@@ -119,20 +121,6 @@ namespace mango
         // TODO Paul: Extract bounds into own class.
         glm::vec3 min_extends; //!< The minimum extends of the gltf model.
         glm::vec3 max_extends; //!< The maximum extends of the gltf model.
-    };
-
-    //! \brief Component used for renderable mesh geometry. Used for drawing.
-    struct mesh_component
-    {
-        //! \brief A list of \a primitive_components.
-        std::vector<primitive_component> primitives;
-        //! \brief A list of \a material_components.
-        std::vector<material_component> materials;
-
-        //! \brief Specifies if the mesh has normals.
-        bool has_normals;
-        //! \brief Specifies if the mesh has tangents.
-        bool has_tangents;
     };
 
     //! \brief The minimum valid value for the camera aperture.
@@ -198,8 +186,12 @@ namespace mango
 
     struct base_light_component
     {
-        uint32 l_id ;
-        base_light_component() { static uint32 id = 1; l_id = id++; } // TODO Paul: These should be done differently! 0 is invalid.
+        uint32 l_id;
+        base_light_component()
+        {
+            static uint32 id = 1;
+            l_id             = id++;
+        } // TODO Paul: These should be done differently! 0 is invalid.
         bool active = true;
     };
 
@@ -284,11 +276,11 @@ namespace mango
         }
     };
     template <>
-    struct type_name<primitive_component>
+    struct type_name<mesh_primitive_component>
     {
         static const char* get()
         {
-            return "Primitive Component";
+            return "Mesh Primitive Component";
         }
 
         static const int32 id()
@@ -323,19 +315,6 @@ namespace mango
         }
     };
     template <>
-    struct type_name<mesh_component>
-    {
-        static const char* get()
-        {
-            return "Mesh Component";
-        }
-
-        static const int32 id()
-        {
-            return 6;
-        }
-    };
-    template <>
     struct type_name<camera_component>
     {
         static const char* get()
@@ -345,7 +324,7 @@ namespace mango
 
         static const int32 id()
         {
-            return 7;
+            return 6;
         }
     };
     template <>
@@ -358,7 +337,7 @@ namespace mango
 
         static const int32 id()
         {
-            return 8;
+            return 7;
         }
     };
     template <>
@@ -371,7 +350,7 @@ namespace mango
 
         static const int32 id()
         {
-            return 9;
+            return 8;
         }
     };
     template <>
@@ -384,7 +363,7 @@ namespace mango
 
         static const int32 id()
         {
-            return 10;
+            return 9;
         }
     };
     //! \endcond

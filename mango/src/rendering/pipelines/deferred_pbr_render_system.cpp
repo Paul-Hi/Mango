@@ -389,7 +389,6 @@ void deferred_pbr_render_system::begin_render()
     setup_gbuffer_pass();
     if (m_lighting_pass_commands->dirty())
         setup_lighting_pass();
-    setup_transparent_pass();
 
     // Composite and Light
     m_renderer_info.last_frame.draw_calls += 2;
@@ -673,6 +672,7 @@ void deferred_pbr_render_system::finish_render(float dt)
 
     if (m_lighting_pass_commands->dirty())
         finalize_lighting_pass(step_shadow_map);
+    setup_transparent_pass();
 
     // Cubemap execute ->  drawing.
     if (step_cubemap && !m_lighting_pass_data.debug_view_enabled)
