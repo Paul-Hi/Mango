@@ -18,7 +18,7 @@ bool editor::create()
     MANGO_ASSERT(mango_context, "Context is expired!");
 
     window_configuration window_config;
-    window_config.set_width(1280).set_height(720).set_title(get_name());
+    window_config.set_width(1920).set_height(1080).set_title(get_name());
     shared_ptr<window_system> mango_ws = mango_context->get_window_system().lock();
     MANGO_ASSERT(mango_ws, "Window System is expired!");
     mango_ws->configure(window_config);
@@ -82,10 +82,10 @@ bool editor::create()
         mango_rs->setup_shadow_map_step(shadow_config);
 
         fxaa_step_configuration fxaa_config;
-        fxaa_config.set_quality_preset(fxaa_quality_preset::high_quality).set_subpixel_filter(0.0f);
+        fxaa_config.set_quality_preset(fxaa_quality_preset::default_quality).set_subpixel_filter(0.0f);
         mango_rs->setup_fxaa_step(fxaa_config);
 
-        application_scene->create_entities_from_model("res/models/shaderball/shaderball.glb");
+        application_scene->create_entities_from_model("res/models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.glb");
         entity lighting                                                     = application_scene->create_skylight_from_hdr("res/textures/venice_sunset_4k.hdr");
         application_scene->get_component<tag_component>(lighting)->tag_name = "Global Lighting";
         auto d_l_c                                                          = application_scene->add_component<directional_light_component>(lighting);

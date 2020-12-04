@@ -41,12 +41,8 @@ vec4 tonemap_with_gamma_correction(in vec4 color);
 
 void main()
 {
-    if (debug_view_enabled)
-    {
-        frag_color = texture(hdr_input, texcoord);
-        return;
-    }
-    if(draw_shadow_maps && texcoord.y < 0.25) // TODO Paul: This is weird.
+    bool no_correction = debug_view_enabled || (draw_shadow_maps && texcoord.y < 0.25);
+    if (no_correction) // TODO Paul: This is weird.
     {
         frag_color = texture(hdr_input, texcoord);
         return;

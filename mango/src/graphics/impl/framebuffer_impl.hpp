@@ -27,7 +27,7 @@ namespace mango
 
         inline int32 get_height() override
         {
-            return m_width;
+            return m_height;
         }
 
         void resize(int32 width, int32 height) override;

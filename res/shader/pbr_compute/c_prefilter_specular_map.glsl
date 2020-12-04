@@ -51,10 +51,10 @@ void main()
         {
             float n_dot_h = saturate(dot(normal, halfway));
             float h_dot_v = saturate(dot(halfway, view));
-            float pdf = max(D_GGX(n_dot_h, roughness * roughness) * n_dot_h / (PI * 4.0 * h_dot_v), 1e-5);
-            float omega_s = 1.0 / (float(real_sample_count) * pdf);
-            float omega_p = 4.0 * PI / (6.0 * width_sqr);
-            float mip_level = roughness == 0.0 ? 0.0 : max(0.5 * log2(omega_s / omega_p), 0.0);
+            float pdf = max(D_GGX(n_dot_h, roughness * roughness) * n_dot_h / (4.0 * h_dot_v) * INV_PI, 1e-5);
+            // formula: eq 13: https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch20.html
+            float o = (1.5 * width_sqr) / (float(real_sample_count) * pdf) * INV_PI;
+            float mip_level = max(0.5 * log2(o), 0.0);
             float bias = min(mip_level / 4.0, 1.5); // bias reduces artefacts
             vec3 incoming = textureLod(cubemap_in, to_light, mip_level + bias).rgb * n_dot_l;
             prefiltered += incoming;

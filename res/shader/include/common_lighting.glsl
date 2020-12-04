@@ -66,9 +66,9 @@ vec3 calculate_directional_light()
     float V = V_SmithGGXCorrelated(n_dot_v, n_dot_l, specular_roughness);
 
     // Fr energy compensation
-    vec3 Fr = D * V * F * (1.0 / PI);
+    vec3 Fr = D * V * F * INV_PI;
 
-    vec3 Fd = get_real_albedo() * Fd_BurleyRenormalized(n_dot_v, n_dot_l, l_dot_h, roughness) * (1.0 / PI);
+    vec3 Fd = get_real_albedo() * Fd_BurleyRenormalized(n_dot_v, n_dot_l, l_dot_h, roughness) * INV_PI;
 
     vec3 diffuse = n_dot_l * Fd;
     vec3 specular = n_dot_l * Fr;

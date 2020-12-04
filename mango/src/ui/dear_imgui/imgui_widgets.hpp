@@ -932,7 +932,7 @@ namespace mango
             details::draw_component<mango::atmosphere_light_component>(
                 a_light_comp,
                 [e, &application_scene, &a_light_comp, &rs]() {
-                    ImGui::Text("TEMPORAL");
+                    ImGui::Text("TEMPORARY");
                     // float default_fl3[3] = { 1.0f, 1.0f, 1.0f };
                     // ImGui::PushID("atmosphere");
                     // int32 default_ivalue[1] = { 32 };
