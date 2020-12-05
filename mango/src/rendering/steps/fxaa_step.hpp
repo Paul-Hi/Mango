@@ -29,11 +29,15 @@ namespace mango
 
         inline void set_input_texture(const texture_ptr& input_texture)
         {
+            if (m_input_texture != input_texture)
+                m_fxaa_command_buffer->invalidate();
             m_input_texture = input_texture;
         }
 
         inline void set_output_framebuffer(const framebuffer_ptr& output_buffer)
         {
+            if (m_output_buffer != output_buffer)
+                m_fxaa_command_buffer->invalidate();
             m_output_buffer = output_buffer;
         }
 
@@ -61,7 +65,7 @@ namespace mango
         shader_program_ptr m_fxaa_pass;
 
         //!\brief The \a fxaa_quality_preset.
-        fxaa_quality_preset m_quality_preset = fxaa_quality_preset::default_quality;
+        fxaa_quality_preset m_quality_preset = fxaa_quality_preset::medium_quality;
         //!\brief The filter value for subpixels.
         float m_subpixel_filter = 0.0f;
     };

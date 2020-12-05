@@ -37,7 +37,7 @@ void main()
     vec3 cascade_color = vec3(1.0);
 
     // shadows (directional)
-    if(is_directional_light_valid() && should_directional_light_cast_shadows())
+    if(is_shadow_step_enabled() && is_directional_light_valid() && should_directional_light_cast_shadows())
     {
         shadow = directional_shadow();
         if(should_show_cascades())

@@ -145,6 +145,7 @@ namespace mango
             , m_lambda(0.65f)
             , m_slope_bias(0.005f)
             , m_normal_bias(0.01f)
+            , m_interpolation_range(0.5f)
             , m_filter_mode(shadow_filtering::softer_shadows)
         {
         }
@@ -157,8 +158,9 @@ namespace mango
         //! \param[in] lambda The configurated lambda for the split calculation. 0 means complete uniform, 1 complete logarithmic.
         //! \param[in] slope_bias The configurated slope bias.
         //! \param[in] normal_bias The configurated normal bias.
+        //! \param[in] interpolation_range The configurated interpolation range.
         //! \param[in] filter_mode The configurated shadow filter mode.
-        shadow_step_configuration(int32 resolution, int32 sample_count, float offset, int32 cascade_count, float lambda, float slope_bias, float normal_bias, shadow_filtering filter_mode)
+        shadow_step_configuration(int32 resolution, int32 sample_count, float offset, int32 cascade_count, float lambda, float slope_bias, float normal_bias, float interpolation_range, shadow_filtering filter_mode)
             : m_resolution(resolution)
             , m_sample_count(sample_count)
             , m_offset(offset)
@@ -166,6 +168,7 @@ namespace mango
             , m_lambda(lambda)
             , m_slope_bias(slope_bias)
             , m_normal_bias(normal_bias)
+            , m_interpolation_range(interpolation_range)
             , m_filter_mode(filter_mode)
         {
         }
@@ -224,13 +227,23 @@ namespace mango
             return *this;
         }
 
-        //! \brief Sets the lambda to calculate th cascade splits with.
+        //! \brief Sets the lambda to calculate the cascade splits with.
         //! \param[in] lambda The lambda to use.
         //! \details  0 means complete uniform, 1 complete logarithmic.
         //! \return A reference to the modified \a shadow_step_configuration.
         inline shadow_step_configuration& set_split_lambda(float lambda)
         {
             m_lambda = lambda;
+            return *this;
+        }
+
+        //! \brief Sets range, the cascades get interpolated between.
+        //! \param[in] lambda The interpolation_range to use.
+        //! \details  SHould be between 0 and 10. Bigger values need more pc power.
+        //! \return A reference to the modified \a shadow_step_configuration.
+        inline shadow_step_configuration& set_cascade_interpolation_range(float interpolation_range)
+        {
+            m_interpolation_range = interpolation_range;
             return *this;
         }
 
@@ -292,6 +305,13 @@ namespace mango
             return m_lambda;
         }
 
+        //! \brief Retrieves and returns the interpolation range for cascade interpolation.
+        //! \return The configurated interpolation range for cascade interpolation.
+        inline float get_cascade_interpolation_range() const
+        {
+            return m_interpolation_range;
+        }
+
         //! \brief Retrieves and returns the \a shadow_filtering mode.
         //! \return The \a shadow_filtering mode.
         inline shadow_filtering get_filter_mode() const
@@ -314,6 +334,8 @@ namespace mango
         float m_slope_bias;
         //! \brief The configurated m_normal bias.
         float m_normal_bias;
+        //! \brief The m_interpolation_range.
+        float m_interpolation_range;
         //! \brief The filter mode. (Hard, softer, soft or pcss shadows).
         shadow_filtering m_filter_mode;
     };
@@ -358,9 +380,9 @@ namespace mango
 
     enum class fxaa_quality_preset : uint8
     {
-        low_quality     = 0,
-        default_quality = 1,
-        high_quality    = 2,
+        medium_quality  = 0,
+        high_quality    = 1,
+        extreme_quality = 2,
         count           = 3
     };
 
@@ -370,7 +392,7 @@ namespace mango
       public:
         //! \brief Default constructor to set some default values.
         fxaa_step_configuration()
-            : m_quality(fxaa_quality_preset::default_quality)
+            : m_quality(fxaa_quality_preset::medium_quality)
             , m_subpixel_filter(0.0f)
         {
         }

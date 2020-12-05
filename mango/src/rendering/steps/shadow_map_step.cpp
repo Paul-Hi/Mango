@@ -94,14 +94,15 @@ void shadow_map_step::attach() {}
 
 void shadow_map_step::configure(const shadow_step_configuration& configuration)
 {
-    m_shadow_data.resolution    = configuration.get_resolution();
-    m_shadow_data.sample_count  = configuration.get_sample_count();
-    m_shadow_map_offset         = configuration.get_offset();
-    m_shadow_data.cascade_count = configuration.get_cascade_count();
-    m_shadow_data.slope_bias    = configuration.get_slope_bias();
-    m_shadow_data.normal_bias   = configuration.get_normal_bias();
-    m_shadow_data.filter_mode   = static_cast<int32>(configuration.get_filter_mode());
-    m_cascade_data.lambda       = configuration.get_split_lambda();
+    m_shadow_data.resolution                  = configuration.get_resolution();
+    m_shadow_data.sample_count                = configuration.get_sample_count();
+    m_shadow_map_offset                       = configuration.get_offset();
+    m_shadow_data.cascade_count               = configuration.get_cascade_count();
+    m_shadow_data.slope_bias                  = configuration.get_slope_bias();
+    m_shadow_data.normal_bias                 = configuration.get_normal_bias();
+    m_shadow_data.filter_mode                 = static_cast<int32>(configuration.get_filter_mode());
+    m_cascade_data.lambda                     = configuration.get_split_lambda();
+    m_shadow_data.cascade_interpolation_range = configuration.get_cascade_interpolation_range();
     MANGO_ASSERT(m_shadow_data.resolution % 2 == 0, "Shadow Map Resolution has to be a multiple of 2!");
     MANGO_ASSERT(m_shadow_data.sample_count >= 16 && m_shadow_data.sample_count <= 64, "Sample count is not in valid range 16 - 64!");
     MANGO_ASSERT(m_shadow_data.cascade_count > 0 && m_shadow_data.cascade_count < 5, "Cascade count has to be between 1 and 4!");
@@ -273,20 +274,20 @@ void shadow_map_step::on_ui_widget()
     // Offset 0.0 - 100.0
     slider_float_n("Shadow Map Offset", &m_shadow_map_offset, 1, default_value, 0.0f, 100.0f);
 
-    float& s_bias = m_shadow_data.slope_bias;
+    float& s_bias    = m_shadow_data.slope_bias;
     default_value[0] = 0.005f;
     drag_float_n("Shadow Map Slope Bias", &s_bias, 1, default_value, 0.001f, 0.0f, 0.5f);
 
-    float& n_bias = m_shadow_data.normal_bias;
+    float& n_bias    = m_shadow_data.normal_bias;
     default_value[0] = 0.01f;
-    drag_float_n("Shadow Map Normal Bias", &n_bias, 1,default_value, 0.001f, 0.0f, 0.5f);
+    drag_float_n("Shadow Map Normal Bias", &n_bias, 1, default_value, 0.001f, 0.0f, 0.5f);
 
     // Cascades 1, 2, 3, 4
     int32& shadow_cascades = m_shadow_data.cascade_count;
     default_ivalue[0]      = 3;
     slider_int_n("Number Of Shadow Cascades", &shadow_cascades, 1, default_ivalue, 1, 4);
     float& interpolation_range = m_shadow_data.cascade_interpolation_range;
-    default_value[0] = 0.5f;
+    default_value[0]           = 0.5f;
     slider_float_n("Cascade Interpolation Range", &interpolation_range, 1, default_value, 0.0f, 10.0f);
     slider_float_n("Cascade Splits Lambda", &m_cascade_data.lambda, 1, default_value, 0.0f, 1.0f);
     m_dirty_cascades = true; // For now always in debug.

@@ -75,7 +75,7 @@ void fxaa_step::configure(const fxaa_step_configuration& configuration)
 void fxaa_step::execute(gpu_buffer_ptr frame_uniform_buffer)
 {
     PROFILE_ZONE;
-    if (!m_input_texture || !m_output_buffer)
+    if (!m_fxaa_command_buffer->dirty() || !m_input_texture || !m_output_buffer)
         return;
 
     set_depth_test_command* sdt      = m_fxaa_command_buffer->create<set_depth_test_command>(command_keys::no_sort);
@@ -145,13 +145,16 @@ void fxaa_step::on_ui_widget()
     ImGui::PushID("fxaa_step");
 
     // Quality Preset
-    const char* presets[3] = { "Medium Quality", "Default Quality", "High Quality" };
+    const char* presets[3] = { "Medium Quality", "High Quality", "Extreme Quality" };
     int32 current_filter   = static_cast<int32>(m_quality_preset);
-    combo("FXAA Mode", presets, 3, current_filter, 1);
-    m_quality_preset = static_cast<fxaa_quality_preset>(current_filter);
+    bool changed           = combo("FXAA Mode", presets, 3, current_filter, 1);
+    m_quality_preset       = static_cast<fxaa_quality_preset>(current_filter);
 
     float default_value = 0.0f;
-    slider_float_n("Subpixel Filter", &m_subpixel_filter, 1, &default_value, 0.0f, 1.0f);
+    changed |= slider_float_n("Subpixel Filter", &m_subpixel_filter, 1, &default_value, 0.0f, 1.0f);
+
+    if (changed)
+        m_fxaa_command_buffer->invalidate();
 
     ImGui::PopID();
 }

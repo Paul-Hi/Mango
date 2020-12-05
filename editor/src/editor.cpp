@@ -78,11 +78,11 @@ bool editor::create()
         mango_rs->setup_cubemap_step(ibl_config);
 
         shadow_step_configuration shadow_config;
-        shadow_config.set_resolution(2048).set_sample_count(16).set_offset(12.0f).set_cascade_count(3).set_split_lambda(0.5f);
+        shadow_config.set_resolution(2048).set_sample_count(16).set_offset(12.0f).set_cascade_count(3).set_split_lambda(0.5f).set_cascade_interpolation_range(0.5f);
         mango_rs->setup_shadow_map_step(shadow_config);
 
         fxaa_step_configuration fxaa_config;
-        fxaa_config.set_quality_preset(fxaa_quality_preset::default_quality).set_subpixel_filter(0.0f);
+        fxaa_config.set_quality_preset(fxaa_quality_preset::medium_quality).set_subpixel_filter(0.0f);
         mango_rs->setup_fxaa_step(fxaa_config);
 
         application_scene->create_entities_from_model("res/models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.glb");

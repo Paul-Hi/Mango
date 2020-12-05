@@ -190,8 +190,8 @@ bool deferred_pbr_render_system::create_renderer_resources()
 
     // scene geometry pass
     shader_configuration shader_config;
-    shader_config.path  = "res/shader/forward/v_scene_gltf.glsl";
-    shader_config.type  = shader_type::vertex_shader;
+    shader_config.path = "res/shader/forward/v_scene_gltf.glsl";
+    shader_config.type = shader_type::vertex_shader;
     shader_config.defines.push_back({ "GBUFFER_PREPASS", "" });
     shader_config.defines.push_back({ "VERTEX", "" });
     shader_ptr d_vertex = shader::create(shader_config);
@@ -199,8 +199,8 @@ bool deferred_pbr_render_system::create_renderer_resources()
     if (!check_creation(d_vertex.get(), "geometry pass vertex shader"))
         return false;
 
-    shader_config.path    = "res/shader/forward/f_scene_gltf.glsl";
-    shader_config.type    = shader_type::fragment_shader;
+    shader_config.path = "res/shader/forward/f_scene_gltf.glsl";
+    shader_config.type = shader_type::fragment_shader;
     shader_config.defines.push_back({ "GBUFFER_PREPASS", "" });
     shader_config.defines.push_back({ "FRAGMENT", "" });
     shader_ptr d_fragment = shader::create(shader_config);
@@ -217,7 +217,7 @@ bool deferred_pbr_render_system::create_renderer_resources()
     shader_config.type = shader_type::fragment_shader;
     shader_config.defines.push_back({ "LIGHTING", "" });
     shader_config.defines.push_back({ "FORWARD", "" });
-    d_fragment         = shader::create(shader_config);
+    d_fragment = shader::create(shader_config);
     shader_config.defines.clear();
     if (!check_creation(d_fragment.get(), "transparent pass fragment shader"))
         return false;
@@ -237,7 +237,7 @@ bool deferred_pbr_render_system::create_renderer_resources()
     shader_config.type = shader_type::fragment_shader;
     shader_config.defines.push_back({ "LIGHTING", "" });
     shader_config.defines.push_back({ "DEFERRED", "" });
-    d_fragment         = shader::create(shader_config);
+    d_fragment = shader::create(shader_config);
     shader_config.defines.clear();
     if (!check_creation(d_fragment.get(), "lighting pass fragment shader"))
         return false;
@@ -399,6 +399,8 @@ void deferred_pbr_render_system::begin_render()
 
 void deferred_pbr_render_system::clear_framebuffers()
 {
+    if (!m_begin_render_commands->dirty())
+        return;
     // TODO Paul: We may should not be clear the default framebuffer here...
     clear_framebuffer_command* cf = m_begin_render_commands->create<clear_framebuffer_command>(command_keys::no_sort);
     cf->framebuffer_name          = 0; // default framebuffer
@@ -608,7 +610,6 @@ void deferred_pbr_render_system::finish_render(float dt)
             MANGO_LOG_WARN("No active Camera. Can not render!");
         }
         m_begin_render_commands->execute();
-        m_begin_render_commands->invalidate();
         m_global_binding_commands->invalidate();
         if (shadow_command_buffer)
         {
@@ -627,7 +628,6 @@ void deferred_pbr_render_system::finish_render(float dt)
         m_exposure_commands->invalidate();
 
         g_sync* frame_sync_prepare = m_frame_uniform_buffer->prepare();
-
         client_wait_sync_command* cws = m_finish_render_commands->create<client_wait_sync_command>(command_keys::no_sort);
         cws->sync                     = frame_sync_prepare;
         // TODO Paul: Is there a better way?
@@ -886,7 +886,6 @@ void deferred_pbr_render_system::end_frame_and_sync()
 
     // TODO Paul: Is there a better way?
     g_sync* frame_sync_prepare = m_frame_uniform_buffer->prepare();
-
     client_wait_sync_command* cws = m_finish_render_commands->create<client_wait_sync_command>(command_keys::no_sort);
     cws->sync                     = frame_sync_prepare;
     // TODO Paul: Is there a better way?
@@ -922,7 +921,6 @@ void deferred_pbr_render_system::execute_commands(const command_buffer_ptr<min_k
         NAMED_PROFILE_ZONE("Deferred Renderer Begin")
         GL_NAMED_PROFILE_ZONE("Deferred Renderer Begin");
         m_begin_render_commands->execute();
-        m_begin_render_commands->invalidate();
     }
     {
         NAMED_PROFILE_ZONE("Global Bindings Commands Execute")
@@ -980,7 +978,6 @@ void deferred_pbr_render_system::execute_commands(const command_buffer_ptr<min_k
         NAMED_PROFILE_ZONE("FXAA Commands Execute")
         GL_NAMED_PROFILE_ZONE("FXAA Commands Execute");
         fxaa_command_buffer->execute();
-        fxaa_command_buffer->invalidate();
     }
     {
         NAMED_PROFILE_ZONE("Deferred Renderer Finish")
@@ -1001,6 +998,7 @@ void deferred_pbr_render_system::set_viewport(int32 x, int32 y, int32 width, int
     m_backbuffer->resize(width, height);
     m_hdr_buffer->resize(width, height);
     m_post_buffer->resize(width, height);
+    m_begin_render_commands->invalidate();
 
     m_renderer_info.canvas.x      = x;
     m_renderer_info.canvas.y      = y;
@@ -1482,6 +1480,7 @@ void deferred_pbr_render_system::bind_renderer_data_buffer(camera_data& camera, 
         m_renderer_data.projection_matrix      = camera.camera_info->projection;
         m_renderer_data.view_projection_matrix = camera.camera_info->view_projection;
         m_renderer_data.camera_exposure        = camera_exposure;
+        m_renderer_data.shadow_step_enabled    = m_pipeline_steps[mango::render_step::shadow_map] != nullptr;
     }
     else
     {
@@ -1595,6 +1594,7 @@ void deferred_pbr_render_system::on_ui_widget()
         ImGui::PopID();
         if (value_changed)
         {
+            m_begin_render_commands->invalidate();
             m_lighting_pass_commands->invalidate();
             if (has_shadow_map)
             {

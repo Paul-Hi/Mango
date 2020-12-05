@@ -13,6 +13,7 @@ layout(binding = 0, std140) uniform renderer_data
     mat4 projection_matrix;
     mat4 view_projection_matrix;
     float camera_exposure;
+    bool shadow_step_enabled;
 };
 
 // Uniform Buffer Lighting Pass.

@@ -121,7 +121,7 @@ namespace mango
             std140_mat4 projection_matrix;      //!< The projection matrix.
             std140_mat4 view_projection_matrix; //!< The view projection matrix.
             std140_float camera_exposure;       //!< The exposure value of the camera.
-            std140_float padding0;              //!< Padding.
+            std140_bool shadow_step_enabled;    //!< True, if the shadow map step is enabled and shdows can be calculated.
             std140_float padding1;              //!< Padding.
             std140_float padding2;              //!< Padding.
         } m_renderer_data;                      //!< Current renderer_data.
@@ -190,7 +190,7 @@ namespace mango
                 std140_bool show_cascades;    //!< Show the shadow cascades.
                 std140_bool draw_shadow_maps; //!< Draw the cascade shadow maps.
             } debug_options;                  //!< The debug options.
-        } m_lighting_pass_data;    //!< Current lighting_pass_data.
+        } m_lighting_pass_data;               //!< Current lighting_pass_data.
 
         //! \brief Structure used to cache the \a commands regarding the rendering of the current model/mesh.
         struct model_cache

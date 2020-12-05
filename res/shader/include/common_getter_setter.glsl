@@ -82,11 +82,11 @@ out vec4 frag_color;
 #ifdef DEFERRED
 in vec2 texcoord;
 
-layout(location = 0) uniform sampler2D gbuffer_c0;
-layout(location = 1) uniform sampler2D gbuffer_c1;
-layout(location = 2) uniform sampler2D gbuffer_c2;
-layout(location = 3) uniform sampler2D gbuffer_c3;
-layout(location = 4) uniform sampler2D gbuffer_depth;
+layout(location = 0) uniform sampler2D gbuffer_c0; // base color rgba (rgba8)
+layout(location = 1) uniform sampler2D gbuffer_c1; // normal rgb, alpha unused (rgb10a2)
+layout(location = 2) uniform sampler2D gbuffer_c2; // emissive rgb, alpha unused (rgba8)
+layout(location = 3) uniform sampler2D gbuffer_c3; // occlusion r, roughness g, metallic b, alpha unused (rgba8)
+layout(location = 4) uniform sampler2D gbuffer_depth; // depth (d32)
 #endif // DEFERRED
 
 #ifdef FORWARD
@@ -118,15 +118,6 @@ layout(location = 8) uniform sampler2DArray shadow_map;
 
 #ifdef FORWARD
 
-// Uniform Buffer Renderer.
-layout(binding = 0, std140) uniform renderer_data
-{
-    mat4 view_matrix;
-    mat4 projection_matrix;
-    mat4 view_projection_matrix;
-    float camera_exposure;
-};
-
 // Uniform Buffer Model.
 layout(binding = 2, std140) uniform model_data
 {
@@ -156,6 +147,16 @@ layout(binding = 3, std140) uniform material_data
 };
 
 #endif // FORWARD
+
+// Uniform Buffer Renderer.
+layout(binding = 0, std140) uniform renderer_data
+{
+    mat4 view_matrix;
+    mat4 projection_matrix;
+    mat4 view_projection_matrix;
+    float camera_exposure;
+    bool shadow_step_enabled;
+};
 
 // Uniform Buffer Lighting Pass.
 layout(binding = 1, std140) uniform lighting_pass_data
@@ -304,6 +305,11 @@ mat4 get_camera_inverse_view_projection()
 mat4 get_camera_view_matrix()
 {
     return view;
+}
+
+bool is_shadow_step_enabled()
+{
+    return shadow_step_enabled;
 }
 
 vec3 get_camera_position()
@@ -535,6 +541,7 @@ layout(binding = 0, std140) uniform renderer_data
     mat4 projection_matrix;
     mat4 view_projection_matrix;
     float camera_exposure;
+    bool shadow_step_enabled;
 };
 
 // Uniform Buffer Model.
@@ -619,10 +626,10 @@ void pass_shared_data(in vec4 world_position)
 
 #ifdef FRAGMENT
 // Output Textures GBuffer.
-layout (location = 0) out vec4 gbuffer_color_target0; // base_color / reflection_color (rgba8)
-layout (location = 1) out vec4 gbuffer_color_target1; // normal (rgb10)
-layout (location = 2) out vec4 gbuffer_color_target2; // emissive (rgb8) and something else
-layout (location = 3) out vec4 gbuffer_color_target3; // occlusion (r8), roughness (g8), metallic (b8) and something else
+layout (location = 0) out vec4 gbuffer_color_target0; // base color rgba (rgba8)
+layout (location = 1) out vec4 gbuffer_color_target1; // normal rgb, alpha unused (rgb10a2)
+layout (location = 2) out vec4 gbuffer_color_target2; // emissive rgb, alpha unused (rgba8)
+layout (location = 3) out vec4 gbuffer_color_target3; // occlusion r, roughness g, metallic b, alpha unused (rgba8)
 
 // Shared Shader Data.
 in shared_data
