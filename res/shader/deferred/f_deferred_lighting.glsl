@@ -1,5 +1,5 @@
 #include <../include/common_constants_and_functions.glsl>
-#include <../include/common_getter_setter.glsl>
+#include <../include/common_state.glsl>
 #include <../include/common_lighting.glsl>
 #include <../include/common_shadow.glsl>
 

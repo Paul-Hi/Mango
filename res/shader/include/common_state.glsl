@@ -1,5 +1,5 @@
-#ifndef MANGO_COMMON_GETTER_SETTER_GLSL
-#define MANGO_COMMON_GETTER_SETTER_GLSL
+#ifndef MANGO_COMMON_STATE_GLSL
+#define MANGO_COMMON_STATE_GLSL
 
 #ifdef LIGHTING
 
@@ -725,4 +725,4 @@ mat4 get_camera_view_projection_matrix()
 
 #endif // GBUFFER_PREPASS
 
-#endif // MANGO_COMMON_GETTER_SETTER_GLSL
+#endif // MANGO_COMMON_STATE_GLSL

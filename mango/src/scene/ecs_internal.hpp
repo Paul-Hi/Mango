@@ -119,6 +119,8 @@ namespace mango
             PROFILE_ZONE;
             meshes.for_each(
                 [this, &meshes, &materials, &transformations](mesh_primitive_component& c, int32& index) {
+                    if (!c.vertex_array_object)
+                        return;
                     entity e                       = meshes.entity_at(index);
                     transform_component* transform = transformations.get_component_for_entity(e);
                     material_component* mat        = materials.get_component_for_entity(e);

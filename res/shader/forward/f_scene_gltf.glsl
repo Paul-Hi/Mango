@@ -1,4 +1,4 @@
-#include <../include/common_getter_setter.glsl>
+#include <../include/common_state.glsl>
 
 void main()
 {

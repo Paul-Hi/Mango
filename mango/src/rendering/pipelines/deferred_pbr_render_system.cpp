@@ -32,6 +32,8 @@ texture_ptr default_texture;
 texture_ptr default_cube_texture;
 //! \brief Default texture array that is bound to every texture unit not in use to prevent warnings.
 texture_ptr default_texture_array;
+//! \brief Default material.
+material_ptr default_material;
 
 deferred_pbr_render_system::deferred_pbr_render_system(const shared_ptr<context_impl>& context)
     : render_system_impl(context)
@@ -312,6 +314,11 @@ bool deferred_pbr_render_system::create_renderer_resources()
     if (!check_creation(default_texture_array.get(), "default texture array"))
         return false;
     default_texture_array->set_data(format::rgb8, 1, 1, format::rgb, format::t_unsigned_byte, albedo);
+
+    default_material               = std::make_shared<material>();
+    default_material->base_color = glm::vec4(glm::vec3(0.75f), 1.0f);
+    default_material->metallic   = 0.0f;
+    default_material->roughness  = 1.0f;
 
     return true;
 }
@@ -627,7 +634,7 @@ void deferred_pbr_render_system::finish_render(float dt)
         m_transparent_commands->invalidate();
         m_exposure_commands->invalidate();
 
-        g_sync* frame_sync_prepare = m_frame_uniform_buffer->prepare();
+        g_sync* frame_sync_prepare    = m_frame_uniform_buffer->prepare();
         client_wait_sync_command* cws = m_finish_render_commands->create<client_wait_sync_command>(command_keys::no_sort);
         cws->sync                     = frame_sync_prepare;
         // TODO Paul: Is there a better way?
@@ -885,7 +892,7 @@ void deferred_pbr_render_system::end_frame_and_sync()
 #endif // MANGO_DEBUG
 
     // TODO Paul: Is there a better way?
-    g_sync* frame_sync_prepare = m_frame_uniform_buffer->prepare();
+    g_sync* frame_sync_prepare    = m_frame_uniform_buffer->prepare();
     client_wait_sync_command* cws = m_finish_render_commands->create<client_wait_sync_command>(command_keys::no_sort);
     cws->sync                     = frame_sync_prepare;
     // TODO Paul: Is there a better way?
@@ -1041,6 +1048,14 @@ void deferred_pbr_render_system::use_material(const material_ptr& mat)
 {
     PROFILE_ZONE;
 
+    auto m = mat;
+
+    if (!mat)
+    {
+        // use default
+        m = default_material;
+    }
+
     command_buffer_ptr<max_key> shadow_command_buffer;
     if (m_pipeline_steps[mango::render_step::shadow_map])
     {
@@ -1049,34 +1064,34 @@ void deferred_pbr_render_system::use_material(const material_ptr& mat)
 
     material_data d;
 
-    d.base_color     = static_cast<glm::vec4>(mat->base_color);
-    d.emissive_color = static_cast<glm::vec3>(mat->emissive_color);
-    d.metallic       = (g_float)mat->metallic;
-    d.roughness      = (g_float)mat->roughness;
-    if (mat->use_base_color_texture)
+    d.base_color     = static_cast<glm::vec4>(m->base_color);
+    d.emissive_color = static_cast<glm::vec3>(m->emissive_color);
+    d.metallic       = (g_float)m->metallic;
+    d.roughness      = (g_float)m->roughness;
+    if (m->use_base_color_texture)
     {
         d.base_color_texture                   = true;
-        m_active_model.base_color_texture_name = mat->base_color_texture->get_name();
+        m_active_model.base_color_texture_name = m->base_color_texture->get_name();
     }
     else
     {
         d.base_color_texture                   = false;
         m_active_model.base_color_texture_name = default_texture->get_name();
     }
-    if (mat->use_roughness_metallic_texture)
+    if (m->use_roughness_metallic_texture)
     {
         d.roughness_metallic_texture                   = true;
-        m_active_model.roughness_metallic_texture_name = mat->roughness_metallic_texture->get_name();
+        m_active_model.roughness_metallic_texture_name = m->roughness_metallic_texture->get_name();
     }
     else
     {
         d.roughness_metallic_texture                   = false;
         m_active_model.roughness_metallic_texture_name = default_texture->get_name();
     }
-    if (mat->use_occlusion_texture)
+    if (m->use_occlusion_texture)
     {
         d.occlusion_texture                   = true;
-        m_active_model.occlusion_texture_name = mat->occlusion_texture->get_name();
+        m_active_model.occlusion_texture_name = m->occlusion_texture->get_name();
         d.packed_occlusion                    = false;
     }
     else
@@ -1084,22 +1099,22 @@ void deferred_pbr_render_system::use_material(const material_ptr& mat)
         d.occlusion_texture                   = false;
         m_active_model.occlusion_texture_name = default_texture->get_name();
         // eventually it is packed
-        d.packed_occlusion = mat->packed_occlusion && mat->use_packed_occlusion;
+        d.packed_occlusion = m->packed_occlusion && m->use_packed_occlusion;
     }
-    if (mat->use_normal_texture)
+    if (m->use_normal_texture)
     {
         d.normal_texture                   = true;
-        m_active_model.normal_texture_name = mat->normal_texture->get_name();
+        m_active_model.normal_texture_name = m->normal_texture->get_name();
     }
     else
     {
         d.normal_texture                   = false;
         m_active_model.normal_texture_name = default_texture->get_name();
     }
-    if (mat->use_emissive_color_texture)
+    if (m->use_emissive_color_texture)
     {
         d.emissive_color_texture                   = true;
-        m_active_model.emissive_color_texture_name = mat->emissive_color_texture->get_name();
+        m_active_model.emissive_color_texture_name = m->emissive_color_texture->get_name();
     }
     else
     {
@@ -1107,11 +1122,11 @@ void deferred_pbr_render_system::use_material(const material_ptr& mat)
         m_active_model.emissive_color_texture_name = default_texture->get_name();
     }
 
-    d.alpha_mode   = static_cast<g_int>(mat->alpha_rendering);
-    d.alpha_cutoff = static_cast<g_float>(mat->alpha_cutoff);
+    d.alpha_mode   = static_cast<g_int>(m->alpha_rendering);
+    d.alpha_cutoff = static_cast<g_float>(m->alpha_cutoff);
 
-    m_active_model.blend        = mat->alpha_rendering == alpha_mode::mode_blend;
-    m_active_model.face_culling = !mat->double_sided;
+    m_active_model.blend        = m->alpha_rendering == alpha_mode::mode_blend;
+    m_active_model.face_culling = !m->double_sided;
 
     int64 offset                        = m_frame_uniform_buffer->write_data(sizeof(d), &d);
     m_active_model.material_data_offset = offset;

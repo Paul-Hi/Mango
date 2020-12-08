@@ -14,6 +14,7 @@
 #include <graphics/framebuffer.hpp>
 #include <graphics/texture.hpp>
 #include <mango/imgui_helper.hpp>
+#include <mango/mesh_factory.hpp>
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
 #include <resources/resource_system.hpp>
@@ -291,13 +292,13 @@ namespace mango
         }
 
         //! \brief Draws a \a material in the user interface.
-        //! \param[in] material A shared_ptr to the \a material that should be represented in th UI.
+        //! \param[in] mat A shared_ptr to the \a material that should be represented in th UI.
         //! \param[in] rs A pointer to the \a resource_system.
-        void draw_material(const shared_ptr<material>& material, const shared_ptr<resource_system>& rs)
+        void draw_material(shared_ptr<material>& mat, const shared_ptr<resource_system>& rs)
         {
-            if (material)
+            if (mat)
             {
-                ImGui::PushID(material.get());
+                ImGui::PushID(mat.get());
                 texture_configuration config;
                 config.generate_mipmaps        = 1;
                 config.is_standard_color_space = true;
@@ -316,32 +317,32 @@ namespace mango
                     ImGui::PushID("Base Color");
                     bool changed  = false;
                     bool load_new = false;
-                    changed |= image_load("Base Color Texture", material->base_color_texture ? material->base_color_texture->get_name() : -1, glm::vec2(64, 64), load_new);
+                    changed |= image_load("Base Color Texture", mat->base_color_texture ? mat->base_color_texture->get_name() : -1, glm::vec2(64, 64), load_new);
 
                     if (load_new)
                     {
-                        config.is_standard_color_space   = true;
-                        material->base_color_texture     = load_texture(config, rs, filter, 4);
-                        material->use_base_color_texture = (material->base_color_texture != nullptr);
+                        config.is_standard_color_space = true;
+                        mat->base_color_texture        = load_texture(config, rs, filter, 4);
+                        mat->use_base_color_texture    = (mat->base_color_texture != nullptr);
                     }
                     else if (changed)
                     {
-                        material->base_color_texture     = nullptr;
-                        material->use_base_color_texture = false;
+                        mat->base_color_texture     = nullptr;
+                        mat->use_base_color_texture = false;
                     }
 
-                    changed = checkbox("Use Texture", &material->use_base_color_texture, false);
-                    if (changed && material->use_base_color_texture && !material->base_color_texture)
+                    changed = checkbox("Use Texture", &mat->use_base_color_texture, false);
+                    if (changed && mat->use_base_color_texture && !mat->base_color_texture)
                     {
-                        config.is_standard_color_space   = true;
-                        material->base_color_texture     = load_texture(config, rs, filter, 4);
-                        material->use_base_color_texture = (material->base_color_texture != nullptr);
+                        config.is_standard_color_space = true;
+                        mat->base_color_texture        = load_texture(config, rs, filter, 4);
+                        mat->use_base_color_texture    = (mat->base_color_texture != nullptr);
                     }
                     ImGui::Separator();
 
                     float default_value[3] = { 1.0f, 1.0f, 1.0f };
-                    if (!material->use_base_color_texture)
-                        color_edit("Color", &material->base_color[0], 4, default_value);
+                    if (!mat->use_base_color_texture)
+                        color_edit("Color", &mat->base_color[0], 4, default_value);
 
                     ImGui::Separator();
                     ImGui::PopID();
@@ -354,40 +355,40 @@ namespace mango
                     ImGui::PushID("Roughness And Metallic");
                     bool changed  = false;
                     bool load_new = false;
-                    changed |= image_load("Roughness And Metallic Texture", material->roughness_metallic_texture ? material->roughness_metallic_texture->get_name() : -1, glm::vec2(64, 64), load_new);
+                    changed |= image_load("Roughness And Metallic Texture", mat->roughness_metallic_texture ? mat->roughness_metallic_texture->get_name() : -1, glm::vec2(64, 64), load_new);
 
                     if (load_new)
                     {
-                        config.is_standard_color_space           = false;
-                        material->roughness_metallic_texture     = load_texture(config, rs, filter, 4);
-                        material->use_roughness_metallic_texture = (material->roughness_metallic_texture != nullptr);
+                        config.is_standard_color_space      = false;
+                        mat->roughness_metallic_texture     = load_texture(config, rs, filter, 4);
+                        mat->use_roughness_metallic_texture = (mat->roughness_metallic_texture != nullptr);
                     }
                     else if (changed)
                     {
-                        material->roughness_metallic_texture     = nullptr;
-                        material->use_roughness_metallic_texture = false;
+                        mat->roughness_metallic_texture     = nullptr;
+                        mat->use_roughness_metallic_texture = false;
                     }
 
-                    changed = checkbox("Use Texture", &material->use_roughness_metallic_texture, false);
-                    if (changed && material->use_roughness_metallic_texture && !material->roughness_metallic_texture)
+                    changed = checkbox("Use Texture", &mat->use_roughness_metallic_texture, false);
+                    if (changed && mat->use_roughness_metallic_texture && !mat->roughness_metallic_texture)
                     {
-                        config.is_standard_color_space           = false;
-                        material->roughness_metallic_texture     = load_texture(config, rs, filter, 4);
-                        material->use_roughness_metallic_texture = (material->roughness_metallic_texture != nullptr);
+                        config.is_standard_color_space      = false;
+                        mat->roughness_metallic_texture     = load_texture(config, rs, filter, 4);
+                        mat->use_roughness_metallic_texture = (mat->roughness_metallic_texture != nullptr);
                     }
                     ImGui::Separator();
 
-                    if (material->use_roughness_metallic_texture)
+                    if (mat->use_roughness_metallic_texture)
                     {
-                        checkbox("Has Packed AO", &material->packed_occlusion, false);
-                        if (material->packed_occlusion)
-                            checkbox("Use Packed AO", &material->use_packed_occlusion, true);
+                        checkbox("Has Packed AO", &mat->packed_occlusion, false);
+                        if (mat->packed_occlusion)
+                            checkbox("Use Packed AO", &mat->use_packed_occlusion, true);
                     }
                     else
                     {
                         float default_value = 0.5f;
-                        slider_float_n("Roughness", material->roughness.type_data(), 1, &default_value, 0.0f, 1.0f);
-                        slider_float_n("Metallic", material->metallic.type_data(), 1, &default_value, 0.0f, 1.0f);
+                        slider_float_n("Roughness", mat->roughness.type_data(), 1, &default_value, 0.0f, 1.0f);
+                        slider_float_n("Metallic", mat->metallic.type_data(), 1, &default_value, 0.0f, 1.0f);
                     }
 
                     ImGui::Separator();
@@ -401,26 +402,26 @@ namespace mango
                     ImGui::PushID("Normal Map");
                     bool changed  = false;
                     bool load_new = false;
-                    changed |= image_load("Normal Texture", material->normal_texture ? material->normal_texture->get_name() : -1, glm::vec2(64, 64), load_new);
+                    changed |= image_load("Normal Texture", mat->normal_texture ? mat->normal_texture->get_name() : -1, glm::vec2(64, 64), load_new);
 
                     if (load_new)
                     {
                         config.is_standard_color_space = false;
-                        material->normal_texture       = load_texture(config, rs, filter, 4);
-                        material->use_normal_texture   = (material->normal_texture != nullptr);
+                        mat->normal_texture            = load_texture(config, rs, filter, 4);
+                        mat->use_normal_texture        = (mat->normal_texture != nullptr);
                     }
                     else if (changed)
                     {
-                        material->normal_texture     = nullptr;
-                        material->use_normal_texture = false;
+                        mat->normal_texture     = nullptr;
+                        mat->use_normal_texture = false;
                     }
 
-                    changed = checkbox("Use Texture", &material->use_normal_texture, false);
-                    if (changed && material->use_normal_texture && !material->normal_texture)
+                    changed = checkbox("Use Texture", &mat->use_normal_texture, false);
+                    if (changed && mat->use_normal_texture && !mat->normal_texture)
                     {
                         config.is_standard_color_space = false;
-                        material->normal_texture       = load_texture(config, rs, filter, 4);
-                        material->use_normal_texture   = (material->normal_texture != nullptr);
+                        mat->normal_texture            = load_texture(config, rs, filter, 4);
+                        mat->use_normal_texture        = (mat->normal_texture != nullptr);
                     }
 
                     ImGui::Separator();
@@ -434,26 +435,26 @@ namespace mango
                     ImGui::PushID("Occlusion Map");
                     bool changed  = false;
                     bool load_new = false;
-                    changed |= image_load("Occlusion Texture", material->occlusion_texture ? material->occlusion_texture->get_name() : -1, glm::vec2(64, 64), load_new);
+                    changed |= image_load("Occlusion Texture", mat->occlusion_texture ? mat->occlusion_texture->get_name() : -1, glm::vec2(64, 64), load_new);
 
                     if (load_new)
                     {
-                        config.is_standard_color_space  = false;
-                        material->occlusion_texture     = load_texture(config, rs, filter, 4);
-                        material->use_occlusion_texture = (material->occlusion_texture != nullptr);
+                        config.is_standard_color_space = false;
+                        mat->occlusion_texture         = load_texture(config, rs, filter, 4);
+                        mat->use_occlusion_texture     = (mat->occlusion_texture != nullptr);
                     }
                     else if (changed)
                     {
-                        material->occlusion_texture     = nullptr;
-                        material->use_occlusion_texture = false;
+                        mat->occlusion_texture     = nullptr;
+                        mat->use_occlusion_texture = false;
                     }
 
-                    changed = checkbox("Use Texture", &material->use_occlusion_texture, false);
-                    if (changed && material->use_occlusion_texture && !material->occlusion_texture)
+                    changed = checkbox("Use Texture", &mat->use_occlusion_texture, false);
+                    if (changed && mat->use_occlusion_texture && !mat->occlusion_texture)
                     {
-                        config.is_standard_color_space  = false;
-                        material->occlusion_texture     = load_texture(config, rs, filter, 4);
-                        material->use_occlusion_texture = (material->occlusion_texture != nullptr);
+                        config.is_standard_color_space = false;
+                        mat->occlusion_texture         = load_texture(config, rs, filter, 4);
+                        mat->use_occlusion_texture     = (mat->occlusion_texture != nullptr);
                     }
 
                     ImGui::Separator();
@@ -467,32 +468,32 @@ namespace mango
                     ImGui::PushID("Emissive");
                     bool changed  = false;
                     bool load_new = false;
-                    changed |= image_load("Emissive Color Texture", material->emissive_color_texture ? material->emissive_color_texture->get_name() : -1, glm::vec2(64, 64), load_new);
+                    changed |= image_load("Emissive Color Texture", mat->emissive_color_texture ? mat->emissive_color_texture->get_name() : -1, glm::vec2(64, 64), load_new);
 
                     if (load_new)
                     {
-                        config.is_standard_color_space       = true;
-                        material->emissive_color_texture     = load_texture(config, rs, filter, 4);
-                        material->use_emissive_color_texture = (material->emissive_color_texture != nullptr);
+                        config.is_standard_color_space  = true;
+                        mat->emissive_color_texture     = load_texture(config, rs, filter, 4);
+                        mat->use_emissive_color_texture = (mat->emissive_color_texture != nullptr);
                     }
                     else if (changed)
                     {
-                        material->emissive_color_texture     = nullptr;
-                        material->use_emissive_color_texture = false;
+                        mat->emissive_color_texture     = nullptr;
+                        mat->use_emissive_color_texture = false;
                     }
 
-                    changed = checkbox("Use Texture", &material->use_emissive_color_texture, false);
-                    if (changed && material->use_emissive_color_texture && !material->emissive_color_texture)
+                    changed = checkbox("Use Texture", &mat->use_emissive_color_texture, false);
+                    if (changed && mat->use_emissive_color_texture && !mat->emissive_color_texture)
                     {
-                        config.is_standard_color_space       = true;
-                        material->emissive_color_texture     = load_texture(config, rs, filter, 4);
-                        material->use_emissive_color_texture = (material->emissive_color_texture != nullptr);
+                        config.is_standard_color_space  = true;
+                        mat->emissive_color_texture     = load_texture(config, rs, filter, 4);
+                        mat->use_emissive_color_texture = (mat->emissive_color_texture != nullptr);
                     }
                     ImGui::Separator();
 
                     float default_value[3] = { 1.0f, 1.0f, 1.0f };
-                    if (!material->use_emissive_color_texture)
-                        color_edit("Color", &material->emissive_color[0], 3, default_value);
+                    if (!mat->use_emissive_color_texture)
+                        color_edit("Color", &mat->emissive_color[0], 3, default_value);
 
                     ImGui::Separator();
                     ImGui::PopID();
@@ -500,26 +501,39 @@ namespace mango
                 ImGui::Separator();
                 ImGui::Spacing();
 
-                checkbox("Double Sided", &material->double_sided, false);
+                checkbox("Double Sided", &mat->double_sided, false);
 
                 ImGui::Separator();
 
                 const char* types[4] = { "Opaque", "Masked", "Blended", "Dithered" };
-                int32 idx            = static_cast<int32>(material->alpha_rendering);
+                int32 idx            = static_cast<int32>(mat->alpha_rendering);
                 combo("Alpha Mode", types, 4, idx, 0);
-                material->alpha_rendering = static_cast<alpha_mode>(idx);
+                mat->alpha_rendering = static_cast<alpha_mode>(idx);
 
                 float default_value = 0.5f;
-                if (material->alpha_rendering == alpha_mode::mode_mask)
-                    slider_float_n("Alpha CutOff", material->alpha_cutoff.type_data(), 1, &default_value, 0.0f, 1.0f, "%.2f");
-                if (material->alpha_rendering == alpha_mode::mode_blend)
+                if (mat->alpha_rendering == alpha_mode::mode_mask)
+                    slider_float_n("Alpha CutOff", mat->alpha_cutoff.type_data(), 1, &default_value, 0.0f, 1.0f, "%.2f");
+                if (mat->alpha_rendering == alpha_mode::mode_blend)
                     custom_info(
                         "Blending With Basic Over Operator!", []() {}, 0.0f, ImGui::GetContentRegionAvail().x);
-                if (material->alpha_rendering == alpha_mode::mode_dither)
+                if (mat->alpha_rendering == alpha_mode::mode_dither)
                     custom_info(
                         "Dithering ... Just For Fun!", []() {}, 0.0f, ImGui::GetContentRegionAvail().x);
 
                 ImGui::PopID();
+            }
+            else
+            {
+                custom_info("Material", [&mat]() {
+                    if (ImGui::Button("New"))
+                    {
+                        mat = std::make_shared<material>();
+                    }
+                    else if (ImGui::Button("Load Extisting"))
+                    {
+                        MANGO_UNUSED(mat);
+                    }
+                });
             }
         }
 
@@ -586,7 +600,6 @@ namespace mango
             if (ImGui::Selectable("Add Entity##scene_menu"))
             {
                 selected = application_scene->create_empty();
-                application_scene->attach(selected, root);
             }
 
             ImGui::EndPopup();
@@ -652,11 +665,11 @@ namespace mango
                 }
                 if (!mesh_comp && ImGui::Selectable("Mesh Primitive Component"))
                 {
-                    application_scene->add_component<mesh_primitive_component>(e);
+                    mesh_comp = application_scene->add_component<mesh_primitive_component>(e);
                 }
                 if (!material_comp && ImGui::Selectable("Material Component"))
                 {
-                    application_scene->add_component<material_component>(e);
+                    material_comp = application_scene->add_component<material_component>(e);
                 }
                 if (!camera_comp && ImGui::Selectable("Camera Component"))
                 {
@@ -767,14 +780,57 @@ namespace mango
             details::draw_component<mango::mesh_primitive_component>(
                 mesh_comp,
                 [e, &application_scene, &mesh_comp]() {
-                    // auto vao = mesh_comp->vertex_array_object;
-                    custom_info("Mesh Primitive Type", []() {
-                        ImGui::AlignTextToFramePadding();
-                        ImGui::Text("CUSTOM - We may add Mango internal mesh primitives here.");
-                        // TODO Paul: Add Mango internal mesh primitives here.
-                    });
-                    checkbox("Has Normals", &mesh_comp->has_normals, false);
-                    checkbox("Has Tangents", &mesh_comp->has_tangents, false);
+                    auto& vao = mesh_comp->vertex_array_object;
+                    if (vao)
+                    {
+                        custom_info("Mesh Primitive", []() {
+                            ImGui::AlignTextToFramePadding();
+                            ImGui::Text("CUSTOM - We will add Mango internal mesh primitives here.");
+                        });
+
+                        checkbox("Has Normals", &mesh_comp->has_normals, false);
+                        checkbox("Has Tangents", &mesh_comp->has_tangents, false);
+
+                        // TODO Paul: Add Mango internal mesh primitive settings.
+
+                        custom_info("Geometry", [&vao]() {
+                            if (ImGui::Button("Remove"))
+                            {
+                                vao = nullptr;
+                            }
+                        });
+                    }
+                    else
+                    {
+                        custom_info("Geometry", [&mesh_comp]() {
+                            if (ImGui::Button("Create"))
+                            {
+                                ImGui::OpenPopup("##geometry_factory_popup");
+                            }
+                            if (ImGui::BeginPopup("##geometry_factory_popup"))
+                            {
+                                if (ImGui::Selectable("Plane"))
+                                {
+                                    auto pf = mesh_factory::get_plane_factory();
+                                    pf->set_normals(true);
+                                    pf->create_mesh_primitive_component(mesh_comp);
+                                }
+                                if (ImGui::Selectable("Box"))
+                                {
+                                    auto bf = mesh_factory::get_box_factory();
+                                    bf->set_normals(true);
+                                    bf->create_mesh_primitive_component(mesh_comp);
+                                }
+                                if (ImGui::Selectable("Sphere"))
+                                {
+                                    auto sf = mesh_factory::get_sphere_factory();
+                                    sf->set_normals(true);
+                                    sf->create_mesh_primitive_component(mesh_comp);
+                                }
+                                ImGui::EndPopup();
+                            }
+                        });
+                    }
                 },
                 [e, &application_scene]() {
                     if (ImGui::Selectable("Remove"))

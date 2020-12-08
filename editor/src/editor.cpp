@@ -85,7 +85,14 @@ bool editor::create()
         fxaa_config.set_quality_preset(fxaa_quality_preset::medium_quality).set_subpixel_filter(0.0f);
         mango_rs->setup_fxaa_step(fxaa_config);
 
-        application_scene->create_entities_from_model("res/models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.glb");
+        // application_scene->create_entities_from_model("res/models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.glb");
+        entity sphere = application_scene->create_empty();
+        auto mat_c = application_scene->add_component<material_component>(sphere);
+        auto mpc = application_scene->add_component<mesh_primitive_component>(sphere);
+        auto sf  = mesh_factory::get_sphere_factory();
+        sf->set_normals(true).set_rings(22).set_segments(44).set_uv_tiling({ 2.0f, 2.0f });
+        sf->create_mesh_primitive_component(mpc);
+
         entity lighting                                                     = application_scene->create_skylight_from_hdr("res/textures/venice_sunset_4k.hdr");
         application_scene->get_component<tag_component>(lighting)->tag_name = "Global Lighting";
         auto d_l_c                                                          = application_scene->add_component<directional_light_component>(lighting);

@@ -18,6 +18,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/ui_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/profile.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/imgui_helper.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/mesh_factory.hpp
 )
 
 set(PRIVATE_HEADERS
@@ -85,6 +86,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/gpu_buffer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/mesh_factory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.cpp

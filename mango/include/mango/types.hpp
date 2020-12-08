@@ -113,6 +113,8 @@ namespace mango
 
 //! \brief Pi.
 #define PI 3.1415926535897932384626433832795f
+//! \brief Pi times two.
+#define TWO_PI 2.0f * PI
 //! \brief Define for the global up vector.
 #define GLOBAL_UP glm::vec3(0.0f, 1.0f, 0.0f)
 //! \brief Define for the global right vector.

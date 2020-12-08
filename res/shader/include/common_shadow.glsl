@@ -2,7 +2,7 @@
 #define MANGO_COMMON_SHADOW_GLSL
 
 #include <../include/common_constants_and_functions.glsl>
-#include <common_getter_setter.glsl>
+#include <common_state.glsl>
 
 #define LIGHT_SIZE 0.035 // TODO Paul: Make this a uniform!
 

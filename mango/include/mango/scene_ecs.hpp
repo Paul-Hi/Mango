@@ -94,6 +94,14 @@ namespace mango
         entity previous_sibling = invalid_entity; //!< The previous child entity id.
     };
 
+    enum class mesh_primitive_type : uint8
+    {
+        plane,     //!< A plane.
+        box,       //!< A box.
+        sphere,    //!< A sphere.
+        custom     //!< Custom type. Normaly used when loaded from file.
+    };
+
     //! \brief Component used to describe a mesh primitive draw call.
     struct mesh_primitive_component
     {
@@ -105,6 +113,7 @@ namespace mango
         int32 instance_count;                         //!< Number of instances. Usually 1.
         bool has_normals;                             //!< Specifies if the mesh primitive has normals.
         bool has_tangents;                            //!< Specifies if the mesh primitive has tangents.
+        mesh_primitive_type tp;                       //!< Specifies if the type of mesh primitive.
     };
 
     //! \brief Component used for materials.

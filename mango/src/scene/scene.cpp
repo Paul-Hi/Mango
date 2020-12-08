@@ -65,6 +65,8 @@ entity scene::create_empty()
     PROFILE_ZONE;
     MANGO_ASSERT(!m_free_entities.empty(), "Reached maximum number of entities!");
     entity new_entity = m_free_entities.front();
+    if (m_scene_root != invalid_entity)
+        attach(new_entity, m_scene_root);
     m_free_entities.pop_front();
     MANGO_LOG_DEBUG("Created entity {0}, {1} left", new_entity, m_free_entities.size());
     m_tags.create_component_for(new_entity);
@@ -115,7 +117,8 @@ entity scene::create_default_scene_camera()
 entity scene::create_default_camera()
 {
     PROFILE_ZONE;
-    entity camera_entity = create_empty();
+    entity camera_entity      = create_empty();
+    detach(camera_entity);
     attach(camera_entity, m_root_entity);
     auto& camera_component    = m_cameras.create_component_for(camera_entity);
     auto& transform_component = m_transformations.create_component_for(camera_entity);
@@ -148,7 +151,6 @@ entity scene::create_entities_from_model(const string& path, entity gltf_root)
     if (gltf_root == invalid_entity)
     {
         gltf_root = create_empty();
-        attach(gltf_root, m_scene_root);
     }
 
     auto& model_comp                = m_models.create_component_for(gltf_root);
@@ -239,8 +241,7 @@ entity scene::create_skylight_from_hdr(const string& path)
 {
     PROFILE_ZONE;
     entity skylight_entity = create_empty();
-    attach(skylight_entity, m_scene_root);
-    auto& light = m_skylights.create_component_for(skylight_entity);
+    auto& light            = m_skylights.create_component_for(skylight_entity);
 
     light.light.intensity   = default_environment_intensity;
     light.light.use_texture = true;
@@ -291,7 +292,6 @@ entity scene::create_skylight_from_hdr(const string& path)
 // {
 //     PROFILE_ZONE;
 //     entity environment_entity = create_empty();
-//     attach(environment_entity, m_scene_root);
 //
 //     auto& environment = m_lights.create_component_for(environment_entity);
 //
@@ -339,6 +339,7 @@ void scene::attach(entity child, entity parent)
     PROFILE_ZONE;
     MANGO_ASSERT(invalid_entity != child, "Child is invalid!");
     MANGO_ASSERT(invalid_entity != parent, "Parent is invalid!");
+    detach(child); // TODO Paul: Better way ...
 
     node_component* parent_node = m_nodes.get_component_for_entity(parent);
     if (nullptr == parent_node)
@@ -615,7 +616,7 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
         entity mesh_primitive_node = node;
         if (mesh.primitives.size() > 1)
         {
-            mesh_primitive_node                                            = create_empty();
+            mesh_primitive_node = create_empty();
             // If this is the case this does not really have a name by default. We try give them namess by their materials later.
             m_tags.get_component_for_entity(mesh_primitive_node)->tag_name = "Part " + std::to_string(i);
             attach(mesh_primitive_node, node);
@@ -624,6 +625,7 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
         auto& mesh_p = m_mesh_primitives.create_component_for(mesh_primitive_node);
 
         mesh_p.vertex_array_object = vertex_array::create();
+        mesh_p.tp                  = mesh_primitive_type::custom;
         mesh_p.topology            = static_cast<primitive_topology>(primitive.mode); // cast is okay.
         mesh_p.instance_count      = 1;
         bool has_indices           = true;
@@ -660,7 +662,7 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
 
         load_material(mat, primitive, m);
 
-        if(!mat.material_name.empty() && node != mesh_primitive_node)
+        if (!mat.material_name.empty() && node != mesh_primitive_node)
             m_tags.get_component_for_entity(mesh_primitive_node)->tag_name = mat.material_name + " Part";
 
         int32 vb_idx        = 0;
@@ -684,14 +686,14 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
             if (attrib.first.compare("NORMAL") == 0)
             {
                 mesh_p.has_normals = true;
-                attrib_array               = 1;
+                attrib_array       = 1;
             }
             if (attrib.first.compare("TEXCOORD_0") == 0)
                 attrib_array = 2;
             if (attrib.first.compare("TANGENT") == 0)
             {
                 mesh_p.has_tangents = true;
-                attrib_array                = 3;
+                attrib_array        = 3;
             }
             if (attrib_array > -1)
             {

@@ -2,7 +2,7 @@
 #define MANGO_COMMON_LIGHTING_GLSL
 
 #include <common_constants_and_functions.glsl>
-#include <common_getter_setter.glsl>
+#include <common_state.glsl>
 #include <common_pbr.glsl>
 
 vec3 calculate_skylight()
