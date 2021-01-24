@@ -140,6 +140,7 @@ namespace mango
         shadow_step_configuration()
             : m_resolution(2048)
             , m_sample_count(3)
+            , m_light_size(4.0f)
             , m_offset(0.0f)
             , m_cascade_count(3)
             , m_lambda(0.65f)
@@ -188,6 +189,15 @@ namespace mango
         inline shadow_step_configuration& set_sample_count(int32 sample_count)
         {
             m_sample_count = sample_count;
+            return *this;
+        }
+
+        //! \brief Sets the light size.
+        //! \param[in] light_size The size of the virtual pcss light.
+        //! \return A reference to the modified \a shadow_step_configuration.
+        inline shadow_step_configuration& set_light_size(int32 light_size)
+        {
+            m_light_size = light_size;
             return *this;
         }
 
@@ -270,6 +280,13 @@ namespace mango
             return m_sample_count;
         }
 
+        //! \brief Retrieves and returns the light size.
+        //! \return The configurated light size.
+        inline float get_light_size() const
+        {
+            return m_light_size;
+        }
+
         //! \brief Retrieves and returns the shadow map orthographic camera offset.
         //! \return The configurated shadow map orthographic camera offset.
         inline float get_offset() const
@@ -324,6 +341,8 @@ namespace mango
         int32 m_resolution;
         //! \brief The configured sample count.
         int32 m_sample_count;
+        //! \brief The configured light size.
+        float m_light_size;
         //! \brief The configured offset for the shadow map orthographic cameras.
         float m_offset;
         //! \brief The configured number of cascades.

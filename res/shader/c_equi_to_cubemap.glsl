@@ -26,6 +26,7 @@ void main()
     uv.y = 1.0 - uv.y;
 
     pixel.rgb = texture(hdr_in, uv).rgb;
+
     pixel.rgb = clamp(pixel.rgb, vec3(F16_MIN), vec3(F16_MAX));
 
     imageStore(cubemap_out, coords, pixel);

@@ -4,8 +4,6 @@
 #include <../include/common_constants_and_functions.glsl>
 #include <common_state.glsl>
 
-#define LIGHT_SIZE 0.035 // TODO Paul: Make this a uniform!
-
 // http://developer.download.nvidia.com/whitepapers/2008/PCSS_Integration.pdf
 const vec2 poisson_disk[64] = {
     vec2( -0.04117257, -0.1597612 ),
@@ -123,7 +121,7 @@ vec2 sample_blocker(in vec3 shadow_coords, in int cascade_id, in int sample_coun
 {
     float avg_blocker_depth = 0.0;
     int blocker_count = 0;
-    float search_width = LIGHT_SIZE;
+    float search_width = get_shadow_light_size();
     for (int i = 0; i < sample_count; ++i)
     {
         vec2 sample_uv = shadow_coords.xy + poisson_disk[i] * search_width;
@@ -178,8 +176,8 @@ float pcss(in vec3 shadow_coords, in int cascade_id, in int sample_count)
     if(blocker_data.y < 1)
         return 1.0;
     float penumbra_ratio = calculate_penumbra_size(shadow_coords.z, blocker_data.x, cascade_id);
-    float filter_radius = penumbra_ratio * LIGHT_SIZE;
-    filter_radius = clamp(filter_radius, 1.0 / get_shadow_resolution(), 6.0 / 2048.0);
+    float filter_radius = penumbra_ratio * get_shadow_light_size();
+    filter_radius = max(filter_radius, 2.0 / min(get_shadow_resolution(), 2048));
     return pcf(shadow_coords, cascade_id, sample_count, filter_radius);
 }
 

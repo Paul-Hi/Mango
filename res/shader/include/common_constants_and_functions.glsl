@@ -11,6 +11,11 @@ const float MAX_REFLECTION_LOD = 10.0;
 #define saturate(x) clamp(x, 0.0, 1.0)
 #define epsilon 0.005
 
+float pow5 (in float v)
+{
+    return v * v * v * v * v;
+}
+
 float linearize_depth(in float d, in float near, in float far)
 {
     float depth = 2.0 * d - 1.0;

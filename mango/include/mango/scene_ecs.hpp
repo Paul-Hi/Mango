@@ -90,8 +90,8 @@ namespace mango
 
         int32 children_count    = 0;              //!< The number of childs.
         entity child_entities   = invalid_entity; //!< The first child entity id. (Linked list)
-        entity next_sibling     = invalid_entity; //!< The next child entity id.
-        entity previous_sibling = invalid_entity; //!< The previous child entity id.
+        entity next_sibling     = invalid_entity; //!< The next sibling entity id.
+        entity previous_sibling = invalid_entity; //!< The previous sibling entity id.
     };
 
     enum class mesh_primitive_type : uint8

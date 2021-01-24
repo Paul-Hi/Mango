@@ -96,6 +96,7 @@ void shadow_map_step::configure(const shadow_step_configuration& configuration)
 {
     m_shadow_data.resolution                  = configuration.get_resolution();
     m_shadow_data.sample_count                = configuration.get_sample_count();
+    m_shadow_data.light_size                  = configuration.get_light_size();
     m_shadow_map_offset                       = configuration.get_offset();
     m_shadow_data.cascade_count               = configuration.get_cascade_count();
     m_shadow_data.slope_bias                  = configuration.get_slope_bias();
@@ -263,14 +264,19 @@ void shadow_map_step::on_ui_widget()
     combo("Shadow Filter Mode", filter, 4, current_filter, 1);
 
     int32 default_ivalue[1] = { 16 };
+    float default_value[1]  = { 4.0f };
 
     if (m_shadow_data.filter_mode > 0)
     {
         int32& sample_count = m_shadow_data.sample_count;
         slider_int_n("Sample Count", &sample_count, 1, default_ivalue, 16, 64);
+        if (m_shadow_data.filter_mode > 1)
+        {
+            float& l_size = m_shadow_data.light_size;
+            slider_float_n("Light Size", &l_size, 1, default_value, 1.0f, 100.0f);
+        }
     }
 
-    float default_value[1] = { 0.0f };
     // Offset 0.0 - 100.0
     slider_float_n("Shadow Map Offset", &m_shadow_map_offset, 1, default_value, 0.0f, 100.0f);
 

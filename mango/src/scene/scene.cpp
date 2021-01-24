@@ -117,7 +117,7 @@ entity scene::create_default_scene_camera()
 entity scene::create_default_camera()
 {
     PROFILE_ZONE;
-    entity camera_entity      = create_empty();
+    entity camera_entity = create_empty();
     detach(camera_entity);
     attach(camera_entity, m_root_entity);
     auto& camera_component    = m_cameras.create_component_for(camera_entity);
@@ -341,13 +341,13 @@ void scene::attach(entity child, entity parent)
     MANGO_ASSERT(invalid_entity != parent, "Parent is invalid!");
     detach(child); // TODO Paul: Better way ...
 
-    node_component* parent_node = m_nodes.get_component_for_entity(parent);
+    node_component* parent_node = m_nodes.get_component_for_entity(parent, true);
     if (nullptr == parent_node)
     {
         m_nodes.create_component_for(parent);
         parent_node = m_nodes.get_component_for_entity(parent);
     }
-    node_component* child_node = m_nodes.get_component_for_entity(child);
+    node_component* child_node = m_nodes.get_component_for_entity(child, true);
     if (nullptr == child_node)
     {
         m_nodes.create_component_for(child);
@@ -361,11 +361,13 @@ void scene::attach(entity child, entity parent)
         parent_node->child_entities = child;
     else
     {
-        node_component* sibling_node = nullptr;
-        for (int32 i = 0; i < parent_node->children_count; ++i)
+        node_component* sibling_node = m_nodes.get_component_for_entity(sibling_entity);
+        for (int32 i = 1; i < parent_node->children_count; ++i)
         {
-            sibling_node   = m_nodes.get_component_for_entity(sibling_entity);
             sibling_entity = sibling_node->next_sibling;
+            if (sibling_entity == invalid_entity)
+                break;
+            sibling_node = m_nodes.get_component_for_entity(sibling_entity);
         }
         sibling_node->next_sibling   = child;
         child_node->previous_sibling = sibling_entity;
@@ -428,12 +430,11 @@ void scene::detach(entity node)
     auto sibling_entity = parent_node->child_entities;
     if (sibling_entity == node)
     {
-        parent_node->child_entities = invalid_entity;
+        parent_node->child_entities = child_node->next_sibling;
         if (child_node->next_sibling != invalid_entity)
         {
             auto next_sibling              = m_nodes.get_component_for_entity(child_node->next_sibling);
             next_sibling->previous_sibling = invalid_entity;
-            parent_node->child_entities    = child_node->next_sibling;
         }
     }
     else
@@ -441,26 +442,23 @@ void scene::detach(entity node)
         node_component* next_sibling = nullptr;
         if (invalid_entity != child_node->next_sibling)
             next_sibling = m_nodes.get_component_for_entity(child_node->next_sibling);
-        node_component* sibling_node = nullptr;
-        for (int32 i = 0; i < parent_node->children_count; ++i)
+
+        node_component* sibling_node = m_nodes.get_component_for_entity(sibling_entity);
+        for (int32 i = 1; i < parent_node->children_count; ++i)
         {
+            sibling_entity = sibling_node->next_sibling;
             if (sibling_entity == node)
             {
-                // sibling_node is still the previous one
+                sibling_node->next_sibling = child_node->next_sibling;
                 if (next_sibling)
-                {
-                    sibling_node->next_sibling     = child_node->next_sibling;
                     next_sibling->previous_sibling = child_node->previous_sibling;
-                }
-                else
-                    sibling_node->next_sibling = invalid_entity;
                 break;
             }
-            sibling_node   = m_nodes.get_component_for_entity(sibling_entity);
-            sibling_entity = sibling_node->next_sibling;
+            sibling_node = m_nodes.get_component_for_entity(sibling_entity);
         }
     }
     parent_node->children_count--;
+    child_node->parent_entity = invalid_entity;
 
     if (child_node->children_count == 0)
         m_nodes.sort_remove_component_from(node); // Sorting necessarry?

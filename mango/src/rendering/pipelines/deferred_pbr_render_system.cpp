@@ -315,7 +315,7 @@ bool deferred_pbr_render_system::create_renderer_resources()
         return false;
     default_texture_array->set_data(format::rgb8, 1, 1, format::rgb, format::t_unsigned_byte, albedo);
 
-    default_material               = std::make_shared<material>();
+    default_material             = std::make_shared<material>();
     default_material->base_color = glm::vec4(glm::vec3(0.75f), 1.0f);
     default_material->metallic   = 0.0f;
     default_material->roughness  = 1.0f;
@@ -1600,7 +1600,6 @@ void deferred_pbr_render_system::on_ui_widget()
         {
             m_pipeline_steps[mango::render_step::cubemap]->on_ui_widget();
         }
-        ImGui::Separator();
 
         open = ImGui::CollapsingHeader("Shadow Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_shadow_map ? ImGuiTreeNodeFlags_Leaf : 0));
         ImGui::SameLine(ImGui::GetContentRegionAvail().x);

@@ -238,7 +238,6 @@ namespace mango
                 {
                     IM_ASSERT(payload->DataSize == sizeof(entity));
                     entity dropped = *(const entity*)payload->Data;
-                    application_scene->detach(dropped);
                     application_scene->attach(dropped, e);
                 }
                 ImGui::EndDragDropTarget();

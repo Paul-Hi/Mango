@@ -79,7 +79,7 @@ namespace mango
         struct shadow_data
         {
             std140_mat4 view_projection_matrices[max_shadow_mapping_cascades]; //!< The view projection matrices.
-            // TODO Paul: We really should not use arrays with that paaing -.-
+            // TODO Paul: We really should not use arrays with that padding -.-
             std140_float_array split_depth[max_shadow_mapping_cascades + 1]; //!< The calculated split depths. Times two because of better alignment
             std140_vec4 far_planes;                                          //!< The far planes of the shadow views.
             std140_int resolution                    = 2048;                 //!< The shadow map resolution.
@@ -89,7 +89,7 @@ namespace mango
             std140_float slope_bias                  = 0.005f; //!< The slope bias.
             std140_float normal_bias                 = 0.01f;  //!< The bias along the normal.
             std140_int filter_mode                   = 0;      //!< shadow_filtering parameter.
-            std140_float pad                         = 0;      //!< padding;
+            std140_float light_size                  = 4.0f;   //!< Size of the light for PCSS.
         } m_shadow_data;                                       //!< Current shadow_data.
 
         struct

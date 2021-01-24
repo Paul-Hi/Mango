@@ -208,6 +208,7 @@ layout(binding = 6, std140) uniform shadow_data
     float slope_bias;
     float normal_bias;
     int filter_mode;
+    float light_size;
 };
 
 vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection)
@@ -470,6 +471,11 @@ float get_shadow_normal_bias()
 int get_shadow_filter_mode()
 {
     return filter_mode;
+}
+
+float get_shadow_light_size()
+{
+    return light_size / float(resolution);
 }
 
 // debug views

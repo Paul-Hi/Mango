@@ -19,7 +19,8 @@ void main()
     if (coords.x >= out_size.x || coords.y >= out_size.y)
         return;
     float n_dot_v = float(coords.x) * inv_tex_size;
-    float roughness = float(coords.y) * inv_tex_size;
+    float perceptual_roughness = float(coords.y) * inv_tex_size;
+    float alpha = perceptual_roughness * perceptual_roughness;
 
     n_dot_v = clamp(n_dot_v, 1e-5, 1.0 - 1e-5);
 
@@ -36,11 +37,10 @@ void main()
     {
         vec2 eta = sample_hammersley(s, inverse_sample_count);
         vec3 halfway;
-        vec3 to_light;
-        float n_dot_l;
-        importance_sample_ggx_direction(eta, view, normal, tangent_x, tangent_y, roughness, n_dot_l, halfway, to_light);
-        n_dot_l = saturate(n_dot_l);
-        float G = V_SmithGGXCorrelated(n_dot_v, n_dot_l, roughness * roughness);
+        importance_sample_ggx_direction(eta, normal, tangent_x, tangent_y, alpha, halfway);
+        vec3 to_light = normalize(2.0 * dot(view, halfway) * halfway - view);
+        float n_dot_l = to_light.z;
+        float G = 4.0 * V_SmithGGXCorrelated(n_dot_v, n_dot_l, alpha);
 
         // specular preintegration with multiscattering
         if(n_dot_l > 0.0 && G > 0.0)
@@ -48,7 +48,7 @@ void main()
             float v_dot_h = saturate(dot(view, halfway));
             float n_dot_h = saturate(halfway.z);
             float G_vis = G * n_dot_l * (v_dot_h / n_dot_h );
-            float Fc = pow(1.0 - v_dot_h, 5.0);
+            float Fc = pow5(1.0 - v_dot_h);
             // https://google.github.io/filament/Filament.html#listing_energycompensationimpl
             // Assuming f90 = 1
             integration_lu.x += Fc * G_vis;

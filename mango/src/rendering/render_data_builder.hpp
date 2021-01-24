@@ -78,7 +78,7 @@ namespace mango
 
         // some required constants
         const int32 global_cubemap_size                  = 1024;
-        const int32 global_irradiance_map_size           = 32;
+        const int32 global_irradiance_map_size           = 64;
         const int32 global_specular_convolution_map_size = 1024;
 
         command_buffer_ptr<max_key> m_draw_commands;

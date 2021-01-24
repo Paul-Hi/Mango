@@ -179,7 +179,7 @@ void cubemap_step::on_ui_widget()
         m_cubemap_data.render_level = tmp;
         float& render_level         = m_cubemap_data.render_level;
         float default_value         = 0.0f;
-        slider_float_n("Blur Level", &render_level, 1, &default_value, 0.0f, 8.0f);
+        slider_float_n("Blur Level", &render_level, 1, &default_value, 0.0f, 10.0f);
         tmp = m_cubemap_data.render_level;
     }
     ImGui::PopID();
