@@ -9,9 +9,9 @@
 
 using namespace mango;
 
-void mango::column_split(const string& label, int32 number, float column_width)
+void mango::column_split(const string& string_id, int32 number, float column_width)
 {
-    ImGui::BeginColumns(label.c_str(), number, ImGuiColumnsFlags_NoResize | ImGuiColumnsFlags_NoBorder);
+    ImGui::BeginColumns(string_id.c_str(), number, ImGuiColumnsFlags_NoResize | ImGuiColumnsFlags_NoBorder);
     ImGui::SetColumnWidth(0, column_width);
 }
 
@@ -25,28 +25,28 @@ void mango::column_merge()
     ImGui::EndColumns();
 }
 
-void mango::text_wrapped(const string& label)
+void mango::text_wrapped(const string& text)
 {
     ImGui::BeginGroup();
-    int32 last           = 0;
-    int32 next           = 0;
-    auto text_size       = ImGui::CalcTextSize(label.substr(last).c_str());
+    int64 last           = 0;
+    int64 next           = 0;
+    auto text_size       = ImGui::CalcTextSize(text.substr(last).c_str());
     auto available_width = ImGui::GetContentRegionAvail().x;
     while (text_size.x > available_width)
     {
-        if ((next = label.find(" ", last)) != string::npos)
+        if ((next = text.find(" ", last)) != string::npos)
         {
             ImGui::AlignTextToFramePadding();
-            ImGui::Text(label.substr(last, next - last).c_str());
+            ImGui::Text(text.substr(last, next - last).c_str());
             last      = next + 1;
-            text_size = ImGui::CalcTextSize(label.substr(last).c_str());
+            text_size = ImGui::CalcTextSize(text.substr(last).c_str());
         }
         else
             break;
     }
 
     ImGui::AlignTextToFramePadding();
-    ImGui::Text(label.substr(last).c_str());
+    ImGui::Text(text.substr(last).c_str());
     ImGui::EndGroup();
 }
 

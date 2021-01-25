@@ -59,6 +59,7 @@ bool skylight_builder::init()
     m_build_specular_prefiltered_map = shader_program::create_compute_pipeline(specular_prefiltered_map_compute);
     if (!check_creation(m_build_specular_prefiltered_map.get(), "prefilter specular cubemap compute shader program"))
         return false;
+    return true;
 }
 
 bool skylight_builder::needs_rebuild()
@@ -74,12 +75,12 @@ bool skylight_builder::needs_rebuild()
     }
     return false;
 }
-
+/*
 void skylight_builder::add_atmosphere_influence(atmosphere_light* light)
 {
     new_dependencies.push_back(light);
 }
-
+*/
 void skylight_builder::build(skylight* light, skylight_cache* render_data)
 {
     PROFILE_ZONE;
@@ -100,7 +101,7 @@ void skylight_builder::build(skylight* light, skylight_cache* render_data)
     }
     else // TODO Paul: capture ... will be done soon....
     {
-        capture(compute_commands, light, render_data);
+        // capture(compute_commands, render_data);
     }
 
     {
@@ -108,8 +109,8 @@ void skylight_builder::build(skylight* light, skylight_cache* render_data)
         compute_commands->execute();
     }
 }
-
-void skylight_builder::capture(const command_buffer_ptr<min_key>& compute_commands, skylight* light, skylight_cache* render_data)
+/*
+void skylight_builder::capture(const command_buffer_ptr<min_key>& compute_commands, skylight_cache* render_data)
 {
     PROFILE_ZONE;
     texture_configuration texture_config;
@@ -132,9 +133,8 @@ void skylight_builder::capture(const command_buffer_ptr<min_key>& compute_comman
     // creating a temporal command buffer for compute shader execution.
 
     // capturing shader (we can try to do it in one call like with the shadows)
-    bind_shader_program_command* bsp = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
-    //bsp->shader_program_name         = m_capture_scene->get_name();
-
+    // bind_shader_program_command* bsp = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
+    // bsp->shader_program_name         = m_capture_scene->get_name();
 
     // bind output cubemap
     bind_image_texture_command* bit = compute_commands->create<bind_image_texture_command>(command_keys::no_sort);
@@ -156,7 +156,7 @@ void skylight_builder::capture(const command_buffer_ptr<min_key>& compute_comman
     memcpy(bsu->uniform_value, &out, sizeof(out));
 
     // execute draw calls
-    if(m_draw_commands)
+    if (m_draw_commands)
     {
         m_draw_commands->execute();
         m_draw_commands->invalidate();
@@ -169,9 +169,9 @@ void skylight_builder::capture(const command_buffer_ptr<min_key>& compute_comman
     add_memory_barrier_command* amb = compute_commands->create<add_memory_barrier_command>(command_keys::no_sort);
     amb->barrier_bit                = memory_barrier_bit::shader_image_access_barrier_bit;
 
-    calculate_ibl_maps(compute_commands, light, render_data);
+    calculate_ibl_maps(compute_commands, render_data);
 }
-
+*/
 void skylight_builder::load_from_hdr(const command_buffer_ptr<min_key>& compute_commands, skylight* light, skylight_cache* render_data)
 {
     PROFILE_ZONE;
@@ -236,10 +236,10 @@ void skylight_builder::load_from_hdr(const command_buffer_ptr<min_key>& compute_
     add_memory_barrier_command* amb = compute_commands->create<add_memory_barrier_command>(command_keys::no_sort);
     amb->barrier_bit                = memory_barrier_bit::shader_image_access_barrier_bit;
 
-    calculate_ibl_maps(compute_commands, light, render_data);
+    calculate_ibl_maps(compute_commands, render_data);
 }
 
-void skylight_builder::calculate_ibl_maps(const command_buffer_ptr<min_key>& compute_commands, skylight* light, skylight_cache* render_data)
+void skylight_builder::calculate_ibl_maps(const command_buffer_ptr<min_key>& compute_commands, skylight_cache* render_data)
 {
     if (!render_data->cubemap)
     {
@@ -375,7 +375,7 @@ void skylight_builder::clear(skylight_cache* render_data)
     render_data->specular_prefiltered_cubemap = nullptr;
     return;
 }
-
+/*
 bool atmosphere_builder::init()
 {
     return false;
@@ -386,7 +386,11 @@ bool atmosphere_builder::needs_rebuild()
     return false;
 }
 
-void atmosphere_builder::build(atmosphere_light* light, atmosphere_cache* render_data) {}
+void atmosphere_builder::build(atmosphere_light* light, atmosphere_cache* render_data)
+{
+    MANGO_UNUSED(light);
+    MANGO_UNUSED(render_data);
+}
 
 // buffer_ptr m_atmosphere_data_buffer;
 // struct atmosphere_ub_data
@@ -490,3 +494,4 @@ void atmosphere_builder::build(atmosphere_light* light, atmosphere_cache* render
 //         compute_commands->execute();
 //     }
 // }
+*/

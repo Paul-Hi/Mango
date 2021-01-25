@@ -27,6 +27,8 @@ namespace mango
 
         void destroy() override;
 
+        //! \brief Sets the input texture for the \a fxaa_step.
+        //! \param[in] input_texture The texture to use.
         inline void set_input_texture(const texture_ptr& input_texture)
         {
             if (m_input_texture != input_texture)
@@ -34,6 +36,8 @@ namespace mango
             m_input_texture = input_texture;
         }
 
+        //! \brief Sets the output framebuffer for the \a fxaa_step.
+        //! \param[in] output_buffer The framebuffer to use.
         inline void set_output_framebuffer(const framebuffer_ptr& output_buffer)
         {
             if (m_output_buffer != output_buffer)

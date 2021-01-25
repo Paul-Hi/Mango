@@ -54,7 +54,7 @@ shared_ptr<vertex_array> mesh_factory::create_vertex_array(int32& out_count)
 
     geometry->bind_index_buffer(ib);
 
-    out_count = box_index_data.size();
+    out_count = static_cast<int32>(box_index_data.size()); // TODO Paul: Cast ...
 
     return geometry;
 }
@@ -96,7 +96,7 @@ void plane_factory::append(std::vector<float>& vertex_data, std::vector<uint32>&
     if (m_generate_normals)
         stride += 3;
 
-    uint32 start_idx = vertex_data.size() / stride;
+    int32 start_idx = static_cast<int32>(vertex_data.size()) / stride; // TODO Paul: Cast...
 
     for (int32 y = 0; y < y_count; ++y)
     {
@@ -230,7 +230,7 @@ void sphere_factory::append(std::vector<float>& vertex_data, std::vector<uint32>
     if (m_generate_normals)
         stride += 3;
 
-    uint32 start_idx = vertex_data.size() / stride;
+    int32 start_idx = static_cast<int32>(vertex_data.size()) / stride; // TODO Paul: Cast...
 
     for (int32 ring = 0; ring < ring_count; ++ring)
     {

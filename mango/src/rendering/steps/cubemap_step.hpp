@@ -27,6 +27,9 @@ namespace mango
 
         void destroy() override;
 
+        //! \brief Sets the active cubemap to render.
+        //! \param[in] cubemap Pointer to the cubemap texture to set.
+        //! \param[in] model_matrix A model matrix for the cubemap.
         void set_cubemap(const texture_ptr& cubemap = nullptr, const glm::mat4& model_matrix = glm::mat4(1.0f))
         {
             m_current_cubemap           = cubemap;
@@ -53,6 +56,7 @@ namespace mango
         //! \brief The cube geometry used for rendering the skybox.
         vertex_array_ptr m_cube_geometry;
 
+        //! \brief The current cubemap to render.
         texture_ptr m_current_cubemap;
 
         //! \brief Shader program to render a cubemap.

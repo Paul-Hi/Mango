@@ -94,6 +94,7 @@ namespace mango
         entity previous_sibling = invalid_entity; //!< The previous sibling entity id.
     };
 
+    //! \brief A type for mesh_primitives.
     enum class mesh_primitive_type : uint8
     {
         plane,     //!< A plane.
@@ -105,7 +106,7 @@ namespace mango
     //! \brief Component used to describe a mesh primitive draw call.
     struct mesh_primitive_component
     {
-        shared_ptr<vertex_array> vertex_array_object; //!< The vertex array object of themesh  primitive.
+        shared_ptr<vertex_array> vertex_array_object; //!< The vertex array object of the mesh primitive.
         primitive_topology topology;                  //!< Topology of the mesh primitive data.
         int32 first;                                  //!< First index.
         int32 count;                                  //!< Number of elements/vertices.
@@ -193,31 +194,39 @@ namespace mango
         glm::mat4 view_projection;
     };
 
+    //! \brief Base component of all light components.
     struct base_light_component
     {
+        //! \brief ID of the light.
         uint32 l_id;
+        //! \brief Counstructs a \a base_light_component.
         base_light_component()
         {
             static uint32 id = 1;
             l_id             = id++;
         } // TODO Paul: These should be done differently! 0 is invalid.
+        //! \brief Active flag.
         bool active = true;
     };
 
-    // Directional light. Can be used for atmosphere lights.
+    //! \brief Component for directional lights.
     struct directional_light_component : base_light_component
     {
+        //! \brief The directional light.
         directional_light light;
     };
 
-    // Captures distant objects to use for image based lighting.
+    //! \brief Component for environmental / image based lighting.
     struct skylight_component : base_light_component
     {
+        //! \brief The skylight.
         skylight light;
     };
 
+    //! \brief Component for atmospheric Lighting.
     struct atmosphere_light_component : base_light_component
     {
+        //! \brief The atmospheric light.
         atmosphere_light light;
     };
 

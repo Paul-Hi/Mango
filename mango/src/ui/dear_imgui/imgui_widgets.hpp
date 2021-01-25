@@ -149,6 +149,10 @@ namespace mango
 
     namespace details
     {
+        //! \brief Retrieves an icon for an entity.
+        //! \param[in] application_scene The scene.
+        //! \param[in] e The entity to get an icon for.
+        //! \return The icon string.
         string get_icon_for_entity(const shared_ptr<scene>& application_scene, entity e)
         {
             if (application_scene->query_component<tag_component>(e)->tag_name == "Scene")
@@ -528,14 +532,18 @@ namespace mango
                     {
                         mat = std::make_shared<material>();
                     }
-                    else if (ImGui::Button("Load Extisting"))
-                    {
-                        MANGO_UNUSED(mat);
-                    }
+                    //else if (ImGui::Button("Load Extisting"))
+                    //{
+                    //    MANGO_UNUSED(mat);
+                    //}
                 });
             }
         }
 
+        //! \brief Draws ui for a component.
+        //! \param[in] comp Pointer to the component to draw
+        //! \param[in] component_draw_function A callback function for the main ui of the component.
+        //! \param[in] additional Callback for additional ui use in an options button.
         template <typename component>
         void draw_component(component* comp, std::function<void()> component_draw_function, std::function<bool()> additional = nullptr)
         {
@@ -1072,7 +1080,7 @@ namespace mango
 
                             ImGui::PopID();
                         }
-                        float default_value[1] = { mango::default_environment_intensity };
+                        float default_value[1] = { mango::default_skylight_intensity };
                         slider_float_n("Skylight Intensity", &s_light_comp->light.intensity, 1, default_value, 0.0f, 50000.0f, "%.1f", false);
                     }
                 },

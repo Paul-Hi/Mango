@@ -74,7 +74,7 @@ namespace mango
         bool bind_framebuffer(g_uint name);
 
         //! \brief Binds a \a buffer.
-        //! \param[in] name The OpenGL name of the \a.
+        //! \param[in] name The OpenGL name of the \a buffer.
         //! \param[in] slot The slot to bind the \a buffer to.
         //! \param[in] offset The offset to start.
         //! \return True if state changed, else false.

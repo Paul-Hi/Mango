@@ -87,7 +87,8 @@ bool editor::create()
 
         // application_scene->create_entities_from_model("res/models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.glb");
         entity sphere = application_scene->create_empty();
-        auto mat_c = application_scene->add_component<material_component>(sphere);
+        application_scene->add_component<material_component>(sphere);
+        application_scene->get_component<tag_component>(sphere)->tag_name = "Created Sphere";
         auto mpc = application_scene->add_component<mesh_primitive_component>(sphere);
         auto sf  = mesh_factory::get_sphere_factory();
         sf->set_normals(true).set_rings(22).set_segments(44).set_uv_tiling({ 2.0f, 2.0f });

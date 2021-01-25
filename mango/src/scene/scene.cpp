@@ -243,7 +243,7 @@ entity scene::create_skylight_from_hdr(const string& path)
     entity skylight_entity = create_empty();
     auto& light            = m_skylights.create_component_for(skylight_entity);
 
-    light.light.intensity   = default_environment_intensity;
+    light.light.intensity   = default_skylight_intensity;
     light.light.use_texture = true;
     // Other settings are correct by default.
 
@@ -298,7 +298,7 @@ entity scene::create_skylight_from_hdr(const string& path)
 //     environment.type_of_light          = light_type::environment;
 //     environment.data                   = std::make_shared<environment_light_data>();
 //     auto el_data                       = static_cast<mango::environment_light_data*>(environment.data.get());
-//     el_data->intensity                 = default_environment_intensity;
+//     el_data->intensity                 = default_skylight_intensity;
 //     el_data->render_sun_as_directional = true;
 //     el_data->create_atmosphere         = true;
 //     // sun data as well as scattering parameters are all default initialized.

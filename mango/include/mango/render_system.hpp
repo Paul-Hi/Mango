@@ -123,12 +123,13 @@ namespace mango
         bool m_render_steps[render_step::number_of_step_types];
     };
 
+    //! \brief Filter specification for shadow map samples.
     enum class shadow_filtering : uint8
     {
-        hard_shadows   = 0,
-        softer_shadows = 1,
-        soft_shadows   = 2,
-        pcss           = 3,
+        hard_shadows   = 0, //!< Shadows point filtered, hard edge.
+        softer_shadows = 1, //!< Shadows bilinear filtered, smooth edges.
+        soft_shadows   = 2, //!< Shadows bilinear filtered, smooth edges. Bigger filter then soft.
+        pcss           = 3, //!< Shadows bilinear filtered, smooth edges. Filter width depends on distance from occluder and light size.
         count          = 4
     };
 
@@ -195,7 +196,7 @@ namespace mango
         //! \brief Sets the light size.
         //! \param[in] light_size The size of the virtual pcss light.
         //! \return A reference to the modified \a shadow_step_configuration.
-        inline shadow_step_configuration& set_light_size(int32 light_size)
+        inline shadow_step_configuration& set_light_size(float light_size)
         {
             m_light_size = light_size;
             return *this;
@@ -248,8 +249,8 @@ namespace mango
         }
 
         //! \brief Sets range, the cascades get interpolated between.
-        //! \param[in] lambda The interpolation_range to use.
-        //! \details  SHould be between 0 and 10. Bigger values need more pc power.
+        //! \param[in] interpolation_range The interpolation range to use.
+        //! \details  Should be between 0 and 10. Bigger values need more pc power.
         //! \return A reference to the modified \a shadow_step_configuration.
         inline shadow_step_configuration& set_cascade_interpolation_range(float interpolation_range)
         {
@@ -258,7 +259,7 @@ namespace mango
         }
 
         //! \brief Sets the \a shadow_filtering mode.
-        //! \param[in] cascade_count The number of shadow mapping cascades.
+        //! \param[in] filter_mode The filter mode to use.
         //! \return A reference to the modified \a shadow_step_configuration.
         inline shadow_step_configuration& set_filter_mode(shadow_filtering filter_mode)
         {
@@ -397,6 +398,7 @@ namespace mango
         float m_render_level;
     };
 
+    //! \brief Presets for fxaa quality.
     enum class fxaa_quality_preset : uint8
     {
         medium_quality  = 0,
@@ -426,7 +428,7 @@ namespace mango
         }
 
         //! \brief Sets the \a fxaa_quality_preset to render the fxaa with.
-        //! \param[in] render_level The \a fxaa_quality_preset to render the fxaa with.
+        //! \param[in] quality The \a fxaa_quality_preset to render the fxaa with.
         //! \return A reference to the modified \a fxaa_step_configuration.
         inline fxaa_step_configuration& set_quality_preset(fxaa_quality_preset quality)
         {
@@ -442,7 +444,7 @@ namespace mango
         }
 
         //! \brief Sets the  subpixel filter value to render the fxaa with.
-        //! \param[in] render_level The  subpixel filter value to render the fxaa with.
+        //! \param[in] subpixel_filter The  subpixel filter value to render the fxaa with.
         //! \return A reference to the modified \a fxaa_step_configuration.
         inline fxaa_step_configuration& set_subpixel_filter(float subpixel_filter)
         {

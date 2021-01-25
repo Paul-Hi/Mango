@@ -11,10 +11,11 @@
 
 namespace mango
 {
+    //! \brief Structure describing a define in a shader.
     struct shader_define
     {
-        const char* name;
-        const char* value;
+        const char* name; //!< The name of the define.
+        const char* value; //!< The value of the define.
     };
 
     //! \brief A configuration for \a shaders.
@@ -30,6 +31,7 @@ namespace mango
         //! \brief Constructs a new \a shader_configuration.
         //! \param[in] path The path to the shader source.
         //! \param[in] type The type of the shader.
+        //! \param[in] defines The defines to inject into the shader.
         shader_configuration(const char* path, shader_type type, std::initializer_list<shader_define> defines)
             : graphics_configuration()
             , path(path)
@@ -44,6 +46,7 @@ namespace mango
         //! \brief The type of the shader described by the source.
         shader_type type = shader_type::none;
 
+        //! \brief The defines injected into the shader.
         std::vector<shader_define> defines;
 
         bool is_valid() const

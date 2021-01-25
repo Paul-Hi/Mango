@@ -278,7 +278,16 @@ namespace mango
         //! \param[in] fxaa_command_buffer The shared pointer to the \a command_buffer of the \a fxaa_step, or null.
         void execute_commands(const command_buffer_ptr<min_key>& ibl_command_buffer, const command_buffer_ptr<max_key>& shadow_command_buffer, const command_buffer_ptr<min_key>& fxaa_command_buffer);
 
+        //! \brief Sets up commands for a new mesh.
+        //! \param[in,out] draw_buffer The command_buffer to add the commands to.
+        //! \param[in] mesh_key The key used for sorting later on.
+        //! \param[in] simplified True if mesh should bound for shadow mapping, else false.
+        //! \return The last \a bind_texture_command to append to.
         bind_texture_command* begin_mesh_draw(const command_buffer_ptr<max_key>& draw_buffer, max_key mesh_key, bool simplified = false);
+        //! \brief Sets up commands for a material.
+        //! \param[in,out] draw_buffer The command_buffer to add the commands to.
+        //! \param[in] last_command The previous command to append to.
+        //! \return The last \a bind_texture_command to append to.
         bind_texture_command* bind_material_textures(const command_buffer_ptr<max_key>& draw_buffer, bind_buffer_command* last_command);
 
 #ifdef MANGO_DEBUG

@@ -14,9 +14,13 @@
 
 namespace mango
 {
+    //! \brief djb2_string_hash
     class djb2_string_hash
     {
       public:
+        //! \brief Calculate the string hash for a given string.
+        //! \param[in] str The string to hash.
+        //! \return The hash.
         static uint64 hash(const char* str)
         {
             uint64 hash = 5381;

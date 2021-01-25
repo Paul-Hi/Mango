@@ -148,4 +148,5 @@ bool win32_window_system::create_window()
 
     MANGO_LOG_DEBUG("Window Position is ({0}, {1})", pos_x, pos_y);
     MANGO_LOG_DEBUG("Window Size is {0} x {1}", width, height);
+    return true;
 }

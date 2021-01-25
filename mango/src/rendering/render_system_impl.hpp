@@ -144,6 +144,7 @@ namespace mango
         //! \brief Mangos internal context for shared usage in all \a render_systems.
         shared_ptr<context_impl> m_shared_context;
 
+        //! \brief The light stack managing all lights.
         light_stack m_light_stack;
 
         //! \brief The hardware stats.
@@ -152,10 +153,12 @@ namespace mango
         //! \brief True if vertical synchronization is enabled, else False.
         bool m_vsync;
 
+        //! \brief Function can be used to create render_system resources on startup.
+        //! \return True on success, else false.
         virtual bool create_renderer_resources()
         {
             return true;
-        }
+        };
 
       private:
         //! \brief A shared pointer to the currently used internal \a render_system.

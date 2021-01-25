@@ -189,7 +189,7 @@ image_resource* resource_system::load_image_from_file(const image_resource_confi
             return nullptr;
         }
 
-        int64 img_len = width * height * components * sizeof(float);
+        img_len = width * height * components * sizeof(float);
         img->data     = m_allocator.allocate(img_len);
         memcpy(img->data, (void*)data, img_len);
         stbi_image_free(data);

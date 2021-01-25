@@ -302,30 +302,34 @@ namespace mango
 
     //! \brief The default intensity of a directional light. Is approx. the intensity of the sun.
     const float default_directional_intensity = 110000.0f;
-    //! \brief The default intensity of an environment. Is approx. the intensity of a sunny sky.
-    const float default_environment_intensity = 30000.0f;
-    const float default_skylight_intensity    = 30000.0f;
+    //! \brief The default intensity of a skylight. Is approx. the intensity of a sunny sky.
+    const float default_skylight_intensity = 30000.0f;
 
-    // communication types
+    //! \brief Model type to identify lights.
     enum class light_model : uint8
     {
-        directional, //!< Simple directional light.
-        skylight,
-        atmosphere
+        directional, //!< Simple directional light type.
+        skylight,    //!< Skylight type.
+        atmosphere   //!< Atmospherical light type.
     };
 
+    //! \brief Base class for all lights in mango.
     struct mango_light
     {
+        //! \brief Model of the light.
         light_model model;
         mango_light() = delete;
 
       protected:
+        //! \brief Constructs a base light with a type.
+        //! \param[in] model The model type to use.
         mango_light(light_model model)
             : model(model)
         {
         }
     };
 
+    //! \brief Directional light class.
     struct directional_light : mango_light
     {
         directional_light()
@@ -346,6 +350,7 @@ namespace mango
     };
 
     class texture;
+    //! \brief Sklight class.
     struct skylight : mango_light
     {
         skylight()
@@ -358,15 +363,19 @@ namespace mango
         {
         }
 
-        shared_ptr<texture> hdr_texture; // optional
-        float intensity;
-        bool use_texture;
-        bool dynamic;
-        bool local;
+        shared_ptr<texture> hdr_texture; //!< The optional hdr texture.
+        float intensity;                 //!< The intensity in lux (cd/m^2).
+        bool use_texture;                //!< True if texture should be used, else false.
+        bool dynamic;                    //!< True if the skylight should get automatic updates (reflection capture).
+        bool local;                      //!< True if the skylight influences only a local area.
     };
 
+    //! \brief Atmospherical light class.
     struct atmosphere_light : mango_light
     {
+        atmosphere_light()
+            : mango_light(light_model::atmosphere){};
+        /*
         atmosphere_light()
             : mango_light(light_model::atmosphere)
             , intensity_multiplier(1.0f)
@@ -394,6 +403,7 @@ namespace mango
         float atmosphere_radius;
         float view_height;
         float mie_preferred_scattering_dir;
+        */
     };
 
     //! \cond NO_COND

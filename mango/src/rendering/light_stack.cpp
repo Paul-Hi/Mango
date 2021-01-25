@@ -28,7 +28,7 @@ bool light_stack::init()
 
     bool success = m_skylight_builder.init();
 
-    success &= m_atmosphere_builder.init();
+    // success &= m_atmosphere_builder.init();
 
     create_brdf_lookup();
     if (!m_brdf_integration_lut)
@@ -272,11 +272,11 @@ void light_stack::update_atmosphere_lights()
         if (a.dirty)
         {
             // recreate atmosphere LUTs
-            auto light                    = static_cast<atmosphere_light*>(a.light);
+            // auto light                    = static_cast<atmosphere_light*>(a.light);
             atmosphere_cache* cached_data = static_cast<atmosphere_cache*>(m_allocator.allocate(sizeof(atmosphere_cache)));
             MANGO_ASSERT(cached_data, "Light Stack Out Of Memory!");
             memset(cached_data, 0, sizeof(atmosphere_cache));
-            m_atmosphere_builder.build(light, cached_data);
+            // m_atmosphere_builder.build(light, cached_data);
 
             if (found)
             {
@@ -317,7 +317,7 @@ void light_stack::update_skylights()
         {
             for (auto& a : m_atmosphere_stack)
             {
-                m_skylight_builder.add_atmosphere_influence(static_cast<atmosphere_light*>(a.light));
+                // m_skylight_builder.add_atmosphere_influence(static_cast<atmosphere_light*>(a.light));
                 s.dirty |= a.dirty;
             }
             s.dirty |= m_skylight_builder.needs_rebuild();

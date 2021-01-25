@@ -35,6 +35,7 @@ namespace mango
     {
         friend class resource_system;
       private:
+        //! \brief Reference counter.
         int32 reference_count = 0;
     };
 
