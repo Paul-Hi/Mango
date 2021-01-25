@@ -130,7 +130,7 @@ def getDependencies():
 
         f = open('./imgui/CMakeLists.txt','w+')
         f.write('project(imgui)\r\n')
-        f.write('add_library(imgui imgui.cpp imgui_demo.cpp imgui_draw.cpp imgui_widgets.cpp imgui.h imconfig.h imgui_internal.h imstb_rectpack.h imstb_textedit.h imstb_truetype.h)\r\n')
+        f.write('add_library(imgui imgui.cpp imgui_demo.cpp imgui_draw.cpp imgui_widgets.cpp imgui_tables.cpp imgui.h imconfig.h imgui_internal.h imstb_rectpack.h imstb_textedit.h imstb_truetype.h)\r\n')
         f.write('target_include_directories(imgui SYSTEM PUBLIC .)\r\n')
         f.close()
 
