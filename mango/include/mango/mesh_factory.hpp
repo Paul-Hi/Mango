@@ -24,21 +24,21 @@ namespace mango
       public:
         //! \brief Get a plane factory.
         //! \return A shared_ptr to a \a plane_factory.
-        static shared_ptr<plane_factory> mesh_factory::get_plane_factory()
+        static shared_ptr<plane_factory> get_plane_factory()
         {
             return std::make_shared<plane_factory>();
         }
 
         //! \brief Get a box factory.
         //! \return A shared_ptr to a \a box_factory.
-        static shared_ptr<box_factory> mesh_factory::get_box_factory()
+        static shared_ptr<box_factory> get_box_factory()
         {
             return std::make_shared<box_factory>();
         }
 
         //! \brief Get a sphere factory.
         //! \return A shared_ptr to a \a sphere_factory.
-        static shared_ptr<sphere_factory> mesh_factory::get_sphere_factory()
+        static shared_ptr<sphere_factory> get_sphere_factory()
         {
             return std::make_shared<sphere_factory>();
         }

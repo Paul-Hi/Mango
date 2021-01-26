@@ -25,7 +25,7 @@ namespace mango
         {
             uint64 hash = 5381;
             int64 c;
-            while (c = *str++)
+            while ((c = *str++))
                 hash = ((hash << 5) + hash) + c; // hash * 33 + c
             return hash;
         }

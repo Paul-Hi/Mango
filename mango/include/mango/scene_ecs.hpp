@@ -248,7 +248,7 @@ namespace mango
             return typeid(T).name();
         }
 
-        static const int32 id()
+        static int32 id()
         {
             return -1;
         }
@@ -262,7 +262,7 @@ namespace mango
             return "Tag Component";
         }
 
-        static const int32 id()
+        static int32 id()
         {
             return 0;
         }
@@ -275,7 +275,7 @@ namespace mango
             return "Transform Component";
         }
 
-        static const int32 id()
+        static int32 id()
         {
             return 1;
         }
@@ -288,7 +288,7 @@ namespace mango
             return "Node Component";
         }
 
-        static const int32 id()
+        static int32 id()
         {
             return 2;
         }
@@ -301,7 +301,7 @@ namespace mango
             return "Mesh Primitive Component";
         }
 
-        static const int32 id()
+        static int32 id()
         {
             return 3;
         }
@@ -314,7 +314,7 @@ namespace mango
             return "Material Component";
         }
 
-        static const int32 id()
+        static int32 id()
         {
             return 4;
         }
@@ -327,7 +327,7 @@ namespace mango
             return "Model Component";
         }
 
-        static const int32 id()
+        static int32 id()
         {
             return 5;
         }
@@ -340,7 +340,7 @@ namespace mango
             return "Camera Component";
         }
 
-        static const int32 id()
+        static int32 id()
         {
             return 6;
         }
@@ -353,7 +353,7 @@ namespace mango
             return "Directional Light Component";
         }
 
-        static const int32 id()
+        static int32 id()
         {
             return 7;
         }
@@ -366,7 +366,7 @@ namespace mango
             return "Atmosphere Light Component";
         }
 
-        static const int32 id()
+        static int32 id()
         {
             return 8;
         }
@@ -379,7 +379,7 @@ namespace mango
             return "Skylight Component";
         }
 
-        static const int32 id()
+        static int32 id()
         {
             return 9;
         }

@@ -275,7 +275,7 @@ void light_stack::update_atmosphere_lights()
             // auto light                    = static_cast<atmosphere_light*>(a.light);
             atmosphere_cache* cached_data = static_cast<atmosphere_cache*>(m_allocator.allocate(sizeof(atmosphere_cache)));
             MANGO_ASSERT(cached_data, "Light Stack Out Of Memory!");
-            memset(cached_data, 0, sizeof(atmosphere_cache));
+            // (cached_data, 0, sizeof(atmosphere_cache));
             // m_atmosphere_builder.build(light, cached_data);
 
             if (found)
@@ -329,7 +329,7 @@ void light_stack::update_skylights()
             // recreate skylight cubemaps
             skylight_cache* cached_data = static_cast<skylight_cache*>(m_allocator.allocate(sizeof(skylight_cache)));
             MANGO_ASSERT(cached_data, "Light Stack Out Of Memory!");
-            memset(cached_data, 0, sizeof(skylight_cache));
+            // memset(cached_data, 0, sizeof(skylight_cache));
             m_skylight_builder.build(light, cached_data);
 
             if (found)

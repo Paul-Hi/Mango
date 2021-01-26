@@ -78,10 +78,10 @@ const image_resource* resource_system::acquire(const image_resource_configuratio
     }
 }
 
-const void resource_system::release(const image_resource* resource)
+void resource_system::release(const image_resource* resource)
 {
     PROFILE_ZONE;
-    auto cached = std::find_if(std::begin(m_resource_cache), std::end(m_resource_cache), [&resource](auto&& r) { return r.second == (void*)resource; });
+    auto cached = std::find_if(std::begin(m_resource_cache), std::end(m_resource_cache), [&resource](std::pair<resource_id, void*>&& r) { return r.second == (void*)resource; });
     if (cached == m_resource_cache.end())
     {
         return;
@@ -121,10 +121,10 @@ const model_resource* resource_system::acquire(const model_resource_configuratio
     }
 }
 
-const void resource_system::release(const model_resource* resource)
+void resource_system::release(const model_resource* resource)
 {
     PROFILE_ZONE;
-    auto cached = std::find_if(std::begin(m_resource_cache), std::end(m_resource_cache), [&resource](auto&& r) { return r.second == (void*)resource; });
+    auto cached = std::find_if(std::begin(m_resource_cache), std::end(m_resource_cache), [&resource](std::pair<resource_id, void*>&& r) { return r.second == (void*)resource; });
     if (cached == m_resource_cache.end())
     {
         return;
@@ -208,7 +208,7 @@ model_resource* resource_system::load_model_from_file(const model_resource_confi
     PROFILE_ZONE;
 
     void* mem         = m_allocator.allocate(sizeof(model_resource));
-    model_resource* m = new (mem) model_resource();
+    model_resource* m = new (mem) model_resource;
 
     tinygltf::TinyGLTF loader;
     string err;

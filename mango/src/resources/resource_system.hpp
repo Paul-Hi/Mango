@@ -51,7 +51,7 @@ namespace mango
         const image_resource* acquire(const image_resource_configuration& configuration);
         //! \brief Releases an aquired \a image_resource.
         //! \param[in] resource The \a image_resource to release.
-        const void release(const image_resource* resource);
+        void release(const image_resource* resource);
 
         //! \brief Retrieves, lazy loads and returns a \a model_resource.
         //! \param[in] configuration The \a model_resource_configuration used for retrieving the \a model_resource.
@@ -59,7 +59,7 @@ namespace mango
         const model_resource* acquire(const model_resource_configuration& configuration);
         //! \brief Releases an aquired \a model_resource.
         //! \param[in] resource The \a model_resource to release.
-        const void release(const model_resource* resource);
+        void release(const model_resource* resource);
 
       private:
         //! \brief Mangos internal context for shared usage in the \a resource_system.

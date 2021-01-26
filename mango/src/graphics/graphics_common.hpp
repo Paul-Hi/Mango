@@ -243,9 +243,9 @@ namespace mango
 
       private:
         float v;
-        float p0;
-        float p1;
-        float p2;
+        float p0 = 0.0f;
+        float p1 = 0.0f;
+        float p2 = 0.0f;
         //! \endcond
     };
 
@@ -306,7 +306,7 @@ namespace mango
 
       private:
         glm::vec3 v;
-        float pad;
+        float pad = 0.0f;
         //! \endcond
     };
 
@@ -372,6 +372,8 @@ namespace mango
                 return r1;
             case 2:
                 return r2;
+            default:
+                MANGO_ASSERT(false); // TODO Paul: Ouch!
             }
         }
 
@@ -419,6 +421,8 @@ namespace mango
                 return r2;
             case 3:
                 return r3;
+            default:
+                MANGO_ASSERT(false); // TODO Paul: Ouch!
             }
         }
 

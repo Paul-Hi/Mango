@@ -34,7 +34,7 @@ void mango::text_wrapped(const string& text)
     auto available_width = ImGui::GetContentRegionAvail().x;
     while (text_size.x > available_width)
     {
-        if ((next = text.find(" ", last)) != string::npos)
+        if ((next = text.find(" ", last)) != static_cast<int64>(string::npos))
         {
             ImGui::AlignTextToFramePadding();
             ImGui::Text(text.substr(last, next - last).c_str());

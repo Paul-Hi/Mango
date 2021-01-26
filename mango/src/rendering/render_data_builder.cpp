@@ -68,7 +68,7 @@ bool skylight_builder::needs_rebuild()
         return true;
 
     // order change is important here
-    for (int32 i = 0; i < old_dependencies.size(); ++i)
+    for (int32 i = 0; i < static_cast<int32>(old_dependencies.size()); ++i)
     {
         if (old_dependencies.at(i) != new_dependencies.at(i))
             return true;

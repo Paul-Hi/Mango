@@ -72,7 +72,7 @@ void fxaa_step::configure(const fxaa_step_configuration& configuration)
     m_subpixel_filter = configuration.get_subpixel_filter();
 }
 
-void fxaa_step::execute(gpu_buffer_ptr frame_uniform_buffer)
+void fxaa_step::execute(gpu_buffer_ptr)
 {
     PROFILE_ZONE;
     if (!m_fxaa_command_buffer->dirty() || !m_input_texture || !m_output_buffer)
