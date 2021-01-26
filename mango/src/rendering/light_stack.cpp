@@ -327,22 +327,22 @@ void light_stack::update_skylights()
         if (s.dirty)
         {
             // recreate skylight cubemaps
-            skylight_cache* cached_data = static_cast<skylight_cache*>(m_allocator.allocate(sizeof(skylight_cache)));
+            void* cached_data = m_allocator.allocate(sizeof(skylight_cache));
             MANGO_ASSERT(cached_data, "Light Stack Out Of Memory!");
-            // memset(cached_data, 0, sizeof(skylight_cache));
-            m_skylight_builder.build(light, cached_data);
+            memset(cached_data, 0, sizeof(skylight_cache));
+            m_skylight_builder.build(light, static_cast<skylight_cache*>(cached_data));
 
             if (found)
             {
                 m_light_cache.at(s.id).light_checksum = checksum;
                 m_allocator.free_memory(m_light_cache.at(s.id).data);
-                m_light_cache.at(s.id).data = cached_data;
+                m_light_cache.at(s.id).data = static_cast<skylight_cache*>(cached_data);
             }
             else
             {
                 cache_entry new_entry;
                 new_entry.light_checksum = checksum;
-                new_entry.data           = cached_data;
+                new_entry.data           = static_cast<skylight_cache*>(cached_data);
                 new_entry.expired        = false;
                 m_light_cache.insert({ s.id, new_entry });
             }
