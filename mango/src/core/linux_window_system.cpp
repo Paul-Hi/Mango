@@ -80,7 +80,7 @@ void linux_window_system::configure(const window_configuration& configuration)
     if (!create_window())
     {
         MANGO_LOG_ERROR("Window creation failed!");
-        return false;
+        return;
     }
 
 #ifdef MANGO_DEBUG

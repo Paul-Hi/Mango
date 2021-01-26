@@ -373,7 +373,7 @@ namespace mango
             case 2:
                 return r2;
             default:
-                MANGO_ASSERT(false); // TODO Paul: Ouch!
+                MANGO_ASSERT(false, "3D Vector has only 3 components!"); // TODO Paul: Ouch!
             }
         }
 
@@ -422,7 +422,7 @@ namespace mango
             case 3:
                 return r3;
             default:
-                MANGO_ASSERT(false); // TODO Paul: Ouch!
+                MANGO_ASSERT(false, "3D Vector has only 3 components!"); // TODO Paul: Ouch!
             }
         }
 
