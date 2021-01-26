@@ -48,6 +48,12 @@ namespace mango
         //! \details An entity with \a camera_component and \a transform_component.
         //! All the components are prefilled. Camera has a perspective projection.
         //! \return The created camera entity.
+        entity create_default_scene_camera();
+
+        //! \brief Creates a camera entity not attached to the scene.
+        //! \details An entity with \a camera_component and \a transform_component.
+        //! All the components are prefilled. Camera has a perspective projection.
+        //! \return The created camera entity.
         entity create_default_camera();
 
         //! \brief Creates entities from a model loaded from a gltf file.
@@ -59,11 +65,19 @@ namespace mango
         entity create_entities_from_model(const string& path, entity gltf_root = invalid_entity);
 
         //! \brief Creates an environment entity.
-        //! \details An entity with \a environment_component.
+        //! \details An entity with \a environment_component. ATTENTION: This creates the \a light_data and fills it. Do not recreate it.
         //! The environment texture is preprocessed, prefiltered and can be rendered as a cube. This is done with a \a pipeline_step.
         //! \param[in] path The path to the hdr image to load.
         //! \return The created environment entity.
-        entity create_environment_from_hdr(const string& path);
+        entity create_skylight_from_hdr(const string& path);
+
+        // //! \brief Creates an environment entity.
+        // //! \details An entity with \a environment_component. ATTENTION: This creates the \a light_data and fills it. Do not recreate it.
+        // //! The atmosphere is generated, preprocessed, prefiltered and can be rendered as a cube. This is done with a \a pipeline_step.
+        // //! \param[in] sun_direction The sun direction to use or vec3(-1.0f) if renderer should choose the sun.
+        // //! \param[in] sun_intensity The sun intensity to use or -1.0f if renderer should choose the sun.
+        // //! \return The created environment entity.
+        // entity create_atmospheric_environment(const glm::vec3& sun_direction = glm::vec3(-1.0f), float sun_intensity = -1.0f);
 
         //! \brief Attach an \a entity to another entity in a child <-> parent realationship.
         //! \details Adds a \a node_component. Used for building hierarchies.
@@ -76,228 +90,158 @@ namespace mango
         //! \param[in] node The \a entity to detach.
         void detach(entity node);
 
-        //! \brief Retrieves the \a transform_component from a specific \a entity.
-        //! \param[in] e The \a entity to get the \a transform_component for.
-        //! \return The \a transform_component or nullptr if non-existent.
-        inline transform_component* get_transform_component(entity e)
+        //! \brief Retrieves a \a component from a specific \a entity.
+        //! \details Should NOT be stored for a long time period.
+        //! \param[in] e The \a entity to get the \a component for.
+        //! \return A pointer to the \a component or nullptr if non-existent.
+        template <typename comp>
+        inline comp* get_component(entity e)
         {
-            return m_transformations.get_component_for_entity(e);
+            switch (type_name<comp>::id())
+            {
+            case 0:
+                return (comp*)m_tags.get_component_for_entity(e);
+            case 1:
+                return (comp*)m_transformations.get_component_for_entity(e);
+            case 2:
+                return (comp*)m_nodes.get_component_for_entity(e);
+            case 3:
+                return (comp*)m_mesh_primitives.get_component_for_entity(e);
+            case 4:
+                return (comp*)m_materials.get_component_for_entity(e);
+            case 5:
+                return (comp*)m_models.get_component_for_entity(e);
+            case 6:
+                return (comp*)m_cameras.get_component_for_entity(e);
+            case 7:
+                return (comp*)m_directional_lights.get_component_for_entity(e);
+            case 8:
+                return (comp*)m_atmosphere_lights.get_component_for_entity(e);
+            case 9:
+                return (comp*)m_skylights.get_component_for_entity(e);
+            default:
+                MANGO_LOG_ERROR("No component id matches the component!");
+                return nullptr;
+            }
         }
 
-        //! \brief Retrieves the \a camera_component from a specific \a entity.
-        //! \param[in] e The \a entity to get the \a camera_component for.
-        //! \return The \a camera_component or nullptr if non-existent.
-        inline camera_component* get_camera_component(entity e)
-        {
-            return m_cameras.get_component_for_entity(e);
-        }
-
-        //! \brief Retrieves the \a model_component from a specific \a entity.
-        //! \param[in] e The \a entity to get the \a model_component for.
-        //! \return The \a model_component or nullptr if non-existent.
-        inline model_component* get_model_component(entity e)
-        {
-            return m_models.get_component_for_entity(e);
-        }
-
-        //! \brief Retrieves the \a mesh_component from a specific \a entity.
-        //! \param[in] e The \a entity to get the \a mesh_component for.
-        //! \return The \a mesh_component or nullptr if non-existent.
-        inline mesh_component* get_mesh_component(entity e)
-        {
-            return m_meshes.get_component_for_entity(e);
-        }
-
-        //! \brief Retrieves the \a tag_component from a specific \a entity.
-        //! \param[in] e The \a entity to get the \a tag_component for.
-        //! \return The \a tag_component or nullptr if non-existent.
-        inline tag_component* get_tag(entity e)
-        {
-            return m_tags.get_component_for_entity(e);
-        }
-
-        //! \brief Retrieves the \a environment_component from a specific \a entity.
-        //! \param[in] e The \a entity to get the \a environment_component for.
-        //! \return The \a environment_component or nullptr if non-existent.
-        inline environment_component* get_environment_component(entity e)
-        {
-            return m_environments.get_component_for_entity(e);
-        }
-
-        //! \brief Retrieves the \a light_component from a specific \a entity.
-        //! \param[in] e The \a entity to get the \a light_component for.
-        //! \return The \a light_component or nullptr if non-existent.
-        inline light_component* get_light_component(entity e)
-        {
-            return m_lights.get_component_for_entity(e);
-        }
-
-        //! \brief Queries the \a transform_component from a specific \a entity.
+        //! \brief Queries a \a component from a specific \a entity.
         //! \details Does the same as get, but is non verbose, when component is non existent.
-        //! \param[in] e The \a entity to get the \a transform_component for.
-        //! \return The \a transform_component or nullptr if non-existent.
-        inline transform_component* query_transform_component(entity e)
+        //! \details Should NOT be stored for a long time period.
+        //! \param[in] e The \a entity to get the \a component for.
+        //! \return A pointer to the \a component or nullptr if non-existent.
+        template <typename comp>
+        inline comp* query_component(entity e)
         {
-            return m_transformations.get_component_for_entity(e, true);
+            switch (type_name<comp>::id())
+            {
+            case 0:
+                return (comp*)m_tags.get_component_for_entity(e, true);
+            case 1:
+                return (comp*)m_transformations.get_component_for_entity(e, true);
+            case 2:
+                return (comp*)m_nodes.get_component_for_entity(e, true);
+            case 3:
+                return (comp*)m_mesh_primitives.get_component_for_entity(e, true);
+            case 4:
+                return (comp*)m_materials.get_component_for_entity(e, true);
+            case 5:
+                return (comp*)m_models.get_component_for_entity(e, true);
+            case 6:
+                return (comp*)m_cameras.get_component_for_entity(e, true);
+            case 7:
+                return (comp*)m_directional_lights.get_component_for_entity(e, true);
+            case 8:
+                return (comp*)m_atmosphere_lights.get_component_for_entity(e, true);
+            case 9:
+                return (comp*)m_skylights.get_component_for_entity(e, true);
+            default:
+                MANGO_LOG_ERROR("No component id matches the component!");
+                return nullptr;
+            }
         }
 
-        //! \brief Queries the \a camera_component from a specific \a entity.
-        //! \details Does the same as get, but is non verbose, when component is non existent.
-        //! \param[in] e The \a entity to get the \a camera_component for.
-        //! \return The \a camera_component or nullptr if non-existent.
-        inline camera_component* query_camera_component(entity e)
+        //! \brief Adds a \a component to a specific \a entity.
+        //! \details Should NOT be stored for a long time period.
+        //! \param[in] e The \a entity to add the \a component to.
+        //! \return A pointer to the created \a component or nullptr if non-existent.
+        template <typename comp>
+        inline comp* add_component(entity e)
         {
-            return m_cameras.get_component_for_entity(e, true);
+            switch (type_name<comp>::id())
+            {
+            case 0:
+                return (comp*)&m_tags.create_component_for(e);
+            case 1:
+                return (comp*)&m_transformations.create_component_for(e);
+            case 2:
+                return (comp*)&m_nodes.create_component_for(e);
+            case 3:
+                return (comp*)&m_mesh_primitives.create_component_for(e);
+            case 4:
+                return (comp*)&m_materials.create_component_for(e);
+            case 5:
+                return (comp*)&m_models.create_component_for(e);
+            case 6:
+                return (comp*)&m_cameras.create_component_for(e);
+            case 7:
+                return (comp*)&m_directional_lights.create_component_for(e);
+            case 8:
+                return (comp*)&m_atmosphere_lights.create_component_for(e);
+            case 9:
+                return (comp*)&m_skylights.create_component_for(e);
+            default:
+                MANGO_LOG_CRITICAL("No component id matches the component!");
+                return nullptr;
+            }
         }
 
-        //! \brief Queries the \a model_component from a specific \a entity.
-        //! \details Does the same as get, but is non verbose, when component is non existent.
-        //! \param[in] e The \a entity to get the \a model_component for.
-        //! \return The \a model_component or nullptr if non-existent.
-        inline model_component* query_model_component(entity e)
+        //! \brief Removes a \a component from a specific \a entity.
+        //! \param[in] e The \a entity to remove the \a component from.
+        template <typename comp>
+        inline void remove_component(entity e)
         {
-            return m_models.get_component_for_entity(e, true);
-        }
-
-        //! \brief Queries the \a mesh_component from a specific \a entity.
-        //! \details Does the same as get, but is non verbose, when component is non existent.
-        //! \param[in] e The \a entity to get the \a mesh_component for.
-        //! \return The \a mesh_component or nullptr if non-existent.
-        inline mesh_component* query_mesh_component(entity e)
-        {
-            return m_meshes.get_component_for_entity(e, true);
-        }
-
-        //! \brief Queries the \a tag_component from a specific \a entity.
-        //! \details Does the same as get, but is non verbose, when component is non existent.
-        //! \param[in] e The \a entity to get the \a tag_component for.
-        //! \return The \a tag_component or nullptr if non-existent.
-        inline tag_component* query_tag(entity e)
-        {
-            return m_tags.get_component_for_entity(e, true);
-        }
-
-        //! \brief Queries the \a environment_component from a specific \a entity.
-        //! \details Does the same as get, but is non verbose, when component is non existent.
-        //! \param[in] e The \a entity to get the \a environment_component for.
-        //! \return The \a environment_component or nullptr if non-existent.
-        inline environment_component* query_environment_component(entity e)
-        {
-            return m_environments.get_component_for_entity(e, true);
-        }
-
-        //! \brief Queries the \a light_component from a specific \a entity.
-        //! \details Does the same as get, but is non verbose, when component is non existent.
-        //! \param[in] e The \a entity to get the \a light_component for.
-        //! \return The \a light_component or nullptr if non-existent.
-        inline light_component* query_light_component(entity e)
-        {
-            return m_lights.get_component_for_entity(e, true);
-        }
-
-        //! \brief Adds \a transform_component to a specific \a entity.
-        //! \param[in] e The \a entity to add the \a transform_component to.
-        //! \return A reference to the created \a transform_component.
-        inline transform_component& add_transform_component(entity e)
-        {
-            return m_transformations.create_component_for(e);
-        }
-
-        //! \brief Adds \a camera_component to a specific \a entity.
-        //! \param[in] e The \a entity to add the \a camera_component to.
-        //! \return A reference to the created \a camera_component.
-        inline camera_component& add_camera_component(entity e)
-        {
-            return m_cameras.create_component_for(e);
-        }
-
-        //! \brief Adds \a model_component to a specific \a entity.
-        //! \param[in] e The \a entity to add the \a model_component to.
-        //! \return A reference to the created \a model_component.
-        inline model_component& add_model_component(entity e)
-        {
-            return m_models.create_component_for(e);
-        }
-
-        //! \brief Adds \a mesh_component to a specific \a entity.
-        //! \param[in] e The \a entity to add the \a mesh_component to.
-        //! \return A reference to the created \a mesh_component.
-        inline mesh_component& add_mesh_component(entity e)
-        {
-            return m_meshes.create_component_for(e);
-        }
-
-        //! \brief Adds \a tag_component to a specific \a entity.
-        //! \param[in] e The \a entity to add the \a tag_component to.
-        //! \return A reference to the created \a tag_component.
-        inline tag_component& add_tag(entity e)
-        {
-            return m_tags.create_component_for(e);
-        }
-
-        //! \brief Adds \a environment_component to a specific \a entity.
-        //! \param[in] e The \a entity to add the \a environment_component to.
-        //! \return A reference to the created \a environment_component.
-        inline environment_component& add_environment_component(entity e)
-        {
-            return m_environments.create_component_for(e);
-        }
-
-        //! \brief Adds \a light_component to a specific \a entity.
-        //! \param[in] e The \a entity to add the \a light_component to.
-        //! \return A reference to the created \a light_component.
-        inline light_component& add_light_component(entity e)
-        {
-            return m_lights.create_component_for(e);
-        }
-
-        //! \brief Removes \a transform_component from a specific \a entity.
-        //! \param[in] e The \a entity to remove the \a transform_component from.
-        inline void remove_transform_component(entity e)
-        {
-            m_transformations.remove_component_from(e);
-        }
-
-        //! \brief Removes \a camera_component from a specific \a entity.
-        //! \param[in] e The \a entity to remove the \a camera_component from.
-        inline void remove_camera_component(entity e)
-        {
-            m_cameras.remove_component_from(e);
-        }
-
-        //! \brief Removes \a model_component from a specific \a entity.
-        //! \param[in] e The \a entity to remove the \a model_component from.
-        inline void remove_model_component(entity e)
-        {
-            m_models.remove_component_from(e);
-        }
-
-        //! \brief Removes \a mesh_component from a specific \a entity.
-        //! \param[in] e The \a entity to remove the \a mesh_component from.
-        inline void remove_mesh_component(entity e)
-        {
-            m_meshes.remove_component_from(e);
-        }
-
-        //! \brief Removes \a tag_component from a specific \a entity.
-        //! \param[in] e The \a entity to remove the \a tag_component from.
-        inline void remove_tag(entity e)
-        {
-            m_tags.remove_component_from(e);
-        }
-
-        //! \brief Removes \a environment_component from a specific \a entity.
-        //! \param[in] e The \a entity to remove the \a environment_component from.
-        inline void remove_environment_component(entity e)
-        {
-            m_environments.remove_component_from(e);
-        }
-
-        //! \brief Removes \a light_component from a specific \a entity.
-        //! \param[in] e The \a entity to remove the \a light_component from.
-        inline void remove_light_component(entity e)
-        {
-            m_lights.remove_component_from(e);
+            auto children = get_children(e);
+            switch (type_name<comp>::id())
+            {
+            case 0:
+                m_tags.remove_component_from(e);
+                return;
+            case 1:
+                m_transformations.remove_component_from(e);
+                return;
+            case 2:
+                m_nodes.remove_component_from(e);
+                return;
+            case 3:
+                m_mesh_primitives.remove_component_from(e);
+                return;
+            case 4:
+                m_materials.remove_component_from(e);
+                return;
+            case 5:
+                m_models.remove_component_from(e);
+                for (auto child : children) // TODO Paul: Removes all children at the moment.
+                {
+                    remove_entity(child);
+                }
+                return;
+            case 6:
+                m_cameras.remove_component_from(e);
+                return;
+            case 7:
+                m_directional_lights.remove_component_from(e);
+                return;
+            case 8:
+                m_atmosphere_lights.remove_component_from(e);
+                return;
+            case 9:
+                m_skylights.remove_component_from(e);
+                return;
+            default:
+                MANGO_LOG_ERROR("No component id matches the component!");
+                return;
+            }
         }
 
         //! \brief Retrieves the \a camera_data for the currently active camera.
@@ -307,14 +251,15 @@ namespace mango
         {
             camera_data result;
             result.active_camera_entity = m_active.camera;
-            if (m_active.camera == invalid_entity)
+            result.camera_info          = m_cameras.get_component_for_entity(m_active.camera, true);
+            if (m_active.camera == invalid_entity || !result.camera_info)
             {
-                result.camera_info = nullptr;
-                result.transform   = nullptr;
+                result.active_camera_entity = invalid_entity;
+                result.camera_info          = nullptr;
+                result.transform            = nullptr;
                 return result;
             }
-            result.camera_info = m_cameras.get_component_for_entity(m_active.camera);
-            result.transform   = m_transformations.get_component_for_entity(m_active.camera);
+            result.transform = m_transformations.get_component_for_entity(m_active.camera, true);
             return result;
         }
 
@@ -322,32 +267,17 @@ namespace mango
         //! \param[in] e The \a entity to set the active camera to.
         inline void set_active_camera(entity e)
         {
+            if (e == invalid_entity)
+            {
+                m_active.camera = e;
+                return;
+            }
             auto next_comp = m_cameras.get_component_for_entity(e);
             if (!next_comp)
                 return;
 
             m_active.camera = e;
         }
-
-        //! \brief Retrieves the \a environment_data for the currently active environment.
-        //! \details Has to be checked if pointers are null. Also can only be used for a short time.
-        //! \return The \a environment_data.
-        inline environment_data get_active_environment_data()
-        {
-            environment_data result;
-            result.active_environment_entity = m_active.environment;
-            if (m_active.environment == invalid_entity)
-            {
-                result.environment_info = nullptr;
-                return result;
-            }
-            result.environment_info = m_environments.get_component_for_entity(m_active.environment);
-            return result;
-        }
-
-        //! \brief Sets the active environment to an \a entity.
-        //! \param[in] e The \a entity to set the active environment to.
-        void set_active_environment(entity e);
 
         //! \brief Retrieves the \a scene root \a entity.
         //! \return The \a scene root \a entity.
@@ -445,23 +375,27 @@ namespace mango
         scene_component_pool<transform_component> m_transformations;
         //! \brief All \a model_components.
         scene_component_pool<model_component> m_models;
-        //! \brief All \a mesh_components.
-        scene_component_pool<mesh_component> m_meshes;
+        //! \brief All \a mesh_primitive_components.
+        scene_component_pool<mesh_primitive_component> m_mesh_primitives;
+        //! \brief All \a material_components.
+        scene_component_pool<material_component> m_materials;
         //! \brief All \a camera_components.
         scene_component_pool<camera_component> m_cameras;
-        //! \brief All \a environment_components. There is only one unique at the moment.
-        scene_component_pool<environment_component> m_environments;
-        //! \brief All \a light_components.
-        scene_component_pool<light_component> m_lights;
-        //! \brief The current root entity of the scene.
+        //! \brief All \a directional_light_component.
+        scene_component_pool<directional_light_component> m_directional_lights;
+        //! \brief All \a atmosphere_light_component.
+        scene_component_pool<atmosphere_light_component> m_atmosphere_lights;
+        //! \brief All \a skylight_component.
+        scene_component_pool<skylight_component> m_skylights;
+        //! \brief The root entity of the ecs.
         entity m_root_entity;
+        //! \brief The current root entity of the scene.
+        entity m_scene_root;
 
         struct
         {
             //! \brief The currently active camera entity.
             entity camera;
-            //! \brief The currently active environment entity.
-            entity environment;
         } m_active; //!< Storage for active scene singleton entities.
 
         //! \brief Scene boundaries.
@@ -470,7 +404,7 @@ namespace mango
             glm::vec3 min;    //!< Minimum geometry values.
             glm::vec3 max;    //!< Maximum geometry values.
         } m_scene_boundaries; //!< The boundaries of the current scene.
-    };
+    };                        // namespace mango
 
 } // namespace mango
 

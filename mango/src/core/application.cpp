@@ -14,6 +14,7 @@
 #include <mango/profile.hpp>
 #include <mango/scene.hpp>
 #include <rendering/render_system_impl.hpp>
+#include <resources/resource_system.hpp>
 #include <ui/ui_system_impl.hpp>
 
 using namespace mango;
@@ -50,6 +51,8 @@ int32 application::run(int32 t_argc, char** t_argv)
         MANGO_ASSERT(is, "Input System is expired!");
         shared_ptr<render_system_impl> rs = m_context->get_render_system_internal().lock();
         MANGO_ASSERT(rs, "Render System is expired!");
+        shared_ptr<resource_system> rss = m_context->get_resource_system_internal().lock();
+        MANGO_ASSERT(rss, "Resource System is expired!");
         shared_ptr<ui_system_impl> uis = m_context->get_ui_system_internal().lock();
         MANGO_ASSERT(uis, "UI System is expired!");
         shared_ptr<scene> scene = m_context->get_current_scene();
@@ -59,7 +62,8 @@ int32 application::run(int32 t_argc, char** t_argv)
         m_should_close = m_should_close || ws->should_close();
 
         m_frametime = static_cast<float>(m_frame_timer->elapsedMicroseconds().count()) * 0.000001f; // We need the resolution. TODO Paul: We could wrap this with some kind of 'high res clock'.
-        // Debug every second
+// Debug every second
+#ifdef MANGO_DEBUG
         static float fps_lock = 0.0f;
         fps_lock += m_frametime;
         if (fps_lock >= 1.0f)
@@ -68,10 +72,12 @@ int32 application::run(int32 t_argc, char** t_argv)
             MANGO_LOG_DEBUG("Frame Time: {0} ms", m_frametime * 1000.0f);
             MANGO_LOG_DEBUG("Framerate: {0} fps", 1.0f / m_frametime);
         }
+#endif // MANGO_DEBUG
         m_frame_timer->restart();
 
         // update
         update(m_frametime);
+        rss->update(m_frametime);
         scene->update(m_frametime);
         ws->update(m_frametime);
         is->update(m_frametime);

@@ -113,12 +113,16 @@ namespace mango
 
 //! \brief Pi.
 #define PI 3.1415926535897932384626433832795f
+//! \brief Pi times two.
+#define TWO_PI 2.0f * PI
 //! \brief Define for the global up vector.
 #define GLOBAL_UP glm::vec3(0.0f, 1.0f, 0.0f)
 //! \brief Define for the global right vector.
 #define GLOBAL_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
 //! \brief Define for the global forward vector.
 #define GLOBAL_FORWARD glm::vec3(0.0f, 0.0f, -1.0f)
+//! \brief Define for the global unit vector.
+#define GLOBAL_UNIT glm::vec3(1.0f)
 
     //! \brief A floating point type used to describe properties with a 0 to 1 range.
     struct normalized_float
@@ -164,10 +168,17 @@ namespace mango
         //! \cond NO_COND
         color_rgb(glm::vec3 v = glm::vec3(0.0f))
         {
-            MANGO_ASSERT(v.x >= 0.0f && v.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(v.y >= 0.0f && v.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(v.z >= 0.0f && v.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(v.x >= 0.0f && v.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(v.y >= 0.0f && v.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(v.z >= 0.0f && v.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
             values = v;
+        }
+        color_rgb(float v)
+        {
+            // MANGO_ASSERT(v.x >= 0.0f && v.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(v.y >= 0.0f && v.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(v.z >= 0.0f && v.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            values = glm::vec3(v);
         }
         operator glm::vec3()
         {
@@ -191,18 +202,18 @@ namespace mango
         }
         color_rgb& operator=(const color_rgb& other)
         {
-            MANGO_ASSERT(other.values.x >= 0.0f && other.values.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(other.values.y >= 0.0f && other.values.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.x >= 0.0f && other.values.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.y >= 0.0f && other.values.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
             if (this != &other)
                 values = other.values;
             return *this;
         }
         color_rgb& operator=(color_rgb&& other)
         {
-            MANGO_ASSERT(other.values.x >= 0.0f && other.values.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(other.values.y >= 0.0f && other.values.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.x >= 0.0f && other.values.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.y >= 0.0f && other.values.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
             if (this != &other)
                 values = other.values;
             return *this;
@@ -219,11 +230,19 @@ namespace mango
         //! \cond NO_COND
         color_rgba(glm::vec4 v = glm::vec4(0.0f))
         {
-            MANGO_ASSERT(v.x >= 0.0f && v.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(v.y >= 0.0f && v.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(v.z >= 0.0f && v.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(v.z >= 0.0f && v.z <= 1.0f, "a value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(v.x >= 0.0f && v.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(v.y >= 0.0f && v.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(v.z >= 0.0f && v.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(v.z >= 0.0f && v.z <= 1.0f, "a value is not normalized (between 0.0f and 1.0f)!");
             values = v;
+        }
+        color_rgba(float v)
+        {
+            // MANGO_ASSERT(v.x >= 0.0f && v.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(v.y >= 0.0f && v.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(v.z >= 0.0f && v.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(v.z >= 0.0f && v.z <= 1.0f, "a value is not normalized (between 0.0f and 1.0f)!");
+            values = glm::vec4(v);
         }
         operator glm::vec4()
         {
@@ -251,20 +270,20 @@ namespace mango
         }
         color_rgba& operator=(const color_rgba& other)
         {
-            MANGO_ASSERT(other.values.x >= 0.0f && other.values.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(other.values.y >= 0.0f && other.values.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "a value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.x >= 0.0f && other.values.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.y >= 0.0f && other.values.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "a value is not normalized (between 0.0f and 1.0f)!");
             if (this != &other)
                 values = other.values;
             return *this;
         }
         color_rgba& operator=(color_rgba&& other)
         {
-            MANGO_ASSERT(other.values.x >= 0.0f && other.values.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(other.values.y >= 0.0f && other.values.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
-            MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "a value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.x >= 0.0f && other.values.x <= 1.0f, "r value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.y >= 0.0f && other.values.y <= 1.0f, "g value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "b value is not normalized (between 0.0f and 1.0f)!");
+            // MANGO_ASSERT(other.values.z >= 0.0f && other.values.z <= 1.0f, "a value is not normalized (between 0.0f and 1.0f)!");
             if (this != &other)
                 values = other.values;
             return *this;
@@ -279,6 +298,112 @@ namespace mango
     struct platform_data
     {
         void* native_window_handle; //!< The window handle. Platform dependent.
+    };
+
+    //! \brief The default intensity of a directional light. Is approx. the intensity of the sun.
+    const float default_directional_intensity = 110000.0f;
+    //! \brief The default intensity of a skylight. Is approx. the intensity of a sunny sky.
+    const float default_skylight_intensity = 30000.0f;
+
+    //! \brief Model type to identify lights.
+    enum class light_model : uint8
+    {
+        directional, //!< Simple directional light type.
+        skylight,    //!< Skylight type.
+        atmosphere   //!< Atmospherical light type.
+    };
+
+    //! \brief Base class for all lights in mango.
+    struct mango_light
+    {
+        //! \brief Model of the light.
+        light_model model;
+        mango_light() = delete;
+
+      protected:
+        //! \brief Constructs a base light with a type.
+        //! \param[in] model The model type to use.
+        mango_light(light_model model)
+            : model(model)
+        {
+        }
+    };
+
+    //! \brief Directional light class.
+    struct directional_light : mango_light
+    {
+        directional_light()
+            : mango_light(light_model::directional)
+            , direction(1.0f)
+            , light_color(1.0f)
+            , intensity(default_directional_intensity)
+            , cast_shadows(false)
+            , atmospherical(false)
+        {
+        }
+
+        glm::vec3 direction;   //!< The light direction.
+        color_rgb light_color; //!< The light color. Will get multiplied by the intensity.
+        float intensity;       //!< The intensity of the light in lumen (111000 would f.e. be a basic sun)
+        bool cast_shadows;     //!< True if the light should cast shadows.
+        bool atmospherical;    //!< True if the light should contribute to atmosphere light.
+    };
+
+    class texture;
+    //! \brief Sklight class.
+    struct skylight : mango_light
+    {
+        skylight()
+            : mango_light(light_model::skylight)
+            , hdr_texture(0)
+            , intensity(default_skylight_intensity)
+            , use_texture(false)
+            , dynamic(false)
+            , local(false)
+        {
+        }
+
+        shared_ptr<texture> hdr_texture; //!< The optional hdr texture.
+        float intensity;                 //!< The intensity in lux (cd/m^2).
+        bool use_texture;                //!< True if texture should be used, else false.
+        bool dynamic;                    //!< True if the skylight should get automatic updates (reflection capture).
+        bool local;                      //!< True if the skylight influences only a local area.
+    };
+
+    //! \brief Atmospherical light class.
+    struct atmosphere_light : mango_light
+    {
+        atmosphere_light()
+            : mango_light(light_model::atmosphere){};
+        /*
+        atmosphere_light()
+            : mango_light(light_model::atmosphere)
+            , intensity_multiplier(1.0f)
+            , scatter_points(32)
+            , scatter_points_second_ray(8)
+            , rayleigh_scattering_coefficients(glm::vec3(5.8e-6f, 13.5e-6f, 33.1e-6f))
+            , mie_scattering_coefficient(21e-6f)
+            , density_multiplier(glm::vec2(8e3f, 1.2e3f))
+            , ground_radius(6360e3f)
+            , atmosphere_radius(6420e3f)
+            , view_height(1e3f)
+            , mie_preferred_scattering_dir(0.758f)
+
+        {
+        }
+
+        float intensity_multiplier;
+        // scattering parameters -> will be extended if necessary
+        int32 scatter_points;
+        int32 scatter_points_second_ray;
+        glm::vec3 rayleigh_scattering_coefficients;
+        float mie_scattering_coefficient;
+        glm::vec2 density_multiplier;
+        float ground_radius;
+        float atmosphere_radius;
+        float view_height;
+        float mie_preferred_scattering_dir;
+        */
     };
 
     //! \cond NO_COND

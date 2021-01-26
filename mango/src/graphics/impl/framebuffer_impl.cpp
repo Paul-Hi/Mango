@@ -11,15 +11,15 @@
 using namespace mango;
 
 framebuffer_impl::framebuffer_impl(const framebuffer_configuration& configuration)
-    : m_width(configuration.m_width)
-    , m_height(configuration.m_height)
-    , m_color_attachment0(configuration.m_color_attachment0)
-    , m_color_attachment1(configuration.m_color_attachment1)
-    , m_color_attachment2(configuration.m_color_attachment2)
-    , m_color_attachment3(configuration.m_color_attachment3)
-    , m_depth_attachment(configuration.m_depth_attachment)
-    , m_stencil_attachment(configuration.m_stencil_attachment)
-    , m_depth_stencil_attachment(configuration.m_depth_stencil_attachment)
+    : m_width(configuration.width)
+    , m_height(configuration.height)
+    , m_color_attachment0(configuration.color_attachment0)
+    , m_color_attachment1(configuration.color_attachment1)
+    , m_color_attachment2(configuration.color_attachment2)
+    , m_color_attachment3(configuration.color_attachment3)
+    , m_depth_attachment(configuration.depth_attachment)
+    , m_stencil_attachment(configuration.stencil_attachment)
+    , m_depth_stencil_attachment(configuration.depth_stencil_attachment)
 {
     glCreateFramebuffers(1, &m_name);
     m_draw_buffers.clear();
@@ -83,13 +83,13 @@ void framebuffer_impl::resize(int32 width, int32 height)
     texture_configuration config;
     if (nullptr != m_color_attachment0)
     {
-        config.m_generate_mipmaps        = m_color_attachment0->mipmaps();
-        config.m_is_standard_color_space = m_color_attachment0->is_in_standard_color_space();
-        config.m_texture_min_filter      = m_color_attachment0->min_filter();
-        config.m_texture_mag_filter      = m_color_attachment0->mag_filter();
-        config.m_texture_wrap_s          = m_color_attachment0->wrap_s();
-        config.m_texture_wrap_t          = m_color_attachment0->wrap_t();
-        config.m_layers                  = m_color_attachment0->layers();
+        config.generate_mipmaps        = m_color_attachment0->mipmaps();
+        config.is_standard_color_space = m_color_attachment0->is_in_standard_color_space();
+        config.texture_min_filter      = m_color_attachment0->min_filter();
+        config.texture_mag_filter      = m_color_attachment0->mag_filter();
+        config.texture_wrap_s          = m_color_attachment0->wrap_s();
+        config.texture_wrap_t          = m_color_attachment0->wrap_t();
+        config.layers                  = m_color_attachment0->layers();
         auto internal                    = m_color_attachment0->get_internal_format();
         auto form                        = m_color_attachment0->get_format();
         auto c_type                      = m_color_attachment0->component_type();
@@ -100,13 +100,13 @@ void framebuffer_impl::resize(int32 width, int32 height)
     }
     if (nullptr != m_color_attachment1)
     {
-        config.m_generate_mipmaps        = m_color_attachment1->mipmaps();
-        config.m_is_standard_color_space = m_color_attachment1->is_in_standard_color_space();
-        config.m_texture_min_filter      = m_color_attachment1->min_filter();
-        config.m_texture_mag_filter      = m_color_attachment1->mag_filter();
-        config.m_texture_wrap_s          = m_color_attachment1->wrap_s();
-        config.m_texture_wrap_t          = m_color_attachment1->wrap_t();
-        config.m_layers                  = m_color_attachment1->layers();
+        config.generate_mipmaps        = m_color_attachment1->mipmaps();
+        config.is_standard_color_space = m_color_attachment1->is_in_standard_color_space();
+        config.texture_min_filter      = m_color_attachment1->min_filter();
+        config.texture_mag_filter      = m_color_attachment1->mag_filter();
+        config.texture_wrap_s          = m_color_attachment1->wrap_s();
+        config.texture_wrap_t          = m_color_attachment1->wrap_t();
+        config.layers                  = m_color_attachment1->layers();
         auto internal                    = m_color_attachment1->get_internal_format();
         auto form                        = m_color_attachment1->get_format();
         auto c_type                      = m_color_attachment1->component_type();
@@ -117,13 +117,13 @@ void framebuffer_impl::resize(int32 width, int32 height)
     }
     if (nullptr != m_color_attachment2)
     {
-        config.m_generate_mipmaps        = m_color_attachment2->mipmaps();
-        config.m_is_standard_color_space = m_color_attachment2->is_in_standard_color_space();
-        config.m_texture_min_filter      = m_color_attachment2->min_filter();
-        config.m_texture_mag_filter      = m_color_attachment2->mag_filter();
-        config.m_texture_wrap_s          = m_color_attachment2->wrap_s();
-        config.m_texture_wrap_t          = m_color_attachment2->wrap_t();
-        config.m_layers                  = m_color_attachment2->layers();
+        config.generate_mipmaps        = m_color_attachment2->mipmaps();
+        config.is_standard_color_space = m_color_attachment2->is_in_standard_color_space();
+        config.texture_min_filter      = m_color_attachment2->min_filter();
+        config.texture_mag_filter      = m_color_attachment2->mag_filter();
+        config.texture_wrap_s          = m_color_attachment2->wrap_s();
+        config.texture_wrap_t          = m_color_attachment2->wrap_t();
+        config.layers                  = m_color_attachment2->layers();
         auto internal                    = m_color_attachment2->get_internal_format();
         auto form                        = m_color_attachment2->get_format();
         auto c_type                      = m_color_attachment2->component_type();
@@ -134,13 +134,13 @@ void framebuffer_impl::resize(int32 width, int32 height)
     }
     if (nullptr != m_color_attachment3)
     {
-        config.m_generate_mipmaps        = m_color_attachment3->mipmaps();
-        config.m_is_standard_color_space = m_color_attachment3->is_in_standard_color_space();
-        config.m_texture_min_filter      = m_color_attachment3->min_filter();
-        config.m_texture_mag_filter      = m_color_attachment3->mag_filter();
-        config.m_texture_wrap_s          = m_color_attachment3->wrap_s();
-        config.m_texture_wrap_t          = m_color_attachment3->wrap_t();
-        config.m_layers                  = m_color_attachment3->layers();
+        config.generate_mipmaps        = m_color_attachment3->mipmaps();
+        config.is_standard_color_space = m_color_attachment3->is_in_standard_color_space();
+        config.texture_min_filter      = m_color_attachment3->min_filter();
+        config.texture_mag_filter      = m_color_attachment3->mag_filter();
+        config.texture_wrap_s          = m_color_attachment3->wrap_s();
+        config.texture_wrap_t          = m_color_attachment3->wrap_t();
+        config.layers                  = m_color_attachment3->layers();
         auto internal                    = m_color_attachment3->get_internal_format();
         auto form                        = m_color_attachment3->get_format();
         auto c_type                      = m_color_attachment3->component_type();
@@ -151,13 +151,13 @@ void framebuffer_impl::resize(int32 width, int32 height)
     }
     if (nullptr != m_depth_attachment)
     {
-        config.m_generate_mipmaps        = m_depth_attachment->mipmaps();
-        config.m_is_standard_color_space = m_depth_attachment->is_in_standard_color_space();
-        config.m_texture_min_filter      = m_depth_attachment->min_filter();
-        config.m_texture_mag_filter      = m_depth_attachment->mag_filter();
-        config.m_texture_wrap_s          = m_depth_attachment->wrap_s();
-        config.m_texture_wrap_t          = m_depth_attachment->wrap_t();
-        config.m_layers                  = m_depth_attachment->layers();
+        config.generate_mipmaps        = m_depth_attachment->mipmaps();
+        config.is_standard_color_space = m_depth_attachment->is_in_standard_color_space();
+        config.texture_min_filter      = m_depth_attachment->min_filter();
+        config.texture_mag_filter      = m_depth_attachment->mag_filter();
+        config.texture_wrap_s          = m_depth_attachment->wrap_s();
+        config.texture_wrap_t          = m_depth_attachment->wrap_t();
+        config.layers                  = m_depth_attachment->layers();
         auto internal                    = m_depth_attachment->get_internal_format();
         auto form                        = m_depth_attachment->get_format();
         auto c_type                      = m_depth_attachment->component_type();
@@ -168,13 +168,13 @@ void framebuffer_impl::resize(int32 width, int32 height)
     }
     if (nullptr != m_stencil_attachment)
     {
-        config.m_generate_mipmaps        = m_stencil_attachment->mipmaps();
-        config.m_is_standard_color_space = m_stencil_attachment->is_in_standard_color_space();
-        config.m_texture_min_filter      = m_stencil_attachment->min_filter();
-        config.m_texture_mag_filter      = m_stencil_attachment->mag_filter();
-        config.m_texture_wrap_s          = m_stencil_attachment->wrap_s();
-        config.m_texture_wrap_t          = m_stencil_attachment->wrap_t();
-        config.m_layers                  = m_stencil_attachment->layers();
+        config.generate_mipmaps        = m_stencil_attachment->mipmaps();
+        config.is_standard_color_space = m_stencil_attachment->is_in_standard_color_space();
+        config.texture_min_filter      = m_stencil_attachment->min_filter();
+        config.texture_mag_filter      = m_stencil_attachment->mag_filter();
+        config.texture_wrap_s          = m_stencil_attachment->wrap_s();
+        config.texture_wrap_t          = m_stencil_attachment->wrap_t();
+        config.layers                  = m_stencil_attachment->layers();
         auto internal                    = m_stencil_attachment->get_internal_format();
         auto form                        = m_stencil_attachment->get_format();
         auto c_type                      = m_stencil_attachment->component_type();
@@ -185,13 +185,13 @@ void framebuffer_impl::resize(int32 width, int32 height)
     }
     if (nullptr != m_depth_stencil_attachment)
     {
-        config.m_generate_mipmaps        = m_depth_stencil_attachment->mipmaps();
-        config.m_is_standard_color_space = m_depth_stencil_attachment->is_in_standard_color_space();
-        config.m_texture_min_filter      = m_depth_stencil_attachment->min_filter();
-        config.m_texture_mag_filter      = m_depth_stencil_attachment->mag_filter();
-        config.m_texture_wrap_s          = m_depth_stencil_attachment->wrap_s();
-        config.m_texture_wrap_t          = m_depth_stencil_attachment->wrap_t();
-        config.m_layers                  = m_depth_stencil_attachment->layers();
+        config.generate_mipmaps        = m_depth_stencil_attachment->mipmaps();
+        config.is_standard_color_space = m_depth_stencil_attachment->is_in_standard_color_space();
+        config.texture_min_filter      = m_depth_stencil_attachment->min_filter();
+        config.texture_mag_filter      = m_depth_stencil_attachment->mag_filter();
+        config.texture_wrap_s          = m_depth_stencil_attachment->wrap_s();
+        config.texture_wrap_t          = m_depth_stencil_attachment->wrap_t();
+        config.layers                  = m_depth_stencil_attachment->layers();
         auto internal                    = m_depth_stencil_attachment->get_internal_format();
         auto form                        = m_depth_stencil_attachment->get_format();
         auto c_type                      = m_depth_stencil_attachment->component_type();

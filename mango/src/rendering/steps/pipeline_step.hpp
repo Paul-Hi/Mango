@@ -35,6 +35,14 @@ namespace mango
         virtual bool create()         = 0;
         virtual void update(float dt) = 0;
         virtual void destroy()        = 0;
+
+        //! \brief Does the setup for all the required shader programs for the \a pipeline_step.
+        //! \return True on success, else False.
+        virtual bool setup_shader_programs() = 0;
+
+        //! \brief Does the setup for all the required buffers for the \a pipeline_step.
+        //! \return True on success, else False.
+        virtual bool setup_buffers() = 0;
     };
 } // namespace mango
 

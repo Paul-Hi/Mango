@@ -14,74 +14,22 @@
 
 namespace mango
 {
-    //! \brief Implementation of the Fowler–Noll–Vo hash function.
-    //! \details Uses 32-bit values. Can be used to hash user structures holding only pod types.
-    class fnv1a
+    //! \brief djb2_string_hash
+    class djb2_string_hash
     {
-        //! \brief Internal hash state to chain calls.
-        ptr_size m_state = 0x811c9dc5;
-
       public:
-        //! \brief Hashes \a key and attaches it to the state.
-        //! \param[in] key A pointer to the value to hash.
-        //! \param[in] length The length of \a key in bytes.
-        void operator()(void const* key, ptr_size length) noexcept
+        //! \brief Calculate the string hash for a given string.
+        //! \param[in] str The string to hash.
+        //! \return The hash.
+        static uint64 hash(const char* str)
         {
-            unsigned char const* p       = static_cast<unsigned char const*>(key);
-            unsigned char const* const e = p + length;
-            for (; p < e; ++p)
-                m_state = (m_state ^ *p) * 0x1000193;
-        }
-
-        //! \brief Returns the state holding the chained hashes.
-        //! \return The state which is a hash value for all added hash calls.
-        explicit operator ptr_size() noexcept
-        {
-            return m_state;
+            uint64 hash = 5381;
+            int64 c;
+            while ((c = *str++))
+                hash = ((hash << 5) + hash) + c; // hash * 33 + c
+            return hash;
         }
     };
-
-    //! \brief Some helper class to check if a template class has a \a hash_code() function. Using SFINAE.
-    template <typename T>
-    class has_hash_code_function
-    {
-        //! \cond NO_COND
-        typedef char yes[1];
-        typedef char no[2];
-
-        template <typename C>
-        static yes& test(decltype(&C::hash_code));
-        template <typename C>
-        static no& test(...);
-
-      public:
-        enum
-        {
-            value = sizeof(test<T>(0)) == sizeof(yes)
-        };
-        //! \endcond
-    };
-
-    //! \brief Structure to provide generic hash if \a T has hash_code() function.
-    template <typename T, typename std::enable_if<has_hash_code_function<T>::value, T>::type* = nullptr>
-    struct hash
-    {
-        //! \brief Returns the hash for a given \a key.
-        //! \param[in] key The value to hash.
-        //! \return The hash value for the \a key.
-        ptr_size operator()(const T& key) const
-        {
-            return key.hash_code();
-        }
-    };
-
-    //! \brief Combines two hash values and 'adds' them to the first one.
-    //! \param[in,out] h0 The first hash value. \a h1 will be combined with \a h0 and \a h0 then holds the result.
-    //! \param[in] h1 The second hash value.
-    inline void hash_combine(ptr_size& h0, ptr_size h1)
-    {
-        h0 ^= h1 + 0x9e3779b9 + (h0 << 6) + (h0 >> 2);
-    }
 } // namespace mango
 
 #endif // MANGO_HASHING_HPP

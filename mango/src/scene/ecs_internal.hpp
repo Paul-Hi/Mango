@@ -103,7 +103,7 @@ namespace mango
     };
 
     //! \brief An \a ecsystem for rendering meshes.
-    class render_mesh_system : public ecsystem_2<mesh_component, transform_component>
+    class render_mesh_system : public ecsystem_3<mesh_primitive_component, material_component, transform_component>
     {
       public:
         //! \brief Setup for the \a render_mesh_system. Needs to be called before executing.
@@ -113,24 +113,25 @@ namespace mango
             m_rs = rs;
         }
 
-        void execute(float, scene_component_pool<mesh_component>& meshes, scene_component_pool<transform_component>& transformations) override
+        void execute(float, scene_component_pool<mesh_primitive_component>& meshes, scene_component_pool<material_component>& materials,
+                     scene_component_pool<transform_component>& transformations) override
         {
             PROFILE_ZONE;
             meshes.for_each(
-                [this, &meshes, &transformations](mesh_component& c, int32& index) {
+                [this, &meshes, &materials, &transformations](mesh_primitive_component& c, int32& index) {
+                    if (!c.vertex_array_object)
+                        return;
                     entity e                       = meshes.entity_at(index);
                     transform_component* transform = transformations.get_component_for_entity(e);
-                    if (transform)
+                    material_component* mat        = materials.get_component_for_entity(e);
+                    if (transform && mat) // TODO Paul: Should we really force materials?
                     {
-                        m_rs->begin_mesh(transform->world_transformation_matrix, c.has_normals, c.has_tangents);
+                        auto m = *mat;
+                        auto p = c;
 
-                        for (int32 i = 0; i < static_cast<int32>(c.primitives.size()); ++i)
-                        {
-                            auto m = c.materials[i];
-                            auto p = c.primitives[i];
-                            m_rs->use_material(m.component_material);
-                            m_rs->draw_mesh(p.vertex_array_object, p.topology, p.first, p.count, p.type_index, p.instance_count);
-                        }
+                        m_rs->begin_mesh(transform->world_transformation_matrix, p.has_normals, p.has_tangents);
+                        m_rs->use_material(m.component_material);
+                        m_rs->draw_mesh(p.vertex_array_object, p.topology, p.first, p.count, p.type_index, p.instance_count);
                         m_rs->end_mesh();
                     }
                 },
@@ -143,7 +144,7 @@ namespace mango
     };
 
     //! \brief An \a ecsystem for light submission.
-    class light_submission_system : public ecsystem_1<light_component>
+    class light_submission_system : public ecsystem_3<directional_light_component, atmosphere_light_component, skylight_component>
     {
       public:
         //! \brief Setup for the \a light_submission_system. Needs to be called before executing.
@@ -153,12 +154,26 @@ namespace mango
             m_rs = rs;
         }
 
-        void execute(float, scene_component_pool<light_component>& lights) override
+        void execute(float, scene_component_pool<directional_light_component>& d_lights, scene_component_pool<atmosphere_light_component>& a_lights,
+                     scene_component_pool<skylight_component>& s_lights) override
         {
             PROFILE_ZONE;
-            lights.for_each(
-                [this, &lights](light_component& c, int32&) {
-                    m_rs->submit_light(c.type_of_light, c.data.get());
+            d_lights.for_each(
+                [this, &d_lights](directional_light_component& c, int32&) {
+                    if (c.active)
+                        m_rs->submit_light(c.l_id, &c.light);
+                },
+                false);
+            a_lights.for_each(
+                [this, &a_lights](atmosphere_light_component& c, int32&) {
+                    if (c.active)
+                        m_rs->submit_light(c.l_id, &c.light);
+                },
+                false);
+            s_lights.for_each(
+                [this, &s_lights](skylight_component& c, int32&) {
+                    if (c.active)
+                        m_rs->submit_light(c.l_id, &c.light);
                 },
                 false);
         }

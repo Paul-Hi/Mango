@@ -32,6 +32,15 @@ namespace mango
         const char* m_path;
         //! \brief The \a shader_type of this \a shader.
         shader_type m_type;
+
+        //! \brief The defines injected in the \a shader.
+        std::vector<shader_define> m_defines;
+
+        //! \brief Loads a shader source from a file.
+        //! \param[in] path The path to the shader.
+        //! \param[in] recursive True if we are in an included shader file, else false.
+        //! \return The shader source string.
+        string load_from_file(const string path, bool recursive);
     };
 } // namespace mango
 

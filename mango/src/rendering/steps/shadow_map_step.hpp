@@ -59,6 +59,9 @@ namespace mango
         void on_ui_widget() override;
 
       private:
+        bool setup_shader_programs() override;
+        bool setup_buffers() override;
+
         //! \brief The \a command_buffer storing all shadow step related commands.
         command_buffer_ptr<max_key> m_shadow_command_buffer;
         //! \brief The framebuffer storing all shadow maps.
@@ -76,14 +79,18 @@ namespace mango
         struct shadow_data
         {
             std140_mat4 view_projection_matrices[max_shadow_mapping_cascades]; //!< The view projection matrices.
-            // TODO Paul: We really should not use arrays with that paaing -.-
+            // TODO Paul: We really should not use arrays with that padding -.-
             std140_float_array split_depth[max_shadow_mapping_cascades + 1]; //!< The calculated split depths. Times two because of better alignment
             std140_vec4 far_planes;                                          //!< The far planes of the shadow views.
             std140_int resolution                    = 2048;                 //!< The shadow map resolution.
             std140_int cascade_count                 = 3;                    //!< The number of cascades.
-            std140_float cascade_interpolation_range = 0.5f; //!< The range to use for interpolating the cascades. Larger values mean smoother transition, but less quality and performance impact.
-            std140_float max_penumbra                = 3.0f; //!< The maximum penumra radius in pixels. Larger values can look more natural, but may cause artefacts and performance drops.
-        } m_shadow_data; //!< Current shadow_data.
+            std140_float cascade_interpolation_range = 0.5f;   //!< The range to use for interpolating the cascades. Larger values mean smoother transition, but less quality and performance impact.
+            std140_int sample_count                  = 16;     //!< The sample count. Larger values can look more natural, but may cause artefacts and performance drops.
+            std140_float slope_bias                  = 0.005f; //!< The slope bias.
+            std140_float normal_bias                 = 0.01f;  //!< The bias along the normal.
+            std140_int filter_mode                   = 0;      //!< shadow_filtering parameter.
+            std140_float light_size                  = 4.0f;   //!< Size of the light for PCSS.
+        } m_shadow_data;                                       //!< Current shadow_data.
 
         struct
         {

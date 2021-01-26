@@ -20,6 +20,7 @@ namespace mango
         virtual void configure(const window_configuration& configuration) = 0;
         virtual int32 get_width()                                         = 0;
         virtual int32 get_height()                                        = 0;
+        virtual bool vsync()                                              = 0;
         virtual void set_size(int32 width, int32 height)                  = 0;
 
         //! \brief Swaps the buffers in the \a window_system.
@@ -54,6 +55,12 @@ namespace mango
       protected:
         //! \brief Mangos internal context for shared usage in all \a window_systems.
         shared_ptr<context_impl> m_shared_context;
+        //! \brief True if vertical synchronization is enabled, else False.
+        bool m_vsync;
+
+        //! \brief Creates a window.
+        //! \return True on success, else False.
+        virtual bool create_window() = 0;
     };
 
 } // namespace mango

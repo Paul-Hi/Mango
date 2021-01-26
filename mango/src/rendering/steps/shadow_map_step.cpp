@@ -9,7 +9,7 @@
 #include <graphics/shader_program.hpp>
 #include <graphics/texture.hpp>
 #include <graphics/vertex_array.hpp>
-#include <imgui.h>
+#include <mango/imgui_helper.hpp>
 #include <mango/profile.hpp>
 #include <mango/render_system.hpp>
 #include <rendering/steps/shadow_map_step.hpp>
@@ -21,51 +21,66 @@ bool shadow_map_step::create()
 {
     PROFILE_ZONE;
 
-    m_shadow_command_buffer = command_buffer<max_key>::create(524288); // 0.5 MiB?
+    m_cascade_data.lambda = 0.65f;
 
+    bool success = true;
+    success      = success & setup_buffers();
+    success      = success & setup_shader_programs();
+
+    return success;
+}
+
+bool shadow_map_step::setup_shader_programs()
+{
+    PROFILE_ZONE;
     shader_configuration shader_config;
-    shader_config.m_path          = "res/shader/v_shadow_pass.glsl";
-    shader_config.m_type          = shader_type::vertex_shader;
+    shader_config.path            = "res/shader/shadow/v_shadow_pass.glsl";
+    shader_config.type            = shader_type::vertex_shader;
     shader_ptr shadow_pass_vertex = shader::create(shader_config);
-    if (!check_creation(shadow_pass_vertex.get(), "shadow pass vertex shader", "Render System"))
+    if (!check_creation(shadow_pass_vertex.get(), "shadow pass vertex shader"))
         return false;
 
-    shader_config.m_path            = "res/shader/g_shadow_pass.glsl";
-    shader_config.m_type            = shader_type::geometry_shader;
+    shader_config.path              = "res/shader/shadow/g_shadow_pass.glsl";
+    shader_config.type              = shader_type::geometry_shader;
     shader_ptr shadow_pass_geometry = shader::create(shader_config);
-    if (!check_creation(shadow_pass_geometry.get(), "shadow pass geometry shader", "Render System"))
+    if (!check_creation(shadow_pass_geometry.get(), "shadow pass geometry shader"))
         return false;
 
-    shader_config.m_path            = "res/shader/f_shadow_pass.glsl";
-    shader_config.m_type            = shader_type::fragment_shader;
+    shader_config.path              = "res/shader/shadow/f_shadow_pass.glsl";
+    shader_config.type              = shader_type::fragment_shader;
     shader_ptr shadow_pass_fragment = shader::create(shader_config);
-    if (!check_creation(shadow_pass_fragment.get(), "shadow pass fragment shader", "Render System"))
+    if (!check_creation(shadow_pass_fragment.get(), "shadow pass fragment shader"))
         return false;
 
     m_shadow_pass = shader_program::create_graphics_pipeline(shadow_pass_vertex, nullptr, nullptr, shadow_pass_geometry, shadow_pass_fragment);
-    if (!check_creation(m_shadow_pass.get(), "shadow pass shader program", "Render System"))
+    if (!check_creation(m_shadow_pass.get(), "shadow pass shader program"))
         return false;
+    return true;
+}
+
+bool shadow_map_step::setup_buffers()
+{
+    PROFILE_ZONE;
+    m_shadow_command_buffer = command_buffer<max_key>::create(524288 * 2); // 1 MiB?
 
     texture_configuration shadow_map_config;
-    shadow_map_config.m_generate_mipmaps        = 1;
-    shadow_map_config.m_is_standard_color_space = false;
-    shadow_map_config.m_texture_min_filter      = texture_parameter::filter_linear;
-    shadow_map_config.m_texture_mag_filter      = texture_parameter::filter_linear;
-    shadow_map_config.m_texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
-    shadow_map_config.m_texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
-    shadow_map_config.m_layers                  = max_shadow_mapping_cascades;
+    shadow_map_config.generate_mipmaps        = 1;
+    shadow_map_config.is_standard_color_space = false;
+    shadow_map_config.texture_min_filter      = texture_parameter::filter_nearest;
+    shadow_map_config.texture_mag_filter      = texture_parameter::filter_nearest;
+    shadow_map_config.texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
+    shadow_map_config.texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
+    shadow_map_config.layers                  = max_shadow_mapping_cascades;
 
     framebuffer_configuration fb_config;
-    fb_config.m_depth_attachment = texture::create(shadow_map_config);
-    fb_config.m_depth_attachment->set_data(format::depth_component24, m_shadow_data.resolution, m_shadow_data.resolution, format::depth_component, format::t_float, nullptr);
-    fb_config.m_width  = m_shadow_data.resolution;
-    fb_config.m_height = m_shadow_data.resolution;
+    fb_config.depth_attachment = texture::create(shadow_map_config);
+    fb_config.depth_attachment->set_data(format::depth_component24, m_shadow_data.resolution, m_shadow_data.resolution, format::depth_component, format::t_float, nullptr);
+    fb_config.width  = m_shadow_data.resolution;
+    fb_config.height = m_shadow_data.resolution;
 
     m_shadow_buffer = framebuffer::create(fb_config);
-    if (!check_creation(m_shadow_buffer.get(), "shadow buffer", "Render System"))
+    if (!check_creation(m_shadow_buffer.get(), "shadow buffer"))
         return false;
-
-    m_cascade_data.lambda = 0.65f;
 
     return true;
 }
@@ -79,13 +94,18 @@ void shadow_map_step::attach() {}
 
 void shadow_map_step::configure(const shadow_step_configuration& configuration)
 {
-    m_shadow_data.resolution    = configuration.get_resolution();
-    m_shadow_data.max_penumbra  = configuration.get_max_penumbra();
-    m_shadow_map_offset         = configuration.get_offset();
-    m_shadow_data.cascade_count = configuration.get_cascade_count();
-    m_cascade_data.lambda       = configuration.get_split_lambda();
+    m_shadow_data.resolution                  = configuration.get_resolution();
+    m_shadow_data.sample_count                = configuration.get_sample_count();
+    m_shadow_data.light_size                  = configuration.get_light_size();
+    m_shadow_map_offset                       = configuration.get_offset();
+    m_shadow_data.cascade_count               = configuration.get_cascade_count();
+    m_shadow_data.slope_bias                  = configuration.get_slope_bias();
+    m_shadow_data.normal_bias                 = configuration.get_normal_bias();
+    m_shadow_data.filter_mode                 = static_cast<int32>(configuration.get_filter_mode());
+    m_cascade_data.lambda                     = configuration.get_split_lambda();
+    m_shadow_data.cascade_interpolation_range = configuration.get_cascade_interpolation_range();
     MANGO_ASSERT(m_shadow_data.resolution % 2 == 0, "Shadow Map Resolution has to be a multiple of 2!");
-    MANGO_ASSERT(m_shadow_data.max_penumbra > 1.0f && m_shadow_data.max_penumbra < 32.0f, "Maximum Penumbra value is not in valid range 1 - 32!");
+    MANGO_ASSERT(m_shadow_data.sample_count >= 16 && m_shadow_data.sample_count <= 64, "Sample count is not in valid range 16 - 64!");
     MANGO_ASSERT(m_shadow_data.cascade_count > 0 && m_shadow_data.cascade_count < 5, "Cascade count has to be between 1 and 4!");
     MANGO_ASSERT(m_cascade_data.lambda > 0.0f && m_cascade_data.lambda < 1.0f, "Lambda has to be between 0.0 and 1.0!");
     m_dirty_cascades = true;
@@ -228,25 +248,54 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
 
 void shadow_map_step::on_ui_widget()
 {
+    ImGui::PushID("shadow_step");
     // Resolution 512, 1024, 2048, 4096
-    const char* resolutions = " 512 \0 1024 \0 2048 \0 4096 \0\0";
-    int32 r                 = m_shadow_data.resolution;
-    int32 current           = r > 2048 ? 3 : (r > 1024 ? 2 : (r > 512 ? 1 : 0));
-    ImGui::Combo("Shadow Map Resolution##shadow_step", &current, resolutions);
+    const char* resolutions[4] = { "512", "1024", "2048", "4096" };
+    int32 r                    = m_shadow_data.resolution;
+    int32 current              = r > 2048 ? 3 : (r > 1024 ? 2 : (r > 512 ? 1 : 0));
+    combo("Shadow Map Resolution", resolutions, 4, current, 2);
     m_shadow_data.resolution = 512 * static_cast<int32>(glm::pow(2, current));
     if (m_shadow_data.resolution != r)
         m_shadow_buffer->resize(m_shadow_data.resolution, m_shadow_data.resolution);
-    // Offset 1.0 - 32.0
-    float& max_penumbra = m_shadow_data.max_penumbra;
-    ImGui::SliderFloat("Maximum Penumbra Width##shadow_step", &max_penumbra, 1.0f, 32.0f);
+
+    // Filter Type
+    const char* filter[4] = { "Hard Shadows", "Softer Shadows", "Soft Shadows", "PCSS Shadows" };
+    int32& current_filter = m_shadow_data.filter_mode;
+    combo("Shadow Filter Mode", filter, 4, current_filter, 1);
+
+    int32 default_ivalue[1] = { 16 };
+    float default_value[1]  = { 4.0f };
+
+    if (m_shadow_data.filter_mode > 0)
+    {
+        int32& sample_count = m_shadow_data.sample_count;
+        slider_int_n("Sample Count", &sample_count, 1, default_ivalue, 16, 64);
+        if (m_shadow_data.filter_mode > 1)
+        {
+            float& l_size = m_shadow_data.light_size;
+            slider_float_n("Light Size", &l_size, 1, default_value, 1.0f, 100.0f);
+        }
+    }
+
     // Offset 0.0 - 100.0
-    ImGui::SliderFloat("Shadow Map Offset##shadow_step", &m_shadow_map_offset, 0.0f, 100.0f);
+    slider_float_n("Shadow Map Offset", &m_shadow_map_offset, 1, default_value, 0.0f, 100.0f);
+
+    float& s_bias    = m_shadow_data.slope_bias;
+    default_value[0] = 0.005f;
+    drag_float_n("Shadow Map Slope Bias", &s_bias, 1, default_value, 0.001f, 0.0f, 0.5f);
+
+    float& n_bias    = m_shadow_data.normal_bias;
+    default_value[0] = 0.01f;
+    drag_float_n("Shadow Map Normal Bias", &n_bias, 1, default_value, 0.001f, 0.0f, 0.5f);
 
     // Cascades 1, 2, 3, 4
     int32& shadow_cascades = m_shadow_data.cascade_count;
-    ImGui::SliderInt("Number Of Shadow Cascades##shadow_step", &shadow_cascades, 1, 4);
+    default_ivalue[0]      = 3;
+    slider_int_n("Number Of Shadow Cascades", &shadow_cascades, 1, default_ivalue, 1, 4);
     float& interpolation_range = m_shadow_data.cascade_interpolation_range;
-    ImGui::SliderFloat("Cascade Interpolation Range##shadow_step", &interpolation_range, 0.0f, 10.0f);
-    ImGui::SliderFloat("Cascade Splits Lambda##shadow_step", &m_cascade_data.lambda, 0.0f, 1.0f);
+    default_value[0]           = 0.5f;
+    slider_float_n("Cascade Interpolation Range", &interpolation_range, 1, default_value, 0.0f, 10.0f);
+    slider_float_n("Cascade Splits Lambda", &m_cascade_data.lambda, 1, default_value, 0.0f, 1.0f);
     m_dirty_cascades = true; // For now always in debug.
+    ImGui::PopID();
 }

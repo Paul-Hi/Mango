@@ -33,24 +33,29 @@ static void update_scene_boundaries(glm::mat4& trafo, tinygltf::Model& m, tinygl
 scene::scene(const string& name)
     : m_nodes()
     , m_transformations()
-    , m_meshes()
+    , m_mesh_primitives()
+    , m_materials()
     , m_cameras()
-    , m_environments()
-    , m_lights()
+    , m_directional_lights()
+    , m_atmosphere_lights()
+    , m_skylights()
 {
     PROFILE_ZONE;
     MANGO_UNUSED(name);
     m_active.camera        = invalid_entity;
-    m_active.environment   = invalid_entity;
     m_scene_boundaries.max = glm::vec3(-3.402823e+38f);
     m_scene_boundaries.min = glm::vec3(3.402823e+38f);
 
     for (uint32 i = 1; i <= max_entities; ++i)
         m_free_entities.push_back(i);
 
-    m_root_entity          = create_empty();
-    auto& tag_component    = m_tags.create_component_for(m_root_entity);
-    tag_component.tag_name = "Scene Root";
+    m_root_entity           = create_empty();
+    auto tag_component      = m_tags.get_component_for_entity(m_root_entity);
+    tag_component->tag_name = "Root";
+    m_scene_root            = create_empty();
+    auto scene_tag          = m_tags.get_component_for_entity(m_scene_root);
+    scene_tag->tag_name     = "Scene";
+    attach(m_scene_root, m_root_entity);
 }
 
 scene::~scene() {}
@@ -60,8 +65,11 @@ entity scene::create_empty()
     PROFILE_ZONE;
     MANGO_ASSERT(!m_free_entities.empty(), "Reached maximum number of entities!");
     entity new_entity = m_free_entities.front();
+    if (m_scene_root != invalid_entity)
+        attach(new_entity, m_scene_root);
     m_free_entities.pop_front();
     MANGO_LOG_DEBUG("Created entity {0}, {1} left", new_entity, m_free_entities.size());
+    m_tags.create_component_for(new_entity);
     return new_entity;
 }
 
@@ -78,7 +86,8 @@ void scene::remove_entity(entity e)
     }
     delete_node(e);
     m_transformations.remove_component_from(e);
-    m_meshes.remove_component_from(e);
+    m_mesh_primitives.remove_component_from(e);
+    m_materials.remove_component_from(e);
     bool del_active = get_active_camera_data().active_camera_entity == e;
     m_cameras.remove_component_from(e);
     if (del_active)
@@ -88,28 +97,33 @@ void scene::remove_entity(entity e)
         else
             set_active_camera(invalid_entity);
     }
-    del_active = get_active_environment_data().active_environment_entity == e;
-    m_environments.remove_component_from(e);
-    if (del_active)
-    {
-        if (m_environments.size() > 0)
-            set_active_environment(m_environments.entity_at(0));
-        else
-            set_active_environment(invalid_entity);
-    }
+    m_directional_lights.remove_component_from(e);
+    m_atmosphere_lights.remove_component_from(e);
+    m_skylights.remove_component_from(e);
     m_free_entities.push_back(e);
     MANGO_LOG_DEBUG("Removed entity {0}, {1} left", e, m_free_entities.size());
+}
+
+entity scene::create_default_scene_camera()
+{
+    PROFILE_ZONE;
+    entity camera_entity = create_default_camera();
+    detach(camera_entity);
+    attach(camera_entity, m_scene_root);
+
+    return camera_entity;
 }
 
 entity scene::create_default_camera()
 {
     PROFILE_ZONE;
     entity camera_entity = create_empty();
+    detach(camera_entity);
     attach(camera_entity, m_root_entity);
     auto& camera_component    = m_cameras.create_component_for(camera_entity);
     auto& transform_component = m_transformations.create_component_for(camera_entity);
-    auto& tag_component       = m_tags.create_component_for(camera_entity);
-    tag_component.tag_name    = "Default Camera";
+    auto tag_component        = m_tags.get_component_for_entity(camera_entity);
+    tag_component->tag_name   = "Default Camera";
 
     // default parameters
     camera_component.cam_type                           = camera_type::perspective_camera;
@@ -137,22 +151,22 @@ entity scene::create_entities_from_model(const string& path, entity gltf_root)
     if (gltf_root == invalid_entity)
     {
         gltf_root = create_empty();
-        attach(gltf_root, m_root_entity);
     }
 
-    auto& model_comp               = m_models.create_component_for(gltf_root);
-    model_comp.model_file_path     = path;
-    shared_ptr<resource_system> rs = m_shared_context->get_resource_system_internal().lock();
-    MANGO_ASSERT(rs, "Resource System is expired!");
-    auto start                                      = path.find_last_of("\\/") + 1;
-    auto name                                       = path.substr(start, path.find_last_of(".") - start);
-    m_tags.create_component_for(gltf_root).tag_name = path.substr(start);
-    model_configuration config                      = { name };
-    const shared_ptr<model> loaded                  = rs->get_gltf_model(path, config);
+    auto& model_comp                = m_models.create_component_for(gltf_root);
+    model_comp.model_file_path      = path;
+    shared_ptr<resource_system> res = m_shared_context->get_resource_system_internal().lock();
+    MANGO_ASSERT(res, "Resource System is expired!");
+    auto start                                           = path.find_last_of("\\/") + 1;
+    auto name                                            = path.substr(start, path.find_last_of(".") - start);
+    m_tags.get_component_for_entity(gltf_root)->tag_name = path.substr(start);
+    model_resource_configuration config;
+    config.path                  = path.c_str();
+    const model_resource* loaded = res->acquire(config);
     if (!loaded)
         return invalid_entity;
 
-    tinygltf::Model& m = loaded->gltf_model;
+    tinygltf::Model& m = const_cast<model_resource*>(loaded)->gltf_model;
 
     // load the default scene or the first one.
     glm::vec3 max_backup   = m_scene_boundaries.max;
@@ -179,13 +193,13 @@ entity scene::create_entities_from_model(const string& path, entity gltf_root)
         const tinygltf::Buffer& t_buffer = m.buffers[buffer_view.buffer];
 
         buffer_configuration buffer_config;
-        buffer_config.m_access = buffer_access::none;
-        buffer_config.m_size   = buffer_view.byteLength;
-        buffer_config.m_target = (buffer_view.target == 0 || buffer_view.target == GL_ARRAY_BUFFER) ? buffer_target::vertex_buffer : buffer_target::index_buffer;
+        buffer_config.access = buffer_access::none;
+        buffer_config.size   = buffer_view.byteLength;
+        buffer_config.target = (buffer_view.target == 0 || buffer_view.target == GL_ARRAY_BUFFER) ? buffer_target::vertex_buffer : buffer_target::index_buffer;
 
         const unsigned char* buffer_start = t_buffer.data.data() + buffer_view.byteOffset;
         const void* buffer_data           = static_cast<const void*>(buffer_start);
-        buffer_config.m_data              = buffer_data;
+        buffer_config.data                = buffer_data;
         buffer_ptr buf                    = buffer::create(buffer_config);
         // TODO Paul: Interleaved buffers could be loaded two times ... BAD.
 
@@ -219,40 +233,40 @@ entity scene::create_entities_from_model(const string& path, entity gltf_root)
     m_scene_boundaries.min =
         glm::min(m_scene_boundaries.min, min_backup); // TODO Paul: This is just in case all other assets are still here, we need to do the calculation with all still existing entities.
 
-
+    res->release(loaded);
     return gltf_root;
 }
 
-entity scene::create_environment_from_hdr(const string& path)
+entity scene::create_skylight_from_hdr(const string& path)
 {
     PROFILE_ZONE;
-    entity environment_entity = create_empty();
-    attach(environment_entity, m_root_entity);
-    auto& environment = m_environments.create_component_for(environment_entity);
+    entity skylight_entity = create_empty();
+    auto& light            = m_skylights.create_component_for(skylight_entity);
 
-    // default rotation and scale
-    environment.rotation_scale_matrix = glm::mat3(1.0f);
+    light.light.intensity   = default_skylight_intensity;
+    light.light.use_texture = true;
+    // Other settings are correct by default.
 
     // load image and texture
     shared_ptr<resource_system> res = m_shared_context->get_resource_system_internal().lock();
     MANGO_ASSERT(res, "Resource System is expired!");
 
-    image_configuration img_config;
-    auto start                                               = path.find_last_of("\\/") + 1;
-    img_config.name                                          = path.substr(start, path.find_last_of(".") - start);
-    img_config.is_standard_color_space                       = false;
-    img_config.is_hdr                                        = true;
-    m_tags.create_component_for(environment_entity).tag_name = path.substr(start);
+    image_resource_configuration img_config;
+    auto start                                                 = path.find_last_of("\\/") + 1;
+    m_tags.get_component_for_entity(skylight_entity)->tag_name = path.substr(start);
+    img_config.path                                            = path.c_str();
+    img_config.is_standard_color_space                         = false;
+    img_config.is_hdr                                          = true;
 
-    auto hdr_image = res->get_image(path, img_config);
+    auto hdr_image = res->acquire(img_config);
 
     texture_configuration tex_config;
-    tex_config.m_generate_mipmaps        = 1;
-    tex_config.m_is_standard_color_space = false;
-    tex_config.m_texture_min_filter      = texture_parameter::filter_linear;
-    tex_config.m_texture_mag_filter      = texture_parameter::filter_linear;
-    tex_config.m_texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
-    tex_config.m_texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
+    tex_config.generate_mipmaps        = 1;
+    tex_config.is_standard_color_space = false;
+    tex_config.texture_min_filter      = texture_parameter::filter_linear;
+    tex_config.texture_mag_filter      = texture_parameter::filter_linear;
+    tex_config.texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
+    tex_config.texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
 
     texture_ptr hdr_texture = texture::create(tex_config);
 
@@ -268,30 +282,36 @@ entity scene::create_environment_from_hdr(const string& path)
 
     hdr_texture->set_data(internal, hdr_image->width, hdr_image->height, f, type, hdr_image->data);
 
-    environment.hdr_texture = hdr_texture;
+    light.light.hdr_texture = hdr_texture;
 
-    set_active_environment(environment_entity); // TODO Paul: Transformation?
-
-    return environment_entity;
+    res->release(hdr_image);
+    return skylight_entity;
 }
 
-void scene::set_active_environment(entity e)
-{
-    shared_ptr<render_system_impl> rs = m_shared_context->get_render_system_internal().lock();
-    MANGO_ASSERT(rs, "Render System is expired!");
-    if (e == invalid_entity)
-    {
-        m_active.environment = e;
-        rs->set_environment_texture(nullptr);
-        return;
-    }
-    auto next_comp = m_environments.get_component_for_entity(e);
-    if (!next_comp)
-        return;
-
-    m_active.environment = e;
-    rs->set_environment_texture(next_comp->hdr_texture);
-}
+// entity scene::create_atmospheric_environment(const glm::vec3& sun_direction, float sun_intensity) // TODO Paul: More settings needed!
+// {
+//     PROFILE_ZONE;
+//     entity environment_entity = create_empty();
+//
+//     auto& environment = m_lights.create_component_for(environment_entity);
+//
+//     environment.type_of_light          = light_type::environment;
+//     environment.data                   = std::make_shared<environment_light_data>();
+//     auto el_data                       = static_cast<mango::environment_light_data*>(environment.data.get());
+//     el_data->intensity                 = default_skylight_intensity;
+//     el_data->render_sun_as_directional = true;
+//     el_data->create_atmosphere         = true;
+//     // sun data as well as scattering parameters are all default initialized.
+//     if (sun_intensity > 0.0)
+//     {
+//         el_data->sun_data.direction = sun_direction;
+//         el_data->sun_data.intensity = sun_intensity;
+//     }
+//
+//     el_data->hdr_texture = nullptr;
+//
+//     return environment_entity;
+// }
 
 void scene::update(float dt)
 {
@@ -309,9 +329,9 @@ void scene::render()
     MANGO_ASSERT(rs, "Render System is expired!");
 
     light_submission.setup(rs);
-    light_submission.execute(0.0f, m_lights);
+    light_submission.execute(0.0f, m_directional_lights, m_atmosphere_lights, m_skylights);
     render_mesh.setup(rs);
-    render_mesh.execute(0.0f, m_meshes, m_transformations);
+    render_mesh.execute(0.0f, m_mesh_primitives, m_materials, m_transformations);
 }
 
 void scene::attach(entity child, entity parent)
@@ -319,14 +339,15 @@ void scene::attach(entity child, entity parent)
     PROFILE_ZONE;
     MANGO_ASSERT(invalid_entity != child, "Child is invalid!");
     MANGO_ASSERT(invalid_entity != parent, "Parent is invalid!");
+    detach(child); // TODO Paul: Better way ...
 
-    node_component* parent_node = m_nodes.get_component_for_entity(parent);
+    node_component* parent_node = m_nodes.get_component_for_entity(parent, true);
     if (nullptr == parent_node)
     {
         m_nodes.create_component_for(parent);
         parent_node = m_nodes.get_component_for_entity(parent);
     }
-    node_component* child_node = m_nodes.get_component_for_entity(child);
+    node_component* child_node = m_nodes.get_component_for_entity(child, true);
     if (nullptr == child_node)
     {
         m_nodes.create_component_for(child);
@@ -340,11 +361,13 @@ void scene::attach(entity child, entity parent)
         parent_node->child_entities = child;
     else
     {
-        node_component* sibling_node = nullptr;
-        for (int32 i = 0; i < parent_node->children_count; ++i)
+        node_component* sibling_node = m_nodes.get_component_for_entity(sibling_entity);
+        for (int32 i = 1; i < parent_node->children_count; ++i)
         {
-            sibling_node   = m_nodes.get_component_for_entity(sibling_entity);
             sibling_entity = sibling_node->next_sibling;
+            if (sibling_entity == invalid_entity)
+                break;
+            sibling_node = m_nodes.get_component_for_entity(sibling_entity);
         }
         sibling_node->next_sibling   = child;
         child_node->previous_sibling = sibling_entity;
@@ -407,12 +430,11 @@ void scene::detach(entity node)
     auto sibling_entity = parent_node->child_entities;
     if (sibling_entity == node)
     {
-        parent_node->child_entities = invalid_entity;
+        parent_node->child_entities = child_node->next_sibling;
         if (child_node->next_sibling != invalid_entity)
         {
             auto next_sibling              = m_nodes.get_component_for_entity(child_node->next_sibling);
             next_sibling->previous_sibling = invalid_entity;
-            parent_node->child_entities    = child_node->next_sibling;
         }
     }
     else
@@ -420,26 +442,23 @@ void scene::detach(entity node)
         node_component* next_sibling = nullptr;
         if (invalid_entity != child_node->next_sibling)
             next_sibling = m_nodes.get_component_for_entity(child_node->next_sibling);
-        node_component* sibling_node = nullptr;
-        for (int32 i = 0; i < parent_node->children_count; ++i)
+
+        node_component* sibling_node = m_nodes.get_component_for_entity(sibling_entity);
+        for (int32 i = 1; i < parent_node->children_count; ++i)
         {
+            sibling_entity = sibling_node->next_sibling;
             if (sibling_entity == node)
             {
-                // sibling_node is still the previous one
+                sibling_node->next_sibling = child_node->next_sibling;
                 if (next_sibling)
-                {
-                    sibling_node->next_sibling     = child_node->next_sibling;
                     next_sibling->previous_sibling = child_node->previous_sibling;
-                }
-                else
-                    sibling_node->next_sibling = invalid_entity;
                 break;
             }
-            sibling_node   = m_nodes.get_component_for_entity(sibling_entity);
-            sibling_entity = sibling_node->next_sibling;
+            sibling_node = m_nodes.get_component_for_entity(sibling_entity);
         }
     }
     parent_node->children_count--;
+    child_node->parent_entity = invalid_entity;
 
     if (child_node->children_count == 0)
         m_nodes.sort_remove_component_from(node); // Sorting necessarry?
@@ -526,9 +545,9 @@ void scene::delete_node(entity node)
 entity scene::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world, const std::map<int, buffer_ptr>& buffer_map)
 {
     PROFILE_ZONE;
-    entity node                                = create_empty();
-    m_tags.create_component_for(node).tag_name = n.name;
-    auto& transform                            = m_transformations.create_component_for(node);
+    entity node                                     = create_empty();
+    m_tags.get_component_for_entity(node)->tag_name = n.name;
+    auto& transform                                 = m_transformations.create_component_for(node);
     if (n.matrix.size() == 16)
     {
         glm::mat4 input = glm::make_mat4(n.matrix.data());
@@ -552,9 +571,10 @@ entity scene::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const glm:
         }
     }
 
-    glm::mat4 trafo = glm::translate(glm::mat4(1.0), transform.position);
-    trafo           = trafo * glm::toMat4(transform.rotation);
-    trafo           = glm::scale(trafo, transform.scale);
+    transform.rotation_hint = glm::degrees(glm::eulerAngles(transform.rotation));
+    glm::mat4 trafo         = glm::translate(glm::mat4(1.0), transform.position);
+    trafo                   = trafo * glm::toMat4(transform.rotation);
+    trafo                   = glm::scale(trafo, transform.scale);
 
     trafo = parent_world * trafo;
 
@@ -586,25 +606,35 @@ entity scene::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const glm:
 void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& mesh, const std::map<int, buffer_ptr>& buffer_map)
 {
     PROFILE_ZONE;
-    auto& component_mesh = m_meshes.create_component_for(node);
 
     for (int32 i = 0; i < static_cast<int32>(mesh.primitives.size()); ++i)
     {
         const tinygltf::Primitive& primitive = mesh.primitives[i];
 
-        primitive_component p;
-        p.vertex_array_object = vertex_array::create();
-        p.topology            = static_cast<primitive_topology>(primitive.mode); // cast is okay.
-        p.instance_count      = 1;
-        bool has_indices      = true;
+        entity mesh_primitive_node = node;
+        if (mesh.primitives.size() > 1)
+        {
+            mesh_primitive_node = create_empty();
+            // If this is the case this does not really have a name by default. We try give them namess by their materials later.
+            m_tags.get_component_for_entity(mesh_primitive_node)->tag_name = "Part " + std::to_string(i);
+            attach(mesh_primitive_node, node);
+        }
+
+        auto& mesh_p = m_mesh_primitives.create_component_for(mesh_primitive_node);
+
+        mesh_p.vertex_array_object = vertex_array::create();
+        mesh_p.tp                  = mesh_primitive_type::custom;
+        mesh_p.topology            = static_cast<primitive_topology>(primitive.mode); // cast is okay.
+        mesh_p.instance_count      = 1;
+        bool has_indices           = true;
 
         if (primitive.indices >= 0)
         {
             const tinygltf::Accessor& index_accessor = m.accessors[primitive.indices];
 
-            p.first      = static_cast<int32>(index_accessor.byteOffset); // TODO Paul: Is int32 big enough?
-            p.count      = static_cast<int32>(index_accessor.count);      // TODO Paul: Is int32 big enough?
-            p.type_index = static_cast<index_type>(index_accessor.componentType);
+            mesh_p.first      = static_cast<int32>(index_accessor.byteOffset); // TODO Paul: Is int32 big enough?
+            mesh_p.count      = static_cast<int32>(index_accessor.count);      // TODO Paul: Is int32 big enough?
+            mesh_p.type_index = static_cast<index_type>(index_accessor.componentType);
 
             auto it = buffer_map.find(index_accessor.bufferView);
             if (it == buffer_map.end())
@@ -612,17 +642,17 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                 MANGO_LOG_ERROR("No buffer data for index bufferView {0}!", index_accessor.bufferView);
                 continue;
             }
-            p.vertex_array_object->bind_index_buffer(it->second);
+            mesh_p.vertex_array_object->bind_index_buffer(it->second);
         }
         else
         {
-            p.first      = 0;
-            p.type_index = index_type::none;
+            mesh_p.first      = 0;
+            mesh_p.type_index = index_type::none;
             // p.count has to be set later.
             has_indices = false;
         }
 
-        material_component mat;
+        auto& mat                          = m_materials.create_component_for(mesh_primitive_node);
         mat.component_material             = std::make_shared<material>();
         mat.component_material->base_color = glm::vec4(glm::vec3(0.9f), 1.0f);
         mat.component_material->metallic   = 0.0f;
@@ -630,11 +660,12 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
 
         load_material(mat, primitive, m);
 
-        component_mesh.materials.push_back(mat);
+        if (!mat.material_name.empty() && node != mesh_primitive_node)
+            m_tags.get_component_for_entity(mesh_primitive_node)->tag_name = mat.material_name + " Part";
 
-        int32 vb_idx                = 0;
-        component_mesh.has_normals  = false;
-        component_mesh.has_tangents = false;
+        int32 vb_idx        = 0;
+        mesh_p.has_normals  = false;
+        mesh_p.has_tangents = false;
 
         for (auto& attrib : primitive.attributes)
         {
@@ -652,15 +683,15 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                 attrib_array = 0;
             if (attrib.first.compare("NORMAL") == 0)
             {
-                component_mesh.has_normals = true;
-                attrib_array               = 1;
+                mesh_p.has_normals = true;
+                attrib_array       = 1;
             }
             if (attrib.first.compare("TEXCOORD_0") == 0)
                 attrib_array = 2;
             if (attrib.first.compare("TANGENT") == 0)
             {
-                component_mesh.has_tangents = true;
-                attrib_array                = 3;
+                mesh_p.has_tangents = true;
+                attrib_array        = 3;
             }
             if (attrib_array > -1)
             {
@@ -672,12 +703,12 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                 }
                 int32 stride = accessor.ByteStride(m.bufferViews[accessor.bufferView]);
                 MANGO_ASSERT(stride > 0, "Broken gltf model! Attribute stride is {0}!", stride);
-                p.vertex_array_object->bind_vertex_buffer(vb_idx, it->second, accessor.byteOffset, stride);
-                p.vertex_array_object->set_vertex_attribute(attrib_array, vb_idx, attribute_format, 0);
+                mesh_p.vertex_array_object->bind_vertex_buffer(vb_idx, it->second, accessor.byteOffset, stride);
+                mesh_p.vertex_array_object->set_vertex_attribute(attrib_array, vb_idx, attribute_format, 0);
 
                 if (attrib_array == 0 && !has_indices)
                 {
-                    p.count = static_cast<int32>(accessor.count); // TODO Paul: Is int32 big enough?
+                    mesh_p.count = static_cast<int32>(accessor.count); // TODO Paul: Is int32 big enough?
                 }
 
                 vb_idx++;
@@ -687,8 +718,6 @@ void scene::build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& me
                 MANGO_LOG_DEBUG("Vertex attribute array is ignored: {0}!", attrib.first);
             }
         }
-
-        component_mesh.primitives.push_back(p);
     }
 }
 
@@ -740,12 +769,12 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
     // TODO Paul: Better structure?!
 
     texture_configuration config;
-    config.m_generate_mipmaps        = 1;
-    config.m_is_standard_color_space = true;
-    config.m_texture_min_filter      = texture_parameter::filter_linear_mipmap_linear;
-    config.m_texture_mag_filter      = texture_parameter::filter_linear;
-    config.m_texture_wrap_s          = texture_parameter::wrap_repeat;
-    config.m_texture_wrap_t          = texture_parameter::wrap_repeat;
+    config.generate_mipmaps        = 1;
+    config.is_standard_color_space = true;
+    config.texture_min_filter      = texture_parameter::filter_linear_mipmap_linear;
+    config.texture_mag_filter      = texture_parameter::filter_linear;
+    config.texture_wrap_s          = texture_parameter::wrap_repeat;
+    config.texture_wrap_t          = texture_parameter::wrap_repeat;
 
     if (pbr.baseColorTexture.index < 0)
     {
@@ -766,42 +795,20 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (base_col.sampler >= 0)
         {
             const tinygltf::Sampler& sampler = m.samplers[static_cast<g_enum>(base_col.sampler)];
-            config.m_texture_min_filter      = filter_parameter_from_gl(static_cast<g_enum>(sampler.minFilter));
-            config.m_texture_mag_filter      = filter_parameter_from_gl(static_cast<g_enum>(sampler.magFilter));
-            config.m_texture_wrap_s          = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapS));
-            config.m_texture_wrap_t          = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapT));
+            config.texture_min_filter        = filter_parameter_from_gl(static_cast<g_enum>(sampler.minFilter));
+            config.texture_mag_filter        = filter_parameter_from_gl(static_cast<g_enum>(sampler.magFilter));
+            config.texture_wrap_s            = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapS));
+            config.texture_wrap_t            = wrap_parameter_from_gl(static_cast<g_enum>(sampler.wrapT));
         }
 
-        config.m_is_standard_color_space = true;
-        config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
-        texture_ptr base_color           = texture::create(config);
+        config.is_standard_color_space = true;
+        config.generate_mipmaps        = calculate_mip_count(image.width, image.height);
+        texture_ptr base_color         = texture::create(config);
 
-        format f        = format::rgba;
-        format internal = format::srgb8_alpha8;
-
-        if (image.component == 1)
-        {
-            f = format::red;
-        }
-        else if (image.component == 2)
-        {
-            f = format::rg;
-        }
-        else if (image.component == 3)
-        {
-            f        = format::rgb;
-            internal = format::srgb8;
-        }
-
-        format type = format::t_unsigned_byte;
-        if (image.bits == 16)
-        {
-            type = format::t_unsigned_short;
-        }
-        else if (image.bits == 32)
-        {
-            type = format::t_unsigned_int;
-        }
+        format f;
+        format internal;
+        format type;
+        get_formats_and_types_for_image(config.is_standard_color_space, image.component, image.bits, f, internal, type, false);
 
         base_color->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
         material.component_material->base_color_texture = base_color;
@@ -826,42 +833,20 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (o_r_m_t.sampler >= 0)
         {
             const tinygltf::Sampler& sampler = m.samplers[o_r_m_t.sampler];
-            config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
-            config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
-            config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
-            config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
+            config.texture_min_filter        = filter_parameter_from_gl(sampler.minFilter);
+            config.texture_mag_filter        = filter_parameter_from_gl(sampler.magFilter);
+            config.texture_wrap_s            = wrap_parameter_from_gl(sampler.wrapS);
+            config.texture_wrap_t            = wrap_parameter_from_gl(sampler.wrapT);
         }
 
-        config.m_is_standard_color_space = false;
-        config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
-        texture_ptr o_r_m                = texture::create(config);
+        config.is_standard_color_space = false;
+        config.generate_mipmaps        = calculate_mip_count(image.width, image.height);
+        texture_ptr o_r_m              = texture::create(config);
 
-        format f        = format::rgba;
-        format internal = format::rgba8;
-
-        if (image.component == 1)
-        {
-            f = format::red;
-        }
-        else if (image.component == 2)
-        {
-            f = format::rg;
-        }
-        else if (image.component == 3)
-        {
-            f        = format::rgb;
-            internal = format::rgb8;
-        }
-
-        format type = format::t_unsigned_byte;
-        if (image.bits == 16)
-        {
-            type = format::t_unsigned_short;
-        }
-        else if (image.bits == 32)
-        {
-            type = format::t_unsigned_int;
-        }
+        format f;
+        format internal;
+        format type;
+        get_formats_and_types_for_image(config.is_standard_color_space, image.component, image.bits, f, internal, type, false);
 
         o_r_m->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
         material.component_material->roughness_metallic_texture = o_r_m;
@@ -889,42 +874,20 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
             if (occ.sampler >= 0)
             {
                 const tinygltf::Sampler& sampler = m.samplers[occ.sampler];
-                config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
-                config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
-                config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
-                config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
+                config.texture_min_filter        = filter_parameter_from_gl(sampler.minFilter);
+                config.texture_mag_filter        = filter_parameter_from_gl(sampler.magFilter);
+                config.texture_wrap_s            = wrap_parameter_from_gl(sampler.wrapS);
+                config.texture_wrap_t            = wrap_parameter_from_gl(sampler.wrapT);
             }
 
-            config.m_is_standard_color_space = false;
-            config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
-            texture_ptr occlusion            = texture::create(config);
+            config.is_standard_color_space = false;
+            config.generate_mipmaps        = calculate_mip_count(image.width, image.height);
+            texture_ptr occlusion          = texture::create(config);
 
-            format f        = format::rgba;
-            format internal = format::rgba8;
-
-            if (image.component == 1)
-            {
-                f = format::red;
-            }
-            else if (image.component == 2)
-            {
-                f = format::rg;
-            }
-            else if (image.component == 3)
-            {
-                f        = format::rgb;
-                internal = format::rgb8;
-            }
-
-            format type = format::t_unsigned_byte;
-            if (image.bits == 16)
-            {
-                type = format::t_unsigned_short;
-            }
-            else if (image.bits == 32)
-            {
-                type = format::t_unsigned_int;
-            }
+            format f;
+            format internal;
+            format type;
+            get_formats_and_types_for_image(config.is_standard_color_space, image.component, image.bits, f, internal, type, false);
 
             occlusion->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
             material.component_material->occlusion_texture = occlusion;
@@ -945,42 +908,20 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (norm.sampler >= 0)
         {
             const tinygltf::Sampler& sampler = m.samplers[norm.sampler];
-            config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
-            config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
-            config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
-            config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
+            config.texture_min_filter        = filter_parameter_from_gl(sampler.minFilter);
+            config.texture_mag_filter        = filter_parameter_from_gl(sampler.magFilter);
+            config.texture_wrap_s            = wrap_parameter_from_gl(sampler.wrapS);
+            config.texture_wrap_t            = wrap_parameter_from_gl(sampler.wrapT);
         }
 
-        config.m_is_standard_color_space = false;
-        config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
-        texture_ptr normal_t             = texture::create(config);
+        config.is_standard_color_space = false;
+        config.generate_mipmaps        = calculate_mip_count(image.width, image.height);
+        texture_ptr normal_t           = texture::create(config);
 
-        format f        = format::rgba;
-        format internal = format::rgba8;
-
-        if (image.component == 1)
-        {
-            f = format::red;
-        }
-        else if (image.component == 2)
-        {
-            f = format::rg;
-        }
-        else if (image.component == 3)
-        {
-            f        = format::rgb;
-            internal = format::rgb8;
-        }
-
-        format type = format::t_unsigned_byte;
-        if (image.bits == 16)
-        {
-            type = format::t_unsigned_short;
-        }
-        else if (image.bits == 32)
-        {
-            type = format::t_unsigned_int;
-        }
+        format f;
+        format internal;
+        format type;
+        get_formats_and_types_for_image(config.is_standard_color_space, image.component, image.bits, f, internal, type, false);
 
         normal_t->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
         material.component_material->normal_texture = normal_t;
@@ -1005,42 +946,20 @@ void scene::load_material(material_component& material, const tinygltf::Primitiv
         if (emissive.sampler >= 0)
         {
             const tinygltf::Sampler& sampler = m.samplers[emissive.sampler];
-            config.m_texture_min_filter      = filter_parameter_from_gl(sampler.minFilter);
-            config.m_texture_mag_filter      = filter_parameter_from_gl(sampler.magFilter);
-            config.m_texture_wrap_s          = wrap_parameter_from_gl(sampler.wrapS);
-            config.m_texture_wrap_t          = wrap_parameter_from_gl(sampler.wrapT);
+            config.texture_min_filter        = filter_parameter_from_gl(sampler.minFilter);
+            config.texture_mag_filter        = filter_parameter_from_gl(sampler.magFilter);
+            config.texture_wrap_s            = wrap_parameter_from_gl(sampler.wrapS);
+            config.texture_wrap_t            = wrap_parameter_from_gl(sampler.wrapT);
         }
 
-        config.m_is_standard_color_space = true;
-        config.m_generate_mipmaps        = calculate_mip_count(image.width, image.height);
-        texture_ptr emissive_color       = texture::create(config);
+        config.is_standard_color_space = true;
+        config.generate_mipmaps        = calculate_mip_count(image.width, image.height);
+        texture_ptr emissive_color     = texture::create(config);
 
-        format f        = format::rgba;
-        format internal = format::srgb8_alpha8;
-
-        if (image.component == 1)
-        {
-            f = format::red;
-        }
-        else if (image.component == 2)
-        {
-            f = format::rg;
-        }
-        else if (image.component == 3)
-        {
-            f        = format::rgb;
-            internal = format::srgb8;
-        }
-
-        format type = format::t_unsigned_byte;
-        if (image.bits == 16)
-        {
-            type = format::t_unsigned_short;
-        }
-        else if (image.bits == 32)
-        {
-            type = format::t_unsigned_int;
-        }
+        format f;
+        format internal;
+        format type;
+        get_formats_and_types_for_image(config.is_standard_color_space, image.component, image.bits, f, internal, type, false);
 
         emissive_color->set_data(internal, image.width, image.height, f, type, &image.image.at(0));
         material.component_material->emissive_color_texture = emissive_color;

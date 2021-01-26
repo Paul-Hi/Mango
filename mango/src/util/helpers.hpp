@@ -16,13 +16,15 @@ namespace mango
     //! \brief Checks if the given pointer is created (not null) and gives proper output, in case it is not.
     //! \param[in] ptr The pointer to check.
     //! \param[in] what The name of the checked object. Used for output.
-    //! \param[in] system The system name the function was called in. Used for output.
-    bool check_creation(void* ptr, const string& what, const string& system);
+    bool check_creation(void* ptr, const string& what);
     //! \brief Checks if the given pointer is mapped (not null) and gives proper output, in case it is not.
     //! \param[in] ptr The pointer to check.
     //! \param[in] what The name of the checked object. Used for output.
-    //! \param[in] system The system name the function was called in. Used for output.
-    bool check_mapping(void* ptr, const string& what, const string& system);
+    bool check_mapping(void* ptr, const string& what);
+    //! \brief Checks if the given pointer is acquired (not null) and gives proper output, in case it is not.
+    //! \param[in] ptr The pointer to check.
+    //! \param[in] what The name of the checked object. Used for output.
+    bool check_acquisition(void* ptr, const string& what);
 } // namespace mango
 
 #endif // MANGO_HELPERS_HPP

@@ -12,7 +12,7 @@
 namespace mango
 {
     //! \brief Maximum number of scene \a pool entries in mango.
-    const uint32 max_pool_entries = 1000; // Extend if necessary.
+    const uint32 max_pool_entries = 10000; // Extend if necessary.
     //! \brief Maximum number of \a entities in mango.
     const uint32 max_entities = max_pool_entries;
 
@@ -47,6 +47,19 @@ namespace mango
         virtual void execute(float dt, scene_component_pool<component_1>& components_1, scene_component_pool<component_2>& components_2);
     };
 
+    //! \brief A templated base class for all ecs systems that require three components.
+    template <typename component_1, typename component_2, typename component_3>
+    class ecsystem_3
+    {
+      public:
+        //! \brief The execute function for the \a ecsystem.
+        //! \param[in] dt The time since the last call.
+        //! \param[in] components_1 First \a component_pool.
+        //! \param[in] components_2 Second \a component_pool.
+        //! \param[in] components_3 Third \a component_pool.
+        virtual void execute(float dt, scene_component_pool<component_1>& components_1, scene_component_pool<component_2>& components_2, scene_component_pool<component_3>& components_3);
+    };
+
     // fwd
     class vertex_array;
     struct material;
@@ -61,9 +74,10 @@ namespace mango
     //! \brief Component used to transform anything in the scene.
     struct transform_component
     {
-        glm::vec3 position = glm::vec3(0.0f);                     //!< The local position.
-        glm::quat rotation = glm::quat(glm::vec3(0.0, 0.0, 0.0)); //!< The local rotation quaternion.
-        glm::vec3 scale    = glm::vec3(1.0f);                     //!< The local scale.
+        glm::vec3 position      = glm::vec3(0.0f);                     //!< The local position.
+        glm::quat rotation      = glm::quat(glm::vec3(0.0, 0.0, 0.0)); //!< The local rotation quaternion.
+        glm::vec3 rotation_hint = glm::vec3(0.0, 0.0, 0.0);            //!< The local rotation hint (used for editor controls).
+        glm::vec3 scale         = glm::vec3(1.0f);                     //!< The local scale.
 
         glm::mat4 local_transformation_matrix = glm::mat4(1.0f); //!< The local transformation.
         glm::mat4 world_transformation_matrix = glm::mat4(1.0f); //!< The world transformation. If there is no parent this is also the local transformation.
@@ -76,19 +90,31 @@ namespace mango
 
         int32 children_count    = 0;              //!< The number of childs.
         entity child_entities   = invalid_entity; //!< The first child entity id. (Linked list)
-        entity next_sibling     = invalid_entity; //!< The next child entity id.
-        entity previous_sibling = invalid_entity; //!< The previous child entity id.
+        entity next_sibling     = invalid_entity; //!< The next sibling entity id.
+        entity previous_sibling = invalid_entity; //!< The previous sibling entity id.
     };
 
-    //! \brief Component used to describe a primitive draw call. Used by \a mesh_component.
-    struct primitive_component
+    //! \brief A type for mesh_primitives.
+    enum class mesh_primitive_type : uint8
     {
-        shared_ptr<vertex_array> vertex_array_object; //!< The vertex array object of the primitive.
-        primitive_topology topology;                  //!< Topology of the primitive data.
+        plane,     //!< A plane.
+        box,       //!< A box.
+        sphere,    //!< A sphere.
+        custom     //!< Custom type. Normaly used when loaded from file.
+    };
+
+    //! \brief Component used to describe a mesh primitive draw call.
+    struct mesh_primitive_component
+    {
+        shared_ptr<vertex_array> vertex_array_object; //!< The vertex array object of the mesh primitive.
+        primitive_topology topology;                  //!< Topology of the mesh primitive data.
         int32 first;                                  //!< First index.
         int32 count;                                  //!< Number of elements/vertices.
         index_type type_index;                        //!< The type of the values in the index buffer.
         int32 instance_count;                         //!< Number of instances. Usually 1.
+        bool has_normals;                             //!< Specifies if the mesh primitive has normals.
+        bool has_tangents;                            //!< Specifies if the mesh primitive has tangents.
+        mesh_primitive_type tp;                       //!< Specifies if the type of mesh primitive.
     };
 
     //! \brief Component used for materials.
@@ -105,20 +131,6 @@ namespace mango
         // TODO Paul: Extract bounds into own class.
         glm::vec3 min_extends; //!< The minimum extends of the gltf model.
         glm::vec3 max_extends; //!< The maximum extends of the gltf model.
-    };
-
-    //! \brief Component used for renderable mesh geometry. Used for drawing.
-    struct mesh_component
-    {
-        //! \brief A list of \a primitive_components.
-        std::vector<primitive_component> primitives;
-        //! \brief A list of \a material_components.
-        std::vector<material_component> materials;
-
-        //! \brief Specifies if the mesh has normals.
-        bool has_normals;
-        //! \brief Specifies if the mesh has tangents.
-        bool has_tangents;
     };
 
     //! \brief The minimum valid value for the camera aperture.
@@ -182,45 +194,40 @@ namespace mango
         glm::mat4 view_projection;
     };
 
-    //! \brief The default intensity of an environment. Is approx. the intensity of a sunny sky.
-    const float default_environment_intensity = 30000.0f;
-
-    //! \brief Component used for the scene environment.
-    struct environment_component
+    //! \brief Base component of all light components.
+    struct base_light_component
     {
-        glm::mat3 rotation_scale_matrix = glm::mat3(1.0f); //!< The rotation and scale of the environment.
-        shared_ptr<texture> hdr_texture;                   //!< The hdr texture used to build the environment.
-        float intensity = default_environment_intensity;   //!< Intensity in cd/m^2. Default 30000 (sunny sky).
+        //! \brief ID of the light.
+        uint32 l_id;
+        //! \brief Counstructs a \a base_light_component.
+        base_light_component()
+        {
+            static uint32 id = 1;
+            l_id             = id++;
+        } // TODO Paul: These should be done differently! 0 is invalid.
+        //! \brief Active flag.
+        bool active = true;
     };
 
-    //! \brief Light types used in \a light_components.
-    enum class light_type : uint8
+    //! \brief Component for directional lights.
+    struct directional_light_component : base_light_component
     {
-        directional //!< Simple directional light.
+        //! \brief The directional light.
+        directional_light light;
     };
 
-    //! \brief Base light data for every light.
-    struct light_data
+    //! \brief Component for environmental / image based lighting.
+    struct skylight_component : base_light_component
     {
+        //! \brief The skylight.
+        skylight light;
     };
 
-    //! \brief The default intensity of a directional light. Is approx. the intensity of the sun.
-    const float default_directional_intensity = 110000.0f;
-
-    //! \brief Light data for directional lights.
-    struct directional_light_data : public light_data
+    //! \brief Component for atmospheric Lighting.
+    struct atmosphere_light_component : base_light_component
     {
-        glm::vec3 direction = glm::vec3(1.0f);             //!< The light direction.
-        color_rgb light_color;                             //!< The light color. Will get multiplied by the intensity.
-        float intensity   = default_directional_intensity; //!< The instensity of the light in lumen (111000 would f.e. be a basic sun)
-        bool cast_shadows = false;                         //!< True if the light should cast shadows.
-    };
-
-    //! \brief Component used for all lights excluding image based lights.
-    struct light_component
-    {
-        light_type type_of_light    = light_type::directional;                    //!< The type of the light.
-        shared_ptr<light_data> data = std::make_shared<directional_light_data>(); //!< Light specific data.
+        //! \brief The atmospheric light.
+        atmosphere_light light;
     };
 
     //! \brief Structure used for collecting all the camera data of the current active camera.
@@ -229,13 +236,6 @@ namespace mango
         entity active_camera_entity;    //!< The entity.
         camera_component* camera_info;  //!< The camera info.
         transform_component* transform; //!< The cameras transform.
-    };
-
-    //! \brief Structure used for collecting all the environment data of the current active environment.
-    struct environment_data
-    {
-        entity active_environment_entity;        //!< The entity.
-        environment_component* environment_info; //!< The environment info.
     };
 
     // TODO Paul: This will be reworked when we need the reflection for the components.
@@ -247,14 +247,37 @@ namespace mango
         {
             return typeid(T).name();
         }
+
+        static int32 id()
+        {
+            return -1;
+        }
     };
 
+    template <>
+    struct type_name<tag_component>
+    {
+        static const char* get()
+        {
+            return "Tag Component";
+        }
+
+        static int32 id()
+        {
+            return 0;
+        }
+    };
     template <>
     struct type_name<transform_component>
     {
         static const char* get()
         {
-            return "transform_component";
+            return "Transform Component";
+        }
+
+        static int32 id()
+        {
+            return 1;
         }
     };
     template <>
@@ -262,15 +285,25 @@ namespace mango
     {
         static const char* get()
         {
-            return "node_component";
+            return "Node Component";
+        }
+
+        static int32 id()
+        {
+            return 2;
         }
     };
     template <>
-    struct type_name<primitive_component>
+    struct type_name<mesh_primitive_component>
     {
         static const char* get()
         {
-            return "primitive_component";
+            return "Mesh Primitive Component";
+        }
+
+        static int32 id()
+        {
+            return 3;
         }
     };
     template <>
@@ -278,7 +311,12 @@ namespace mango
     {
         static const char* get()
         {
-            return "material_component";
+            return "Material Component";
+        }
+
+        static int32 id()
+        {
+            return 4;
         }
     };
     template <>
@@ -286,15 +324,12 @@ namespace mango
     {
         static const char* get()
         {
-            return "model_component";
+            return "Model Component";
         }
-    };
-    template <>
-    struct type_name<mesh_component>
-    {
-        static const char* get()
+
+        static int32 id()
         {
-            return "mesh_component";
+            return 5;
         }
     };
     template <>
@@ -302,23 +337,51 @@ namespace mango
     {
         static const char* get()
         {
-            return "camera_component";
+            return "Camera Component";
+        }
+
+        static int32 id()
+        {
+            return 6;
         }
     };
     template <>
-    struct type_name<environment_component>
+    struct type_name<directional_light_component>
     {
         static const char* get()
         {
-            return "environment_component";
+            return "Directional Light Component";
+        }
+
+        static int32 id()
+        {
+            return 7;
         }
     };
     template <>
-    struct type_name<light_component>
+    struct type_name<atmosphere_light_component>
     {
         static const char* get()
         {
-            return "light_component";
+            return "Atmosphere Light Component";
+        }
+
+        static int32 id()
+        {
+            return 8;
+        }
+    };
+    template <>
+    struct type_name<skylight_component>
+    {
+        static const char* get()
+        {
+            return "Skylight Component";
+        }
+
+        static int32 id()
+        {
+            return 9;
         }
     };
     //! \endcond

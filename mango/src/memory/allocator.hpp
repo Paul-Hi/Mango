@@ -27,6 +27,7 @@ namespace mango
         ~allocator()
         {
             m_total_size = 0;
+            free(m_start);
         }
 
         //! \brief Initializes the \a allocator.
@@ -39,6 +40,8 @@ namespace mango
                 m_start = nullptr;
             }
             m_start = malloc(m_total_size);
+            if(!m_start)
+                MANGO_LOG_ERROR("Malloc failed! Allocator broken!");
 
             reset();
         }

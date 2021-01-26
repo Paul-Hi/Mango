@@ -33,12 +33,12 @@ bool gpu_buffer::init(int64 frame_size, buffer_technique technique)
     buffer_configuration gpu_buffer_config(m_gpu_buffer_size, buffer_target::uniform_buffer, buffer_access::mapped_access_write);
     m_gpu_buffer = buffer::create(gpu_buffer_config);
 
-    if (!check_creation(m_gpu_buffer.get(), "GPU buffer", "Render System"))
+    if (!check_creation(m_gpu_buffer.get(), "GPU buffer"))
         return false;
 
     m_mapping = m_gpu_buffer->map(0, m_gpu_buffer->byte_length(), buffer_access::mapped_access_write);
 
-    if (!check_mapping(m_gpu_buffer.get(), "GPU buffer Mapping", "Render System"))
+    if (!check_mapping(m_gpu_buffer.get(), "GPU buffer Mapping"))
         return false;
 
     return true;

@@ -243,9 +243,9 @@ namespace mango
 
       private:
         float v;
-        float p0;
-        float p1;
-        float p2;
+        float p0 = 0.0f;
+        float p1 = 0.0f;
+        float p2 = 0.0f;
         //! \endcond
     };
 
@@ -261,7 +261,7 @@ namespace mango
             : v(glm::vec2(0.0f))
         {
         }
-        operator glm::vec2 &()
+        operator glm::vec2&()
         {
             return v;
         }
@@ -291,7 +291,7 @@ namespace mango
             : v(glm::vec3(0.0f))
         {
         }
-        operator glm::vec3 &()
+        operator glm::vec3&()
         {
             return v;
         }
@@ -306,7 +306,7 @@ namespace mango
 
       private:
         glm::vec3 v;
-        float pad;
+        float pad = 0.0f;
         //! \endcond
     };
 
@@ -322,7 +322,7 @@ namespace mango
             : v(glm::vec4(0.0f))
         {
         }
-        operator glm::vec4 &()
+        operator glm::vec4&()
         {
             return v;
         }
@@ -372,6 +372,8 @@ namespace mango
                 return r1;
             case 2:
                 return r2;
+            default:
+                MANGO_ASSERT(false, "3D Vector has only 3 components!"); // TODO Paul: Ouch!
             }
         }
 
@@ -419,6 +421,8 @@ namespace mango
                 return r2;
             case 3:
                 return r3;
+            default:
+                MANGO_ASSERT(false, "3D Vector has only 3 components!"); // TODO Paul: Ouch!
             }
         }
 
@@ -903,6 +907,58 @@ namespace mango
         }
     }
 
+    //! \brief Returns internal format, format and type for an image depending on a few infos.
+    //! \param[in] srgb True if image is in standard color space, else False.
+    //! \param[in] components The number of components in the image.
+    //! \param[in] bits The number of bits in the image.
+    //! \param[out] f The format to choose.
+    //! \param[out] internal The internal format to choose.
+    //! \param[out] type The type to choose.
+    //! \param[in] is_hdr True if image is hdr, else False.
+    inline void get_formats_and_types_for_image(bool srgb, int32 components, int32 bits, format& f, format& internal, format& type, bool is_hdr)
+    {
+        if (is_hdr)
+        {
+            f        = format::rgb;
+            internal = format::rgb32f;
+            type     = format::t_float;
+
+            if (components == 4)
+            {
+                f        = format::rgba;
+                internal = format::rgba32f;
+            }
+            return;
+        }
+
+        f        = format::rgba;
+        internal = srgb ? format::srgb8_alpha8 : format::rgba8;
+
+        if (components == 1)
+        {
+            f = format::red;
+        }
+        else if (components == 2)
+        {
+            f = format::rg;
+        }
+        else if (components == 3)
+        {
+            f        = format::rgb;
+            internal = srgb ? format::srgb8 : format::rgb8;
+        }
+
+        type = format::t_unsigned_byte;
+        if (bits == 16)
+        {
+            type = format::t_unsigned_short;
+        }
+        else if (bits == 32)
+        {
+            type = format::t_unsigned_int;
+        }
+    }
+
     //! \brief Compare operation used for depth test and similar things.
     enum class compare_operation : uint8
     {
@@ -1242,7 +1298,7 @@ namespace mango
         // uvec2,
         // uvec3,
         // uvec4,
-        // bool,
+        bsingle,
         // bvec2,
         // bvec3,
         // bvec4,
@@ -1274,7 +1330,7 @@ namespace mango
         case GL_INT_VEC4:
             return shader_resource_type::ivec4;
         case GL_BOOL:
-            return shader_resource_type::isingle;
+            return shader_resource_type::bsingle;
         case GL_FLOAT_MAT3:
             return shader_resource_type::mat3;
         case GL_FLOAT_MAT4:

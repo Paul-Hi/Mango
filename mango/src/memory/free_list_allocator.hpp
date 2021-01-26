@@ -46,10 +46,10 @@ namespace mango
         //! \brief Splits blocks into two after finding a fitting block beeing to large.
         //! \param[in] wanted The required searched size.
         //! \param[in] got The found size of the fitting block.
-        //! \param[in] current The current block with the fitting size.
         //! \param[in] last The last block in relation to the current one.
+        //! \param[in] current The current block with the fitting size.
         //! \param[in] next The next block in relation to the current one.
-        void split(int64 wanted, int64 got, free_list_memory_block* current, free_list_memory_block* last, free_list_memory_block* next);
+        void split(int64 wanted, int64 got, free_list_memory_block* last, free_list_memory_block* current, free_list_memory_block* next);
 
         //! \brief Merges blocks after freeing a block.
         //! \param[in] last The last block in relation to the current one.

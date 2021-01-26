@@ -34,44 +34,44 @@ namespace mango
         framebuffer_configuration(int32 width, int32 height, texture_ptr color_attachment0, texture_ptr color_attachment1, texture_ptr color_attachment2, texture_ptr color_attachment3, texture_ptr depth_attachment,
                                   texture_ptr stencil_attachment, texture_ptr depth_stencil_attachment)
             : graphics_configuration()
-            , m_width(width)
-            , m_height(height)
-            , m_color_attachment0(color_attachment0)
-            , m_color_attachment1(color_attachment1)
-            , m_color_attachment2(color_attachment2)
-            , m_color_attachment3(color_attachment3)
-            , m_depth_attachment(depth_attachment)
-            , m_stencil_attachment(stencil_attachment)
-            , m_depth_stencil_attachment(depth_stencil_attachment)
+            , width(width)
+            , height(height)
+            , color_attachment0(color_attachment0)
+            , color_attachment1(color_attachment1)
+            , color_attachment2(color_attachment2)
+            , color_attachment3(color_attachment3)
+            , depth_attachment(depth_attachment)
+            , stencil_attachment(stencil_attachment)
+            , depth_stencil_attachment(depth_stencil_attachment)
         {
         }
 
         //! \brief The width of the \a framebuffer.
-        int32 m_width;
+        int32 width;
         //! \brief The height of the \a framebuffer.
-        int32 m_height;
+        int32 height;
         //! \brief The first color attachment.
-        texture_ptr m_color_attachment0;
+        texture_ptr color_attachment0;
         //! \brief The second color attachment.
-        texture_ptr m_color_attachment1;
+        texture_ptr color_attachment1;
         //! \brief The third color attachment.
-        texture_ptr m_color_attachment2;
+        texture_ptr color_attachment2;
         //! \brief The fourth color attachment.
-        texture_ptr m_color_attachment3;
+        texture_ptr color_attachment3;
         //! \brief The depth attachment.
-        texture_ptr m_depth_attachment;
+        texture_ptr depth_attachment;
         //! \brief The stencil attachment.
-        texture_ptr m_stencil_attachment;
+        texture_ptr stencil_attachment;
         //! \brief The depth and stencil attachment.
-        texture_ptr m_depth_stencil_attachment;
+        texture_ptr depth_stencil_attachment;
 
         bool is_valid() const
         {
-            if (nullptr != m_depth_attachment && nullptr != m_depth_stencil_attachment)
+            if (nullptr != depth_attachment && nullptr != depth_stencil_attachment)
                 return false;
-            if (nullptr != m_stencil_attachment && nullptr != m_depth_stencil_attachment)
+            if (nullptr != stencil_attachment && nullptr != depth_stencil_attachment)
                 return false;
-            return m_width > 0 && m_height > 0 && nullptr != m_color_attachment0;
+            return width > 0 && height > 0 && nullptr != color_attachment0;
         }
     };
 

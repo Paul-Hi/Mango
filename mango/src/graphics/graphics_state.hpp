@@ -74,10 +74,11 @@ namespace mango
         bool bind_framebuffer(g_uint name);
 
         //! \brief Binds a \a buffer.
+        //! \param[in] name The OpenGL name of the \a buffer.
         //! \param[in] slot The slot to bind the \a buffer to.
         //! \param[in] offset The offset to start.
         //! \return True if state changed, else false.
-        bool bind_buffer(int32 slot, int64 offset);
+        bool bind_buffer(g_uint name, int32 slot, int64 offset);
 
         //! \brief Enables or disables face culling.
         //! \param[in] enabled True if face culling should be enabled, else false.
@@ -110,7 +111,7 @@ namespace mango
         void end_frame() // TODO Paul: Maybe not a good solution...
         {
             for (int32 i = 0; i < max_buffer_slots; ++i)
-                m_internal_state.buffer_offsets[i] = -1;
+                m_internal_state.buffer_name_offset[i] = glm::ivec2(-1, -1);
         }
 
         //! \brief The maximum number of texture bindings (not really, just supported by the state).
@@ -128,7 +129,7 @@ namespace mango
 
             std::array<g_uint, max_texture_bindings> m_active_texture_bindings; //!< Bindings from binding points to texture names.
 
-            int64 buffer_offsets[max_buffer_slots]; //!< Buffer slot offsets per frame.
+            glm::ivec2 buffer_name_offset[max_buffer_slots]; //!< Buffer slot names and offsets per frame.
 
             struct
             {

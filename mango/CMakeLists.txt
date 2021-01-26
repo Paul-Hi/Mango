@@ -17,6 +17,8 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input_codes.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/ui_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/profile.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/imgui_helper.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/mesh_factory.hpp
 )
 
 set(PRIVATE_HEADERS
@@ -26,21 +28,24 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/input_system_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/pipeline_step.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/ibl_step.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/cubemap_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/gpu_buffer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/hashing.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/helpers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/signal.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/image_structures.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/model_structures.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_structures.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/timer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_system_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/ecs_internal.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_glfw.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_widgets.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/icons_font_awesome_5.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/allocator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/linear_allocator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/free_list_allocator.hpp
@@ -76,14 +81,19 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/ibl_step.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/cubemap_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/gpu_buffer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/mesh_factory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_system_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_glfw.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/helpers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/linear_allocator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/free_list_allocator.cpp
@@ -159,6 +169,7 @@ target_compile_definitions(mango
     PUBLIC
         $<$<CONFIG:Debug>:MANGO_DEBUG>
         $<$<CXX_COMPILER_ID:MSVC>:MANGO_WINMAIN>
+        $<$<CXX_COMPILER_ID:Clang>:$<$<BOOL:{CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"}>:MANGO_WINMAIN>>
         $<$<BOOL:${MANGO_BUILD_TESTS}>:MANGO_TEST>
         $<$<BOOL:${MANGO_PROFILE}>:MANGO_PROFILE>
         $<$<CXX_COMPILER_ID:MSVC>: _CRT_SECURE_NO_WARNINGS>

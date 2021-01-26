@@ -9,40 +9,30 @@
 
 #include <core/context_impl.hpp>
 #include <mango/system.hpp>
-#include <resources/image_structures.hpp>
-#include <resources/model_structures.hpp>
+#include <memory/free_list_allocator.hpp>
+#include <resources/resource_structures.hpp>
 #include <util/hashing.hpp>
 
 namespace mango
 {
-    //! \brief The minimal handle of a resource only used for storing the real resources.
-    //! \details This is used so that after creation all resources can recieved only via name.
-    //! If we use the real configurations, we would have to specify all the parameters each time we want to get the image.
-    struct resource_handle
+    //! \brief Id used for resources.
+    using resource_id = uint64;
+    //! \brief Hash for \a resource_configuration.
+    struct resource_hash
     {
-        string name; //!< The name used for caching.
-
-        //! \brief Hash function for the \a resource_handle.
-        //! \return The hash value.
-        ptr_size hash_code() const
+      public:
+        //! \brief Returns a \a resource_id for a given \a resource_configuration.
+        //! \param[in] config The \a resource_configuration.
+        static inline resource_id get_id(const resource_configuration& config)
         {
-            fnv1a hash;
-            hash(name.data(), name.size());
-            return static_cast<std::size_t>(hash);
-        }
-
-        //! \brief Comparison operator for \a shader_configurations.
-        //! \param[in] other The \a resource_handle to compare this to.
-        //! \return True if this and other are equal, else false.
-        bool operator==(const resource_handle& other) const
-        {
-            return name == other.name;
+            auto start = string(config.path).find_last_of("\\/") + 1;
+            auto name  = string(config.path).substr(start, string(config.path).find_last_of(".") - start);
+            return djb2_string_hash::hash(name.c_str());
         }
     };
 
     //! \brief The \a resource_system of mango.
-    //! \details This system is responsible for all resources in mango.
-    //! This includes images and meshes.
+    //! \details This system is responsible for loading and releasing resources.
     class resource_system : public system
     {
       public:
@@ -55,21 +45,40 @@ namespace mango
         virtual void update(float dt) override;
         virtual void destroy() override;
 
-        //! \brief Gets an image and loads it when necessary.
-        //! \param[in] path The path to the image. Relative to the project folder.
-        //! \param[in] configuration The \a image_configuration of the image.
-        //! \return A pointer to the image loaded before.
-        const shared_ptr<image> get_image(const string& path, const image_configuration& configuration);
+        //! \brief Retrieves, lazy loads and returns an \a image_resource.
+        //! \param[in] configuration The \a image_resource_configuration used for retrieving the \a image_resource.
+        //! \returns A pointer to the \a image_resource. Should be released later on.
+        const image_resource* acquire(const image_resource_configuration& configuration);
+        //! \brief Releases an aquired \a image_resource.
+        //! \param[in] resource The \a image_resource to release.
+        void release(const image_resource* resource);
 
-        //! \brief Gets a gltf model and loads it when necessary.
-        //! \param[in] path The path to the model. Relative to the project folder.
-        //! \param[in] configuration The \a model_configuration of the model.
-        //! \return A pointer to the model loaded before.
-        const shared_ptr<model> get_gltf_model(const string& path, const model_configuration& configuration);
+        //! \brief Retrieves, lazy loads and returns a \a model_resource.
+        //! \param[in] configuration The \a model_resource_configuration used for retrieving the \a model_resource.
+        //! \returns A pointer to the \a model_resource. Should be released later on.
+        const model_resource* acquire(const model_resource_configuration& configuration);
+        //! \brief Releases an aquired \a model_resource.
+        //! \param[in] resource The \a model_resource to release.
+        void release(const model_resource* resource);
 
       private:
         //! \brief Mangos internal context for shared usage in the \a resource_system.
         shared_ptr<context_impl> m_shared_context;
+
+        //! \brief The allocator used to store the resources.
+        free_list_allocator m_allocator;
+
+        //! \brief Loads \a image_resource from file.
+        //! \param[in] configuration The \a image_resource_configuration used for loading the \a image_resource.
+        //! \returns A pointer to the \a image_resource.
+        image_resource* load_image_from_file(const image_resource_configuration& configuration);
+        //! \brief Loads \a model_resource from file.
+        //! \param[in] configuration The \a model_resource_configuration used for loading the \a model_resource.
+        //! \returns A pointer to the \a model_resource.
+        model_resource* load_model_from_file(const model_resource_configuration& configuration);
+
+        //! \brief Cache for resources, mapping \a resource_ids to resource pointers.
+        std::unordered_map<resource_id, void*> m_resource_cache;
     };
 
 } // namespace mango

@@ -24,7 +24,11 @@ bool editor::create()
     mango_ws->configure(window_config);
 
     render_configuration render_config;
-    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(true).enable_render_step(mango::render_step::ibl).enable_render_step(mango::render_step::shadow_map);
+    render_config.set_base_render_pipeline(render_pipeline::deferred_pbr)
+        .set_vsync(true)
+        .enable_render_step(mango::render_step::cubemap)
+        .enable_render_step(mango::render_step::shadow_map)
+        .enable_render_step(mango::render_step::fxaa);
     shared_ptr<render_system> mango_rs = mango_context->get_render_system().lock();
     MANGO_ASSERT(mango_rs, "Render System is expired!");
     mango_rs->configure(render_config);
@@ -34,7 +38,6 @@ bool editor::create()
         .show_widget(mango::ui_widget::render_view)
         .show_widget(mango::ui_widget::hardware_info)
         .show_widget(mango::ui_widget::scene_inspector)
-        .show_widget(mango::ui_widget::material_inspector)
         .show_widget(mango::ui_widget::entity_component_inspector)
         .show_widget(mango::ui_widget::render_system_ui)
         .submit_custom("Editor", [this](bool& enabled) {
@@ -42,14 +45,16 @@ bool editor::create()
             shared_ptr<context> mango_context = get_context().lock();
             MANGO_ASSERT(mango_context, "Context is expired!");
             auto application_scene = mango_context->get_current_scene();
-            ImGui::Text("This is Mangos Editor.");
-            if (m_main_camera == invalid_entity || !application_scene->is_entity_alive(m_main_camera))
-            {
-                if (ImGui::Button("Create Editor Camera"))
-                    m_main_camera = application_scene->create_default_camera();
-                application_scene->get_tag(m_main_camera)->tag_name = "Editor Camera";
-            }
-
+            entity main_cam        = m_main_camera;
+            mango::custom_info("Mango Editor Custom", [&main_cam, &application_scene]() {
+                if (main_cam == invalid_entity || !application_scene->is_entity_alive(main_cam))
+                {
+                    if (ImGui::Button("Create Editor Camera"))
+                        main_cam = application_scene->create_default_camera();
+                    application_scene->get_component<tag_component>(main_cam)->tag_name = "Editor Camera";
+                }
+            });
+            m_main_camera = main_cam;
             ImGui::End();
         });
 
@@ -61,32 +66,45 @@ bool editor::create()
     mango_context->register_scene(application_scene);
 
     // camera
-    m_main_camera                                       = application_scene->create_default_camera();
-    application_scene->get_tag(m_main_camera)->tag_name = "Editor Camera";
+    m_main_camera                                                            = application_scene->create_default_camera();
+    application_scene->get_component<tag_component>(m_main_camera)->tag_name = "Editor Camera";
 
     mango_context->make_scene_current(application_scene);
 
     // test settings comment in to have some example scene
     {
-        ibl_step_configuration ibl_config;
+        cubemap_step_configuration ibl_config;
         ibl_config.set_render_level(0.1f);
-        mango_rs->setup_ibl_step(ibl_config);
+        mango_rs->setup_cubemap_step(ibl_config);
 
         shadow_step_configuration shadow_config;
-        shadow_config.set_resolution(2048).set_max_penumbra(6.0f).set_offset(12.0f).set_cascade_count(3).set_split_lambda(0.5f);
+        shadow_config.set_resolution(2048).set_sample_count(16).set_offset(12.0f).set_cascade_count(3).set_split_lambda(0.5f).set_cascade_interpolation_range(0.5f);
         mango_rs->setup_shadow_map_step(shadow_config);
 
-        application_scene->create_entities_from_model("res/models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.glb");
-        entity lighting                                                   = application_scene->create_environment_from_hdr("res/textures/venice_sunset_4k.hdr");
-        application_scene->get_tag(lighting)->tag_name                    = "Global Lighting";
-        application_scene->get_environment_component(lighting)->intensity = 4000.0f;
-        auto& l_c                                                         = application_scene->add_light_component(lighting);
-        l_c.type_of_light                                                 = mango::light_type::directional;
-        auto directional_data                                             = static_cast<mango::directional_light_data*>(l_c.data.get());
-        directional_data->direction                                       = glm::vec3(0.9f, 0.05f, 0.65f);
-        directional_data->intensity                                       = 89000.0f;
-        directional_data->light_color                                     = mango::color_rgb({ 1.0f, 0.387f, 0.207f });
-        directional_data->cast_shadows                                    = true;
+        fxaa_step_configuration fxaa_config;
+        fxaa_config.set_quality_preset(fxaa_quality_preset::medium_quality).set_subpixel_filter(0.0f);
+        mango_rs->setup_fxaa_step(fxaa_config);
+
+        // application_scene->create_entities_from_model("res/models/MetalRoughSpheresNoTextures/MetalRoughSpheresNoTextures.glb");
+        entity sphere = application_scene->create_empty();
+        application_scene->add_component<material_component>(sphere);
+        application_scene->get_component<tag_component>(sphere)->tag_name = "Created Sphere";
+        auto mpc = application_scene->add_component<mesh_primitive_component>(sphere);
+        auto sf  = mesh_factory::get_sphere_factory();
+        sf->set_normals(true).set_rings(22).set_segments(44).set_uv_tiling({ 2.0f, 2.0f });
+        sf->create_mesh_primitive_component(mpc);
+
+        entity lighting                                                     = application_scene->create_skylight_from_hdr("res/textures/venice_sunset_4k.hdr");
+        application_scene->get_component<tag_component>(lighting)->tag_name = "Global Lighting";
+        auto d_l_c                                                          = application_scene->add_component<directional_light_component>(lighting);
+        if (d_l_c)
+        {
+            d_l_c->light.direction     = glm::vec3(0.9f, 0.05f, 0.65f);
+            d_l_c->light.intensity     = 89000.0f;
+            d_l_c->light.light_color   = mango::color_rgb({ 1.0f, 0.387f, 0.207f });
+            d_l_c->light.cast_shadows  = true;
+            d_l_c->light.atmospherical = true;
+        }
     }
     // test end
 
@@ -109,7 +127,7 @@ bool editor::create()
         MANGO_ASSERT(mango_is, "Input System is expired!");
 
         bool no_rotation         = mango_is->get_mouse_button(mouse_button::mouse_button_left) == input_action::release;
-        bool no_panning          = mango_is->get_mouse_button(mouse_button::mouse_button_right) == input_action::release;
+        bool no_panning          = mango_is->get_mouse_button(mouse_button::mouse_button_middle) == input_action::release;
         glm::vec2 diff           = glm::vec2(x_position, y_position) - m_last_mouse_position;
         bool offset_not_relevant = glm::length(diff) < 1.0f; // In pixels.
 
@@ -170,8 +188,8 @@ void editor::update(float dt)
     auto application_scene = mango_context->get_current_scene();
     if (!application_scene->is_entity_alive(m_main_camera))
         return;
-    auto cam_transform = application_scene->get_transform_component(m_main_camera);
-    auto cam_data      = application_scene->get_camera_component(m_main_camera);
+    auto cam_transform = application_scene->get_component<transform_component>(m_main_camera);
+    auto cam_data      = application_scene->get_component<camera_component>(m_main_camera);
     if (!cam_data || !cam_transform)
         return;
 

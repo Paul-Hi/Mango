@@ -11,6 +11,13 @@
 
 namespace mango
 {
+    //! \brief Structure describing a define in a shader.
+    struct shader_define
+    {
+        const char* name; //!< The name of the define.
+        const char* value; //!< The value of the define.
+    };
+
     //! \brief A configuration for \a shaders.
     class shader_configuration : public graphics_configuration
     {
@@ -23,21 +30,28 @@ namespace mango
 
         //! \brief Constructs a new \a shader_configuration.
         //! \param[in] path The path to the shader source.
-        shader_configuration(const char* path)
+        //! \param[in] type The type of the shader.
+        //! \param[in] defines The defines to inject into the shader.
+        shader_configuration(const char* path, shader_type type, std::initializer_list<shader_define> defines)
             : graphics_configuration()
-            , m_path(path)
+            , path(path)
+            , type(type)
+            , defines(defines)
         {
         }
 
         //! \brief Path to shader source. Relative to project folder.
-        const char* m_path;
+        const char* path = nullptr;
 
         //! \brief The type of the shader described by the source.
-        shader_type m_type = shader_type::none;
+        shader_type type = shader_type::none;
+
+        //! \brief The defines injected into the shader.
+        std::vector<shader_define> defines;
 
         bool is_valid() const
         {
-            return nullptr != m_path && m_type != shader_type::none;
+            return nullptr != path && type != shader_type::none;
         }
     };
 
@@ -55,7 +69,7 @@ namespace mango
         virtual shader_type get_type() = 0;
 
       protected:
-        shader() = default;
+        shader()  = default;
         ~shader() = default;
     };
 } // namespace mango

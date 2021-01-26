@@ -180,6 +180,11 @@ void bind_single_uniform(const void* data)
         glUniformMatrix4fv(cmd->location, cmd->count, GL_FALSE, static_cast<g_float*>(cmd->uniform_value));
         return;
     }
+    case shader_resource_type::bsingle:
+    {
+        glUniform1i(cmd->location, *static_cast<g_bool*>(cmd->uniform_value));
+        return;
+    }
     default:
         MANGO_LOG_ERROR("Unknown uniform type!");
     }
@@ -190,7 +195,7 @@ void bind_buffer(const void* data)
 {
     NAMED_PROFILE_ZONE("Bind Buffer");
     const bind_buffer_command* cmd = static_cast<const bind_buffer_command*>(data);
-    if (!m_current_state.bind_buffer(cmd->index, cmd->offset))
+    if (!m_current_state.bind_buffer(cmd->buffer_name, cmd->index, cmd->offset))
         return;
 
     g_enum gl_target = buffer_target_to_gl(cmd->target);

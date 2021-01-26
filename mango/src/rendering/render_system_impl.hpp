@@ -15,26 +15,33 @@
 #include <graphics/command_buffer.hpp>
 #include <mango/render_system.hpp>
 #include <queue>
+#include <rendering/light_stack.hpp>
 
 namespace mango
 {
-    //! \brief Some stats regarding hardware.
-    struct hardware_stats
+    //! \brief Informatiosn used and filled by the \a renderer.
+    struct renderer_info
     {
         //! \brief The graphics API version used.
         string api_version;
 
         struct
         {
-            int32 draw_calls;    //!< The number of draw calls.
-            int32 meshes;        //!< The number of meshes.
-            int32 primitives;    //!< The number of primitives.
-            int32 materials;     //!< The number of materials.
-            int32 canvas_x;      //!< The x of the current render canvas.
-            int32 canvas_y;      //!< The y of the current render canvas.
-            int32 canvas_width;  //!< The width of the current render canvas.
-            int32 canvas_height; //!< The height of the current render canvas.
-        } last_frame;            //!< Measured stats from the last rendered frame.
+            int32 x;      //!< The x of the current render canvas.
+            int32 y;      //!< The y of the current render canvas.
+            int32 width;  //!< The width of the current render canvas.
+            int32 height; //!< The height of the current render canvas.
+        } canvas;         //!< Draw canvas information.
+
+        struct
+        {
+            int32 draw_calls; //!< The number of draw calls.
+            int32 meshes;     //!< The number of meshes.
+            int32 primitives; //!< The number of primitives.
+            int32 vertices;   //!< The number of vertices.
+            int32 triangles;  //!< The number of triangles (approx.).
+            int32 materials;  //!< The number of materials.
+        } last_frame;         //!< Measured stats from the last rendered frame.
     };
 
     //! \brief Structure to store data for adaptive exposure.
@@ -46,6 +53,7 @@ namespace mango
 
     enum class light_type : uint8;
     struct light_data;
+    struct environment_light_data;
 
     //! \brief The implementation of the \a render_system.
     //! \details This class only manages the configuration of the base \a render_system and forwards everything else to the real implementation of the specific configured one.
@@ -59,8 +67,10 @@ namespace mango
 
         virtual bool create() override;
         virtual void configure(const render_configuration& configuration) override;
-        virtual void setup_ibl_step(const ibl_step_configuration& configuration) override;
+        virtual void setup_cubemap_step(const cubemap_step_configuration& configuration) override;
         virtual void setup_shadow_map_step(const shadow_step_configuration& configuration) override;
+        virtual void setup_fxaa_step(const fxaa_step_configuration& configuration) override;
+        virtual void on_ui_widget() override;
 
         //! \brief Does all the setup and has to be called before rendering the scene.
         //! \details Adds setup and clear calls to the \a command_buffer.
@@ -113,38 +123,42 @@ namespace mango
         //! \param[in] instance_count The number of instances to draw. Has to be a positive value. For normal drawing pass 1.
         virtual void draw_mesh(const vertex_array_ptr& vertex_array, primitive_topology topology, int32 first, int32 count, index_type type, int32 instance_count = 1);
 
-        //! \brief Sets the \a texture for a environment.
-        //! \param[in] hdr_texture The pointer to the hdr \a texture to use as an environment.
-        virtual void set_environment_texture(const texture_ptr& hdr_texture);
-
         //! \brief Submits a light to the \a render_system.
-        //! \param[in] type The submitted \a light_type.
-        //! \param[in] data The \a light_data describing the submitted light.
-        virtual void submit_light(light_type type, light_data* data);
+        //! \param[in] id The id of the submitted \a mango_light.
+        //! \param[in] light The \a mango_light to submit.
+        virtual void submit_light(light_id id, mango_light* light);
 
         //! \brief Returns the backbuffer of the a render_system.
         //! \return The backbuffer.
         virtual framebuffer_ptr get_backbuffer();
 
-        //! \brief Returns some stats regarding hardware.
-        //! \return Some stats regarding hardware.
-        inline const hardware_stats& get_hardware_stats()
+        //! \brief Returns \a renderer related informations.
+        //! \return The informations.
+        inline const renderer_info& get_renderer_info()
         {
             MANGO_ASSERT(m_current_render_system, "Current render sytem not valid!");
-            return m_current_render_system->m_hardware_stats;
+            return m_current_render_system->m_renderer_info;
         }
-
-        //! \brief Custom UI function.
-        //! \details This can be called by any \a ui_widget and displays settings and debug information for the active \a render_system.
-        //! This does not draw any window, so it needs one surrounding it.
-        virtual void on_ui_widget();
 
       protected:
         //! \brief Mangos internal context for shared usage in all \a render_systems.
         shared_ptr<context_impl> m_shared_context;
 
+        //! \brief The light stack managing all lights.
+        light_stack m_light_stack;
+
         //! \brief The hardware stats.
-        hardware_stats m_hardware_stats;
+        renderer_info m_renderer_info;
+
+        //! \brief True if vertical synchronization is enabled, else False.
+        bool m_vsync;
+
+        //! \brief Function can be used to create render_system resources on startup.
+        //! \return True on success, else false.
+        virtual bool create_renderer_resources()
+        {
+            return true;
+        };
 
       private:
         //! \brief A shared pointer to the currently used internal \a render_system.

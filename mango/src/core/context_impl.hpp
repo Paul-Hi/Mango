@@ -110,6 +110,13 @@ namespace mango
         //! \brief The gl loading procedure of mango.
         //! \details This is usually set by the \a window_system on creation and can be used in the \a render_system to initialize opengl.
         mango_gl_load_proc m_procedure;
+
+        //! \brief Creates all systems.
+        //! \return True on success, else False.
+        bool create_systems();
+
+        //! \brief Destroys all systems.
+        void destroy_systems();
     };
 } // namespace mango
 

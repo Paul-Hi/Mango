@@ -30,6 +30,10 @@ namespace mango
         {
             return m_window_configuration.get_height();
         }
+        inline bool vsync() override
+        {
+            return m_vsync;
+        }
         void set_size(int32 width, int32 height) override;
 
         void swap_buffers() override;
@@ -52,7 +56,9 @@ namespace mango
 
         //! \brief The platform data holds the window handle that is needed to identify the window after creation.
         //! \details This is important, because without it destruction, update and input polling would fail.
-        shared_ptr<platform_data>  m_platform_data;
+        shared_ptr<platform_data> m_platform_data;
+
+        bool create_window() override;
     };
 
 } // namespace mango

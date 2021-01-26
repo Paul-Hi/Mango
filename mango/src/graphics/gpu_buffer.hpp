@@ -17,21 +17,25 @@ namespace mango
 //! \brief Slot for the renderers uniform buffer.
 #define UB_SLOT_RENDERER_FRAME 0
 //! \brief Slot for the lighting data uniform buffer.
-#define UB_SLOT_LIGHTING_PASS_DATA 3
+#define UB_SLOT_LIGHTING_PASS_DATA 1
 
 //! \brief Slot for the model data uniform buffer.
-#define UB_SLOT_MODEL_DATA 1
+#define UB_SLOT_MODEL_DATA 2
 //! \brief Slot for the material uniform buffer.
-#define UB_SLOT_MATERIAL_DATA 2
-//! \brief Slot for the ibl step uniform buffer.
-#define UB_SLOT_IBL_DATA 5
+#define UB_SLOT_MATERIAL_DATA 3
+//! \brief Slot for the material uniform buffer.
+#define UB_SLOT_LIGHT_DATA 4
+//! \brief Slot for the cubemap step uniform buffer.
+#define UB_SLOT_CUBEMAP_DATA 5
 
 // Shared buffer binding points
 
 //! \brief Slot for the shadow step uniform buffer.
-#define UB_SLOT_SHADOW_DATA 4
+#define UB_SLOT_SHADOW_DATA 6
 //! \brief Slot for the shader storage buffer used for automatic exposure calculation.
-#define SSB_SLOT_EXPOSURE 4
+#define SSB_SLOT_EXPOSURE 6
+//! \brief Slot for the uniform buffers used in compute shaders.
+#define UB_SLOT_COMPUTE_DATA 6
 
     //! \brief Structure describing various buffering techniques.
     enum class buffer_technique : uint8

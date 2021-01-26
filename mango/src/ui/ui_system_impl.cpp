@@ -40,70 +40,113 @@ bool ui_system_impl::create()
     // io.ConfigViewportsNoAutoMerge = true;
     // io.ConfigViewportsNoTaskBarIcon = true;
 
-    io.Fonts->AddFontFromFileTTF("res/fonts/Roboto-Medium.ttf", 16.0);
+    io.FontDefault = io.Fonts->AddFontFromFileTTF("res/fonts/OpenSans-Regular.ttf", 18.0);
+
+    static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+    ImFontConfig icons_config;
+    icons_config.MergeMode  = true;
+    icons_config.PixelSnapH = true;
+    io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 14.0f, &icons_config, icons_ranges);
 
     io.ConfigWindowsMoveFromTitleBarOnly = true; // Only move from title bar
 
+    struct color_setup
+    {
+        float main_hue = 0.0f / 360.0f;
+        float main_sat = 0.0f / 100.0f;
+        float main_val = 5.0f / 100.0f;
+        float text_hue = 0.0f / 360.0f;
+        float text_sat = 0.0f / 100.0f;
+        float text_val = 100.0f / 100.0f;
+        float back_hue = 0.0f / 360.0f;
+        float back_sat = 0.0f / 100.0f;
+        float back_val = 50.0f / 100.0f;
+        float area_hue = 0.0f / 360.0f;
+        float area_sat = 0.0f / 100.0f;
+        float area_val = 25.0f / 100.0f;
+        float rounding = 0.0f;
+    } setup;
+
+    ImVec4 text = ImColor::HSV(setup.text_hue, setup.text_sat, setup.text_val);
+    ImVec4 main = ImColor::HSV(setup.main_hue, setup.main_sat, setup.main_val);
+    ImVec4 back = ImColor::HSV(setup.back_hue, setup.back_sat, setup.back_val);
+    ImVec4 area = ImColor::HSV(setup.area_hue, setup.area_sat, setup.area_val);
+
     // Setup Dear ImGui style
     ImVec4* colors                         = ImGui::GetStyle().Colors;
-    colors[ImGuiCol_Text]                  = ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
-    colors[ImGuiCol_TextDisabled]          = ImVec4(0.47f, 0.47f, 0.47f, 1.00f);
-    colors[ImGuiCol_WindowBg]              = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-    colors[ImGuiCol_ChildBg]               = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-    colors[ImGuiCol_PopupBg]               = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-    colors[ImGuiCol_Border]                = ImVec4(0.00f, 0.00f, 0.00f, 0.30f);
+    colors[ImGuiCol_Text]                  = ImVec4(text.x, text.y, text.z, 1.00f);
+    colors[ImGuiCol_TextDisabled]          = ImVec4(text.x, text.y, text.z, 0.58f);
+    colors[ImGuiCol_WindowBg]              = ImVec4(area.x, area.y, area.z, 1.00f);
+    colors[ImGuiCol_ChildBg]               = ImVec4(area.x, area.y, area.z, 1.00f);
+    colors[ImGuiCol_PopupBg]               = ImVec4(area.x * 0.8f, area.y * 0.8f, area.z * 0.8f, 1.00f);
+    colors[ImGuiCol_Border]                = ImVec4(text.x, text.y, text.z, 0.30f);
     colors[ImGuiCol_BorderShadow]          = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-    colors[ImGuiCol_FrameBg]               = ImVec4(0.13f, 0.13f, 0.13f, 0.73f);
-    colors[ImGuiCol_FrameBgHovered]        = ImVec4(0.07f, 0.07f, 0.07f, 0.60f);
-    colors[ImGuiCol_FrameBgActive]         = ImVec4(0.07f, 0.07f, 0.07f, 1.00f);
-    colors[ImGuiCol_TitleBg]               = ImVec4(0.07f, 0.07f, 0.07f, 1.00f);
-    colors[ImGuiCol_TitleBgActive]         = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-    colors[ImGuiCol_TitleBgCollapsed]      = ImVec4(0.00f, 0.00f, 0.00f, 0.53f);
-    colors[ImGuiCol_MenuBarBg]             = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
-    colors[ImGuiCol_ScrollbarBg]           = ImVec4(0.20f, 0.20f, 0.20f, 0.53f);
-    colors[ImGuiCol_ScrollbarGrab]         = ImVec4(0.20f, 0.20f, 0.20f, 0.80f);
-    colors[ImGuiCol_ScrollbarGrabHovered]  = ImVec4(0.13f, 0.13f, 0.13f, 0.80f);
-    colors[ImGuiCol_ScrollbarGrabActive]   = ImVec4(0.07f, 0.07f, 0.07f, 1.00f);
-    colors[ImGuiCol_CheckMark]             = ImVec4(1.00f, 0.80f, 0.13f, 1.00f);
-    colors[ImGuiCol_SliderGrab]            = ImVec4(1.00f, 0.80f, 0.13f, 0.80f);
-    colors[ImGuiCol_SliderGrabActive]      = ImVec4(1.00f, 0.80f, 0.13f, 1.00f);
-    colors[ImGuiCol_Button]                = ImVec4(0.13f, 0.13f, 0.13f, 0.80f);
-    colors[ImGuiCol_ButtonHovered]         = ImVec4(0.13f, 0.13f, 0.13f, 1.00f);
-    colors[ImGuiCol_ButtonActive]          = ImVec4(0.07f, 0.07f, 0.07f, 1.00f);
-    colors[ImGuiCol_Header]                = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-    colors[ImGuiCol_HeaderHovered]         = ImVec4(0.13f, 0.13f, 0.13f, 0.80f);
-    colors[ImGuiCol_HeaderActive]          = ImVec4(0.13f, 0.13f, 0.13f, 1.00f);
-    colors[ImGuiCol_Separator]             = ImVec4(0.13f, 0.13f, 0.13f, 0.60f);
-    colors[ImGuiCol_SeparatorHovered]      = ImVec4(0.07f, 0.07f, 0.07f, 0.80f);
-    colors[ImGuiCol_SeparatorActive]       = ImVec4(1.00f, 0.80f, 0.13f, 0.40f);
-    colors[ImGuiCol_ResizeGrip]            = ImVec4(1.00f, 0.80f, 0.13f, 0.73f);
-    colors[ImGuiCol_ResizeGripHovered]     = ImVec4(1.00f, 0.80f, 0.13f, 0.87f);
-    colors[ImGuiCol_ResizeGripActive]      = ImVec4(1.00f, 0.80f, 0.13f, 1.00f);
-    colors[ImGuiCol_Tab]                   = ImVec4(0.27f, 0.27f, 0.27f, 0.93f);
-    colors[ImGuiCol_TabHovered]            = ImVec4(0.20f, 0.20f, 0.20f, 0.80f);
-    colors[ImGuiCol_TabActive]             = ImVec4(0.13f, 0.13f, 0.13f, 1.00f);
-    colors[ImGuiCol_TabUnfocused]          = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-    colors[ImGuiCol_TabUnfocusedActive]    = ImVec4(0.13f, 0.13f, 0.13f, 0.53f);
-    colors[ImGuiCol_DockingPreview]        = ImVec4(1.00f, 0.80f, 0.13f, 0.67f);
-    colors[ImGuiCol_DockingEmptyBg]        = ImVec4(0.13f, 0.13f, 0.13f, 1.00f);
-    colors[ImGuiCol_PlotLines]             = ImVec4(0.40f, 0.40f, 0.40f, 1.00f);
-    colors[ImGuiCol_PlotLinesHovered]      = ImVec4(1.00f, 0.80f, 0.13f, 1.00f);
-    colors[ImGuiCol_PlotHistogram]         = ImVec4(1.00f, 0.80f, 0.13f, 0.73f);
-    colors[ImGuiCol_PlotHistogramHovered]  = ImVec4(1.00f, 0.80f, 0.13f, 1.00f);
-    colors[ImGuiCol_TextSelectedBg]        = ImVec4(1.00f, 0.80f, 0.13f, 0.53f);
-    colors[ImGuiCol_DragDropTarget]        = ImVec4(1.00f, 0.80f, 0.13f, 0.67f);
-    colors[ImGuiCol_NavHighlight]          = ImVec4(1.00f, 0.80f, 0.13f, 0.67f);
-    colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 0.80f, 0.13f, 0.87f);
-    colors[ImGuiCol_NavWindowingDimBg]     = ImVec4(0.20f, 0.20f, 0.20f, 0.20f);
-    colors[ImGuiCol_ModalWindowDimBg]      = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
+    colors[ImGuiCol_FrameBg]               = ImVec4(back.x, back.y, back.z, 0.31f);
+    colors[ImGuiCol_FrameBgHovered]        = ImVec4(back.x, back.y, back.z, 0.68f);
+    colors[ImGuiCol_FrameBgActive]         = ImVec4(back.x, back.y, back.z, 1.00f);
+    colors[ImGuiCol_TitleBg]               = ImVec4(main.x, main.y, main.z, 1.0f);
+    colors[ImGuiCol_TitleBgActive]         = ImVec4(main.x, main.y, main.z, 1.0f);
+    colors[ImGuiCol_TitleBgCollapsed]      = ImVec4(main.x, main.y, main.z, 1.0f);
+    colors[ImGuiCol_MenuBarBg]             = ImVec4(area.x, area.y, area.z, 1.0f);
+    colors[ImGuiCol_ScrollbarBg]           = ImVec4(area.x, area.y, area.z, 1.00f);
+    colors[ImGuiCol_ScrollbarGrab]         = ImVec4(main.x, main.y, main.z, 0.31f);
+    colors[ImGuiCol_ScrollbarGrabHovered]  = ImVec4(main.x, main.y, main.z, 0.78f);
+    colors[ImGuiCol_ScrollbarGrabActive]   = ImVec4(main.x, main.y, main.z, 1.00f);
+    colors[ImGuiCol_CheckMark]             = ImVec4(text.x, text.y, text.z, 0.80f);
+    colors[ImGuiCol_SliderGrab]            = ImVec4(main.x, main.y, main.z, 0.54f);
+    colors[ImGuiCol_SliderGrabActive]      = ImVec4(main.x, main.y, main.z, 1.00f);
+    colors[ImGuiCol_Button]                = ImVec4(main.x, main.y, main.z, 0.44f);
+    colors[ImGuiCol_ButtonHovered]         = ImVec4(main.x, main.y, main.z, 0.86f);
+    colors[ImGuiCol_ButtonActive]          = ImVec4(main.x, main.y, main.z, 1.00f);
+    colors[ImGuiCol_Header]                = ImVec4(main.x, main.y, main.z, 0.46f);
+    colors[ImGuiCol_HeaderHovered]         = ImVec4(main.x, main.y, main.z, 1.00f);
+    colors[ImGuiCol_HeaderActive]          = ImVec4(main.x, main.y, main.z, 0.86f);
+    colors[ImGuiCol_Separator]             = ImVec4(main.x, main.y, main.z, 0.44f);
+    colors[ImGuiCol_SeparatorHovered]      = ImVec4(main.x, main.y, main.z, 0.86f);
+    colors[ImGuiCol_SeparatorActive]       = ImVec4(main.x, main.y, main.z, 1.00f);
+    colors[ImGuiCol_ResizeGrip]            = ImVec4(main.x, main.y, main.z, 0.20f);
+    colors[ImGuiCol_ResizeGripHovered]     = ImVec4(main.x, main.y, main.z, 0.78f);
+    colors[ImGuiCol_ResizeGripActive]      = ImVec4(main.x, main.y, main.z, 1.00f);
+    colors[ImGuiCol_Tab]                   = colors[ImGuiCol_Header];
+    colors[ImGuiCol_TabHovered]            = colors[ImGuiCol_HeaderHovered];
+    colors[ImGuiCol_TabActive]             = colors[ImGuiCol_HeaderActive];
+    colors[ImGuiCol_TabUnfocused]          = colors[ImGuiCol_Tab];
+    colors[ImGuiCol_TabUnfocusedActive]    = colors[ImGuiCol_TabActive];
+    colors[ImGuiCol_DockingPreview]        = colors[ImGuiCol_Header];
+    colors[ImGuiCol_DockingEmptyBg]        = ImVec4(area.x * 0.4f, area.y * 0.4f, area.z * 0.4f, 1.00f);
+    colors[ImGuiCol_PlotLines]             = ImVec4(text.x, text.y, text.z, 0.63f);
+    colors[ImGuiCol_PlotLinesHovered]      = ImVec4(main.x, main.y, main.z, 1.00f);
+    colors[ImGuiCol_PlotHistogram]         = ImVec4(text.x, text.y, text.z, 0.63f);
+    colors[ImGuiCol_PlotHistogramHovered]  = ImVec4(main.x, main.y, main.z, 1.00f);
+    colors[ImGuiCol_TextSelectedBg]        = ImVec4(main.x, main.y, main.z, 0.43f);
+    colors[ImGuiCol_DragDropTarget]        = colors[ImGuiCol_HeaderHovered];
+    colors[ImGuiCol_NavHighlight]          = colors[ImGuiCol_HeaderHovered];
+    colors[ImGuiCol_NavWindowingHighlight] = colors[ImGuiCol_HeaderHovered];
+    colors[ImGuiCol_NavWindowingDimBg]     = colors[ImGuiCol_Header];
+    colors[ImGuiCol_ModalWindowDimBg]      = colors[ImGuiCol_Header];
 
-    // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
-    ImGuiStyle& style = ImGui::GetStyle();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    bool invert = false; // TODO Paul: Expose setting.
+    if (invert)
     {
-        style.WindowRounding              = 0.0f;
-        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+        for (int32 i = 0; i < ImGuiCol_COUNT; i++)
+        {
+            ImVec4& col = colors[i];
+            float h, s, v;
+            ImGui::ColorConvertRGBtoHSV(col.x, col.y, col.z, h, s, v);
+            if (s < 0.1f)
+            {
+                v = 1.0f - v;
+            }
+            ImGui::ColorConvertHSVtoRGB(h, s, v, col.x, col.y, col.z);
+        }
     }
+
+    ImGuiStyle& style    = ImGui::GetStyle();
+    style.FrameRounding  = setup.rounding;
+    style.WindowRounding = setup.rounding;
+
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        style.WindowRounding = 0.0f;
 
     return true;
 }
@@ -170,7 +213,6 @@ void ui_system_impl::update(float dt)
     static bool render_view_enabled                = true;
     static bool hardware_info_enabled              = true;
     static bool scene_inspector_enabled            = true;
-    static bool material_inspector_enabled         = true;
     static bool entity_component_inspector_enabled = true;
     static bool render_system_widget_enabled       = true;
 
@@ -191,8 +233,6 @@ void ui_system_impl::update(float dt)
                 hardware_info_enabled = true;
             if (widgets[ui_widget::scene_inspector] && ImGui::MenuItem("Scene Inspector"))
                 scene_inspector_enabled = true;
-            if (widgets[ui_widget::material_inspector] && ImGui::MenuItem("Material Inspector"))
-                material_inspector_enabled = true;
             if (widgets[ui_widget::entity_component_inspector] && ImGui::MenuItem("Entity Component Inspector"))
                 entity_component_inspector_enabled = true;
             if (widgets[ui_widget::render_system_ui] && ImGui::MenuItem("Render System Settings"))
@@ -227,7 +267,6 @@ void ui_system_impl::update(float dt)
 
     // Scene Inspector
     static entity selected = invalid_entity;
-    entity tmp             = selected;
     auto application_scene = m_shared_context->get_current_scene();
     if (widgets[ui_widget::scene_inspector] && scene_inspector_enabled && !cinema_view)
     {
@@ -236,17 +275,6 @@ void ui_system_impl::update(float dt)
 
     auto rs = m_shared_context->get_resource_system_internal().lock();
     MANGO_ASSERT(rs, "Resource system is expired!");
-    // Material Inspector
-    if (widgets[ui_widget::material_inspector] && material_inspector_enabled && !cinema_view)
-    {
-        if (selected != invalid_entity)
-        {
-            auto comp = application_scene->query_mesh_component(selected);
-            material_inspector_widget(comp, material_inspector_enabled, tmp != selected, selected, rs);
-        }
-        else
-            material_inspector_widget(nullptr, material_inspector_enabled, tmp != selected, selected, rs);
-    }
 
     // ECS Inspector
     if (widgets[ui_widget::entity_component_inspector] && entity_component_inspector_enabled && !cinema_view)

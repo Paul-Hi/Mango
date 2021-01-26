@@ -11,43 +11,43 @@ using namespace mango;
 
 buffer_impl::buffer_impl(const buffer_configuration& configuration)
     : m_persistent_data(nullptr)
-    , m_size(configuration.m_size)
+    , m_size(configuration.size)
     , m_target(GL_NONE)
     , m_access_flags(GL_NONE)
 {
     m_target = GL_ARRAY_BUFFER; // Use this as default.
 
-    if (configuration.m_target == buffer_target::index_buffer)
+    if (configuration.target == buffer_target::index_buffer)
     {
         m_target = GL_ELEMENT_ARRAY_BUFFER;
     }
-    else if (configuration.m_target == buffer_target::uniform_buffer)
+    else if (configuration.target == buffer_target::uniform_buffer)
     {
         m_target = GL_UNIFORM_BUFFER;
     }
-    else if (configuration.m_target == buffer_target::shader_storage_buffer)
+    else if (configuration.target == buffer_target::shader_storage_buffer)
     {
         m_target = GL_SHADER_STORAGE_BUFFER;
     }
-    else if (configuration.m_target == buffer_target::texture_buffer)
+    else if (configuration.target == buffer_target::texture_buffer)
     {
         m_target = GL_TEXTURE_BUFFER;
     }
 
     bool persistent = false;
 
-    if ((configuration.m_access & buffer_access::dynamic_storage) != buffer_access::none) // Used if glBufferSubData() etc. should be possible.
+    if ((configuration.access & buffer_access::dynamic_storage) != buffer_access::none) // Used if glBufferSubData() etc. should be possible.
     {
         m_access_flags |= GL_DYNAMIC_STORAGE_BIT;
     }
-    if ((configuration.m_access & buffer_access::mapped_access_read) != buffer_access::none) // Used for glMapNamedBufferRange().
+    if ((configuration.access & buffer_access::mapped_access_read) != buffer_access::none) // Used for glMapNamedBufferRange().
     {
         m_access_flags |= GL_MAP_READ_BIT;
         m_access_flags |= GL_MAP_PERSISTENT_BIT;
         m_access_flags |= GL_MAP_COHERENT_BIT;
         persistent = true;
     }
-    if ((configuration.m_access & buffer_access::mapped_access_write) != buffer_access::none) // Used for glMapNamedBufferRange().
+    if ((configuration.access & buffer_access::mapped_access_write) != buffer_access::none) // Used for glMapNamedBufferRange().
     {
         m_access_flags |= GL_MAP_WRITE_BIT;
         m_access_flags |= GL_MAP_PERSISTENT_BIT;
@@ -56,7 +56,7 @@ buffer_impl::buffer_impl(const buffer_configuration& configuration)
     }
 
     glCreateBuffers(1, &m_name);
-    glNamedBufferStorage(m_name, static_cast<g_sizeiptr>(m_size), configuration.m_data, m_access_flags);
+    glNamedBufferStorage(m_name, static_cast<g_sizeiptr>(m_size), configuration.data, m_access_flags);
 
     if (persistent)
     {

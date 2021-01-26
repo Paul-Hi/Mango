@@ -33,33 +33,33 @@ namespace mango
         texture_configuration(texture_parameter min_filter, texture_parameter mag_filter, texture_parameter wrap_s, texture_parameter wrap_t, bool standard_color_space, int32 generate_mipmaps,
                               bool is_cubemap, int32 layers)
             : graphics_configuration()
-            , m_texture_min_filter(min_filter)
-            , m_texture_mag_filter(mag_filter)
-            , m_texture_wrap_s(wrap_s)
-            , m_texture_wrap_t(wrap_t)
-            , m_is_standard_color_space(standard_color_space)
-            , m_generate_mipmaps(generate_mipmaps)
-            , m_is_cubemap(is_cubemap)
-            , m_layers(layers)
+            , texture_min_filter(min_filter)
+            , texture_mag_filter(mag_filter)
+            , texture_wrap_s(wrap_s)
+            , texture_wrap_t(wrap_t)
+            , is_standard_color_space(standard_color_space)
+            , generate_mipmaps(generate_mipmaps)
+            , is_cubemap(is_cubemap)
+            , layers(layers)
         {
         }
 
         //! \brief The filter to use for \a texture minification.
-        texture_parameter m_texture_min_filter = texture_parameter::filter_linear;
+        texture_parameter texture_min_filter = texture_parameter::filter_linear;
         //! \brief The filter to use for \a texture magnification.
-        texture_parameter m_texture_mag_filter = texture_parameter::filter_linear;
+        texture_parameter texture_mag_filter = texture_parameter::filter_linear;
         //! \brief The wrapping procedure in s direction for texture coordinates not in [0, 1].
-        texture_parameter m_texture_wrap_s = texture_parameter::wrap_repeat;
+        texture_parameter texture_wrap_s = texture_parameter::wrap_repeat;
         //! \brief The wrapping procedure in t direction for texture coordinates not in [0, 1].
-        texture_parameter m_texture_wrap_t = texture_parameter::wrap_repeat;
+        texture_parameter texture_wrap_t = texture_parameter::wrap_repeat;
         //! \brief Specifies if the \a texture should be interpreted as srgb etc.
-        bool m_is_standard_color_space = true;
-        //! \brief Specifies if a mipchain should be generated.
-        int32 m_generate_mipmaps = 1;
+        bool is_standard_color_space = true;
+        //! \brief Specifies if a mipchain should be generated. 0 means: Try to autogenerate.
+        int32 generate_mipmaps = 1;
         //! \brief Specifies if the \a texture is a cubemap.
-        bool m_is_cubemap = false;
+        bool is_cubemap = false;
         //! \brief Specifies the layer count.
-        int32 m_layers = 1;
+        int32 layers = 1;
 
         // We could need more parameters:
         // glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
@@ -67,7 +67,7 @@ namespace mango
 
         bool is_valid() const
         {
-            return m_texture_mag_filter < texture_parameter::filter_nearest_mipmap_nearest && m_generate_mipmaps > 0; // Eventually we should check that the min and mag filtering options fit.
+            return texture_mag_filter < texture_parameter::filter_nearest_mipmap_nearest && generate_mipmaps >= 0; // Eventually we should check that the min and mag filtering options fit.
         }
     };
 

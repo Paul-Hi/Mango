@@ -33,25 +33,27 @@ int64 free_list_allocator::allocate_unaligned(const int64 size)
 
 void free_list_allocator::free_memory_unaligned(void* mem)
 {
-    free_list_memory_block* free_block = reinterpret_cast<free_list_memory_block*>(reinterpret_cast<int64>(mem) - sizeof(free_list_memory_block) + sizeof(free_list_memory_block::data));
-    free_list_memory_block* current    = m_head;
+    free_list_memory_block* free_block = reinterpret_cast<free_list_memory_block*>(reinterpret_cast<int64>(mem) + sizeof(free_list_memory_block::data) - sizeof(free_list_memory_block));
     free_list_memory_block* last       = nullptr;
+    free_list_memory_block* next       = m_head;
     int64 free_pos                     = reinterpret_cast<int64>(free_block);
-    while (reinterpret_cast<int64>(current) < free_pos)
+    while (next && reinterpret_cast<int64>(next) < free_pos)
     {
-        last    = current;
-        current = current->next;
-        if (!current)
+        last = next;
+        next = next->next;
+        if (!next)
             break;
     }
 
-    if (last)
+    if (!last)
+        m_head = free_block;
+    else
         last->next = free_block;
 
-    if (current)
-        free_block->next = current;
+    if (next)
+        free_block->next = next;
 
-    coalesce(last, free_block, current);
+    coalesce(last, free_block, next);
 }
 
 void free_list_allocator::reset()
@@ -81,25 +83,34 @@ free_list_memory_block* free_list_allocator::first_fit(int64 size)
 
     free_list_memory_block* next = current->next;
 
-    if (current->size - size > static_cast<int64>(sizeof(free_list_memory_block))) // Smaller does not really make sense.
+    if (current->size - size > static_cast<int64>(sizeof(free_list_memory_block) + sizeof(free_list_memory_block::data))) // Smaller does not really make sense.
     {
-        split(size, current->size, current, last, next);
+        split(size, current->size, last, current, next);
+        current->next = nullptr;
         return current;
     }
 
     if (last)
         last->next = next;
+    else
+        m_head = next;
 
     current->next = nullptr;
     return current;
 }
 
-void free_list_allocator::split(int64 wanted, int64 got, free_list_memory_block* current, free_list_memory_block* last, free_list_memory_block* next)
+void free_list_allocator::split(int64 wanted, int64 got, free_list_memory_block* last, free_list_memory_block* current, free_list_memory_block* next)
 {
-    free_list_memory_block* new_block = reinterpret_cast<free_list_memory_block*>(reinterpret_cast<int64>(current) + wanted + sizeof(free_list_memory_block) - sizeof(free_list_memory_block::data));
-    new_block->size                   = got - wanted - sizeof(free_list_memory_block) + sizeof(free_list_memory_block::data);
+    int64 occupied                    = sizeof(free_list_memory_block) + (wanted - sizeof(free_list_memory_block::data));
+    free_list_memory_block* new_block = reinterpret_cast<free_list_memory_block*>(reinterpret_cast<int64>(current) + occupied);
+    new_block->size                   = got - (occupied + sizeof(free_list_memory_block)) + sizeof(free_list_memory_block::data);
+    current->size                     = wanted;
+
     if (last)
         last->next = new_block;
+    else
+        m_head = new_block;
+
     new_block->next = next;
 }
 
@@ -116,8 +127,7 @@ void free_list_allocator::coalesce(free_list_memory_block* last, free_list_memor
         {
             last->size += sizeof(free_list_memory_block) - sizeof(free_list_memory_block::data) + current->size;
             last->next  = next;
-            current_pos = last_pos;
-            current     = last;
+            current     = nullptr;
         }
     }
     if (next)
@@ -129,6 +139,7 @@ void free_list_allocator::coalesce(free_list_memory_block* last, free_list_memor
         {
             current->size += sizeof(free_list_memory_block) - sizeof(free_list_memory_block::data) + next->size;
             current->next = next->next;
+            next = nullptr;
         }
     }
 }

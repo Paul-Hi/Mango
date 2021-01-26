@@ -1,9 +1,9 @@
-#version 430 core
+#include <../include/common_constants_and_functions.glsl>
 
-layout (location = 0, binding = 0) uniform sampler2D sampler_base_color;
+layout (location = 0) uniform sampler2D sampler_base_color;
 
 // Uniform Buffer Material.
-layout(binding = 2, std140) uniform material_data
+layout(binding = 3, std140) uniform material_data
 {
     vec4  base_color;
     vec4  emissive_color; // this is a vec3, but there are annoying bugs with some drivers.
@@ -25,25 +25,6 @@ in shared_data
 {
     vec2 texcoord;
 } fs_in;
-
-void alpha_dither(in vec2 screen_pos, in float alpha) {
-
-    const float thresholds[16] =
-    {
-        1.0 / 17.0,  9.0 / 17.0,  3.0 / 17.0, 11.0 / 17.0,
-        13.0 / 17.0,  5.0 / 17.0, 15.0 / 17.0,  7.0 / 17.0,
-        4.0 / 17.0, 12.0 / 17.0,  2.0 / 17.0, 10.0 / 17.0,
-        16.0 / 17.0,  8.0 / 17.0, 14.0 / 17.0,  6.0 / 17.0
-    };
-
-    int x = int(mod(screen_pos.x, 4.0));
-    int y = int(mod(screen_pos.y, 4.0));
-
-    float limit = thresholds[x + (y * 4)];
-
-    if(alpha < limit)
-        discard;
-}
 
 void main()
 {
