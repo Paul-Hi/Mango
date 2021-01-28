@@ -7,16 +7,20 @@
 #ifndef MANGO_CONTEXT_HPP
 #define MANGO_CONTEXT_HPP
 
+#include <mango/display.hpp>
+#include <mango/input.hpp>
 #include <mango/types.hpp>
 
 namespace mango
 {
     class application;
-    class window_system;
-    class input_system;
     class render_system;
     class ui_system;
     class scene;
+
+    // TODO Paul: Remove!
+    class window_system;
+    class input_system;
 
     //! \brief Context interface.
     //! \details The context holds shared pointers to the various subsystems of mango.
@@ -34,6 +38,23 @@ namespace mango
         //! \details Can be used to configure the window shown by mango.
         //! \return A weak pointer to the mango \a window_system.
         virtual weak_ptr<window_system> get_window_system() = 0;
+
+        // TODO Paul: The new graphics stuff has to be done here.
+
+        //! \brief Creates a \a display to use for graphics.
+        //! \details The retrieved handle should be destroyed with destroy_display(...) when the \a display is not longer required.
+        //! \param[in] config A configuration to set some basic values for the \a display.
+        //! \param[out] display_out A reference to the created \a display will be stored here.
+        //! \return True if \a display creation was successful, else false.
+        virtual bool create_display(const display_configuration& config, display_handle& display_out) = 0;
+
+        //! \brief Destroys a \a display
+        //! \param[in] display_in The handle to the \a display to destroy.
+        virtual void destroy_display(display_handle& display_in) = 0;
+
+        //! \brief Queries and returns a handle reference to mangos \a input.
+        //! \return A handle reference to mangos \a input.
+        virtual const input_handle& get_input() = 0;
 
         //! \brief Queries and returns a weak pointer to mangos \a input_system.
         //! \details Mangos input.

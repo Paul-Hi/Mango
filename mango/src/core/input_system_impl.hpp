@@ -34,11 +34,11 @@ namespace mango
         virtual glm::vec2 get_mouse_position()                     = 0;
         virtual glm::vec2 get_mouse_scroll()                       = 0;
 
-        virtual void set_key_callback(key_callback callback)                       = 0;
-        virtual void set_mouse_button_callback(mouse_button_callback callback)     = 0;
-        virtual void set_mouse_position_callback(mouse_position_callback callback) = 0;
-        virtual void set_mouse_scroll_callback(mouse_scroll_callback callback)     = 0;
-        virtual void set_drag_and_drop_callback(drag_n_drop_callback callback)     = 0;
+        virtual void set_key_callback(key_callback callback)                        = 0;
+        virtual void set_mouse_button_callback(mouse_button_callback callback)      = 0;
+        virtual void set_mouse_position_callback(cursor_position_callback callback) = 0;
+        virtual void set_mouse_scroll_callback(scroll_callback callback)            = 0;
+        virtual void set_drag_and_drop_callback(drop_callback callback)             = 0;
 
         virtual void hide_cursor(bool hide) = 0;
 

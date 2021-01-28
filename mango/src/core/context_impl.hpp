@@ -21,10 +21,15 @@ namespace mango
     class context_impl : public context, public std::enable_shared_from_this<context_impl>
     {
       public:
-        context_impl() = default;
+        context_impl()          = default;
         virtual ~context_impl() = default;
         void set_application(const shared_ptr<application>& application) override;
         weak_ptr<window_system> get_window_system() override;
+
+        bool create_display(const display_configuration& config, display_handle& display_out) override;
+        void destroy_display(display_handle& display_in) override;
+        const input_handle& get_input() override;
+
         weak_ptr<input_system> get_input_system() override;
         weak_ptr<render_system> get_render_system() override;
         weak_ptr<ui_system> get_ui_system() override;

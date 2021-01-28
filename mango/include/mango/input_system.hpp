@@ -44,13 +44,13 @@ namespace mango
         virtual void set_mouse_button_callback(mouse_button_callback callback) = 0;
         //! \brief Sets the callback function for mouse position change events.
         //! \param[in] callback The callback to use for mouse position change events.
-        virtual void set_mouse_position_callback(mouse_position_callback callback) = 0;
+        virtual void set_mouse_position_callback(cursor_position_callback callback) = 0;
         //! \brief Sets the callback function for mouse scroll events.
         //! \param[in] callback The callback to use for mouse scroll events.
-        virtual void set_mouse_scroll_callback(mouse_scroll_callback callback) = 0;
+        virtual void set_mouse_scroll_callback(scroll_callback callback) = 0;
         //! \brief Sets the callback function for drag and drop.
         //! \param[in] callback The callback to use for things dragged onto the mango window.
-        virtual void set_drag_and_drop_callback(drag_n_drop_callback callback) = 0;
+        virtual void set_drag_and_drop_callback(drop_callback callback) = 0;
 
         //! \brief Hides or unhides the mouse cursor in the \a window.
         //! \param[in] hide True if cursor should be hidden, else false.

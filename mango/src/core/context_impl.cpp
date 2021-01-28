@@ -81,6 +81,18 @@ weak_ptr<window_system_impl> context_impl::get_window_system_internal()
     return m_window_system;
 }
 
+bool context_impl::create_display(const display_configuration& config, display_handle& display_out)
+{
+    return false;
+}
+
+void context_impl::destroy_display(display_handle& display_in) {}
+
+const input_handle& context_impl::get_input()
+{
+    return nullptr;
+}
+
 weak_ptr<input_system_impl> context_impl::get_input_system_internal()
 {
     return m_input_system;

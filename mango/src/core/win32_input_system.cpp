@@ -137,19 +137,19 @@ void win32_input_system::set_mouse_button_callback(mouse_button_callback callbac
     m_input_user_data.mouse_button_change.connect(callback);
 }
 
-void win32_input_system::set_mouse_position_callback(mouse_position_callback callback)
+void win32_input_system::set_mouse_position_callback(cursor_position_callback callback)
 {
     MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
     m_input_user_data.mouse_position_change.connect(callback);
 }
 
-void win32_input_system::set_mouse_scroll_callback(mouse_scroll_callback callback)
+void win32_input_system::set_mouse_scroll_callback(scroll_callback callback)
 {
     MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
     m_input_user_data.mouse_scroll_change.connect(callback);
 }
 
-void win32_input_system::set_drag_and_drop_callback(drag_n_drop_callback callback)
+void win32_input_system::set_drag_and_drop_callback(drop_callback callback)
 {
     MANGO_ASSERT(m_platform_data->native_window_handle, "Window Handle is not valid!");
     m_input_user_data.drag_n_drop_change.connect(callback);

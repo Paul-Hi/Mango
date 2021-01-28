@@ -1,6 +1,5 @@
 //! \file      helpers.hpp
 //! This file provides helpers functionality for user structures.
-//! There is also an implementation of the fnv1a hash function.
 //! \author    Paul Himmler
 //! \version   1.0
 //! \date      2020
@@ -25,6 +24,14 @@ namespace mango
     //! \param[in] ptr The pointer to check.
     //! \param[in] what The name of the checked object. Used for output.
     bool check_acquisition(void* ptr, const string& what);
+
+#ifndef MANGO_DISABLE_COPY_AND_ASSIGNMENT
+#define MANGO_DISABLE_COPY_AND_ASSIGNMENT(classname) \
+  private:                                           \
+    classname(const classname&);                     \
+    classname& operator=(const classname&);
+#endif
+
 } // namespace mango
 
 #endif // MANGO_HELPERS_HPP

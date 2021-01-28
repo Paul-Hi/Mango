@@ -10,6 +10,9 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/assert.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/window_system.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/display.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/display_event_handler.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/render_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene_component_pool.hpp
@@ -24,6 +27,9 @@ set(PUBLIC_HEADERS
 set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/window_system_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/display_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/display_event_handler_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/input_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/input_system_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.hpp
@@ -69,6 +75,8 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/texture_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/framebuffer_impl.hpp
 
+    $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/glfw/glfw_display.hpp>
+
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.hpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.hpp>
 
@@ -80,6 +88,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/application.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/input_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/cubemap_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.cpp
@@ -115,6 +124,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/texture_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/framebuffer_impl.cpp
 
+    $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/glfw/glfw_display.cpp>
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.cpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.cpp>
 

@@ -34,9 +34,9 @@ namespace mango
 
         virtual void set_key_callback(key_callback callback) override;
         virtual void set_mouse_button_callback(mouse_button_callback callback) override;
-        virtual void set_mouse_position_callback(mouse_position_callback callback) override;
-        virtual void set_mouse_scroll_callback(mouse_scroll_callback callback) override;
-        virtual void set_drag_and_drop_callback(drag_n_drop_callback callback) override;
+        virtual void set_mouse_position_callback(cursor_position_callback callback) override;
+        virtual void set_mouse_scroll_callback(scroll_callback callback) override;
+        virtual void set_drag_and_drop_callback(drop_callback callback) override;
 
         virtual void hide_cursor(bool hide) override;
 
