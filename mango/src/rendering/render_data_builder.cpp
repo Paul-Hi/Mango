@@ -4,62 +4,272 @@
 //! \date      2020
 //! \copyright Apache License 2.0
 
-#include <graphics/shader.hpp>
-#include <graphics/shader_program.hpp>
-#include <graphics/texture.hpp>
 #include <mango/profile.hpp>
 #include <rendering/render_data_builder.hpp>
+#include <resources/resources_impl.hpp>
+#include <scene/scene_impl.hpp>
 #include <util/helpers.hpp>
 
 using namespace mango;
 
-bool skylight_builder::init()
+bool skylight_builder::init(const shared_ptr<context_impl>& context)
 {
-    // compute shader to convert from equirectangular projected hdr textures to a cube map.
-    shader_configuration shader_config;
-    shader_config.path         = "res/shader/c_equi_to_cubemap.glsl";
-    shader_config.type         = shader_type::compute_shader;
-    shader_ptr to_cube_compute = shader::create(shader_config);
-    if (!check_creation(to_cube_compute.get(), "cubemap compute shader"))
+    m_shared_context = context;
+
+    auto& graphics_device    = m_shared_context->get_graphics_device();
+    auto& internal_resources = m_shared_context->get_internal_resources();
+    shader_stage_create_info shader_info;
+    shader_resource_resource_description res_resource_desc;
+    shader_source_description source_desc;
+
+    {
+        res_resource_desc.path        = "res/shader/c_equi_to_cubemap.glsl";
+        const shader_resource* source = internal_resources->acquire(res_resource_desc);
+
+        source_desc.entry_point = "main";
+        source_desc.source      = source->source.c_str();
+        source_desc.size        = static_cast<int32>(source->source.size());
+
+        shader_info.stage         = gfx_shader_stage_type::shader_stage_compute;
+        shader_info.shader_source = source_desc;
+
+        shader_info.resource_count = 4;
+
+        shader_info.resources = { {
+            { gfx_shader_stage_type::shader_stage_compute, 0, "texture_hdr_in", gfx_shader_resource_type::shader_resource_texture, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, 0, "sampler_hdr_in", gfx_shader_resource_type::shader_resource_sampler, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, 1, "cubemap_out", gfx_shader_resource_type::shader_resource_image_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, 3, "ibl_generation_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+        } };
+
+        m_equi_to_cubemap = graphics_device->create_shader_stage(shader_info);
+        if (!check_creation(m_equi_to_cubemap.get(), "cubemap compute shader"))
+            return false;
+
+        compute_pipeline_create_info cubemap_compute_pass_info = graphics_device->provide_compute_pipeline_create_info();
+        auto cubemap_compute_pass_pipeline_layout              = graphics_device->create_pipeline_resource_layout({
+            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_compute, 1, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_compute, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
+        });
+
+        cubemap_compute_pass_info.pipeline_layout = cubemap_compute_pass_pipeline_layout;
+
+        cubemap_compute_pass_info.shader_stage_descriptor.compute_shader_stage = m_equi_to_cubemap;
+
+        m_equi_to_cubemap_pipeline = graphics_device->create_compute_pipeline(cubemap_compute_pass_info);
+    }
+
+    {
+        res_resource_desc.path        = "res/shader/atmospheric_scattering/c_atmospheric_scattering_cubemap.glsl";
+        const shader_resource* source = internal_resources->acquire(res_resource_desc);
+
+        source_desc.entry_point = "main";
+        source_desc.source      = source->source.c_str();
+        source_desc.size        = static_cast<int32>(source->source.size());
+
+        shader_info.stage         = gfx_shader_stage_type::shader_stage_compute;
+        shader_info.shader_source = source_desc;
+
+        shader_info.resource_count = 3;
+
+        shader_info.resources = { {
+            { gfx_shader_stage_type::shader_stage_compute, 0, "cubemap_out", gfx_shader_resource_type::shader_resource_image_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, 3, "ibl_generation_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, 4, "atmosphere_ub_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+        } };
+
+        m_atmospheric_cubemap = graphics_device->create_shader_stage(shader_info);
+        if (!check_creation(m_atmospheric_cubemap.get(), "atmospheric cubemap compute shader"))
+            return false;
+
+        compute_pipeline_create_info atmospheric_cubemap_compute_pass_info = graphics_device->provide_compute_pipeline_create_info();
+        auto atmospheric_cubemap_compute_pass_pipeline_layout              = graphics_device->create_pipeline_resource_layout({
+            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_static },
+            { gfx_shader_stage_type::shader_stage_compute, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_static },
+            { gfx_shader_stage_type::shader_stage_compute, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_static },
+        });
+
+        atmospheric_cubemap_compute_pass_info.pipeline_layout = atmospheric_cubemap_compute_pass_pipeline_layout;
+
+        atmospheric_cubemap_compute_pass_info.shader_stage_descriptor.compute_shader_stage = m_atmospheric_cubemap;
+
+        m_generate_atmospheric_cubemap_pipeline = graphics_device->create_compute_pipeline(atmospheric_cubemap_compute_pass_info);
+    }
+
+    {
+        res_resource_desc.path        = "res/shader/pbr_compute/c_irradiance_map.glsl";
+        const shader_resource* source = internal_resources->acquire(res_resource_desc);
+
+        source_desc.entry_point = "main";
+        source_desc.source      = source->source.c_str();
+        source_desc.size        = static_cast<int32>(source->source.size());
+
+        shader_info.stage         = gfx_shader_stage_type::shader_stage_compute;
+        shader_info.shader_source = source_desc;
+
+        shader_info.resource_count = 4;
+
+        shader_info.resources = { {
+            { gfx_shader_stage_type::shader_stage_compute, 0, "texture_cubemap_in", gfx_shader_resource_type::shader_resource_texture, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, 0, "sampler_cubemap_in", gfx_shader_resource_type::shader_resource_sampler, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, 1, "irradiance_map_out", gfx_shader_resource_type::shader_resource_image_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, 3, "ibl_generation_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+        } };
+
+        m_build_irradiance_map = graphics_device->create_shader_stage(shader_info);
+        if (!check_creation(m_build_irradiance_map.get(), "irradiance map compute shader"))
+            return false;
+
+        compute_pipeline_create_info irradiance_map_compute_pass_info = graphics_device->provide_compute_pipeline_create_info();
+        auto irradiance_map_compute_pass_pipeline_layout              = graphics_device->create_pipeline_resource_layout({
+            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_compute, 1, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_compute, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
+        });
+
+        irradiance_map_compute_pass_info.pipeline_layout = irradiance_map_compute_pass_pipeline_layout;
+
+        irradiance_map_compute_pass_info.shader_stage_descriptor.compute_shader_stage = m_build_irradiance_map;
+
+        m_build_irradiance_map_pipeline = graphics_device->create_compute_pipeline(irradiance_map_compute_pass_info);
+    }
+
+    {
+        res_resource_desc.path        = "res/shader/pbr_compute/c_prefilter_specular_map.glsl";
+        const shader_resource* source = internal_resources->acquire(res_resource_desc);
+
+        source_desc.entry_point = "main";
+        source_desc.source      = source->source.c_str();
+        source_desc.size        = static_cast<int32>(source->source.size());
+
+        shader_info.stage         = gfx_shader_stage_type::shader_stage_compute;
+        shader_info.shader_source = source_desc;
+
+        shader_info.resource_count = 4;
+
+        shader_info.resources = { {
+            { gfx_shader_stage_type::shader_stage_compute, 0, "texture_cubemap_in", gfx_shader_resource_type::shader_resource_texture, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, 0, "sampler_cubemap_in", gfx_shader_resource_type::shader_resource_sampler, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, 1, "prefiltered_spec_out", gfx_shader_resource_type::shader_resource_image_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, 3, "ibl_generation_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+        } };
+
+        m_build_specular_prefiltered_map = graphics_device->create_shader_stage(shader_info);
+        if (!check_creation(m_build_specular_prefiltered_map.get(), "prefilter specular cubemap compute shader"))
+            return false;
+
+        compute_pipeline_create_info spec_prefiltered_map_compute_pass_info = graphics_device->provide_compute_pipeline_create_info();
+        auto spec_prefiltered_map_compute_pass_pipeline_layout              = graphics_device->create_pipeline_resource_layout({
+            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_compute, 1, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_compute, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
+        });
+
+        spec_prefiltered_map_compute_pass_info.pipeline_layout = spec_prefiltered_map_compute_pass_pipeline_layout;
+
+        spec_prefiltered_map_compute_pass_info.shader_stage_descriptor.compute_shader_stage = m_build_specular_prefiltered_map;
+
+        m_build_specular_prefiltered_map_pipeline = graphics_device->create_compute_pipeline(spec_prefiltered_map_compute_pass_info);
+    }
+
+    // Lookup for all skylights
+    create_brdf_lookup();
+    if (!m_brdf_integration_lut)
         return false;
 
-    m_equi_to_cubemap = shader_program::create_compute_pipeline(to_cube_compute);
-    if (!check_creation(m_equi_to_cubemap.get(), "cubemap compute shader program"))
-        return false;
-
-    // compute shader to create a cube map with atmospheric scattering.
-    shader_config.path                     = "res/shader/atmospheric_scattering/c_atmospheric_scattering_cubemap.glsl";
-    shader_config.type                     = shader_type::compute_shader;
-    shader_ptr atmospheric_cubemap_compute = shader::create(shader_config);
-    if (!check_creation(atmospheric_cubemap_compute.get(), "atmospheric scattering cubemap compute shader"))
-        return false;
-
-    m_atmospheric_cubemap = shader_program::create_compute_pipeline(atmospheric_cubemap_compute);
-    if (!check_creation(m_atmospheric_cubemap.get(), "atmospheric scattering cubemap compute shader program"))
-        return false;
-
-    // compute shader to build the irradiance cubemap for image based lighting.
-    shader_config.path                = "res/shader/pbr_compute/c_irradiance_map.glsl";
-    shader_config.type                = shader_type::compute_shader;
-    shader_ptr irradiance_map_compute = shader::create(shader_config);
-    if (!check_creation(irradiance_map_compute.get(), "irradiance map compute shader"))
-        return false;
-
-    m_build_irradiance_map = shader_program::create_compute_pipeline(irradiance_map_compute);
-    if (!check_creation(m_build_irradiance_map.get(), "irradiance map compute shader program"))
-        return false;
-
-    // compute shader to build the prefiltered specular cubemap for image based lighting.
-    shader_config.path                          = "res/shader/pbr_compute/c_prefilter_specular_map.glsl";
-    shader_config.type                          = shader_type::compute_shader;
-    shader_ptr specular_prefiltered_map_compute = shader::create(shader_config);
-    if (!check_creation(specular_prefiltered_map_compute.get(), "prefilter specular cubemap compute shader"))
-        return false;
-
-    m_build_specular_prefiltered_map = shader_program::create_compute_pipeline(specular_prefiltered_map_compute);
-    if (!check_creation(m_build_specular_prefiltered_map.get(), "prefilter specular cubemap compute shader program"))
-        return false;
     return true;
+}
+
+void skylight_builder::create_brdf_lookup()
+{
+    auto& graphics_device = m_shared_context->get_graphics_device();
+
+    texture_create_info texture_info;
+    texture_info.texture_type   = gfx_texture_type::texture_type_2d;
+    texture_info.width          = brdf_lut_size;
+    texture_info.height         = brdf_lut_size;
+    texture_info.miplevels      = 1;
+    texture_info.array_layers   = 1;
+    texture_info.texture_format = gfx_format::rgba16f;
+
+    m_brdf_integration_lut = graphics_device->create_texture(texture_info);
+    if (!check_creation(m_brdf_integration_lut.get(), "brdf integration lookup texture"))
+        return;
+
+    buffer_create_info buffer_info;
+    buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
+    buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
+
+    buffer_info.size            = sizeof(ibl_generator_data);
+    m_ibl_generator_data_buffer = graphics_device->create_buffer(buffer_info);
+    if (!check_creation(m_ibl_generator_data_buffer.get(), "ibl generator data buffer"))
+        return;
+
+    auto& internal_resources = m_shared_context->get_internal_resources();
+    shader_stage_create_info shader_info;
+    shader_resource_resource_description res_resource_desc;
+    shader_source_description source_desc;
+
+    res_resource_desc.path        = "res/shader/pbr_compute/c_brdf_integration.glsl";
+    const shader_resource* source = internal_resources->acquire(res_resource_desc);
+
+    source_desc.entry_point = "main";
+    source_desc.source      = source->source.c_str();
+    source_desc.size        = static_cast<int32>(source->source.size());
+
+    shader_info.stage         = gfx_shader_stage_type::shader_stage_compute;
+    shader_info.shader_source = source_desc;
+
+    shader_info.resource_count = 2;
+
+    shader_info.resources = { {
+        { gfx_shader_stage_type::shader_stage_compute, 0, "integration_lut_out", gfx_shader_resource_type::shader_resource_image_storage, 1 },
+        { gfx_shader_stage_type::shader_stage_compute, 3, "ibl_generation_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+    } };
+
+    m_brdf_lookup_generation_compute = graphics_device->create_shader_stage(shader_info);
+    if (!check_creation(m_brdf_lookup_generation_compute.get(), "brdf lookup generation compute shader"))
+        return;
+
+    compute_pipeline_create_info brdf_lookup_pass_info = graphics_device->provide_compute_pipeline_create_info();
+    auto brdf_lookup_pass_pipeline_layout              = graphics_device->create_pipeline_resource_layout({
+        { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_static },
+        { gfx_shader_stage_type::shader_stage_compute, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_static },
+    });
+
+    brdf_lookup_pass_info.pipeline_layout = brdf_lookup_pass_pipeline_layout;
+
+    brdf_lookup_pass_info.shader_stage_descriptor.compute_shader_stage = m_brdf_lookup_generation_compute;
+
+    m_brdf_integration_lut_pipeline = graphics_device->create_compute_pipeline(brdf_lookup_pass_info);
+
+    graphics_device_context_handle device_context = graphics_device->create_graphics_device_context();
+
+    device_context->begin();
+    GL_NAMED_PROFILE_ZONE("Generating brdf lookup");
+
+    device_context->bind_pipeline(m_brdf_integration_lut_pipeline);
+    m_current_ibl_generator_data.out_size = vec2(static_cast<float>(brdf_lut_size));
+    m_current_ibl_generator_data.data     = vec2(0.0f); // unused here
+    device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
+
+    auto lut_view = graphics_device->create_image_texture_view(m_brdf_integration_lut);
+    m_brdf_integration_lut_pipeline->get_resource_mapping()->set("integration_lut_out", lut_view);
+    m_brdf_integration_lut_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generator_data_buffer);
+
+    device_context->submit_pipeline_state_resources();
+
+    device_context->dispatch(brdf_lut_size / 8, brdf_lut_size / 8, 1);
+
+    barrier_description bd;
+    bd.barrier_bit = gfx_barrier_bit::shader_image_access_barrier_bit;
+    device_context->barrier(bd);
+    device_context->end();
+    device_context->submit();
 }
 
 bool skylight_builder::needs_rebuild()
@@ -75,40 +285,36 @@ bool skylight_builder::needs_rebuild()
     }
     return false;
 }
+
 /*
 void skylight_builder::add_atmosphere_influence(atmosphere_light* light)
 {
     new_dependencies.push_back(light);
 }
 */
-void skylight_builder::build(skylight* light, skylight_cache* render_data)
+
+void skylight_builder::build(scene_impl* scene, const skylight& light, skylight_cache* render_data)
 {
     PROFILE_ZONE;
     old_dependencies = new_dependencies;
     new_dependencies.clear();
 
-    command_buffer_ptr<min_key> compute_commands = command_buffer<min_key>::create(4096);
-
     // HDR Texture
-    if (light->use_texture)
+    if (light.use_texture)
     {
-        if (!light->hdr_texture)
+        if (light.hdr_texture == invalid_sid)
         {
             clear(render_data);
             return;
         }
-        load_from_hdr(compute_commands, light, render_data);
+        load_from_hdr(scene, light, render_data);
     }
     else // TODO Paul: capture ... will be done soon....
     {
         // capture(compute_commands, render_data);
     }
-
-    {
-        GL_NAMED_PROFILE_ZONE("Generating IBL");
-        compute_commands->execute();
-    }
 }
+
 /*
 void skylight_builder::capture(const command_buffer_ptr<min_key>& compute_commands, skylight_cache* render_data)
 {
@@ -147,7 +353,7 @@ void skylight_builder::capture(const command_buffer_ptr<min_key>& compute_comman
     bit->element_format             = format::rgba16f;
 
     // bind uniforms
-    glm::vec2 out                    = glm::vec2(render_data->cubemap->get_width(), render_data->cubemap->get_height());
+    vec2 out                    = vec2(render_data->cubemap->get_width(), render_data->cubemap->get_height());
     bind_single_uniform_command* bsu = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
     bsu->count                       = 1;
     bsu->location                    = 1;
@@ -172,199 +378,164 @@ void skylight_builder::capture(const command_buffer_ptr<min_key>& compute_comman
     calculate_ibl_maps(compute_commands, render_data);
 }
 */
-void skylight_builder::load_from_hdr(const command_buffer_ptr<min_key>& compute_commands, skylight* light, skylight_cache* render_data)
+void skylight_builder::load_from_hdr(scene_impl* scene, const skylight& light, skylight_cache* render_data)
 {
     PROFILE_ZONE;
-    texture_configuration texture_config;
-    texture_config.generate_mipmaps        = calculate_mip_count(global_cubemap_size, global_cubemap_size);
-    texture_config.is_standard_color_space = false;
-    texture_config.is_cubemap              = true;
-    texture_config.texture_min_filter      = texture_parameter::filter_linear_mipmap_linear;
-    texture_config.texture_mag_filter      = texture_parameter::filter_linear;
-    texture_config.texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
-    texture_config.texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
+    auto& graphics_device = m_shared_context->get_graphics_device();
 
-    if (render_data->cubemap)
-        render_data->cubemap->release();
-    render_data->cubemap = texture::create(texture_config);
+    texture_create_info texture_info;
+    texture_info.texture_type   = gfx_texture_type::texture_type_cube_map;
+    texture_info.width          = global_cubemap_size;
+    texture_info.height         = global_cubemap_size;
+    texture_info.miplevels      = graphics::calculate_mip_count(global_cubemap_size, global_cubemap_size);
+    texture_info.array_layers   = 1;
+    texture_info.texture_format = gfx_format::rgba16f;
+
+    render_data->cubemap = graphics_device->create_texture(texture_info);
     if (!check_creation(render_data->cubemap.get(), "environment cubemap texture"))
         return;
 
-    render_data->cubemap->set_data(format::rgba16f, global_cubemap_size, global_cubemap_size, format::rgba, format::t_float, nullptr);
+    graphics_device_context_handle device_context = graphics_device->create_graphics_device_context();
 
-    // creating a temporal command buffer for compute shader execution.
-
+    device_context->begin();
+    GL_NAMED_PROFILE_ZONE("Generating IBL Cubemap");
     // equirectangular to cubemap
-    bind_shader_program_command* bsp = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
-    bsp->shader_program_name         = m_equi_to_cubemap->get_name();
+    device_context->bind_pipeline(m_equi_to_cubemap_pipeline);
+    auto input_hdr = scene->get_scene_texture(light.hdr_texture);
+    if (!input_hdr)
+    {
+        MANGO_LOG_WARN("Hdr texture to build ibl does not exist.");
+        return;
+    }
+    m_current_ibl_generator_data.out_size = vec2(static_cast<float>(global_cubemap_size));
+    m_current_ibl_generator_data.data     = vec2(0.0f); // unused here
+    device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
 
-    // bind input hdr texture
-    bind_texture_command* bt = compute_commands->create<bind_texture_command>(command_keys::no_sort);
-    bt->binding              = 0;
-    bt->sampler_location     = 0;
-    bt->texture_name         = light->hdr_texture->get_name();
+    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("texture_hdr_in", input_hdr->graphics_texture);
+    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("sampler_hdr_in", input_hdr->graphics_sampler);
+    auto cubemap_view = graphics_device->create_image_texture_view(render_data->cubemap);
+    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("cubemap_out", cubemap_view);
+    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generator_data_buffer);
 
-    // bind output cubemap
-    bind_image_texture_command* bit = compute_commands->create<bind_image_texture_command>(command_keys::no_sort);
-    bit->binding                    = 1;
-    bit->texture_name               = render_data->cubemap->get_name();
-    bit->level                      = 0;
-    bit->layered                    = true;
-    bit->layer                      = 0;
-    bit->access                     = base_access::write_only;
-    bit->element_format             = format::rgba16f;
+    device_context->submit_pipeline_state_resources();
 
-    // bind uniforms
-    glm::vec2 out                    = glm::vec2(render_data->cubemap->get_width(), render_data->cubemap->get_height());
-    bind_single_uniform_command* bsu = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
-    bsu->count                       = 1;
-    bsu->location                    = 1;
-    bsu->type                        = shader_resource_type::fvec2;
-    bsu->uniform_value               = compute_commands->map_spare<bind_single_uniform_command>();
-    memcpy(bsu->uniform_value, &out, sizeof(out));
+    device_context->dispatch(global_cubemap_size / 32, global_cubemap_size / 32, 6);
 
-    // execute compute
-    dispatch_compute_command* dp = compute_commands->create<dispatch_compute_command>(command_keys::no_sort);
-    dp->num_x_groups             = render_data->cubemap->get_width() / 32;
-    dp->num_y_groups             = render_data->cubemap->get_height() / 32;
-    dp->num_z_groups             = 6;
+    barrier_description bd;
+    bd.barrier_bit = gfx_barrier_bit::shader_image_access_barrier_bit;
+    device_context->barrier(bd);
 
-    // We need to recalculate mipmaps
-    calculate_mipmaps_command* cm = compute_commands->create<calculate_mipmaps_command>(command_keys::no_sort);
-    cm->texture_name              = render_data->cubemap->get_name();
+    device_context->calculate_mipmaps(render_data->cubemap);
 
-    add_memory_barrier_command* amb = compute_commands->create<add_memory_barrier_command>(command_keys::no_sort);
-    amb->barrier_bit                = memory_barrier_bit::shader_image_access_barrier_bit;
+    device_context->end();
+    device_context->submit();
 
-    calculate_ibl_maps(compute_commands, render_data);
+    calculate_ibl_maps(render_data);
 }
 
-void skylight_builder::calculate_ibl_maps(const command_buffer_ptr<min_key>& compute_commands, skylight_cache* render_data)
+void skylight_builder::calculate_ibl_maps(skylight_cache* render_data)
 {
     if (!render_data->cubemap)
     {
-        MANGO_LOG_ERROR("Can not calculate cubemap maps without a cubemap!");
+        MANGO_LOG_ERROR("Can not calculate ibl maps without a cubemap!");
         return; // Should not be possible;
     }
 
-    texture_configuration texture_config;
-    texture_config.generate_mipmaps        = calculate_mip_count(global_specular_convolution_map_size, global_specular_convolution_map_size);
-    texture_config.is_standard_color_space = false;
-    texture_config.is_cubemap              = true;
-    texture_config.texture_min_filter      = texture_parameter::filter_linear_mipmap_linear;
-    texture_config.texture_mag_filter      = texture_parameter::filter_linear;
-    texture_config.texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
-    texture_config.texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
+    auto& graphics_device = m_shared_context->get_graphics_device();
 
-    if (render_data->specular_prefiltered_cubemap)
-        render_data->specular_prefiltered_cubemap->release();
-    render_data->specular_prefiltered_cubemap = texture::create(texture_config);
-    if (!check_creation(render_data->specular_prefiltered_cubemap.get(), "prefiltered specular texture"))
+    graphics_device_context_handle device_context = graphics_device->create_graphics_device_context();
+
+    texture_create_info texture_info;
+    texture_info.texture_type   = gfx_texture_type::texture_type_cube_map;
+    texture_info.width          = global_specular_convolution_map_size;
+    texture_info.height         = global_specular_convolution_map_size;
+    int32 specular_mip_count    = graphics::calculate_mip_count(global_specular_convolution_map_size, global_specular_convolution_map_size);
+    texture_info.miplevels      = specular_mip_count;
+    texture_info.array_layers   = 1;
+    texture_info.texture_format = gfx_format::rgba16f;
+
+    sampler_create_info sampler_info;
+    sampler_info.sampler_min_filter      = gfx_sampler_filter::sampler_filter_linear_mipmap_linear;
+    sampler_info.sampler_max_filter      = gfx_sampler_filter::sampler_filter_linear;
+    sampler_info.enable_comparison_mode  = false;
+    sampler_info.comparison_operator     = gfx_compare_operator::compare_operator_always;
+    sampler_info.edge_value_wrap_u       = gfx_sampler_edge_wrap::sampler_edge_wrap_clamp_to_edge;
+    sampler_info.edge_value_wrap_v       = gfx_sampler_edge_wrap::sampler_edge_wrap_clamp_to_edge;
+    sampler_info.edge_value_wrap_w       = gfx_sampler_edge_wrap::sampler_edge_wrap_clamp_to_edge;
+    sampler_info.border_color[0]         = 0;
+    sampler_info.border_color[1]         = 0;
+    sampler_info.border_color[2]         = 0;
+    sampler_info.border_color[3]         = 0;
+    sampler_info.enable_seamless_cubemap = true;
+
+    auto mipmapped_gen_sampler = graphics_device->create_sampler(sampler_info);
+
+    sampler_info.sampler_min_filter = gfx_sampler_filter::sampler_filter_linear;
+    auto gen_sampler                = graphics_device->create_sampler(sampler_info);
+
+    render_data->specular_prefiltered_cubemap = graphics_device->create_texture(texture_info);
+    if (!check_creation(render_data->specular_prefiltered_cubemap.get(), "environment specular prefiltered texture"))
         return;
 
-    render_data->specular_prefiltered_cubemap->set_data(format::rgba16f, global_specular_convolution_map_size, global_specular_convolution_map_size, format::rgba, format::t_float, nullptr);
-
-    texture_config.generate_mipmaps   = 1;
-    texture_config.texture_min_filter = texture_parameter::filter_linear;
-    if (render_data->irradiance_cubemap)
-        render_data->irradiance_cubemap->release();
-    render_data->irradiance_cubemap = texture::create(texture_config);
-    if (!check_creation(render_data->irradiance_cubemap.get(), "irradiance texture"))
+    texture_info.width              = global_irradiance_map_size;
+    texture_info.height             = global_irradiance_map_size;
+    texture_info.miplevels          = 1;
+    render_data->irradiance_cubemap = graphics_device->create_texture(texture_info);
+    if (!check_creation(render_data->irradiance_cubemap.get(), "environment irradiance texture"))
         return;
 
-    render_data->irradiance_cubemap->set_data(format::rgba16f, global_irradiance_map_size, global_irradiance_map_size, format::rgba, format::t_float, nullptr);
-
+    device_context->begin();
+    GL_NAMED_PROFILE_ZONE("Generating IBL Maps");
     // build irradiance map
-    bind_shader_program_command* bsp = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
-    bsp->shader_program_name         = m_build_irradiance_map->get_name();
+    device_context->bind_pipeline(m_build_irradiance_map_pipeline);
 
-    // bind input cubemap
-    bind_texture_command* bt = compute_commands->create<bind_texture_command>(command_keys::no_sort);
-    bt->binding              = 0;
-    bt->sampler_location     = 0;
-    bt->texture_name         = render_data->cubemap->get_name();
+    m_current_ibl_generator_data.out_size = vec2(static_cast<float>(global_irradiance_map_size));
+    m_current_ibl_generator_data.data     = vec2(0.0f); // unused here
+    device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
 
-    // bind output irradiance map
-    bind_image_texture_command* bit = compute_commands->create<bind_image_texture_command>(command_keys::no_sort);
-    bit->binding                    = 1;
-    bit->texture_name               = render_data->irradiance_cubemap->get_name();
-    bit->level                      = 0;
-    bit->layered                    = true;
-    bit->layer                      = 0;
-    bit->access                     = base_access::write_only;
-    bit->element_format             = format::rgba16f;
+    m_build_irradiance_map_pipeline->get_resource_mapping()->set("texture_cubemap_in", render_data->cubemap);
+    m_build_irradiance_map_pipeline->get_resource_mapping()->set("sampler_cubemap_in", mipmapped_gen_sampler);
+    auto irradiance_view = graphics_device->create_image_texture_view(render_data->irradiance_cubemap);
+    m_build_irradiance_map_pipeline->get_resource_mapping()->set("irradiance_map_out", irradiance_view);
+    m_build_irradiance_map_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generator_data_buffer);
 
-    // bind uniform
-    glm::vec2 out                    = glm::vec2(render_data->irradiance_cubemap->get_width(), render_data->irradiance_cubemap->get_height());
-    bind_single_uniform_command* bsu = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
-    bsu->count                       = 1;
-    bsu->location                    = 1;
-    bsu->type                        = shader_resource_type::fvec2;
-    bsu->uniform_value               = compute_commands->map_spare<bind_single_uniform_command>();
-    memcpy(bsu->uniform_value, &out, sizeof(out));
+    device_context->submit_pipeline_state_resources();
 
-    // execute compute
-    dispatch_compute_command* dp = compute_commands->create<dispatch_compute_command>(command_keys::no_sort);
-    dp->num_x_groups             = render_data->irradiance_cubemap->get_width() / 32;
-    dp->num_y_groups             = render_data->irradiance_cubemap->get_height() / 32;
-    dp->num_z_groups             = 6;
+    device_context->dispatch(global_irradiance_map_size / 4, global_irradiance_map_size / 4, 6);
 
-    add_memory_barrier_command* amb = compute_commands->create<add_memory_barrier_command>(command_keys::no_sort);
-    amb->barrier_bit                = memory_barrier_bit::shader_image_access_barrier_bit;
+    barrier_description bd;
+    bd.barrier_bit = gfx_barrier_bit::shader_image_access_barrier_bit;
+    device_context->barrier(bd);
 
     // build prefiltered specular mipchain
-    bsp                      = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
-    bsp->shader_program_name = m_build_specular_prefiltered_map->get_name();
+    device_context->bind_pipeline(m_build_specular_prefiltered_map_pipeline);
 
-    // bind input cubemap // TODO Paul: Needed again?
-    bt                   = compute_commands->create<bind_texture_command>(command_keys::no_sort);
-    bt->binding          = 0;
-    bt->sampler_location = 0;
-    bt->texture_name     = render_data->cubemap->get_name();
+    m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set("texture_cubemap_in", render_data->cubemap);
+    m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set("sampler_cubemap_in", mipmapped_gen_sampler);
 
-    uint32 mip_count = render_data->specular_prefiltered_cubemap->mipmaps();
-    for (uint32 mip = 0; mip < mip_count; ++mip)
+    for (int32 mip = 0; mip < specular_mip_count; ++mip)
     {
         const uint32 mipmap_width  = global_specular_convolution_map_size >> mip;
         const uint32 mipmap_height = global_specular_convolution_map_size >> mip;
-        float roughness            = (float)mip / (float)(mip_count - 1);
+        float roughness            = (float)mip / (float)(specular_mip_count - 1);
 
-        // bind correct mipmap
-        bit                 = compute_commands->create<bind_image_texture_command>(command_keys::no_sort);
-        bit->binding        = 1;
-        bit->texture_name   = render_data->specular_prefiltered_cubemap->get_name();
-        bit->level          = static_cast<g_int>(mip);
-        bit->layered        = true;
-        bit->layer          = 0;
-        bit->access         = base_access::write_only;
-        bit->element_format = format::rgba16f;
+        m_current_ibl_generator_data.out_size = vec2(mipmap_width, mipmap_height);
+        m_current_ibl_generator_data.data     = vec2(roughness, 0.0f);
+        device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
 
-        out                = glm::vec2(mipmap_width, mipmap_height);
-        bsu                = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
-        bsu->count         = 1;
-        bsu->location      = 1;
-        bsu->type          = shader_resource_type::fvec2;
-        bsu->uniform_value = compute_commands->map_spare<bind_single_uniform_command>();
-        memcpy(bsu->uniform_value, &out, sizeof(out));
+        auto mip_view = graphics_device->create_image_texture_view(render_data->specular_prefiltered_cubemap, mip);
+        m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set("prefiltered_spec_out", mip_view);
+        m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generator_data_buffer);
 
-        bsu                = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
-        bsu->count         = 1;
-        bsu->location      = 2;
-        bsu->type          = shader_resource_type::fsingle;
-        bsu->uniform_value = compute_commands->map_spare<bind_single_uniform_command>();
-        memcpy(bsu->uniform_value, &roughness, sizeof(roughness));
+        device_context->submit_pipeline_state_resources();
 
-        dp               = compute_commands->create<dispatch_compute_command>(command_keys::no_sort);
-        dp->num_x_groups = render_data->specular_prefiltered_cubemap->get_width() / 32;
-        dp->num_y_groups = render_data->specular_prefiltered_cubemap->get_height() / 32;
-        dp->num_z_groups = 6;
+        device_context->dispatch(global_specular_convolution_map_size / 32, global_specular_convolution_map_size / 32, 6);
     }
 
-    bsp                      = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
-    bsp->shader_program_name = 0;
+    device_context->barrier(bd);
 
-    amb              = compute_commands->create<add_memory_barrier_command>(command_keys::no_sort);
-    amb->barrier_bit = memory_barrier_bit::shader_image_access_barrier_bit;
+    device_context->end();
+    device_context->submit();
 }
 
 void skylight_builder::clear(skylight_cache* render_data)
@@ -375,6 +546,7 @@ void skylight_builder::clear(skylight_cache* render_data)
     render_data->specular_prefiltered_cubemap = nullptr;
     return;
 }
+
 /*
 bool atmosphere_builder::init()
 {
@@ -409,7 +581,7 @@ void atmosphere_builder::build(atmosphere_light* light, atmosphere_cache* render
 // };
 // atmosphere_ub_data* m_atmosphere_data_mapping;
 
-// void cubemap_step::create_with_atmosphere(const mango::environment_light_data* el_data)
+// void environment_display_step::create_with_atmosphere(const mango::environment_light_data* el_data)
 // {
 //     PROFILE_ZONE;
 //     m_atmosphere_data_mapping->sun_dir                          = glm::normalize(el_data->sun_data.direction);
@@ -421,7 +593,7 @@ void atmosphere_builder::build(atmosphere_light* light, atmosphere_cache* render
 //     m_atmosphere_data_mapping->density_multiplier               = el_data->density_multiplier;
 //     m_atmosphere_data_mapping->ground_radius                    = el_data->ground_radius;
 //     m_atmosphere_data_mapping->atmosphere_radius                = el_data->atmosphere_radius;
-//     m_atmosphere_data_mapping->ray_origin                       = glm::vec3(0.0f, el_data->ground_radius + el_data->view_height, 0.0f);
+//     m_atmosphere_data_mapping->ray_origin                       = vec3(0.0f, el_data->ground_radius + el_data->view_height, 0.0f);
 //     m_atmosphere_data_mapping->mie_preferred_scattering_dir     = el_data->mie_preferred_scattering_dir;
 //
 //     texture_configuration texture_config;
@@ -459,7 +631,7 @@ void atmosphere_builder::build(atmosphere_light* light, atmosphere_cache* render
 //     bit->element_format             = format::rgba16f;
 //
 //     // bind uniforms
-//     glm::vec2 out                    = glm::vec2(m_cubemap->get_width(), m_cubemap->get_height());
+//     vec2 out                    = vec2(m_cubemap->get_width(), m_cubemap->get_height());
 //     bind_single_uniform_command* bsu = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
 //     bsu->count                       = 1;
 //     bsu->location                    = 0;

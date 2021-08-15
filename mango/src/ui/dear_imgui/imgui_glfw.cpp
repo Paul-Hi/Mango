@@ -113,7 +113,7 @@ void ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int key, int scancode, int a
 void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
     bool handle = g_frame_hovered;
-    if (g_PrevUserCallbackMousebutton != NULL && window == g_Window && handle)
+    if (action == GLFW_RELEASE || (g_PrevUserCallbackMousebutton != NULL && window == g_Window && handle))
         g_PrevUserCallbackMousebutton(window, button, action, mods);
 
     if (action == GLFW_PRESS && button >= 0 && button < IM_ARRAYSIZE(g_MouseJustPressed))

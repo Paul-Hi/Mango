@@ -74,17 +74,17 @@ void plane_factory::create_mesh_primitive_component(mesh_primitive_component* co
 
 void plane_factory::append(std::vector<float>& vertex_data, std::vector<uint32>& index_data, bool restart, bool seal)
 {
-    glm::vec3 diff_x = glm::cross(m_face_normal, GLOBAL_UP);
+    vec3 diff_x = glm::cross(m_face_normal, GLOBAL_UP);
     if (glm::all(glm::equal(GLOBAL_UP, glm::abs(m_face_normal))))
         diff_x = glm::cross(m_face_normal, GLOBAL_FORWARD);
-    glm::vec3 diff_y = glm::cross(m_face_normal, diff_x);
+    vec3 diff_y = glm::cross(m_face_normal, diff_x);
 
     int32 x_count     = m_segments.x + 1;
     int32 y_count     = m_segments.y + 1;
-    glm::vec3 delta_x = 1.0f / m_segments.x * diff_x;
-    glm::vec3 delta_y = 1.0f / m_segments.y * diff_y;
+    vec3 delta_x = 1.0f / m_segments.x * diff_x;
+    vec3 delta_y = 1.0f / m_segments.y * diff_y;
 
-    glm::vec3 origin = -0.5f * diff_x - 0.5f * diff_y + m_offset * m_face_normal;
+    vec3 origin = -0.5f * diff_x - 0.5f * diff_y + m_offset * m_face_normal;
 
     bool reverse = false;
     if (glm::dot(glm::cross(diff_x, diff_y), m_face_normal) > 0)
@@ -103,7 +103,7 @@ void plane_factory::append(std::vector<float>& vertex_data, std::vector<uint32>&
         for (int32 x = 0; x < x_count; ++x)
         {
             // vertex data
-            glm::vec3 point = origin + (float)x * delta_x + (float)y * delta_y;
+            vec3 point = origin + (float)x * delta_x + (float)y * delta_y;
             vertex_data.push_back(point.x);
             vertex_data.push_back(point.y);
             vertex_data.push_back(point.z);
@@ -171,7 +171,7 @@ void box_factory::append(std::vector<float>& vertex_data, std::vector<uint32>& i
     auto pf = mesh_factory::get_plane_factory();
     pf->set_texture_coordinates(m_generate_texcoords).set_normals(m_generate_normals).set_offset_along_face_normal(0.5f);
 
-    glm::vec3 face_normal = GLOBAL_UP;
+    vec3 face_normal = GLOBAL_UP;
     pf->set_face_normal(face_normal);
     pf->set_segments({ m_segments.b, m_segments.a }).set_uv_tiling({ m_uv_tiling.b, m_uv_tiling.a });
     pf->append(vertex_data, index_data, restart, true);
@@ -241,11 +241,11 @@ void sphere_factory::append(std::vector<float>& vertex_data, std::vector<uint32>
             float x0 = r0 * glm::sin(seg * seg_delta);
             float z0 = r0 * glm::cos(seg * seg_delta);
 
-            glm::vec3 point = glm::vec3(x0, y0, z0);
+            vec3 point = vec3(x0, y0, z0);
             vertex_data.push_back(point.x);
             vertex_data.push_back(point.y);
             vertex_data.push_back(point.z);
-            glm::vec3 normal = glm::normalize(point);
+            vec3 normal = glm::normalize(point);
             if (m_generate_normals)
             {
                 vertex_data.push_back(normal.x);

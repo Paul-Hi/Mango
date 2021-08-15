@@ -23,15 +23,19 @@ class editor : public mango::application
     }
 
   private:
-    //! \brief Main camera. Testing.
-    mango::entity m_main_camera;
+    mango::sid m_main_camera_node_id;
+
+    mango::display_handle m_main_display;
+    mango::renderer_handle m_main_renderer;
+    mango::ui_handle m_main_ui;
+    mango::scene_handle m_current_scene;
 
     //! \brief Last mouse position.
-    glm::vec2 m_last_mouse_position;
+    mango::vec2 m_last_mouse_position;
     //! \brief Offsets for camera rotation.
-    glm::vec2 m_camera_rotation;
+    mango::vec2 m_camera_rotation;
     //! \brief Offsets for camera rotation.
-    glm::vec2 m_target_offset;
+    mango::vec2 m_target_offset;
     //! \brief Radius for camera.
     float m_camera_radius;
 };

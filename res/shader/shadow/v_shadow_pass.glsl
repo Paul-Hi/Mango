@@ -1,16 +1,11 @@
-layout(location = 0) in vec3 vertex_data_position;
-layout(location = 1) in vec3 vertex_data_normal;
-layout(location = 2) in vec2 vertex_data_texcoord;
-layout(location = 3) in vec4 vertex_data_tangent;
+#include <../include/bindings.glsl>
 
-// Uniform Buffer Model.
-layout(binding = 2, std140) uniform model_data
-{
-    mat4 model_matrix;
-    mat3 normal_matrix;
-    bool has_normals;
-    bool has_tangents;
-};
+layout(location = VERTEX_INPUT_POSITION) in vec3 vertex_data_position;
+layout(location = VERTEX_INPUT_NORMAL) in vec3 vertex_data_normal;
+layout(location = VERTEX_INPUT_TEXCOORD) in vec2 vertex_data_texcoord;
+layout(location = VERTEX_INPUT_TANGENT) in vec4 vertex_data_tangent;
+
+#include <../include/model.glsl>
 
 out shared_data
 {

@@ -6,7 +6,7 @@
 
 #include "mock_classes.hpp"
 #include <gtest/gtest.h>
-#include <graphics/graphics_common.hpp>
+#include <graphics/graphics.hpp>
 
 //! \cond NO_DOC
 

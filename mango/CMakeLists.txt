@@ -5,131 +5,127 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/application.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/context.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/types.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene_ecs.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/log.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/assert.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/system.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/window_system.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/display.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/display_event_handler.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/render_system.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene_component_pool.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input_codes.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/ui_system.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/profile.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/imgui_helper.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/mesh_factory.hpp
+
+    # Display
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/display.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/display_event_handler.hpp
+    # Input
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input.hpp
+    # Resources
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/resources.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/resource_structures.hpp
+    # UI
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/ui.hpp
+    # Scene
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene_structures.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene.hpp
+    # Renderer
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/renderer.hpp
+    #Utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/packed_freelist.hpp
 )
 
 set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/window_system_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/display_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/display_event_handler_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/input_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/input_system_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/pipeline_step.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/cubemap_step.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/gpu_buffer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/hashing.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/helpers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/signal.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_structures.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/timer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_system_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/ecs_internal.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_glfw.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_widgets.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/icons_font_awesome_5.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/allocator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/linear_allocator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/free_list_allocator.hpp
 
-    # graphics
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_common.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_state.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/command_buffer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_object.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/vertex_array.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/buffer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/shader.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/shader_program.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/texture.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/framebuffer.hpp
-    # graphics impl
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/vertex_array_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/buffer_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/shader_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/shader_program_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/texture_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/framebuffer_impl.hpp
-
+    # Display
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/display_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/display_event_handler_impl.hpp
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/glfw/glfw_display.hpp>
-
-    $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.hpp>
-    $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.hpp>
-
-    $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_input_system.hpp>
-    $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_input_system.hpp>
+    $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/glfw/glfw_display.hpp>
+    # Input
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/input_impl.hpp
+    # Resources
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resources_impl.hpp
+    # Scene
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_internals.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_impl.hpp
+    # UI
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_glfw.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_widgets.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/icons_font_awesome_5.hpp
+    # Graphics
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_types.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_device.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_device_context.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_resources.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_state.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics.hpp
+    # OpenGL
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_graphics_device.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_graphics_device_context.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_graphics_resources.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_graphics_state.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_shader_program_cache.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_framebuffer_cache.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_vertex_array_cache.hpp
+    # Renderer
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer_pipeline_cache.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_renderer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/render_step.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/environment_display_step.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.hpp
 )
 
 set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/application.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_system_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/input_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_render_system.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/cubemap_step.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/environment_display_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/gpu_buffer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resource_system.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/mesh_factory.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene.cpp
+    # ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/mesh_factory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_system_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_glfw.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/helpers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/linear_allocator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/free_list_allocator.cpp
 
-    # graphics
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics_state.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/command_buffer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/vertex_array.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/buffer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/shader.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/shader_program.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/texture.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/framebuffer.cpp
-    # graphics impl
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/vertex_array_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/buffer_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/shader_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/shader_program_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/texture_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/impl/framebuffer_impl.cpp
-
+    # Display
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/glfw/glfw_display.cpp>
-    $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_window_system.cpp>
-    $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_window_system.cpp>
-
-    $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/win32_input_system.cpp>
-    $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/linux_input_system.cpp>
+    $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/glfw/glfw_display.cpp>
+    # Input
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/input_impl.cpp
+    # Graphics
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics.cpp
+    # Resources
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resources_impl.cpp
+    # Scene
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_impl.cpp
+    # UI
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_glfw.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_helper.cpp
+    # OpenGL
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_graphics_resources.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_graphics_device.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_graphics_device_context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_shader_program_cache.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_framebuffer_cache.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_vertex_array_cache.cpp
+    # Renderer
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer_pipeline_cache.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_renderer.cpp
 )
 
 add_library(mango
@@ -151,6 +147,7 @@ target_include_directories(mango SYSTEM
     PUBLIC
         ${CMAKE_SOURCE_DIR}/dependencies/glm
         ${CMAKE_SOURCE_DIR}/dependencies/glad/include
+        ${CMAKE_SOURCE_DIR}/dependencies/optional/include
 )
 
 set_target_properties(mango
@@ -167,12 +164,12 @@ target_link_libraries(mango
         tinyfd
         $<$<CONFIG:Release>:$<$<BOOL:${MANGO_PROFILE}>:tracy>>
         $<$<BOOL:${MANGO_BUILD_TESTS}>:glad>
+        tiny_gltf
     PRIVATE
         ${OPENGL_LIBRARIES}
         glad
         glfw
         stb_image
-        tiny_gltf
 )
 
 target_compile_definitions(mango

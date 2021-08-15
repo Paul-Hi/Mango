@@ -33,40 +33,40 @@ namespace mango
         };
 
         display_info()
-            : m_x(0)
-            , m_y(0)
-            , m_width(0)
-            , m_height(0)
-            , m_title("")
-            , m_decorated(true)
-            , m_pixel_format(pixel_format::rgba8888)
-            , m_depth_stencil_format(depth_stencil_format::depth16)
-            , m_native_renderer(display_configuration::native_renderer_type::opengl)
-            , m_display_event_handler(nullptr)
+            : x(0)
+            , y(0)
+            , width(0)
+            , height(0)
+            , title("")
+            , decorated(true)
+            , pixel_format(pixel_format::rgba8888)
+            , depth_stencil_format(depth_stencil_format::depth16)
+            , native_renderer(display_configuration::native_renderer_type::opengl)
+            , display_event_handler(nullptr)
         {
         }
 
         //! \brief Horizontal screen position.
-        int32 m_x;
+        int32 x;
         //! \brief Vertical screen position.
-        int32 m_y;
+        int32 y;
         //! \brief Display width.
-        int32 m_width;
+        int32 width;
         //! \brief Display height.
-        int32 m_height;
+        int32 height;
         //! \brief Display title.
-        const char* m_title;
+        const char* title;
         //! \brief Defines if display should be decorated.
-        bool m_decorated;
+        bool decorated;
 
         //! \brief Pixel format for the display buffer.
-        pixel_format m_pixel_format;
+        pixel_format pixel_format;
         //! \brief Depth stencil format for the display buffer.
-        depth_stencil_format m_depth_stencil_format;
+        depth_stencil_format depth_stencil_format;
         //! \brief Native renderer for the display.
-        display_configuration::native_renderer_type m_native_renderer;
+        display_configuration::native_renderer_type native_renderer;
         //! \brief Pointer to handler to route events to mango.
-        display_event_handler_ptr m_display_event_handler;
+        display_event_handler_ptr display_event_handler;
     };
 
     //! \brief The internal display interface.
@@ -93,6 +93,7 @@ namespace mango
         //! \return True if the \a display should close, else false.
         virtual bool should_close() const = 0;
 
+        //! \brief Type alias describing the native handle for any platform window.
         using native_window_handle = void*;
 
         //! \brief Retrieves and returns the underlying handle to the operating system window.

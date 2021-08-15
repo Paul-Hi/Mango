@@ -117,12 +117,12 @@ namespace mango
 
     //! \brief Draws an image box with loading functionality with mangos ui alignments.
     //! \param[in] label The label of the texture value.
-    //! \param[in] texture_name The graphics name (handle) of the texture.
+    //! \param[in] texture_native_handle The native handle of the texture.
     //! \param[in] size The width and height of the image box
     //! \param[out] load_new Is true if a new image should be loaded afterwards, else false.
     //! \param[in] column_width The width of the first column.
     //! \return True, when value changed, else false.
-    bool image_load(const string& label, int32 texture_name, const glm::vec2& size, bool& load_new, float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
+    bool image_load(const string& label, void* texture_native_handle, const vec2& size, bool& load_new, float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
 
 } // namespace mango
 

@@ -31,7 +31,7 @@ TEST_F(init_test, init_does_not_fail_on_context_creation)
     auto mango_context = m_application->get_context().lock();
     ASSERT_NE(nullptr, mango_context);
     ASSERT_NE(nullptr, mango_context->get_window_system().lock());
-    ASSERT_NE(nullptr, mango_context->get_render_system().lock());
+    ASSERT_NE(nullptr, mango_context->get_renderer().lock());
     ASSERT_NE(nullptr, mango_context->get_input_system().lock());
 }
 
@@ -42,8 +42,8 @@ TEST_F(init_test, no_crash_on_public_configuration_calls)
     auto mango_ws = mango_context->get_window_system().lock();
     mango::window_configuration window_config(100, 100, "Test");
     ASSERT_NO_FATAL_FAILURE(mango_ws->configure(window_config));
-    auto mango_rs = mango_context->get_render_system().lock();
-    mango::render_configuration render_config(mango::render_pipeline::deferred_pbr, true);
+    auto mango_rs = mango_context->get_renderer().lock();
+    mango::renderer_configuration render_config(mango::render_pipeline::deferred_pbr, true);
     ASSERT_NO_FATAL_FAILURE(mango_rs->configure(render_config));
 }
 

@@ -98,6 +98,7 @@ namespace mango
         // Joystick dis-/connection
     };
 
+    //! \brief A shared pointer holding a \a display_event_handler.
     using display_event_handler_ptr = std::shared_ptr<display_event_handler>;
 }; // namespace mango
 

@@ -216,8 +216,11 @@ namespace mango
         virtual display_configuration::native_renderer_type get_native_renderer_type() const = 0;
     };
 
+    //! \brief A unique pointer holding a \a display.
     using display_ptr    = std::unique_ptr<display>;
-    using display_handle = display_ptr;
+
+    //! \brief A constant pointer pointing to a \a display.
+    using display_handle = const display*;
 } // namespace mango
 
 #endif // MANGO_DISPLAY_HPP

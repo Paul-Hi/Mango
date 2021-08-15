@@ -13,8 +13,8 @@ input_impl::input_impl()
     m_current_input_state.keys.fill(input_action::release);
     m_current_input_state.mouse_buttons.fill(input_action::release);
     m_current_input_state.modifier_field  = modifier::none;
-    m_current_input_state.cursor_position = glm::dvec3(0.0);
-    m_current_input_state.scroll_offset   = glm::dvec3(0.0);
+    m_current_input_state.cursor_position = dvec3(0.0);
+    m_current_input_state.scroll_offset   = dvec3(0.0);
 
     m_signals.input_key.connect([this](key_code key, input_action action, modifier mods) {
         m_current_input_state.keys[static_cast<int32>(key)] = action;
@@ -68,87 +68,87 @@ modifier input_impl::get_modifiers()
     return m_current_input_state.modifier_field;
 }
 
-glm::dvec2 input_impl::get_cursor_position()
+dvec2 input_impl::get_cursor_position()
 {
     return m_current_input_state.cursor_position;
 }
 
-glm::dvec2 input_impl::get_scroll_offset()
+dvec2 input_impl::get_scroll_offset()
 {
     return m_current_input_state.scroll_offset;
 }
 
-void input_impl::register_display_position_callback(display_position_callback& callback)
+void input_impl::register_display_position_callback(display_position_callback callback)
 {
     m_signals.window_position.connect(callback);
 }
 
-void input_impl::register_display_resize_callback(display_resize_callback& callback)
+void input_impl::register_display_resize_callback(display_resize_callback callback)
 {
     m_signals.window_resize.connect(callback);
 }
 
-void input_impl::register_display_close_callback(display_close_callback& callback)
+void input_impl::register_display_close_callback(display_close_callback callback)
 {
     m_signals.window_close.connect(callback);
 }
 
-void input_impl::register_display_refresh_callback(display_refresh_callback& callback)
+void input_impl::register_display_refresh_callback(display_refresh_callback callback)
 {
     m_signals.window_refresh.connect(callback);
 }
 
-void input_impl::register_display_focus_callback(display_focus_callback& callback)
+void input_impl::register_display_focus_callback(display_focus_callback callback)
 {
     m_signals.window_focus.connect(callback);
 }
 
-void input_impl::register_display_iconify_callback(display_iconify_callback& callback)
+void input_impl::register_display_iconify_callback(display_iconify_callback callback)
 {
     m_signals.window_iconify.connect(callback);
 }
 
-void input_impl::register_display_maximize_callback(display_maximize_callback& callback)
+void input_impl::register_display_maximize_callback(display_maximize_callback callback)
 {
     m_signals.window_maximize.connect(callback);
 }
 
-void input_impl::register_display_framebuffer_resize_callback(display_framebuffer_resize_callback& callback)
+void input_impl::register_display_framebuffer_resize_callback(display_framebuffer_resize_callback callback)
 {
     m_signals.window_framebuffer_resize.connect(callback);
 }
 
-void input_impl::register_display_content_scale_callback(display_content_scale_callback& callback)
+void input_impl::register_display_content_scale_callback(display_content_scale_callback callback)
 {
     m_signals.window_content_scale.connect(callback);
 }
 
-void input_impl::register_mouse_button_callback(mouse_button_callback& callback)
+void input_impl::register_mouse_button_callback(mouse_button_callback callback)
 {
     m_signals.input_mouse_button.connect(callback);
 }
 
-void input_impl::register_cursor_position_callback(cursor_position_callback& callback)
+void input_impl::register_cursor_position_callback(cursor_position_callback callback)
 {
     m_signals.input_cursor_position.connect(callback);
 }
 
-void input_impl::register_cursor_enter_callback(cursor_enter_callback& callback)
+void input_impl::register_cursor_enter_callback(cursor_enter_callback callback)
 {
     m_signals.input_cursor_enter.connect(callback);
 }
 
-void input_impl::register_scroll_callback(scroll_callback& callback)
+void input_impl::register_scroll_callback(scroll_callback callback)
 {
     m_signals.input_scroll.connect(callback);
 }
 
-void input_impl::register_key_callback(key_callback& callback)
+void input_impl::register_key_callback(key_callback callback)
 {
     m_signals.input_key.connect(callback);
 }
 
-void input_impl::register_drop_callback(drop_callback& callback)
+void input_impl::register_drop_callback(drop_callback callback)
 {
     m_signals.input_drop.connect(callback);
 }

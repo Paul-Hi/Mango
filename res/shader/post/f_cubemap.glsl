@@ -1,53 +1,23 @@
 #include <../include/common_constants_and_functions.glsl>
+#include <../include/camera.glsl>
+#include <../include/renderer.glsl>
+#include <../include/light.glsl>
 
 out vec4 frag_color;
 
 in vec3 shared_texcoord;
 
-layout (location = 0) uniform samplerCube skybox;
-
-// Uniform Buffer Lighting Pass.
-layout(binding = 1, std140) uniform lighting_pass_data
-{
-    mat4 inverse_view_projection;
-    mat4 view;
-    vec4 camera_position; // this is a vec3, but there are annoying bugs with some drivers.
-    vec4 camera_params; // near, far, (zw) unused
-
-    bool debug_view_enabled;
-    bool debug_views_position;
-    bool debug_views_normal;
-    bool debug_views_depth;
-    bool debug_views_base_color;
-    bool debug_views_reflection_color;
-    bool debug_views_emission;
-    bool debug_views_occlusion;
-    bool debug_views_roughness;
-    bool debug_views_metallic;
-    bool show_cascades;
-    bool draw_shadow_maps;
-};
-
-layout(binding = 4, std140) uniform light_data
-{
-    vec4  directional_direction; // this is a vec3, but there are annoying bugs with some drivers.
-    vec4  directional_color; // this is a vec3, but there are annoying bugs with some drivers.
-    float directional_intensity;
-    bool  directional_cast_shadows;
-    bool  directional_valid;
-
-    float skylight_intensity;
-    bool  skylight_valid;
-};
+layout(binding = 0) uniform samplerCube sampler_environment_cubemap; // texture "texture_environment_cubemap"
 
 // Uniform Buffer Cubemap.
-layout(binding = 5, std140) uniform cubemap_data
+layout(binding = 3, std140) uniform cubemap_data
 {
     mat4 model_matrix;
     float render_level;
 };
 
 // Uniform Buffer Atmosphere Compute.
+/*
 layout(binding = 6, std140) uniform atmosphere_ub_data
 {
     vec4 sun_dir; // vec3 -> vec4
@@ -62,13 +32,14 @@ layout(binding = 6, std140) uniform atmosphere_ub_data
     int scatter_points;
     int scatter_points_second_ray;
 };
+*/
 
 void main()
 {
     vec3 color;
     if(skylight_valid && skylight_intensity > 1e-5)
     {
-        color = (textureLod(skybox, shared_texcoord, render_level) * skylight_intensity).rgb;
+        color = (textureLod(sampler_environment_cubemap, shared_texcoord, render_level) * skylight_intensity).rgb;
 
         // vec3 ray_dir = normalize(shared_texcoord);
         // vec2 ground_intersect = intersect_ray_sphere(ray_origin.xyz, ray_dir, ground_radius);

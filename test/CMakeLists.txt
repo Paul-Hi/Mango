@@ -6,8 +6,12 @@ add_executable(AllTests
     test_main.cpp
     init_test.cpp
     window_system_test.cpp
-    render_system_test.cpp
+    renderer_test.cpp
     graphics_common_test.cpp
+
+
+    # new
+    packed_freelist_test.cpp
 )
 
 target_include_directories(AllTests

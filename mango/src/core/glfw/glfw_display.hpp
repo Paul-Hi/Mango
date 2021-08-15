@@ -14,10 +14,13 @@
 
 namespace mango
 {
+    //! \brief A \a display_impl using glfw to create the window and manage the input.
     class glfw_display : public display_impl
     {
         MANGO_DISABLE_COPY_AND_ASSIGNMENT(glfw_display)
       public:
+        //! \brief Constructor.
+        //! \param[in] create_info The \a display_info to use to construct the \a glfw_display.
         glfw_display(const display_info& create_info);
         ~glfw_display();
         void change_size(int32 width, int32 height) override;
@@ -38,10 +41,12 @@ namespace mango
         //! \brief Initializes all necessary data and creates a display.
         //! \return True on success, else false.
         bool initialize();
+
         //! \brief Creates a display with opengl backend.
         //! \return True on success, else false.
         bool create_glfw_opengl();
 
+        //! \brief Internal data.
         struct glfw_display_data
         {
             //! \brief The native handle to the GLFWWindow.
@@ -52,7 +57,7 @@ namespace mango
 
             //! \brief True if \a display is already initialized, else false.
             bool initialized;
-        } m_glfw_display_data;
+        } m_glfw_display_data; //!< The internal data for the display.
 
         //! \brief Number of native GLFWWindows created in the class.
         static int32 s_glfw_windows;

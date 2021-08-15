@@ -26,23 +26,23 @@ namespace mango
         input_action get_key(key_code key) override;
         input_action get_mouse_button(mouse_button button) override;
         modifier get_modifiers() override;
-        glm::dvec2 get_cursor_position() override;
-        glm::dvec2 get_scroll_offset() override;
-        void register_display_position_callback(display_position_callback& callback) override;
-        void register_display_resize_callback(display_resize_callback& callback) override;
-        void register_display_close_callback(display_close_callback& callback) override;
-        void register_display_refresh_callback(display_refresh_callback& callback) override;
-        void register_display_focus_callback(display_focus_callback& callback) override;
-        void register_display_iconify_callback(display_iconify_callback& callback) override;
-        void register_display_maximize_callback(display_maximize_callback& callback) override;
-        void register_display_framebuffer_resize_callback(display_framebuffer_resize_callback& callback) override;
-        void register_display_content_scale_callback(display_content_scale_callback& callback) override;
-        void register_mouse_button_callback(mouse_button_callback& callback) override;
-        void register_cursor_position_callback(cursor_position_callback& callback) override;
-        void register_cursor_enter_callback(cursor_enter_callback& callback) override;
-        void register_scroll_callback(scroll_callback& callback) override;
-        void register_key_callback(key_callback& callback) override;
-        void register_drop_callback(drop_callback& callback) override;
+        dvec2 get_cursor_position() override;
+        dvec2 get_scroll_offset() override;
+        void register_display_position_callback(display_position_callback callback) override;
+        void register_display_resize_callback(display_resize_callback callback) override;
+        void register_display_close_callback(display_close_callback callback) override;
+        void register_display_refresh_callback(display_refresh_callback callback) override;
+        void register_display_focus_callback(display_focus_callback callback) override;
+        void register_display_iconify_callback(display_iconify_callback callback) override;
+        void register_display_maximize_callback(display_maximize_callback callback) override;
+        void register_display_framebuffer_resize_callback(display_framebuffer_resize_callback callback) override;
+        void register_display_content_scale_callback(display_content_scale_callback callback) override;
+        void register_mouse_button_callback(mouse_button_callback callback) override;
+        void register_cursor_position_callback(cursor_position_callback callback) override;
+        void register_cursor_enter_callback(cursor_enter_callback callback) override;
+        void register_scroll_callback(scroll_callback callback) override;
+        void register_key_callback(key_callback callback) override;
+        void register_drop_callback(drop_callback callback) override;
 
         //! \brief Signals window position change.
         //! \param[in] x_position The new upper-left corner x position in screen coordinates.
@@ -124,9 +124,9 @@ namespace mango
             //! \brief Active modifiers.
             modifier modifier_field;
             //! \brief Current cursor position.
-            glm::dvec2 cursor_position;
+            dvec2 cursor_position;
             //! \brief Current scroll offset.
-            glm::dvec2 scroll_offset;
+            dvec2 scroll_offset;
         };
 
         //! \brief Current input state.

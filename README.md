@@ -106,6 +106,7 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 * stb_image
 * dear imgui
 * tiny file dialogs
+* optional
 
 * tracy (Profiling)
 * googletest (Testing)

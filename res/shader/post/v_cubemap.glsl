@@ -1,17 +1,10 @@
-layout (location = 0) in vec3 vertex_data_position;
+#include <../include/camera.glsl>
+#include <../include/renderer.glsl>
 
-// Uniform Buffer Renderer.
-layout(binding = 0, std140) uniform renderer_data
-{
-    mat4 view_matrix;
-    mat4 projection_matrix;
-    mat4 view_projection_matrix;
-    float camera_exposure;
-    bool shadow_step_enabled;
-};
+layout(location = 0) in vec3 vertex_data_position;
 
 // Uniform Buffer Cubemap.
-layout(binding = 5, std140) uniform cubemap_data
+layout(binding = 3, std140) uniform cubemap_data
 {
     mat4 model_matrix;
     float render_level;
