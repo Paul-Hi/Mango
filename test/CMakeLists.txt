@@ -1,16 +1,16 @@
 project(mangotests)
 
 add_executable(AllTests
-    mock_classes.hpp
-
-    test_main.cpp
-    init_test.cpp
+    #old stuff
     window_system_test.cpp
     renderer_test.cpp
-    graphics_common_test.cpp
 
+    # new or partly new
+    mock_classes.hpp
+    test_main.cpp
 
-    # new
+    init_test.cpp
+    graphics_test.cpp
     packed_freelist_test.cpp
 )
 

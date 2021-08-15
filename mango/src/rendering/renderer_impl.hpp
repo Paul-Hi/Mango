@@ -222,7 +222,7 @@ namespace mango
         virtual void set_viewport(int32 x, int32 y, int32 width, int32 height) = 0;
 
         //! \brief Retrieves and returns the base \a render_pipeline of the real implementation of the \a renderer.
-        //! \details This needs to be overriden by th real \a renderer_impl.
+        //! \details This needs to be overridden by th real \a renderer_impl.
         //! \return The current set base \a render_pipeline of the \a renderer.
         virtual render_pipeline get_base_render_pipeline() = 0;
 

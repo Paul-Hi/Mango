@@ -99,7 +99,9 @@ namespace mango
         //! \param[in] node_id The \a sid of the containing \a node of the \a orthographic_camera to remove from the \a scene.
         virtual void remove_orthographic_camera(sid node_id) = 0;
 
-        // virtual void remove_mesh_primitive(sid node_id) = 0;
+        //! \brief Removes a \a mesh from the \a scene.
+        //! \param[in] node_id The \a sid of the containing \a node of the \a mesh to remove from the \a scene.
+        virtual void remove_mesh(sid node_id) = 0;
 
         //! \brief Removes a \a directional_light from the \a scene.
         //! \param[in] node_id The \a sid of the containing \a node of the \a directional_light to remove from the \a scene.

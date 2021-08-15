@@ -511,6 +511,49 @@ void scene_impl::remove_orthographic_camera(sid node_id)
     m_scene_cameras.erase(cam);
 }
 
+void scene_impl::remove_mesh(sid node_id)
+{
+    PROFILE_ZONE;
+    packed_freelist_id node_pf = node_id.id();
+
+    if (!m_scene_nodes.contains(node_pf))
+    {
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove mesh!", node_id.id().get());
+        return;
+    }
+
+    scene_node& node = m_scene_nodes.at(node_pf);
+
+    if ((node.type & node_type::mesh) == node_type::empty_leaf)
+    {
+        MANGO_LOG_WARN("Node with ID {0} does not contain a mesh! Can not remove mesh!", node_id.id().get());
+        return;
+    }
+
+    packed_freelist_id m = node.mesh_id.id();
+
+    if (!m_scene_meshes.contains(m))
+    {
+        MANGO_LOG_WARN("Mesh with ID {0} does not exist! Can not remove mesh!", m.get());
+        return;
+    }
+
+    scene_mesh& to_remove = m_scene_meshes.at(m);
+
+    sid containing_node = to_remove.public_data.containing_node;
+
+    if (containing_node.is_valid())
+    {
+        packed_freelist_id cn = containing_node.id();
+        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Is this assertion right?
+        scene_node& nd                                            = m_scene_nodes.at(cn);
+        nd.light_ids[static_cast<uint8>(light_type::directional)] = invalid_sid;
+        nd.type &= ~node_type::mesh;
+    }
+
+    m_scene_meshes.erase(m);
+}
+
 void scene_impl::remove_directional_light(sid node_id)
 {
     PROFILE_ZONE;

@@ -46,6 +46,7 @@ namespace mango
         void remove_node(sid node_id) override;
         void remove_perspective_camera(sid node_id) override;
         void remove_orthographic_camera(sid node_id) override;
+        void remove_mesh(sid node_id) override;
         void remove_directional_light(sid node_id) override;
         void remove_skylight(sid node_id) override;
         void remove_atmospheric_light(sid node_id) override;

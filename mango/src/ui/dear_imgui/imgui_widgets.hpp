@@ -406,32 +406,41 @@ namespace mango
         {
             optional<scene_mesh&> m = application_scene->get_scene_mesh(object);
             MANGO_ASSERT(m, "Mesh to inspect does not exist!");
-            details::draw_component("Mesh",
-                                    [object, &application_scene, &m, &selected_primitive]()
-                                    {
-                                        custom_info("Name: ",
-                                                    [&m]()
-                                                    {
-                                                        ImGui::AlignTextToFramePadding();
-                                                        ImGui::Text(m->public_data.name.c_str());
-                                                    });
-                                        ImGui::Spacing();
+            details::draw_component(
+                "Mesh",
+                [object, &application_scene, &m, &selected_primitive]()
+                {
+                    custom_info("Name: ",
+                                [&m]()
+                                {
+                                    ImGui::AlignTextToFramePadding();
+                                    ImGui::Text(m->public_data.name.c_str());
+                                });
+                    ImGui::Spacing();
 
-                                        // Could be done with tables when they support clicking.
-                                        ImGui::Text("Primitives:");
-                                        ImGui::Spacing();
-                                        for (int32 p = 0; p < m->scene_primitives.size(); p++)
-                                        {
-                                            optional<scene_material&> mat = application_scene->get_scene_material(object);
-                                            MANGO_ASSERT(mat, "Material referenced by primitive does not exist!");
-                                            string selectable = "Primitive " + std::to_string(p) + " - Material: " + mat->public_data.name;
-                                            bool selected     = selected_primitive == m->scene_primitives[p].public_data.instance_id;
-                                            if (ImGui::Selectable(selectable.c_str(), &selected))
-                                            {
-                                                selected_primitive = m->scene_primitives[p].public_data.instance_id;
-                                            }
-                                        }
-                                    });
+                    // Could be done with tables when they support clicking.
+                    ImGui::Text("Primitives:");
+                    ImGui::Spacing();
+                    for (int32 p = 0; p < m->scene_primitives.size(); p++)
+                    {
+                        optional<scene_material&> mat = application_scene->get_scene_material(object);
+                        MANGO_ASSERT(mat, "Material referenced by primitive does not exist!");
+                        string selectable = "Primitive " + std::to_string(p) + " - Material: " + mat->public_data.name;
+                        bool selected     = selected_primitive == m->scene_primitives[p].public_data.instance_id;
+                        if (ImGui::Selectable(selectable.c_str(), &selected))
+                        {
+                            selected_primitive = m->scene_primitives[p].public_data.instance_id;
+                        }
+                    }
+                },
+                [object, &m, &application_scene]()
+                {
+                    if (ImGui::Selectable("Remove"))
+                    {
+                        application_scene->remove_mesh(m->public_data.containing_node);
+                    }
+                    return true;
+                });
         }
 
         //! \brief Draws ui for a given \a scene_camera.
@@ -875,7 +884,8 @@ namespace mango
                                             ImGui::Separator();
 
                                             float default_value_float = mango::default_emissive_intensity;
-                                            slider_float_n("Intensity", &mat->public_data.emissive_intensity, 1, &default_value_float, 0.0f, default_emissive_intensity * 10.0f); // TODO Paul: Range?
+                                            slider_float_n("Intensity", &mat->public_data.emissive_intensity, 1, &default_value_float, 0.0f,
+                                                           default_emissive_intensity * 10.0f); // TODO Paul: Range?
 
                                             float default_value[3] = { 1.0f, 1.0f, 1.0f };
                                             if (mat->public_data.emissive_texture == invalid_sid)
@@ -930,7 +940,7 @@ namespace mango
             if (ImGui::Selectable("Add Entity##scene_menu"))
             {
                 auto new_node = node();
-                selected = application_scene->add_node(new_node);
+                selected      = application_scene->add_node(new_node);
             }
             if (ImGui::Selectable("Import And Add Model (temporary)##scene_menu"))
             {
