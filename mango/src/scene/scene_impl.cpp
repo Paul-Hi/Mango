@@ -9,6 +9,7 @@
 //! \cond NO_COND
 #define GLM_FORCE_SILENT_WARNINGS 1
 //! \endcond
+#include <algorithm>
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/quaternion.hpp>
