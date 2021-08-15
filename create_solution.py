@@ -155,7 +155,7 @@ def getDependencies():
         repository ='https://github.com/wolfpld/tracy.git'
         folder ='tracy'
 
-        gitCmd = ['git', 'clone', '--depth', '1', '--branch', 'v0.7', repository, folder]
+        gitCmd = ['git', 'clone', '--depth', '1', '--branch', 'v0.7.8', repository, folder]
         result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
         if result != 0:
             return False
@@ -167,6 +167,16 @@ def getDependencies():
         f.write('target_include_directories(tracy SYSTEM PUBLIC .)\r\n')
         f.write('target_compile_definitions(tracy PUBLIC $<$<CONFIG:Release>:$<$<BOOL:${MANGO_PROFILE}>:TRACY_ENABLE>> $<$<BOOL:${WIN32}>:WINVER=0x0601 _WIN32_WINNT=0x0601 _WINSOCKAPI_>)\r\n')
         f.close()
+
+    # optional
+    if not os.path.exists('optional'):
+        repository ='https://github.com/TartanLlama/optional.git'
+        folder ='optional'
+
+        gitCmd = ['git', 'clone', repository, folder]
+        result = subprocess.check_call(gitCmd, stderr=subprocess.STDOUT, shell=False)
+        if result != 0:
+            return False
 
     os.chdir('..')
     return True

@@ -1,4 +1,4 @@
-#define COMPUTE
+
 #include <../include/common_constants_and_functions.glsl>
 
 #define F16_MAX 65500.0
@@ -8,10 +8,14 @@ layout(local_size_x = 32, local_size_y = 32) in;
 
 layout(binding = 0, rgba16f) uniform writeonly imageCube cubemap_out;
 
-layout(location = 0) uniform vec2 out_size;
+layout(binding = 3) uniform ibl_generation_data
+{
+    vec2 out_size;
+    vec2 data;
+};
 
 // Uniform Buffer Atmosphere Compute.
-layout(binding = 6, std140) uniform atmosphere_ub_data
+layout(binding = 4, std140) uniform atmosphere_data
 {
     vec4 sun_dir; // vec3 -> vec4
     vec4 rayleigh_scattering_coefficients; // vec3 -> vec4

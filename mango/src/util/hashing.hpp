@@ -24,9 +24,12 @@ namespace mango
         static uint64 hash(const char* str)
         {
             uint64 hash = 5381;
-            int64 c;
-            while ((c = *str++))
+            int64 c     = *str++;
+            while (c)
+            {
                 hash = ((hash << 5) + hash) + c; // hash * 33 + c
+                c    = *str++;
+            }
             return hash;
         }
     };

@@ -7,74 +7,18 @@
 #ifndef MANGO_SHADOW_MAP_STEP_HPP
 #define MANGO_SHADOW_MAP_STEP_HPP
 
-#include <graphics/framebuffer.hpp>
-#include <rendering/steps/pipeline_step.hpp>
+#include <core/context_impl.hpp>
+#include <graphics/graphics.hpp>
+#include <rendering/steps/render_step.hpp>
 
 namespace mango
 {
     //! \brief A pipeline step adding shadow mapping.
-    class shadow_map_step : public pipeline_step
+    class shadow_map_step : public render_step
     {
       public:
-        bool create() override;
-        void update(float dt) override;
-
-        void attach() override;
-
-        //! \brief Configures the \a shadow_map_step.
-        //! \param[in] configuration The \a shadow_step_configuration to use.
-        void configure(const shadow_step_configuration& configuration);
-        void execute(gpu_buffer_ptr frame_uniform_buffer) override;
-
-        void destroy() override;
-
-        //! \brief Returns the shadow framebuffer with the shadow map attached as depth attachment with multiple layers.
-        //! \return A shared_ptr to the shadow \a framebuffer.
-        inline framebuffer_ptr get_shadow_buffer()
-        {
-            return m_shadow_buffer;
-        }
-
-        //! \brief Returns a shared_ptr to the \a command_buffer of the shadow step.
-        //! \details The returned \a command_buffer can be used to render geometry that should cast shadows. It gets executed by the rendering system.
-        //! \return A shared_ptr to the shadow step \a command_buffer.
-        inline command_buffer_ptr<max_key> get_shadow_commands()
-        {
-            return m_shadow_command_buffer;
-        }
-
-        //! \brief Updates the cascades for CSM.
-        //! \details Calculates the camera frustum, the cascade split depths and the view projection matrices for the directional light.
-        //! \param[in] dt Time since last call.
-        //! \param[in] camera_near The cameras near plane depth.
-        //! \param[in] camera_far The cameras far plane depth.
-        //! \param[in] camera_view_projection The cameras view projection matrix.
-        //! \param[in] directional_direction The direction to the light.
-        //! reduce quality.
-        void update_cascades(float dt, float camera_near, float camera_far, const glm::mat4& camera_view_projection, const glm::vec3& directional_direction);
-
         //! \brief The maximum number of cascades.
         static const int32 max_shadow_mapping_cascades = 4; // TODO Paul: We should move this.
-
-        void on_ui_widget() override;
-
-      private:
-        bool setup_shader_programs() override;
-        bool setup_buffers() override;
-
-        //! \brief The \a command_buffer storing all shadow step related commands.
-        command_buffer_ptr<max_key> m_shadow_command_buffer;
-        //! \brief The framebuffer storing all shadow maps.
-        framebuffer_ptr m_shadow_buffer;
-        //! \brief Program to execute the shadow mapping pass.
-        shader_program_ptr m_shadow_pass;
-
-        //! \brief The offset for the projection.
-        float m_shadow_map_offset = 0.0f; // TODO Paul: This can probably be done better.
-
-        //! \brief Dirty bit for cascade count update.
-        bool m_dirty_cascades;
-
         //! \brief Uniform buffer struct for shadow data.
         struct shadow_data
         {
@@ -89,15 +33,124 @@ namespace mango
             std140_float slope_bias                  = 0.005f; //!< The slope bias.
             std140_float normal_bias                 = 0.01f;  //!< The bias along the normal.
             std140_int filter_mode                   = 0;      //!< shadow_filtering parameter.
-            std140_float light_size                  = 4.0f;   //!< Size of the light for PCSS.
-        } m_shadow_data;                                       //!< Current shadow_data.
+            std140_float shadow_width                = 1.0f;   //!< Width of the PCF shadow.
+            std140_float shadow_light_size           = 4.0f;   //!< Size of the light used for PCSS shadow.
+            std140_float pad0;                                 //!< Padding.
+            std140_float pad1;                                 //!< Padding.
+            std140_float pad2;                                 //!< Padding.
+        };
+
+        //! \brief Constructs a the \a shadow_map_step.
+        //! \param[in] settings The \a shadow_settings to use.
+        shadow_map_step(const shadow_settings& settings);
+        ~shadow_map_step();
+
+        void attach(const shared_ptr<context_impl>& context) override;
+        void execute() override;
+        void on_ui_widget() override;
+
+        //! \brief Returns the shadow depth texture with multiple layers.
+        //! \return A \a gfx_texture containing all shadows.
+        inline graphics_pipeline_create_info get_shadow_pass_pipeline_base()
+        {
+            return m_shadow_pass_pipeline_create_info_base;
+        }
+
+        //! \brief Returns the shadow data buffer for binding.
+        //! \return A \a gfx_buffer to upload the \a shadow_data.
+        inline const gfx_handle<const gfx_buffer>& get_shadow_data_buffer()
+        {
+            return m_shadow_data_buffer;
+        }
+
+        //! \brief Returns the current shadow data.
+        //! \return The current \a shadow_data.
+        inline shadow_data& get_shadow_data()
+        {
+            return m_shadow_data;
+        }
+
+        //! \brief Returns the shadow depth texture with multiple layers.
+        //! \return A \a gfx_texture containing all shadows.
+        inline gfx_handle<const gfx_texture> get_shadow_maps_texture()
+        {
+            return m_shadow_map;
+        }
+
+        //! \brief Returns the shadow depth sampler to bind as sampler2DArrayShadow.
+        //! \return A \a gfx_sampler.
+        inline gfx_handle<const gfx_sampler> get_shadow_maps_shadow_sampler()
+        {
+            return m_shadow_map_shadow_sampler;
+        }
+
+        //! \brief Returns the shadow depth sampler to bind as sampler2DArray.
+        //! \return A \a gfx_sampler.
+        inline gfx_handle<const gfx_sampler> get_shadow_maps_sampler()
+        {
+            return m_shadow_map_sampler;
+        }
+
+        //! \brief Returns resolution of the quadratic shadow map.
+        //! \return The resolution of the quadratic shadow map.
+        inline int32 resolution()
+        {
+            return m_shadow_data.resolution;
+        }
+
+        //! \brief Updates the cascades for CSM.
+        //! \details Calculates the camera frustum, the cascade split depths and the view projection matrices for the directional light.
+        //! \param[in] dt Time since last call.
+        //! \param[in] camera_near The cameras near plane depth.
+        //! \param[in] camera_far The cameras far plane depth.
+        //! \param[in] camera_view_projection The cameras view projection matrix.
+        //! \param[in] directional_direction The direction to the light.
+        void update_cascades(float dt, float camera_near, float camera_far, const mat4& camera_view_projection, const vec3& directional_direction);
+
+      private:
+        bool create_step_resources() override;
+
+        //! \brief Creates the shadow map.
+        //! \return True on success, else false.
+        bool create_shadow_map();
+
+        //! \brief The \a shadow_settings for the step.
+        shadow_settings m_settings;
+
+        //! \brief The \a gfx_texture storing all shadow maps.
+        gfx_handle<const gfx_texture> m_shadow_map;
+        //! \brief The \a gfx_sampler for shadow sampling with samplerShadow.
+        gfx_handle<const gfx_sampler> m_shadow_map_shadow_sampler;
+        //! \brief The \a gfx_sampler for shadow sampling.
+        gfx_handle<const gfx_sampler> m_shadow_map_sampler;
+        //! \brief The vertex \a shader_stage for the shadow map pass.
+        gfx_handle<const gfx_shader_stage> m_shadow_pass_vertex;
+        //! \brief The geometry \a shader_stage for the shadow map pass.
+        gfx_handle<const gfx_shader_stage> m_shadow_pass_geometry;
+        //! \brief The fragment \a shader_stage for the shadow map pass.
+        gfx_handle<const gfx_shader_stage> m_shadow_pass_fragment;
+
+        //! \brief The \a graphics_pipeline_create_info to use as a base for \a gfx_pipelines for shadow map rendering.
+        graphics_pipeline_create_info m_shadow_pass_pipeline_create_info_base;
+
+        //! \brief The offset for the projection.
+        float m_shadow_map_offset = 0.0f; // TODO Paul: This can probably be done better.
+
+        //! \brief Dirty bit for cascade count update.
+        bool m_dirty_cascades;
+
+        //! \brief The shadow data buffer.
+        gfx_handle<const gfx_buffer> m_shadow_data_buffer;
+
+        //! \brief Current shadow_data.
+        shadow_data m_shadow_data;
 
         struct
         {
-            float camera_near;               //!< The cameras near plane depth.
-            float camera_far;                //!< The cameras far plane depth.
-            glm::vec3 directional_direction; //!< The direction to the light.
-            float lambda;                    //!< Lambda used to calculate split depths uniform <-> log.
+            float camera_near;          //!< The cameras near plane depth.
+            float camera_far;           //!< The cameras far plane depth.
+            vec3 directional_direction; //!< The direction to the light.
+            float lambda;               //!< Lambda used to calculate split depths uniform <-> log.
 
         } m_cascade_data; //!< Data required to calculate shadow cascades.
     };

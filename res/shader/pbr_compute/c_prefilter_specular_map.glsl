@@ -1,17 +1,20 @@
-#define COMPUTE
+
 #include <../include/common_constants_and_functions.glsl>
-#include <../include/common_pbr.glsl>
+#include <../include/pbr_functions.glsl>
 
 const float width_sqr = 1024.0 * 1024.0; // TODO Paul: Hardcoded -.-
 const uint sample_count = 512 - 32;
 
 layout(local_size_x = 32, local_size_y = 32) in;
 
-layout(location = 0) uniform samplerCube cubemap_in;
+layout(binding = 0) uniform samplerCube sampler_cubemap_in; // texture "texture_cubemap_in"
 layout(binding = 1, rgba16f) uniform writeonly imageCube prefiltered_spec_out;
 
-layout(location = 1) uniform vec2 out_size;
-layout(location = 2) uniform float perceptual_roughness;
+layout(binding = 3) uniform ibl_generation_data
+{
+    vec2 out_size;
+    vec2 data; // x -> perceptual roughness
+};
 
 void main()
 {
@@ -28,16 +31,16 @@ void main()
     vec3 tangent_x = normalize(cross(up, normal));
     vec3 tangent_y = normalize(cross(normal, tangent_x));
 
-    if (perceptual_roughness == 0.0) {
-        vec4 color = textureLod(cubemap_in, view, 0);
+    if (data.x == 0.0) {
+        vec4 color = textureLod(sampler_cubemap_in, view, 0);
         imageStore(prefiltered_spec_out, cube_coords, color);
         return;
     }
-    float alpha = perceptual_roughness * perceptual_roughness;
+    float alpha = data.x * data.x;
 
     vec3 prefiltered = vec3(0.0);
     float weight = 0.0;
-    uint real_sample_count = uint(32.0 + float(sample_count) * sqrt(perceptual_roughness));
+    uint real_sample_count = uint(32.0 + float(sample_count) * sqrt(data.x));
     float real_sample_count_inverse = 1.0 / float(real_sample_count);
 
     for(uint s = 0; s < real_sample_count; ++s)
@@ -56,9 +59,9 @@ void main()
             // formula: eq 13: https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch20.html
             float o = (1.5 * width_sqr) / (float(real_sample_count) * pdf) * INV_PI;
             float mip_level = max(0.5 * log2(o), 0.0);
-            float bias = min(mip_level / 4.0, 1.5); // bias reduces artefacts
+            float bias = min(mip_level / 4.0, 0.0); // bias reduces artefacts
 
-            vec3 incoming = textureLod(cubemap_in, to_light, mip_level + bias).rgb * n_dot_l;
+            vec3 incoming = textureLod(sampler_cubemap_in, to_light, mip_level + bias).rgb * n_dot_l;
             prefiltered += incoming;
             weight += n_dot_l;
         }

@@ -98,7 +98,7 @@ namespace mango
         ~application();
 
         //! \brief Creation function for every application.
-        //! \details This has to be overriden by the inheriting application.
+        //! \details This has to be overridden by the inheriting application.
         //! All the necessary application specific setup should be done in here and not in the constructor.
         //! The function gets called by mango and should not be called elsewhere.
         //! \return True on creation success, else false.
@@ -112,20 +112,20 @@ namespace mango
         int run(int argc = 0, char** argv = nullptr);
 
         //! \brief Calls the \a application specific update routine.
-        //! \details This has to be overriden by the inheriting application.
+        //! \details This has to be overridden by the inheriting application.
         //! All the necessary application specific updates can be done in here.
         //! The function gets called by mango and should not be called elsewhere.
         //! \param[in] dt Past time since last call. Can be used for frametime independent motion.
         virtual void update(float dt) = 0;
 
         //! \brief Destroys the \a application.
-        //! \details This has to be overriden by the inheriting application.
+        //! \details This has to be overridden by the inheriting application.
         //! All the necessary application specific cleanup should be done in here and not in the destructor.
         //! The function gets called by mango and should not be called elsewhere.
         virtual void destroy() = 0;
 
         //! \brief Returns the name of the \a application.
-        //! \details This can be overriden by the inheriting application.
+        //! \details This can be overridden by the inheriting application.
         //! Returns a default name for the application if not set.
         //! \return The name of the application.
         virtual const char* get_name()
@@ -134,7 +134,7 @@ namespace mango
         }
 
         //! \brief Closes the \a application.
-        //! \details This can be overriden by the inheriting application.
+        //! \details This can be overridden by the inheriting application.
         //! Returns a default name for the application if not set.
         inline void close()
         {
@@ -153,6 +153,7 @@ namespace mango
         }
 
       private:
+        friend class init_test_init_does_not_fail_on_context_creation_Test;
         //! \brief The context of the application.
         shared_ptr<context_impl> m_context;
         //! \brief The timer per frame of the application.

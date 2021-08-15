@@ -8,29 +8,43 @@
 #define MANGO_CONTEXT_IMPL_HPP
 
 #include <mango/context.hpp>
+#include <util/helpers.hpp>
 
 namespace mango
 {
-    class window_system_impl;
-    class input_system_impl;
-    class render_system_impl;
-    class ui_system_impl;
-    class shader_system;
-    class resource_system;
+    class display_impl;
+    class input_impl;
+    class mango_display_event_handler;
+    class resources_impl;
+    class ui_impl;
+    class scene_impl;
+    class renderer_impl;
+    class graphics_device;
+
     //! \brief The implementation of the public context.
     class context_impl : public context, public std::enable_shared_from_this<context_impl>
     {
+        MANGO_DISABLE_COPY_AND_ASSIGNMENT(context_impl)
       public:
-        context_impl() = default;
-        virtual ~context_impl() = default;
+        context_impl();
+        virtual ~context_impl();
         void set_application(const shared_ptr<application>& application) override;
-        weak_ptr<window_system> get_window_system() override;
-        weak_ptr<input_system> get_input_system() override;
-        weak_ptr<render_system> get_render_system() override;
-        weak_ptr<ui_system> get_ui_system() override;
-        void register_scene(shared_ptr<scene>& scene) override;
-        void make_scene_current(shared_ptr<scene>& scene) override;
-        shared_ptr<scene>& get_current_scene() override;
+
+        display_handle create_display(const display_configuration& config) override;
+        void destroy_display(display_handle display_in) override;
+        display_handle get_display() override;
+        scene_handle create_scene(const string& name) override;
+        void destroy_scene(scene_handle scene_in) override;
+        scene_handle get_current_scene() override;
+        ui_handle create_ui(const ui_configuration& config) override;
+        void destroy_ui(ui_handle ui_in) override;
+        ui_handle get_ui() override;
+        renderer_handle create_renderer(const renderer_configuration& config) override;
+        void destroy_renderer(renderer_handle renderer_in) override;
+        renderer_handle get_renderer() override;
+
+        input_handle get_input() override;
+        resources_handle get_resources() override;
 
         //! \brief Creation function for the context.
         //! \details Creates and initializes various systems like \a window_system.
@@ -38,52 +52,49 @@ namespace mango
         //! \return True on creation success, else false.
         bool create();
 
+        //! \brief Queries and returns a unique pointer reference to mangos main \a display.
+        //! \details Enables the caller to use internal functionality.
+        //! \return A unique pointer reference to mangos \a display.
+        const unique_ptr<display_impl>& get_internal_display();
+
+        //! \brief Queries and returns a unique pointer reference to mangos \a renderer.
+        //! \details Enables the caller to use internal functionality.
+        //! \return A unique pointer reference to mangos \a renderer.
+        const unique_ptr<renderer_impl>& get_internal_renderer();
+
+        //! \brief Queries and returns a unique pointer reference to mangos \a scene.
+        //! \details Enables the caller to use internal functionality.
+        //! \return A unique pointer reference to mangos \a scene.
+        const unique_ptr<scene_impl>& get_internal_scene();
+
+        //! \brief Queries and returns a unique pointer reference to mangos \a resources.
+        //! \details Enables the caller to use internal functionality.
+        //! \return A unique pointer reference to mangos \a resources.
+        const unique_ptr<resources_impl>& get_internal_resources();
+
+        //! \brief Queries and returns a unique pointer reference to mangos \a graphics_device.
+        //! \return A unique pointer reference to mangos \a graphics_device.
+        const unique_ptr<graphics_device>& get_graphics_device();
+
         //! \brief Queries and returns a shared pointer to the current \a application.
         //! \return A shared pointer to the current \a application.
         virtual shared_ptr<application> get_application();
 
-        //! \brief Queries and returns a weak pointer to mangos \a window_system.
-        //! \details This enables you using internal functionalities.
-        //! \return A weak pointer to the internal \a window_system.
-        virtual weak_ptr<window_system_impl> get_window_system_internal();
+        //! \brief Polls the events.
+        //! \details The call is necessary to receive events from the operating system.
+        void poll_events();
 
-        //! \brief Queries and returns a weak pointer to mangos \a input_system.
-        //! \details This enables you using internal functionalities.
-        //! \return A weak pointer to the internal \a input_system.
-        virtual weak_ptr<input_system_impl> get_input_system_internal();
+        //! \brief Determines if mango should shut down.
+        //! \return True if mango should shut down, else false.
+        bool should_shutdown();
 
-        //! \brief Queries and returns a weak pointer to mangos \a render_system.
-        //! \details This enables you using internal functionalities.
-        //! \return A weak pointer to the internal \a render_system.
-        virtual weak_ptr<render_system_impl> get_render_system_internal();
+        //! \brief Calls the update routine for all mango internals.
+        //! \param[in] dt Past time since last call. Can be used for frametime independent motion.
+        void update(float dt);
 
-        //! \brief Queries and returns a weak pointer to mangos \a ui_system.
-        //! \details This enables you using internal functionalities.
-        //! \return A weak pointer to the internal \a ui_system.
-        virtual weak_ptr<ui_system_impl> get_ui_system_internal();
-
-        //! \brief Queries and returns a weak pointer to mangos \a shader_system.
-        //! \details The \a shader_system is only available internally, but the function name was choosen to be consistent.
-        //! \return A weak pointer to the internal \a shader_system.
-        virtual weak_ptr<shader_system> get_shader_system_internal();
-
-        //! \brief Queries and returns a weak pointer to mangos \a resource_system.
-        //! \details The \a resource_system is only available internally, but the function name was choosen to be consistent.
-        //! \return A weak pointer to the internal \a resource_system.
-        virtual weak_ptr<resource_system> get_resource_system_internal();
-
-        //! \brief Queries and returns a mangos loading procedure for opengl.
-        //! \return Mangos loading procedure for opengl.
-        const mango_gl_load_proc& get_gl_loading_procedure();
-
-        //! \brief Sets mangos loading procedure for opengl.
-        //! \details This is usually called by the \a window_system.
-        //! \param[in] procedure Mangos loading procedure for opengl.
-        void set_gl_loading_procedure(mango_gl_load_proc procedure);
-
-        //! \brief Makes this context the current one.
-        //! \details This should be called before making changes to the \a window_system and \a render_system.
-        void make_current();
+        //! \brief Calls the render routine for all mango internals.
+        //! \param[in] dt Past time since last call.
+        void render(float dt);
 
         //! \brief Destruction function for the context.
         //! \details Destroys various systems like \a window_system.
@@ -93,30 +104,30 @@ namespace mango
       private:
         //! \brief A shared pointer to the current active application.
         shared_ptr<application> m_application;
-        //! \brief A shared pointer to the \a window_system of mango.
-        shared_ptr<window_system_impl> m_window_system;
-        //! \brief A shared pointer to the \a input_system of mango.
-        shared_ptr<input_system_impl> m_input_system;
-        //! \brief A shared pointer to the \a render_system of mango.
-        shared_ptr<render_system_impl> m_render_system;
-        //! \brief A shared pointer to the \a shader_system of mango.
-        shared_ptr<shader_system> m_shader_system;
-        //! \brief A shared pointer to the \a resource_system of mango.
-        shared_ptr<resource_system> m_resource_system;
-        //! \brief A shared pointer to the \a ui_system of mango.
-        shared_ptr<ui_system_impl> m_ui_system;
-        //! \brief A shared pointer to the current \a scene of mango.
-        shared_ptr<scene> m_current_scene;
-        //! \brief The gl loading procedure of mango.
-        //! \details This is usually set by the \a window_system on creation and can be used in the \a render_system to initialize opengl.
-        mango_gl_load_proc m_procedure;
 
-        //! \brief Creates all systems.
-        //! \return True on success, else False.
-        bool create_systems();
+        //! \brief Creates internals.
+        //! \return True on success, else false.
+        bool startup();
 
-        //! \brief Destroys all systems.
-        void destroy_systems();
+        //! \brief Destroys internals.
+        void shutdown();
+
+        //! \brief A unique pointer to the \a display of mango.
+        unique_ptr<display_impl> m_display;
+        //! \brief A unique pointer to the \a input of mango.
+        unique_ptr<input_impl> m_input;
+        //! \brief A shared pointer to the \a display_event_handler of mango.
+        shared_ptr<mango_display_event_handler> m_event_handler;
+        //! \brief A unique pointer to the \a resources of mango.
+        unique_ptr<resources_impl> m_resources;
+        //! \brief A unique pointer to the \a ui of mango.
+        unique_ptr<ui_impl> m_ui;
+        //! \brief A unique pointer to the current \a scene of mango.
+        unique_ptr<scene_impl> m_current_scene;
+        //! \brief A unique pointer to the \a renderer of mango.
+        unique_ptr<renderer_impl> m_renderer;
+        //! \brief A unique pointer to the \a graphics_device of mango.
+        unique_ptr<graphics_device> m_graphics_device;
     };
 } // namespace mango
 

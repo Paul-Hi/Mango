@@ -105,7 +105,7 @@ namespace mango
         //! \brief Sets the face normal.
         //! \param[in] face_normal The face normal to set for generation.
         //! \return A reference to the \a plane_factory.
-        plane_factory& set_face_normal(const glm::vec3& face_normal)
+        plane_factory& set_face_normal(const vec3& face_normal)
         {
             m_face_normal = face_normal;
             return *this;
@@ -123,7 +123,7 @@ namespace mango
         //! \brief Sets the number of segments in x and y direction to generate.
         //! \param[in] segments The number of segments in x and y direction.
         //! \return A reference to the \a plane_factory.
-        plane_factory& set_segments(const glm::ivec2& segments)
+        plane_factory& set_segments(const ivec2& segments)
         {
             m_segments = segments;
             return *this;
@@ -132,7 +132,7 @@ namespace mango
         //! \brief Sets the uv tiling in x and y direction for texture coordinate generation.
         //! \param[in] tiling The uv tiling in x and y direction.
         //! \return A reference to the \a plane_factory.
-        plane_factory& set_uv_tiling(const glm::vec2& tiling)
+        plane_factory& set_uv_tiling(const vec2& tiling)
         {
             m_uv_tiling = tiling;
             return *this;
@@ -144,13 +144,13 @@ namespace mango
         //! \brief True if normals should be generated, else false.
         bool m_generate_normals = false;
         //! \brief The face normal to use for generation.
-        glm::vec3 m_face_normal = GLOBAL_UP;
+        vec3 m_face_normal = GLOBAL_UP;
         //! \brief The face normal offset to use for generation.
         float m_offset = 0.0f;
         //! \brief The number of segments to generate.
-        glm::ivec2 m_segments = glm::ivec2(1);
+        ivec2 m_segments = ivec2(1);
         //! \brief The uv tiling to use for generation.
-        glm::vec2 m_uv_tiling = glm::vec2(1);
+        vec2 m_uv_tiling = vec2(1);
 
         bool create_texture_coordinates() override
         {
@@ -185,7 +185,7 @@ namespace mango
         //! \brief Sets the number of segments in x and y direction to generate for vertical faces.
         //! \param[in] segments The number of segments in x and y direction.
         //! \return A reference to the \a plane_factory.
-        box_factory& set_segments_vertical(const glm::ivec2& segments)
+        box_factory& set_segments_vertical(const ivec2& segments)
         {
             m_segments.r = segments.r;
             m_segments.g = segments.g;
@@ -195,7 +195,7 @@ namespace mango
         //! \brief Sets the number of segments in x and y direction to generate for horizontal faces.
         //! \param[in] segments The number of segments in x and y direction.
         //! \return A reference to the \a plane_factory.
-        box_factory& set_segments_horizontal(const glm::ivec2& segments)
+        box_factory& set_segments_horizontal(const ivec2& segments)
         {
             m_segments.b = segments.r;
             m_segments.a = segments.g;
@@ -205,7 +205,7 @@ namespace mango
         //! \brief Sets the uv tiling in x and y direction for texture coordinate generation for vertical faces.
         //! \param[in] tiling The uv tiling in x and y direction.
         //! \return A reference to the \a plane_factory.
-        box_factory& set_uv_tiling_vertical(const glm::vec2& tiling)
+        box_factory& set_uv_tiling_vertical(const vec2& tiling)
         {
             m_uv_tiling.r = tiling.r;
             m_uv_tiling.g = tiling.g;
@@ -215,7 +215,7 @@ namespace mango
         //! \brief Sets the uv tiling in x and y direction for texture coordinate generation for horizontal faces.
         //! \param[in] tiling The uv tiling in x and y direction.
         //! \return A reference to the \a plane_factory.
-        box_factory& set_uv_tiling_horizontal(const glm::vec2& tiling)
+        box_factory& set_uv_tiling_horizontal(const vec2& tiling)
         {
             m_uv_tiling.b = tiling.r;
             m_uv_tiling.a = tiling.g;
@@ -228,9 +228,9 @@ namespace mango
         //! \brief True if normals should be generated, else false.
         bool m_generate_normals = false;
         //! \brief The number of segments to generate.
-        glm::ivec4 m_segments = glm::ivec4(1);
+        ivec4 m_segments = ivec4(1);
         //! \brief The uv tiling to use for generation.
-        glm::vec4 m_uv_tiling = glm::vec4(1);
+        vec4 m_uv_tiling = vec4(1);
 
         bool create_texture_coordinates() override
         {
@@ -283,7 +283,7 @@ namespace mango
         //! \brief Sets the uv tiling in x and y direction for texture coordinate generation.
         //! \param[in] tiling The uv tiling in x and y direction.
         //! \return A reference to the \a plane_factory.
-        sphere_factory& set_uv_tiling(const glm::vec2& tiling)
+        sphere_factory& set_uv_tiling(const vec2& tiling)
         {
             m_uv_tiling = tiling;
             return *this;
@@ -295,9 +295,9 @@ namespace mango
         //! \brief True if normals should be generated, else false.
         bool m_generate_normals = false;
         //! \brief The number of segments to generate.
-        glm::ivec2 m_segments = glm::ivec2(44, 22);
+        ivec2 m_segments = ivec2(44, 22);
         //! \brief The uv tiling to use for generation.
-        glm::vec2 m_uv_tiling = glm::vec2(1);
+        vec2 m_uv_tiling = vec2(1);
 
         bool create_texture_coordinates() override
         {

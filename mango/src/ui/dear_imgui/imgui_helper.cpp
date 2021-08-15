@@ -122,7 +122,8 @@ bool mango::drag_float_n(const string& label, float* values, int32 components, f
     float line_height = component_buttons ? g.Font->FontSize + g.Style.FramePadding.y * 2.0f : 0.0f;
     return custom_aligned(
         label,
-        [line_height, &values, components, reset_value, speed, min_value, max_value, format, component_buttons](bool reset) {
+        [line_height, &values, components, reset_value, speed, min_value, max_value, format, component_buttons](bool reset)
+        {
             ImGuiContext& g    = *GImGui;
             bool value_changed = false;
             ImGui::PushMultiItemsWidths(components, ImGui::CalcItemWidth());
@@ -132,6 +133,7 @@ bool mango::drag_float_n(const string& label, float* values, int32 components, f
 
             const char* v[5] = { "X", "Y", "Z", "W", "" };
 
+            bool at_least_one_reset = false;
             for (int32 i = 0; i < components; i++)
             {
                 ImGui::PushID(i);
@@ -141,7 +143,10 @@ bool mango::drag_float_n(const string& label, float* values, int32 components, f
                 if (component_buttons)
                 {
                     if (ImGui::Button(v[i > 4 ? 4 : i], button_size) || reset)
-                        *values = reset_value[i];
+                    {
+                        *values            = reset_value[i];
+                        at_least_one_reset = true;
+                    }
                     ImGui::SameLine(0, 0);
                 }
                 else if (reset)
@@ -156,7 +161,7 @@ bool mango::drag_float_n(const string& label, float* values, int32 components, f
             ImGui::PopStyleVar();
             ImGui::PopStyleColor();
 
-            return value_changed | reset;
+            return value_changed | reset | at_least_one_reset;
         },
         -line_height * components, column_width);
 }
@@ -167,7 +172,8 @@ bool mango::slider_float_n(const string& label, float* values, int32 components,
     float line_height = component_buttons ? g.Font->FontSize + g.Style.FramePadding.y * 2.0f : 0.0f;
     return custom_aligned(
         label,
-        [line_height, &values, components, reset_value, min_value, max_value, format, component_buttons](bool reset) {
+        [line_height, &values, components, reset_value, min_value, max_value, format, component_buttons](bool reset)
+        {
             ImGuiContext& g    = *GImGui;
             bool value_changed = false;
             ImGui::PushMultiItemsWidths(components, ImGui::CalcItemWidth());
@@ -177,6 +183,7 @@ bool mango::slider_float_n(const string& label, float* values, int32 components,
 
             const char* v[5] = { "X", "Y", "Z", "W", "" };
 
+            bool at_least_one_reset = false;
             for (int32 i = 0; i < components; i++)
             {
                 ImGui::PushID(i);
@@ -186,7 +193,10 @@ bool mango::slider_float_n(const string& label, float* values, int32 components,
                 if (component_buttons)
                 {
                     if (ImGui::Button(v[i > 4 ? 4 : i], button_size) || reset)
-                        *values = reset_value[i];
+                    {
+                        *values            = reset_value[i];
+                        at_least_one_reset = true;
+                    }
                     ImGui::SameLine(0, 0);
                 }
                 else if (reset)
@@ -201,7 +211,7 @@ bool mango::slider_float_n(const string& label, float* values, int32 components,
             ImGui::PopStyleVar();
             ImGui::PopStyleColor();
 
-            return value_changed | reset;
+            return value_changed | reset | at_least_one_reset;
         },
         -line_height * components, column_width);
 }
@@ -212,7 +222,8 @@ bool mango::slider_int_n(const string& label, int32* values, int32 components, i
     float line_height = component_buttons ? g.Font->FontSize + g.Style.FramePadding.y * 2.0f : 0.0f;
     return custom_aligned(
         label,
-        [line_height, &values, components, reset_value, min_value, max_value, format, component_buttons](bool reset) {
+        [line_height, &values, components, reset_value, min_value, max_value, format, component_buttons](bool reset)
+        {
             ImGuiContext& g    = *GImGui;
             bool value_changed = false;
             ImGui::PushMultiItemsWidths(components, ImGui::CalcItemWidth());
@@ -222,6 +233,7 @@ bool mango::slider_int_n(const string& label, int32* values, int32 components, i
 
             const char* v[5] = { "X", "Y", "Z", "W", "" };
 
+            bool at_least_one_reset = false;
             for (int32 i = 0; i < components; i++)
             {
                 ImGui::PushID(i);
@@ -231,7 +243,10 @@ bool mango::slider_int_n(const string& label, int32* values, int32 components, i
                 if (component_buttons)
                 {
                     if (ImGui::Button(v[i > 4 ? 4 : i], button_size) || reset)
-                        *values = reset_value[i];
+                    {
+                        *values            = reset_value[i];
+                        at_least_one_reset = true;
+                    }
                     ImGui::SameLine(0, 0);
                 }
                 else if (reset)
@@ -246,7 +261,7 @@ bool mango::slider_int_n(const string& label, int32* values, int32 components, i
             ImGui::PopStyleVar();
             ImGui::PopStyleColor();
 
-            return value_changed | reset;
+            return value_changed | reset | at_least_one_reset;
         },
         -line_height * components, column_width);
 }
@@ -255,7 +270,8 @@ bool mango::color_edit(const string& label, float* values, int32 components, flo
 {
     return custom_aligned(
         label,
-        [&values, components, reset_value](bool reset) {
+        [&values, components, reset_value](bool reset)
+        {
             bool value_changed = false;
             ImGui::PushItemWidth(ImGui::CalcItemWidth());
             if (components == 4)
@@ -280,7 +296,8 @@ bool mango::checkbox(const string& label, bool* value, bool reset_value, float c
 {
     return custom_aligned(
         label,
-        [&value, reset_value](bool reset) {
+        [&value, reset_value](bool reset)
+        {
             bool value_changed = false;
             if (reset)
                 *value = reset_value;
@@ -296,7 +313,8 @@ bool mango::combo(const string& label, const char** list, int32 size, int32& cur
 {
     return custom_aligned(
         label,
-        [list, size, &current_idx, reset_value](bool reset) {
+        [list, size, &current_idx, reset_value](bool reset)
+        {
             bool value_changed = false;
             ImGui::PushItemWidth(ImGui::CalcItemWidth());
             if (ImGui::BeginCombo("", list[current_idx]))
@@ -323,28 +341,29 @@ bool mango::combo(const string& label, const char** list, int32 size, int32& cur
         0.0f, column_width);
 }
 
-bool mango::image_load(const string& label, int32 texture_name, const glm::vec2& size, bool& load_new, float column_width)
+bool mango::image_load(const string& label, void* texture_native_handle, const vec2& size, bool& load_new, float column_width)
 {
     return custom_aligned(
         label,
-        [&texture_name, &size, &load_new](bool reset) {
+        [&texture_native_handle, &size, &load_new](bool reset)
+        {
             load_new = false;
             ImVec2 canvas_p0;
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
             canvas_p0 = ImGui::GetCursorScreenPos();
             draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + size.x, canvas_p0.y + size.y), IM_COL32(127, 127, 127, 255), 2.0f);
-            if (texture_name > 0)
-                ImGui::Image((void*)(intptr_t)texture_name, ImVec2(size.x, size.y));
+            if (texture_native_handle)
+                ImGui::Image(texture_native_handle, ImVec2(size.x, size.y));
             else
                 ImGui::Dummy(ImVec2(size.x, size.y));
             if (ImGui::IsItemHovered())
             {
-                if (texture_name > 0)
+                if (texture_native_handle)
                 {
                     ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
                     ImGui::BeginTooltip();
-                    ImGui::Image((void*)(intptr_t)texture_name, ImVec2(size.x * 4.0f, size.y * 4.0f));
+                    ImGui::Image(texture_native_handle, ImVec2(size.x * 4.0f, size.y * 4.0f));
                     ImGui::EndTooltip();
                     ImGui::PopStyleColor();
                 }
@@ -358,7 +377,7 @@ bool mango::image_load(const string& label, int32 texture_name, const glm::vec2&
                 load_new = true;
                 return true;
             }
-            if (reset)
+            if (reset || ImGui::IsItemClicked(1))
                 return true;
             return false;
         },

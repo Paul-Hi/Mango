@@ -18,19 +18,41 @@ float pow5 (in float v)
 
 float linearize_depth(in float d, in float near, in float far)
 {
-    float depth = 2.0 * d - 1.0;
-    return 2.0 * near * far / (far + near - depth * (far - near));
+    float depth = d * 2.0 - 1.0;
+    return 2.0 * near / (far + near - depth * (far - near));
 }
 
-float interleaved_gradient_noise(in vec2 screen_pos)
+vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection)
+{
+    float z = depth * 2.0 - 1.0;
+
+    vec4 clip = vec4(uv * 2.0 - 1.0, z, 1.0);
+    vec4 direct = inverse_view_projection * clip;
+    return direct.xyz / direct.w;
+}
+
+float interleaved_gradient_noise(in vec2 pos)
 {
     vec3 magic = vec3(0.06711056, 0.00583715, 52.9829189);
-    return fract(magic.z * fract(dot(screen_pos, magic.xy)));
+    return fract(magic.z * fract(dot(pos, magic.xy)));
+}
+
+vec2 vogel_disc_sample(in int sample_idx, in int sample_count, in float rotation)
+{
+    float golden_angle = 2.399963;
+
+    float r = sqrt(sample_idx + 0.5) / sqrt(sample_count);
+    float theta = sample_idx * golden_angle + rotation;
+
+    float s = sin(theta);
+    float c = cos(theta);
+
+    return vec2(c, s) * r;
 }
 
 #ifndef COMPUTE
 
-void alpha_dither(in vec2 screen_pos, in float alpha) {
+bool alpha_dither(in vec2 screen_pos, in float alpha) {
 
     const float thresholds[16] =
     {
@@ -46,7 +68,9 @@ void alpha_dither(in vec2 screen_pos, in float alpha) {
     float limit = thresholds[x + (y * 4)];
 
     if(alpha < limit)
-        discard;
+        return true;
+
+    return false;
 }
 
 #endif // COMPUTE

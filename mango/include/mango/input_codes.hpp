@@ -11,7 +11,7 @@
 
 namespace mango
 {
-    //! \brief The key codes in mango.
+    //! \brief Possible key codes.
     //! \details Actually glfw key codes for now. Just unknown is 0 instead of -1.
     enum class key_code : uint32
     {
@@ -136,10 +136,10 @@ namespace mango
         key_right_alt     = 346,
         key_right_super   = 347,
         key_menu          = 348,
+        count
     };
-    MANGO_ENABLE_BITMASK_OPERATIONS(key_code)
 
-    //! \brief The mouse buttons in mango.
+    //! \brief Possible mouse button identifiers.
     //! \details Actually glfw mouse button codes for now.
     enum class mouse_button : uint8
     {
@@ -153,48 +153,72 @@ namespace mango
         mouse_button_8      = 7,
         mouse_button_left   = mouse_button_1,
         mouse_button_right  = mouse_button_2,
-        mouse_button_middle = mouse_button_3
+        mouse_button_middle = mouse_button_3,
+        count               = 8
     };
-    MANGO_ENABLE_BITMASK_OPERATIONS(mouse_button)
 
-    //! \brief The input actions in mango.
-    //! \details Actually from glfw for now.
+    //! \brief Possible actions for input.
+    //! \details Actually action from glfw for now.
     enum class input_action : uint8
     {
         release = 0,
         press   = 1,
         repeat  = 2
     };
-    MANGO_ENABLE_BITMASK_OPERATIONS(input_action)
 
-    //! \brief The modifiers in mango.
-    //! \details Actually from glfw for now.
+    //! \brief Possible modifier keys.
+    //! \details Actually modifiers from glfw for now.
     enum class modifier : uint8
     {
         none               = 0,
-        modifier_shift     = 0x0001,
-        modifier_control   = 0x0002,
-        modifier_alt       = 0x0004,
-        modifier_super     = 0x0008,
-        modifier_caps_lock = 0x0010,
-        modifier_num_lock  = 0x0020
+        modifier_shift     = 1 << 0,
+        modifier_control   = 1 << 1,
+        modifier_alt       = 1 << 2,
+        modifier_super     = 1 << 3,
+        modifier_caps_lock = 1 << 4,
+        modifier_num_lock  = 1 << 5
     };
     MANGO_ENABLE_BITMASK_OPERATIONS(modifier)
 
-    //! \brief Type definition of a callback for key changes.
-    using key_callback = std::function<void(key_code key, input_action action, modifier mods)>;
+    //
+    // Display callbacks.
+    //
+
+    //! \brief Type definition of a callback for \a display position changes.
+    using display_position_callback = std::function<void(int32 x_position, int32 y_position)>;
+    //! \brief Type definition of a callback for \a display size changes.
+    using display_resize_callback = std::function<void(int32 width, int32 height)>;
+    //! \brief Type definition of a callback for \a display close events.
+    using display_close_callback = std::function<void()>;
+    //! \brief Type definition of a callback for \a display refresh events.
+    using display_refresh_callback = std::function<void()>;
+    //! \brief Type definition of a callback \a display focus events.
+    using display_focus_callback = std::function<void(bool focused)>;
+    //! \brief Type definition of a callback \a display iconify events.
+    using display_iconify_callback = std::function<void(bool iconified)>;
+    //! \brief Type definition of a callback \a display maximize events.
+    using display_maximize_callback = std::function<void(bool maximized)>;
+    //! \brief Type definition of a callback for \a display framebuffer size changes.
+    using display_framebuffer_resize_callback = std::function<void(int32 width, int32 height)>;
+    //! \brief Type definition of a callback for \a display content scale changes.
+    using display_content_scale_callback = std::function<void(float x_scale, float y_scale)>;
+
+    //
+    // Input callbacks.
+    //
 
     //! \brief Type definition of a callback for mouse button changes.
     using mouse_button_callback = std::function<void(mouse_button button, input_action action, modifier mods)>;
-
-    //! \brief Type definition of a callback for  mouse position changes.
-    using mouse_position_callback = std::function<void(float x_position, float y_position)>;
-
+    //! \brief Type definition of a callback for cursor position changes.
+    using cursor_position_callback = std::function<void(double x_position, double y_position)>;
+    //! \brief Type definition of a callback for cursor enter events.
+    using cursor_enter_callback = std::function<void(bool entered)>;
     //! \brief Type definition of a callback for mouse scrolling.
-    using mouse_scroll_callback = std::function<void(float x_offset, float y_offset)>;
-
-    //! \brief Type definition of a callback for drag'n'drop.
-    using drag_n_drop_callback = std::function<void(int count, const char** paths)>;
+    using scroll_callback = std::function<void(double x_offset, double y_offset)>;
+    //! \brief Type definition of a callback for key changes.
+    using key_callback = std::function<void(key_code key, input_action action, modifier mods)>;
+    //! \brief Type definition of a callback for dropped paths.
+    using drop_callback = std::function<void(int count, const char** paths)>;
 
 } // namespace mango
 

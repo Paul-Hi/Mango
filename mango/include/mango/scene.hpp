@@ -7,405 +7,202 @@
 #ifndef MANGO_SCENE_HPP
 #define MANGO_SCENE_HPP
 
-#include <mango/scene_component_pool.hpp>
-#include <mango/scene_ecs.hpp>
-#include <map>
-#include <queue>
-
-namespace tinygltf
-{
-    class Model;
-    class Node;
-    struct Mesh;
-    struct Primitive;
-    struct Camera;
-} // namespace tinygltf
+#include <mango/scene_structures.hpp>
 
 namespace mango
 {
-    class context_impl;
-    class shader_program;
-    class buffer;
     //! \brief The \a scene of mango.
-    //! \details A collection of entities, components and systems. Responsible for handling content in mango.
+    //! \details Responsible for handling content in mango.
     class scene
     {
       public:
-        //! \brief Constructs a new \a scene with a \a name.
-        //! \param[in] name The name of the new \a scene.
-        scene(const string& name);
-        ~scene();
+        virtual ~scene() = default;
 
-        //! \brief Creates an empty entity with no components.
-        entity create_empty();
+        //! \brief Adds a \a node to the \a scene.
+        //! \param[in] new_node The \a node to add to the \a scene.
+        //! \return The \a sid referencing the added \a node.
+        virtual sid add_node(node& new_node) = 0;
 
-        //! \brief Removes an \a entity.
-        //! \details Removes all components.
-        //! \param[in] e The \a entity to remove.
-        void remove_entity(entity e);
+        //! \brief Adds a \a perspective_camera to the \a scene.
+        //! \param[in] new_perspective_camera The \a perspective_camera to add to the \a scene.
+        //! \param[in] containing_node_id The \a sid of the \a node that should contain the \a perspective_camera.
+        //! \return The node \a sid of the containing \a node.
+        virtual sid add_perspective_camera(perspective_camera& new_perspective_camera, sid containing_node_id) = 0;
 
-        //! \brief Creates a camera entity.
-        //! \details An entity with \a camera_component and \a transform_component.
-        //! All the components are prefilled. Camera has a perspective projection.
-        //! \return The created camera entity.
-        entity create_default_scene_camera();
+        //! \brief Adds an \a orthographic_camera to the \a scene.
+        //! \param[in] new_orthographic_camera The \a orthographic_camera to add to the \a scene.
+        //! \param[in] containing_node_id The \a sid of the \a node that should contain the \a orthographic_camera.
+        //! \return The node \a sid of the containing \a node.
+        virtual sid add_orthographic_camera(orthographic_camera& new_orthographic_camera, sid containing_node_id) = 0;
 
-        //! \brief Creates a camera entity not attached to the scene.
-        //! \details An entity with \a camera_component and \a transform_component.
-        //! All the components are prefilled. Camera has a perspective projection.
-        //! \return The created camera entity.
-        entity create_default_camera();
+        // virtual sid add_mesh_primitive(primitive& new_primitive, sid containing_node_id) = 0;
 
-        //! \brief Creates entities from a model loaded from a gltf file.
-        //! \details Internally creates entities with \a model_components, \a mesh_components, \a material_components, \a primitive_components, \a transform_components and \a node_components.
-        //! All the components are filled with data loaded from the gltf file.
+        //! \brief Adds a \a directional_light to the \a scene.
+        //! \param[in] new_directional_light The \a directional_light to add to the \a scene.
+        //! \param[in] containing_node_id The \a sid of the \a node that should contain the \a directional_light.
+        //! \return The node \a sid of the containing \a node.
+        virtual sid add_directional_light(directional_light& new_directional_light, sid containing_node_id) = 0;
+
+        //! \brief Adds a \a skylight to the \a scene.
+        //! \param[in] new_skylight The \a skylight to add to the \a scene.
+        //! \param[in] containing_node_id The \a sid of the \a node that should contain the \a skylight.
+        //! \return The node \a sid of the containing \a node.
+        virtual sid add_skylight(skylight& new_skylight, sid containing_node_id) = 0;
+
+        //! \brief Adds a \a atmospheric_light to the \a scene.
+        //! \param[in] new_atmospheric_light The \a atmospheric_light to add to the \a scene.
+        //! \param[in] containing_node_id The \a sid of the \a node that should contain the \a atmospheric_light.
+        //! \return The node \a sid of the containing \a node.
+        virtual sid add_atmospheric_light(atmospheric_light& new_atmospheric_light, sid containing_node_id) = 0;
+
+        //! \brief Builds a \a material.
+        //! \param[in] new_material The \a material to build.
+        //! \return The node \a sid of the created \a material.
+        virtual sid build_material(material& new_material) = 0;
+
+        //! \brief Loads an image and creates a \a texture.
+        //! \param[in] path The full path to the image to load.
+        //! \param[in] standard_color_space True if the image should be loaded in standard color space, else false.
+        //! \param[in] high_dynamic_range True if the image should be loaded as high dynamic range, else false.
+        //! \return The node \a sid of the created \a texture.
+        virtual sid load_texture_from_image(const string& path, bool standard_color_space, bool high_dynamic_range) = 0;
+
+        //! \brief Loads a \a model loaded from a gltf file.
+        //! \details Only loads. Does not add anything into the scene but the data.
         //! \param[in] path The path to the gltf model to load.
-        //! \param[in] gltf_root If there is already a entity created to work as root it should be passed here.
-        //! \return The root entity of the model.
-        entity create_entities_from_model(const string& path, entity gltf_root = invalid_entity);
+        //! \return The \a sid of the created \a model.
+        virtual sid load_model_from_gltf(const string& path) = 0;
 
-        //! \brief Creates an environment entity.
-        //! \details An entity with \a environment_component. ATTENTION: This creates the \a light_data and fills it. Do not recreate it.
-        //! The environment texture is preprocessed, prefiltered and can be rendered as a cube. This is done with a \a pipeline_step.
+        //! \brief Adds a \a model to the \a scene.
+        //! \param[in] model_to_add The \a sid of the \a model to add.
+        //! \param[in] scenario_id The \a sid of the \a scenario from the \a model to add.
+        //! \param[in] containing_node_id The \a sid of the \a node that should contain the \a atmospheric_light.
+        //! \return The node \a sid of the containing \a node.
+        virtual sid add_model_to_scene(sid model_to_add, sid scenario_id, sid containing_node_id) = 0;
+
+        //! \brief Creates a \a skylight from a hdr image.
+        //! The environment texture is preprocessed, prefiltered and can be rendered as a cube.
         //! \param[in] path The path to the hdr image to load.
-        //! \return The created environment entity.
-        entity create_skylight_from_hdr(const string& path);
+        //! \param[in] containing_node_id The \a sid of the \a node that should contain the \a skylight.
+        //! \return The \a sid of the node containing the created \a skylight.
+        virtual sid add_skylight_from_hdr(const string& path, sid containing_node_id) = 0;
 
-        // //! \brief Creates an environment entity.
-        // //! \details An entity with \a environment_component. ATTENTION: This creates the \a light_data and fills it. Do not recreate it.
-        // //! The atmosphere is generated, preprocessed, prefiltered and can be rendered as a cube. This is done with a \a pipeline_step.
-        // //! \param[in] sun_direction The sun direction to use or vec3(-1.0f) if renderer should choose the sun.
-        // //! \param[in] sun_intensity The sun intensity to use or -1.0f if renderer should choose the sun.
-        // //! \return The created environment entity.
-        // entity create_atmospheric_environment(const glm::vec3& sun_direction = glm::vec3(-1.0f), float sun_intensity = -1.0f);
+        //! \brief Removes a \a node from the \a scene.
+        //! \param[in] node_id The \a sid of the \a node to remove from the \a scene.
+        virtual void remove_node(sid node_id) = 0;
 
-        //! \brief Attach an \a entity to another entity in a child <-> parent realationship.
-        //! \details Adds a \a node_component. Used for building hierarchies.
-        //! \param[in] child The \a entity used as a child.
-        //! \param[in] parent The \a entity used as a parent.
-        void attach(entity child, entity parent);
+        //! \brief Removes a \a perspective_camera from the \a scene.
+        //! \param[in] node_id The \a sid of the containing \a node of the \a perspective_camera to remove from the \a scene.
+        virtual void remove_perspective_camera(sid node_id) = 0;
 
-        //! \brief Detach an \a entity from the parent.
-        //! \details Removes the parent, the component may still exits, if the node has children.
-        //! \param[in] node The \a entity to detach.
-        void detach(entity node);
+        //! \brief Removes a \a orthographic_camera from the \a scene.
+        //! \param[in] node_id The \a sid of the containing \a node of the \a orthographic_camera to remove from the \a scene.
+        virtual void remove_orthographic_camera(sid node_id) = 0;
 
-        //! \brief Retrieves a \a component from a specific \a entity.
-        //! \details Should NOT be stored for a long time period.
-        //! \param[in] e The \a entity to get the \a component for.
-        //! \return A pointer to the \a component or nullptr if non-existent.
-        template <typename comp>
-        inline comp* get_component(entity e)
-        {
-            switch (type_name<comp>::id())
-            {
-            case 0:
-                return (comp*)m_tags.get_component_for_entity(e);
-            case 1:
-                return (comp*)m_transformations.get_component_for_entity(e);
-            case 2:
-                return (comp*)m_nodes.get_component_for_entity(e);
-            case 3:
-                return (comp*)m_mesh_primitives.get_component_for_entity(e);
-            case 4:
-                return (comp*)m_materials.get_component_for_entity(e);
-            case 5:
-                return (comp*)m_models.get_component_for_entity(e);
-            case 6:
-                return (comp*)m_cameras.get_component_for_entity(e);
-            case 7:
-                return (comp*)m_directional_lights.get_component_for_entity(e);
-            case 8:
-                return (comp*)m_atmosphere_lights.get_component_for_entity(e);
-            case 9:
-                return (comp*)m_skylights.get_component_for_entity(e);
-            default:
-                MANGO_LOG_ERROR("No component id matches the component!");
-                return nullptr;
-            }
-        }
+        //! \brief Removes a \a mesh from the \a scene.
+        //! \param[in] node_id The \a sid of the containing \a node of the \a mesh to remove from the \a scene.
+        virtual void remove_mesh(sid node_id) = 0;
 
-        //! \brief Queries a \a component from a specific \a entity.
-        //! \details Does the same as get, but is non verbose, when component is non existent.
-        //! \details Should NOT be stored for a long time period.
-        //! \param[in] e The \a entity to get the \a component for.
-        //! \return A pointer to the \a component or nullptr if non-existent.
-        template <typename comp>
-        inline comp* query_component(entity e)
-        {
-            switch (type_name<comp>::id())
-            {
-            case 0:
-                return (comp*)m_tags.get_component_for_entity(e, true);
-            case 1:
-                return (comp*)m_transformations.get_component_for_entity(e, true);
-            case 2:
-                return (comp*)m_nodes.get_component_for_entity(e, true);
-            case 3:
-                return (comp*)m_mesh_primitives.get_component_for_entity(e, true);
-            case 4:
-                return (comp*)m_materials.get_component_for_entity(e, true);
-            case 5:
-                return (comp*)m_models.get_component_for_entity(e, true);
-            case 6:
-                return (comp*)m_cameras.get_component_for_entity(e, true);
-            case 7:
-                return (comp*)m_directional_lights.get_component_for_entity(e, true);
-            case 8:
-                return (comp*)m_atmosphere_lights.get_component_for_entity(e, true);
-            case 9:
-                return (comp*)m_skylights.get_component_for_entity(e, true);
-            default:
-                MANGO_LOG_ERROR("No component id matches the component!");
-                return nullptr;
-            }
-        }
+        //! \brief Removes a \a directional_light from the \a scene.
+        //! \param[in] node_id The \a sid of the containing \a node of the \a directional_light to remove from the \a scene.
+        virtual void remove_directional_light(sid node_id) = 0;
 
-        //! \brief Adds a \a component to a specific \a entity.
-        //! \details Should NOT be stored for a long time period.
-        //! \param[in] e The \a entity to add the \a component to.
-        //! \return A pointer to the created \a component or nullptr if non-existent.
-        template <typename comp>
-        inline comp* add_component(entity e)
-        {
-            switch (type_name<comp>::id())
-            {
-            case 0:
-                return (comp*)&m_tags.create_component_for(e);
-            case 1:
-                return (comp*)&m_transformations.create_component_for(e);
-            case 2:
-                return (comp*)&m_nodes.create_component_for(e);
-            case 3:
-                return (comp*)&m_mesh_primitives.create_component_for(e);
-            case 4:
-                return (comp*)&m_materials.create_component_for(e);
-            case 5:
-                return (comp*)&m_models.create_component_for(e);
-            case 6:
-                return (comp*)&m_cameras.create_component_for(e);
-            case 7:
-                return (comp*)&m_directional_lights.create_component_for(e);
-            case 8:
-                return (comp*)&m_atmosphere_lights.create_component_for(e);
-            case 9:
-                return (comp*)&m_skylights.create_component_for(e);
-            default:
-                MANGO_LOG_CRITICAL("No component id matches the component!");
-                return nullptr;
-            }
-        }
+        //! \brief Removes a \a skylight from the \a scene.
+        //! \param[in] node_id The \a sid of the containing \a node of the \a skylight to remove from the \a scene.
+        virtual void remove_skylight(sid node_id) = 0;
 
-        //! \brief Removes a \a component from a specific \a entity.
-        //! \param[in] e The \a entity to remove the \a component from.
-        template <typename comp>
-        inline void remove_component(entity e)
-        {
-            auto children = get_children(e);
-            switch (type_name<comp>::id())
-            {
-            case 0:
-                m_tags.remove_component_from(e);
-                return;
-            case 1:
-                m_transformations.remove_component_from(e);
-                return;
-            case 2:
-                m_nodes.remove_component_from(e);
-                return;
-            case 3:
-                m_mesh_primitives.remove_component_from(e);
-                return;
-            case 4:
-                m_materials.remove_component_from(e);
-                return;
-            case 5:
-                m_models.remove_component_from(e);
-                for (auto child : children) // TODO Paul: Removes all children at the moment.
-                {
-                    remove_entity(child);
-                }
-                return;
-            case 6:
-                m_cameras.remove_component_from(e);
-                return;
-            case 7:
-                m_directional_lights.remove_component_from(e);
-                return;
-            case 8:
-                m_atmosphere_lights.remove_component_from(e);
-                return;
-            case 9:
-                m_skylights.remove_component_from(e);
-                return;
-            default:
-                MANGO_LOG_ERROR("No component id matches the component!");
-                return;
-            }
-        }
+        //! \brief Removes a \a atmospheric_light from the \a scene.
+        //! \param[in] node_id The \a sid of the containing \a node of the \a atmospheric_light to remove from the \a scene.
+        virtual void remove_atmospheric_light(sid node_id) = 0;
 
-        //! \brief Retrieves the \a camera_data for the currently active camera.
-        //! \details Has to be checked if pointers are null. Also can only be used for a short time.
-        //! \return The \a camera_data.
-        inline camera_data get_active_camera_data()
-        {
-            camera_data result;
-            result.active_camera_entity = m_active.camera;
-            result.camera_info          = m_cameras.get_component_for_entity(m_active.camera, true);
-            if (m_active.camera == invalid_entity || !result.camera_info)
-            {
-                result.active_camera_entity = invalid_entity;
-                result.camera_info          = nullptr;
-                result.transform            = nullptr;
-                return result;
-            }
-            result.transform = m_transformations.get_component_for_entity(m_active.camera, true);
-            return result;
-        }
+        //! \brief Retrieves a \a node from the \a scene.
+        //! \param[in] node_id The \a sid of the \a node to retrieve from the \a scene.
+        //! \return An optional \a node reference.
+        virtual optional<node&> get_node(sid node_id) = 0;
 
-        //! \brief Sets the active camera to an \a entity.
-        //! \param[in] e The \a entity to set the active camera to.
-        inline void set_active_camera(entity e)
-        {
-            if (e == invalid_entity)
-            {
-                m_active.camera = e;
-                return;
-            }
-            auto next_comp = m_cameras.get_component_for_entity(e);
-            if (!next_comp)
-                return;
+        //! \brief Retrieves a \a transform from the \a scene.
+        //! \param[in] node_id The \a sid of the containing \a node of the \a transform to retrieve from the \a scene.
+        //! \return An optional \a transform reference.
+        virtual optional<transform&> get_transform(sid node_id) = 0;
 
-            m_active.camera = e;
-        }
+        //! \brief Retrieves a \a perspective_camera from the \a scene.
+        //! \param[in] node_id The \a sid of the containing \a node of the \a perspective_camera to retrieve from the \a scene.
+        //! \return An optional \a perspective_camera reference.
+        virtual optional<perspective_camera&> get_perspective_camera(sid node_id) = 0;
 
-        //! \brief Retrieves the \a scene root \a entity.
-        //! \return The \a scene root \a entity.
-        inline entity get_root()
-        {
-            return m_root_entity;
-        }
+        //! \brief Retrieves a \a orthographic_camera from the \a scene.
+        //! \param[in] node_id The \a sid of the containing \a node of the \a orthographic_camera to retrieve from the \a scene.
+        //! \return An optional \a orthographic_camera reference.
+        virtual optional<orthographic_camera&> get_orthographic_camera(sid node_id) = 0;
 
-        //! \brief Retrieves and returns all children of an \a entity.
-        //! \param[in] e The \a entity to retrieve the children for.
-        //! \returns A list of children.
-        inline std::vector<entity> get_children(entity e)
-        {
-            std::vector<entity> children;
-            auto node = m_nodes.get_component_for_entity(e);
-            if (!node)
-                return children;
-            auto child_entity = node->child_entities;
-            for (int32 i = 0; i < node->children_count; ++i)
-            {
-                children.push_back(child_entity);
-                auto child_node = m_nodes.get_component_for_entity(child_entity);
-                child_entity    = child_node->next_sibling;
-            }
-            return children;
-        }
+        // virtual optionsl<> get_mesh_primitive(sid node_id) = 0;
 
-        //! \brief Checks if the \a entity is still alive.
-        //! \details This is temporary and has to be fixed soon, because it is not always correct.
-        //! \return True if \a entity is still alive, else False.
-        inline bool is_entity_alive(entity e)
-        {
-            return std::find(m_free_entities.begin(), m_free_entities.end(), e) == m_free_entities.end(); // TODO Paul: This is not correct, need entity versions.
-        }
+        //! \brief Retrieves a \a directional_light from the \a scene.
+        //! \param[in] node_id The \a sid of the containing \a node of the \a directional_light to retrieve from the \a scene.
+        //! \return An optional \a directional_light reference.
+        virtual optional<directional_light&> get_directional_light(sid node_id) = 0;
 
-      private:
-        friend class application; // TODO Paul: We maybe should handle this without a friend.
-        //! \brief Updates the \a scene.
-        //! \details Includes all system functions and reactions to input.
-        //! \param[in] dt Past time since last call.
-        void update(float dt);
+        //! \brief Retrieves a \a skylight from the \a scene.
+        //! \param[in] node_id The \a sid of the containing \a node of the \a skylight to retrieve from the \a scene.
+        //! \return An optional \a skylight reference.
+        virtual optional<skylight&> get_skylight(sid node_id) = 0;
 
-        //! \brief Renders the \a scene.
-        //! \details Retrieves all relevant \a render_commands from different components and submits them to the \a render_system.
-        void render();
+        //! \brief Retrieves a \a atmospheric_light from the \a scene.
+        //! \param[in] node_id The \a sid of the containing \a node of the \a atmospheric_light to retrieve from the \a scene.
+        //! \return An optional \a atmospheric_light reference.
+        virtual optional<atmospheric_light&> get_atmospheric_light(sid node_id) = 0;
 
-        //! \brief Builds one or more entities that describe an entire model with data loaded by tinygltf.
-        //! \details Internally called by create_entities_from_model(...).
-        //! This also creates the hierarchy incl. \a transform_components and \a node_components.
-        //! \param[in] m The model loaded by tinygltf.
-        //! \param[in] n The node loaded by tinygltf.
-        //! \param[in] parent_world The parents world transformation matrix.
-        //! \param[in] buffer_map The mapped buffers of the model.
-        //! \return The root node of the function call.
-        entity build_model_node(tinygltf::Model& m, tinygltf::Node& n, const glm::mat4& parent_world, const std::map<int, shared_ptr<buffer>>& buffer_map);
+        //! \brief Retrieves a \a model from the \a scene.
+        //! \param[in] instance_id The \a sid of the \a model instance to retrieve.
+        //! \return An optional \a model reference.
+        virtual optional<model&> get_model(sid instance_id) = 0;
 
-        //! \brief Attaches a \a mesh_component to an \a entity with data loaded by tinygltf.
-        //! \details Internally called by create_entities_from_model(...).
-        //! \param[in] node The entity that the \a mesh_component should be attached to.
-        //! \param[in] m The model loaded by tinygltf.
-        //! \param[in] mesh The mesh loaded by tinygltf.
-        //! \param[in] buffer_map The mapped buffers of the model.
-        void build_model_mesh(entity node, tinygltf::Model& m, tinygltf::Mesh& mesh, const std::map<int, shared_ptr<buffer>>& buffer_map);
+        //! \brief Retrieves a \a mesh.
+        //! \param[in] instance_id The \a sid of the \a mesh instance to retrieve.
+        //! \return An optional \a mesh reference.
+        virtual optional<mesh&> get_mesh(sid instance_id)         = 0;
 
-        //! \brief Attaches a \a camera_component to an \a entity with data loaded by tinygltf.
-        //! \details Internally called by create_entities_from_model(...).
-        //! \param[in] node The entity that the \a mesh_component should be attached to.
-        //! \param[in] camera The camera loaded by tinygltf.
-        void build_model_camera(entity node, tinygltf::Camera& camera);
+        //! \brief Retrieves a \a material.
+        //! \param[in] instance_id The \a sid of the \a material instance to retrieve.
+        //! \return An optional \a material reference.
+        virtual optional<material&> get_material(sid instance_id) = 0;
 
-        //! \brief Loads a \a material and stores it in the component.
-        //! \details Loads all supported component values and textures if they exist.
-        //! \param[out] material The component to store the material in.
-        //! \param[in] primitive The tinygltf primitive the material is linked to.
-        //! \param[in] m The model loaded by tinygltf.
-        void load_material(material_component& material, const tinygltf::Primitive& primitive, tinygltf::Model& m);
+        //! \brief Retrieves a \a texture.
+        //! \param[in] instance_id The \a sid of the \a texture instance to retrieve.
+        //! \return An optional \a texture reference.
+        virtual optional<texture&> get_texture(sid instance_id)   = 0;
 
-        //! \brief Detach an \a entity from the parent and the children.
-        //! \details Removes the \a node_component.
-        //! \param[in] node The \a entity to delete the node from.
-        void delete_node(entity node);
+        //! \brief Retrieves the root \a node \a sid of the \a scene.
+        //! \return The \a sid of the root \a node.
+        virtual sid get_root_node() = 0;
 
-        friend class context_impl; // TODO Paul: Could this be avoided?
-        //! \brief Mangos internal context for shared usage in all \a render_systems.
-        shared_ptr<context_impl> m_shared_context;
+        //! \brief Retrieves the \a sid of the \a node holding the active camera of the \a scene.
+        //! \return The \a sid of the \a node holding the active camera of the \a scene.
+        virtual sid get_active_scene_camera_node_sid() = 0;
 
-        //! \brief All free entity ids.
-        std::deque<uint32> m_free_entities;
+        //! \brief Sets the active camera of the \a scene.
+        //! \param[in] node_id The \a sid of the \a node holding the camera to set to the active one in the \a scene.
+        virtual void set_main_camera(sid node_id) = 0;
 
-        //! \brief All \a tag_components.
-        scene_component_pool<tag_component> m_tags;
-        //! \brief All \a node_components.
-        scene_component_pool<node_component> m_nodes;
-        //! \brief All \a transform_components.
-        scene_component_pool<transform_component> m_transformations;
-        //! \brief All \a model_components.
-        scene_component_pool<model_component> m_models;
-        //! \brief All \a mesh_primitive_components.
-        scene_component_pool<mesh_primitive_component> m_mesh_primitives;
-        //! \brief All \a material_components.
-        scene_component_pool<material_component> m_materials;
-        //! \brief All \a camera_components.
-        scene_component_pool<camera_component> m_cameras;
-        //! \brief All \a directional_light_component.
-        scene_component_pool<directional_light_component> m_directional_lights;
-        //! \brief All \a atmosphere_light_component.
-        scene_component_pool<atmosphere_light_component> m_atmosphere_lights;
-        //! \brief All \a skylight_component.
-        scene_component_pool<skylight_component> m_skylights;
-        //! \brief The root entity of the ecs.
-        entity m_root_entity;
-        //! \brief The current root entity of the scene.
-        entity m_scene_root;
+        // virtual bool is_object_alive(sid node_id) = 0;
 
-        struct
-        {
-            //! \brief The currently active camera entity.
-            entity camera;
-        } m_active; //!< Storage for active scene singleton entities.
+        //! \brief Attach a \a node to another one in a child <-> parent relationship.
+        //! \details Used for building hierarchies.
+        //! \param[in] child_node The \a sid of the \a node to use as a child.
+        //! \param[in] parent_node The \a sid of the \a node to use as a parent.
+        virtual void attach(sid child_node, sid parent_node) = 0;
 
-        //! \brief Scene boundaries.
-        struct scene_bounds
-        {
-            glm::vec3 min;    //!< Minimum geometry values.
-            glm::vec3 max;    //!< Maximum geometry values.
-        } m_scene_boundaries; //!< The boundaries of the current scene.
-    };                        // namespace mango
+        //! \brief Detach a \a node from the parent.
+        //! \details Attaches the detached node to the root node.
+        //! \param[in] node The \a node to detach.
+        virtual void detach(sid node) = 0;
+    };
 
+    //! \brief A unique pointer holding a \a scene.
+    using scene_ptr    = std::unique_ptr<scene>;
+
+    //! \brief A pointer pointing to a \a scene.
+    using scene_handle = scene*;
 } // namespace mango
 
 #endif // MANGO_SCENE_HPP
