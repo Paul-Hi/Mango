@@ -332,7 +332,7 @@ bool deferred_pbr_renderer::create_buffers()
     if (!check_mapping(m_luminance_data_mapping, "luminance data buffer"))
         return false;
 
-    memset(&m_luminance_data_mapping->histogram[0], 0, 256 * sizeof(uint32));
+    memset(&m_luminance_data_mapping->histogram[0], 0, 256 * sizeof(int32));
     m_luminance_data_mapping->luminance = 1.0f;
 
     return true;
@@ -1103,7 +1103,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
             m_renderer_info.last_frame.meshes++;
 
-            for (int32 i = 0; i < mesh->scene_primitives.size(); ++i)
+            for (int32 i = 0; i < static_cast<int32>(mesh->scene_primitives.size()); ++i)
             {
                 scene_primitive p   = mesh->scene_primitives[i];
                 a_draw.primitive_id = p.public_data.instance_id;
@@ -1132,7 +1132,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
     std::sort(begin(draws), end(draws));
 
-    auto warn_missing_draw = [](string what) { MANGO_LOG_WARN("{0} missing for draw. Skipping DrawCall!"); };
+    auto warn_missing_draw = [](string what) { MANGO_LOG_WARN("{0} missing for draw. Skipping DrawCall!", what); };
 
     // shadow pass
     // draw objects

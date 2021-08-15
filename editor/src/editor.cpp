@@ -122,7 +122,7 @@ bool editor::create()
         directional_light dl;
         dl.direction                = vec3(0.9f, 0.05f, 0.65f);
         dl.intensity                = default_directional_intensity;
-        dl.color                    = mango::color_rgb({ 1.0f, 0.387f, 0.207f });
+        dl.color                    = mango::color_rgb(1.0f, 0.387f, 0.207f);
         dl.cast_shadows             = true;
         dl.contribute_to_atmosphere = false;
         directional_light_node      = m_current_scene->add_directional_light(dl, directional_light_node);

@@ -345,7 +345,7 @@ gl_graphics_pipeline::gl_graphics_pipeline(const graphics_pipeline_create_info& 
             gl_shader_resource_mapping::resource_pair<gl_buffer> device_pair;
             device_pair.first  = make_gfx_handle<gl_buffer>(gl_buffer::dummy());
             device_pair.second = status;
-            if (m_mapping->m_buffers.size() < b.binding + array_size_out)
+            if (static_cast<int32>(m_mapping->m_buffers.size()) < b.binding + array_size_out)
                 m_mapping->m_buffers.resize(b.binding + array_size_out);
             if (array_size_out == 1)
             {
@@ -369,7 +369,7 @@ gl_graphics_pipeline::gl_graphics_pipeline(const graphics_pipeline_create_info& 
             gl_shader_resource_mapping::resource_pair<gl_image_texture_view> device_pair;
             device_pair.first  = make_gfx_handle<gl_image_texture_view>(gl_image_texture_view(make_gfx_handle<gl_texture>(gl_texture::dummy()), 0));
             device_pair.second = status;
-            if (m_mapping->m_texture_images.size() < b.binding + array_size_out)
+            if (static_cast<int32>(m_mapping->m_texture_images.size()) < b.binding + array_size_out)
                 m_mapping->m_texture_images.resize(b.binding + array_size_out);
             if (array_size_out == 1)
             {
@@ -394,7 +394,7 @@ gl_graphics_pipeline::gl_graphics_pipeline(const graphics_pipeline_create_info& 
             gl_shader_resource_mapping::resource_pair<gl_texture> device_pair;
             device_pair.first  = make_gfx_handle<gl_texture>(gl_texture::dummy());
             device_pair.second = status;
-            if (m_mapping->m_textures.size() < b.binding + array_size_out)
+            if (static_cast<int32>(m_mapping->m_textures.size()) < b.binding + array_size_out)
                 m_mapping->m_textures.resize(b.binding + array_size_out);
             if (array_size_out == 1)
             {
@@ -418,7 +418,7 @@ gl_graphics_pipeline::gl_graphics_pipeline(const graphics_pipeline_create_info& 
             gl_shader_resource_mapping::resource_pair<gl_sampler> device_pair;
             device_pair.first  = make_gfx_handle<gl_sampler>(gl_sampler::dummy());
             device_pair.second = status;
-            if (m_mapping->m_samplers.size() < b.binding + array_size_out)
+            if (static_cast<int32>(m_mapping->m_samplers.size()) < b.binding + array_size_out)
                 m_mapping->m_samplers.resize(b.binding + array_size_out);
             if (array_size_out == 1)
             {
@@ -500,7 +500,7 @@ gl_compute_pipeline::gl_compute_pipeline(const compute_pipeline_create_info& inf
             gl_shader_resource_mapping::resource_pair<gl_buffer> device_pair;
             device_pair.first  = make_gfx_handle<gl_buffer>(gl_buffer::dummy());
             device_pair.second = status;
-            if (m_mapping->m_buffers.size() < b.binding + array_size_out)
+            if (static_cast<int32>(m_mapping->m_buffers.size()) < b.binding + array_size_out)
                 m_mapping->m_buffers.resize(b.binding + array_size_out);
             if (array_size_out == 1)
             {
@@ -524,7 +524,7 @@ gl_compute_pipeline::gl_compute_pipeline(const compute_pipeline_create_info& inf
             gl_shader_resource_mapping::resource_pair<gl_image_texture_view> device_pair;
             device_pair.first  = make_gfx_handle<gl_image_texture_view>(gl_image_texture_view(make_gfx_handle<gl_texture>(gl_texture::dummy()), 0));
             device_pair.second = status;
-            if (m_mapping->m_texture_images.size() < b.binding + array_size_out)
+            if (static_cast<int32>(m_mapping->m_texture_images.size()) < b.binding + array_size_out)
                 m_mapping->m_texture_images.resize(b.binding + array_size_out);
             if (array_size_out == 1)
             {
@@ -549,7 +549,7 @@ gl_compute_pipeline::gl_compute_pipeline(const compute_pipeline_create_info& inf
             gl_shader_resource_mapping::resource_pair<gl_texture> device_pair;
             device_pair.first  = make_gfx_handle<gl_texture>(gl_texture::dummy());
             device_pair.second = status;
-            if (m_mapping->m_textures.size() < b.binding + array_size_out)
+            if (static_cast<int32>(m_mapping->m_textures.size()) < b.binding + array_size_out)
                 m_mapping->m_textures.resize(b.binding + array_size_out);
             if (array_size_out == 1)
             {
@@ -573,7 +573,7 @@ gl_compute_pipeline::gl_compute_pipeline(const compute_pipeline_create_info& inf
             gl_shader_resource_mapping::resource_pair<gl_sampler> device_pair;
             device_pair.first  = make_gfx_handle<gl_sampler>(gl_sampler::dummy());
             device_pair.second = status;
-            if (m_mapping->m_samplers.size() < b.binding + array_size_out)
+            if (static_cast<int32>(m_mapping->m_samplers.size()) < b.binding + array_size_out)
                 m_mapping->m_samplers.resize(b.binding + array_size_out);
             if (array_size_out == 1)
             {

@@ -87,7 +87,7 @@ namespace mango
             return vec2(m_info.width, m_info.height); // TODO
         }
 
-        const gfx_texture_type get_type() const override
+        const gfx_texture_type& get_type() const override
         {
             return m_info.texture_type; // TODO
         }

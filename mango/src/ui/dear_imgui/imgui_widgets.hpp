@@ -421,7 +421,7 @@ namespace mango
                     // Could be done with tables when they support clicking.
                     ImGui::Text("Primitives:");
                     ImGui::Spacing();
-                    for (int32 p = 0; p < m->scene_primitives.size(); p++)
+                    for (int32 p = 0; p < static_cast<int32>(m->scene_primitives.size()); p++)
                     {
                         optional<scene_material&> mat = application_scene->get_scene_material(object);
                         MANGO_ASSERT(mat, "Material referenced by primitive does not exist!");

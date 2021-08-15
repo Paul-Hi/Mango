@@ -1383,9 +1383,9 @@ std::pair<gfx_handle<const gfx_texture>, gfx_handle<const gfx_sampler>> scene_im
 
     auto res                  = m_shared_context->get_resources();
     const image_resource* img = res->acquire(desc);
-    gfx_format internal;
-    gfx_format pixel_format;
-    gfx_format component_type;
+    gfx_format internal       = gfx_format::invalid;
+    gfx_format pixel_format   = gfx_format::invalid;
+    gfx_format component_type = gfx_format::invalid;
     graphics::get_formats_for_image(img->number_components, img->bits, desc.is_standard_color_space, desc.is_hdr, internal, pixel_format, component_type);
 
     // TODO Paul: We probably want more exposed settings here - at least in public_data!
@@ -1428,9 +1428,9 @@ std::pair<gfx_handle<const gfx_texture>, gfx_handle<const gfx_sampler>> scene_im
 {
     auto& graphics_device = m_shared_context->get_graphics_device();
 
-    gfx_format internal;
-    gfx_format pixel_format;
-    gfx_format component_type;
+    gfx_format internal       = gfx_format::invalid;
+    gfx_format pixel_format   = gfx_format::invalid;
+    gfx_format component_type = gfx_format::invalid;
     graphics::get_formats_for_image(img.number_components, img.bits, standard_color_space, high_dynamic_range, internal, pixel_format, component_type);
 
     // TODO Paul: We probably want more exposed settings here - at least in public_data!

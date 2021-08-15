@@ -191,7 +191,9 @@ void fxaa_step::on_ui_widget()
     bool changed           = combo("FXAA Mode", presets, 3, m_fxaa_data.quality_preset, 1);
 
     float default_value = 0.0f;
-    changed |= slider_float_n("Subpixel Filter", &(float)m_fxaa_data.subpixel_filter, 1, &default_value, 0.0f, 1.0f);
+    float spf           = m_fxaa_data.subpixel_filter;
+    changed |= slider_float_n("Subpixel Filter", &spf, 1, &default_value, 0.0f, 1.0f);
+    m_fxaa_data.subpixel_filter = spf;
 
     ImGui::PopID();
 }

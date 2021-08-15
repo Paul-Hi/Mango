@@ -498,7 +498,7 @@ namespace mango
 
         //! \brief Returns the \a gfx_texture_type of the texture.
         //! \return The \a gfx_texture_type of the texture.
-        virtual const gfx_texture_type get_type() const = 0; // TODO Paul: Should be done cleaner
+        virtual const gfx_texture_type& get_type() const = 0; // TODO Paul: Should be done cleaner
     };
 
     //! \brief A \a gfx_device_object representing a texture view.
