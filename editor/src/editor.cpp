@@ -105,18 +105,6 @@ bool editor::create()
 
     // test settings comment in to have some example scene
     {
-        // environment_display_step_configuration ibl_config;
-        // ibl_config.set_render_level(0.1f);
-        // mango_rs->setup_environment_display_step(ibl_config);
-
-        // shadow_step_configuration shadow_config;
-        // shadow_config.set_resolution(2048).set_sample_count(16).set_offset(12.0f).set_cascade_count(3).set_split_lambda(0.5f).set_cascade_interpolation_range(0.5f);
-        // mango_rs->setup_shadow_map_step(shadow_config);
-
-        // fxaa_step_configuration fxaa_config;
-        // fxaa_config.set_quality_preset(fxaa_quality_preset::medium_quality).set_subpixel_filter(0.0f);
-        // mango_rs->setup_fxaa_step(fxaa_config);
-
         sid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
         // sid bb                      = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/other_3d_models/living_room/living_room.glb");
         optional<mango::model&> mod = m_current_scene->get_model(bb);
@@ -142,26 +130,6 @@ bool editor::create()
         node sl_node      = node("Venice Sunset Skylight");
         sid skylight_node = m_current_scene->add_node(sl_node);
         skylight_node     = m_current_scene->add_skylight_from_hdr("D:/Users/paulh/Documents/gltf_2_0_sample_models/HDRs/venice_sunset_4k.hdr", skylight_node);
-
-        // entity sphere = application_scene->create_empty();
-        // application_scene->add_component<material_component>(sphere);
-        // application_scene->get_component<tag_component>(sphere)->tag_name = "Created Sphere";
-        // auto mpc                                                          = application_scene->add_component<mesh_primitive_component>(sphere);
-        // auto sf                                                           = mesh_factory::get_sphere_factory();
-        // sf->set_normals(true).set_rings(22).set_segments(44).set_uv_tiling({ 2.0f, 2.0f });
-        // sf->create_mesh_primitive_component(mpc);
-
-        // entity lighting                                                     = application_scene->create_skylight_from_hdr("res/textures/venice_sunset_4k.hdr");
-        // application_scene->get_component<tag_component>(lighting)->tag_name = "Global Lighting";
-        // auto d_l_c                                                          = application_scene->add_component<directional_light_component>(lighting);
-        // if (d_l_c)
-        // {
-        //     d_l_c->light.direction     = vec3(0.9f, 0.05f, 0.65f);
-        //     d_l_c->light.intensity     = 89000.0f;
-        //     d_l_c->light.light_color   = mango::color_rgb({ 1.0f, 0.387f, 0.207f });
-        //     d_l_c->light.cast_shadows  = true;
-        //     d_l_c->light.atmospherical = true;
-        // }
     }
     // test end
 
