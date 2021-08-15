@@ -326,7 +326,7 @@ sid scene_impl::add_model_to_scene(sid model_to_add, sid scenario_id, sid contai
         MANGO_LOG_WARN("Model with ID {0} does not exist! Can not add model to scene!", model_to_add.id().get());
         return invalid_sid;
     }
-    if (!m_scene_scenarios.contains(scenario)) // TODO Szenarios.
+    if (!m_scene_scenarios.contains(scenario)) // TODO Scenarios.
     {
         MANGO_LOG_WARN("Scenario with ID {0} does not exist! Can not add model to scene!", scenario_id.id().get());
         return invalid_sid;
@@ -346,7 +346,12 @@ sid scene_impl::add_model_to_scene(sid model_to_add, sid scenario_id, sid contai
     scene_node& nd_containing = m_scene_nodes.at(node);
     nd_containing.type |= node_type::is_parent;
 
-    MANGO_ASSERT(std::find(m.public_data.scenarios.begin(), m.public_data.scenarios.end(), scenario_id) != m.public_data.scenarios.end(), "Model to add does not contain scenario to add.");
+    auto found = std::find(m.public_data.scenarios.begin(), m.public_data.scenarios.end(), scenario_id);
+    if (found == m.public_data.scenarios.end())
+    {
+        MANGO_LOG_WARN("Model to add does not contain scenario to add.");
+        return invalid_sid;
+    }
 
     hierarchy_node* containing_entry;
     if (sg_bfs_node(containing_node_id, containing_entry))
