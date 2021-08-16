@@ -759,7 +759,7 @@ bool deferred_pbr_renderer::create_pipeline_resources()
 
         // rasterization_state -> keep default
         // depth_stencil_state -> keep default
-        transparent_pass_info.rasterization_state.cull_mode                       = gfx_cull_mode_flag_bits::mode_none; // TODO Paul: This is not correct for all transparent things.
+        transparent_pass_info.rasterization_state.cull_mode                       = gfx_cull_mode_flag_bits::mode_back; // TODO Paul: For now this is fine.
         transparent_pass_info.blend_state.blend_description.enable_blend          = true;
         transparent_pass_info.blend_state.blend_description.color_blend_operation = gfx_blend_operation::blend_operation_add;
         transparent_pass_info.blend_state.blend_description.color_blend_operation = gfx_blend_operation::blend_operation_add;
