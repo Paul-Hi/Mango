@@ -1,7 +1,7 @@
 //! \file      renderer_impl.cpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2020
+//! \date      2021
 //! \copyright Apache License 2.0
 
 #include <mango/profile.hpp>

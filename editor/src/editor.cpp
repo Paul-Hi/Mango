@@ -1,7 +1,7 @@
 //! \file      editor.cpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2020
+//! \date      2021
 //! \copyright Apache License 2.0
 
 #include "editor.hpp"
@@ -105,17 +105,17 @@ bool editor::create()
 
     // test settings comment in to have some example scene
     {
-        sid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
-        // sid bb                      = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/other_3d_models/living_room/living_room.glb");
-        optional<mango::model&> mod = m_current_scene->get_model(bb);
-        MANGO_ASSERT(mod, "Model not existent!");
-        node model_root_node               = node("Sponza Attrium");
-        sid model_instance_root            = m_current_scene->add_node(model_root_node);
-        model_instance_root                = m_current_scene->add_model_to_scene(bb, mod->scenarios.at(mod->default_scenario), model_instance_root);
-        optional<transform&> mod_transform = m_current_scene->get_transform(model_instance_root);
-        MANGO_ASSERT(mod_transform, "Model instance transform not existent!");
-        mod_transform->scale *= 1.1f;
-        mod_transform->update();
+        //sid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Buggy/glTF/Buggy.gltf");
+        //// sid bb                      = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/other_3d_models/living_room/living_room.glb");
+        //optional<mango::model&> mod = m_current_scene->get_model(bb);
+        //MANGO_ASSERT(mod, "Model not existent!");
+        //node model_root_node               = node("Buggy");
+        //sid model_instance_root            = m_current_scene->add_node(model_root_node);
+        //model_instance_root                = m_current_scene->add_model_to_scene(bb, mod->scenarios.at(mod->default_scenario), model_instance_root);
+        //optional<transform&> mod_transform = m_current_scene->get_transform(model_instance_root);
+        //MANGO_ASSERT(mod_transform, "Model instance transform not existent!");
+        //mod_transform->scale *= 0.075f;
+        //mod_transform->update();
 
         node dl_node               = node("Directional Sun Light");
         sid directional_light_node = m_current_scene->add_node(dl_node);
@@ -137,7 +137,7 @@ bool editor::create()
     MANGO_ASSERT(mango_input, "Input does not exist!");
 
     // temporary editor camera controls
-    m_camera_rotation     = vec2(0.0f, glm::radians(85.0f));
+    m_camera_rotation     = vec2(glm::radians(90.0f), glm::radians(45.0f));
     m_target_offset       = vec2(0.0f);
     m_last_mouse_position = vec2(0.0f);
     mango_input->register_cursor_position_callback(
@@ -183,7 +183,7 @@ bool editor::create()
             }
         });
 
-    m_camera_radius = 5.0f;
+    m_camera_radius = 10.0f;
     mango_input->register_scroll_callback(
         [this](double, double y_offset)
         {

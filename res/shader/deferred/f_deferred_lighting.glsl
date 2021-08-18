@@ -4,15 +4,15 @@
 
 void main()
 {
+    float depth  = get_logarithmic_depth();
+    gl_FragDepth = depth; // This is for potential transparent objects and cubemap.
+    if(depth >= 1.0) discard;
+
     if(debug_view_enabled)
     {
         draw_debug_views();
         return;
     }
-
-    float depth  = get_logarithmic_depth();
-    gl_FragDepth = depth; // This is for potential transparent objects and cubemap.
-    if(depth >= 1.0) discard;
 
     vec3 position = world_space_from_depth(depth, texcoord, inverse_view_projection);
     vec4 base_color = get_base_color();

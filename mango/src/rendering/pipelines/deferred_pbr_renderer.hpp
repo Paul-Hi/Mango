@@ -1,12 +1,13 @@
 //! \file      deferred_pbr_renderer.hpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2020
+//! \date      2021
 //! \copyright Apache License 2.0
 
 #ifndef MANGO_DEFERRED_PBR_RENDERER_HPP
 #define MANGO_DEFERRED_PBR_RENDERER_HPP
 
+#include <rendering/debug_drawer.hpp>
 #include <rendering/light_stack.hpp>
 #include <rendering/renderer_impl.hpp>
 #include <rendering/renderer_pipeline_cache.hpp>
@@ -138,6 +139,10 @@ namespace mango
 
         //! \brief The light stack managing all lights.
         light_stack m_light_stack;
+
+        debug_drawer m_debug_drawer;
+
+        bool m_debug_bounds;
 
         //! \brief Optional additional steps of the deferred pipeline.
         shared_ptr<render_step> m_pipeline_steps[mango::render_pipeline_step::number_of_steps];

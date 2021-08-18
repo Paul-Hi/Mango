@@ -1,7 +1,7 @@
 //! \file      fxaa_step.cpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2020
+//! \date      2021
 //! \copyright Apache License 2.0
 
 #include <mango/imgui_helper.hpp>
@@ -128,7 +128,7 @@ bool fxaa_step::create_step_resources()
         // viewport_descriptor is dynamic
 
         // rasterization_state -> keep default
-        // depth_stencil_state -> keep default
+        fxaa_pass_info.depth_stencil_state.enable_depth_test = false;
         // blend_state -> keep default
 
         fxaa_pass_info.dynamic_state.dynamic_states = gfx_dynamic_state_flag_bits::dynamic_state_viewport | gfx_dynamic_state_flag_bits::dynamic_state_scissor;

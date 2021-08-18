@@ -11,6 +11,7 @@ add_executable(AllTests
 
     init_test.cpp
     graphics_test.cpp
+    intersect_test.cpp
     packed_freelist_test.cpp
 )
 

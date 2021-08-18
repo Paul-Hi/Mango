@@ -1,7 +1,7 @@
 //! \file      deferred_pbr_renderer.cpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2020
+//! \date      2021
 //! \copyright Apache License 2.0
 
 #include <glad/glad.h>
@@ -29,6 +29,8 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
     , m_pipeline_cache(context)
     , m_frame_context(nullptr)
     , m_light_stack()
+    , m_debug_drawer(context)
+    , m_debug_bounds(false)
     , m_graphics_device(m_shared_context->get_graphics_device())
 {
     PROFILE_ZONE;
@@ -561,7 +563,7 @@ bool deferred_pbr_renderer::create_shader_stages()
         shader_info.stage         = gfx_shader_stage_type::shader_stage_fragment;
         shader_info.shader_source = source_desc;
 
-        shader_info.resource_count = 4;
+        shader_info.resource_count = 6;
 
         shader_info.resources = { {
             { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
@@ -569,6 +571,8 @@ bool deferred_pbr_renderer::create_shader_stages()
 
             { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, "texture_hdr_input", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, "sampler_hdr_input", gfx_shader_resource_type::shader_resource_sampler, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_DEPTH_SAMPLER, "texture_geometry_depth_input", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_DEPTH_SAMPLER, "sampler_geometry_depth_input", gfx_shader_resource_type::shader_resource_sampler, 1 },
         } };
 
         m_composing_pass_fragment = m_graphics_device->create_shader_stage(shader_info);
@@ -854,6 +858,8 @@ bool deferred_pbr_renderer::create_pipeline_resources()
 
             { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
             { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_DEPTH_SAMPLER, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_DEPTH_SAMPLER, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
         });
 
         composing_pass_info.pipeline_layout = composing_pass_pipeline_layout;
@@ -869,7 +875,7 @@ bool deferred_pbr_renderer::create_pipeline_resources()
         // viewport_descriptor is dynamic
 
         // rasterization_state -> keep default
-        // depth_stencil_state -> keep default
+        composing_pass_info.depth_stencil_state.depth_compare_operator = gfx_compare_operator::compare_operator_always; // Do not disable since it writes the depth in the fragment shader.
         // blend_state -> keep default
 
         composing_pass_info.dynamic_state.dynamic_states = gfx_dynamic_state_flag_bits::dynamic_state_viewport | gfx_dynamic_state_flag_bits::dynamic_state_scissor;
@@ -968,6 +974,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         sid material_id;
         float view_depth;
         bool transparent;
+        axis_aligned_bounding_box bounding_box; // Does not contribute to order.
 
         bool operator<(const draw_key& other) const
         {
@@ -1075,6 +1082,15 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     std::vector<draw_key> draws;
     int32 opaque_count = 0;
     auto instances     = scene->get_render_instances();
+    if (m_debug_bounds)
+        m_debug_drawer.clear();
+    bool frustum_culling = true; // TODO Paul: Hardcoded!
+    bounding_frustum camera_frustum;
+    if (frustum_culling)
+    {
+        camera_frustum = bounding_frustum(m_camera_data.projection_matrix);
+        camera_frustum = camera_frustum.get_transformed(glm::inverse(mat4(m_camera_data.view_matrix)));
+    }
 
     for (auto instance : instances)
     {
@@ -1105,7 +1121,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
             for (int32 i = 0; i < static_cast<int32>(mesh->scene_primitives.size()); ++i)
             {
-                scene_primitive p   = mesh->scene_primitives[i];
+                scene_primitive p = mesh->scene_primitives[i];
+
                 a_draw.primitive_id = p.public_data.instance_id;
                 a_draw.material_id  = p.public_data.material;
 
@@ -1117,6 +1134,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
                 a_draw.view_depth = (mat4(m_camera_data.view_projection_matrix) * node->global_transformation_matrix * vec4(0, 0, 0, 1)).z;
 
+                a_draw.bounding_box = p.bounding_box.get_transformed(node->global_transformation_matrix);
+
                 draws.push_back(a_draw);
             }
         }
@@ -1126,6 +1145,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         }
     }
 
+    m_debug_drawer.update_buffer();
     m_light_stack.update(scene);
 
     m_frame_context->set_buffer_data(m_light_data_buffer, 0, sizeof(light_data), &(m_light_stack.get_light_data()));
@@ -1327,7 +1347,36 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_frame_context->set_render_targets(static_cast<int32>(m_gbuffer_render_targets.size()) - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
         for (int32 c = 0; c < opaque_count; ++c)
         {
-            auto& dc                        = draws[c];
+            auto& dc = draws[c];
+
+            if (frustum_culling)
+            {
+                auto& bb = dc.bounding_box;
+                if (!camera_frustum.intersects_fast(bb))
+                    continue;
+            }
+            if (m_debug_bounds)
+            {
+                auto& bb     = dc.bounding_box;
+                auto corners = bb.get_corners();
+                m_debug_drawer.set_color(color_rgb(1.0f, 0.0f, 0.0f));
+                m_debug_drawer.add(corners[0], corners[1]);
+                m_debug_drawer.add(corners[1], corners[3]);
+                m_debug_drawer.add(corners[3], corners[2]);
+                m_debug_drawer.add(corners[2], corners[6]);
+                m_debug_drawer.add(corners[6], corners[4]);
+                m_debug_drawer.add(corners[4], corners[0]);
+                m_debug_drawer.add(corners[0], corners[2]);
+
+                m_debug_drawer.add(corners[5], corners[4]);
+                m_debug_drawer.add(corners[4], corners[6]);
+                m_debug_drawer.add(corners[6], corners[7]);
+                m_debug_drawer.add(corners[7], corners[3]);
+                m_debug_drawer.add(corners[3], corners[1]);
+                m_debug_drawer.add(corners[1], corners[5]);
+                m_debug_drawer.add(corners[5], corners[7]);
+            }
+
             optional<scene_primitive&> prim = scene->get_scene_primitive(dc.primitive_id);
             if (!prim)
             {
@@ -1559,6 +1608,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     }
 
     // cubemap pass
+    if (!m_renderer_data.debug_view_enabled)
     {
         GL_NAMED_PROFILE_ZONE("Environment Display Pass");
         NAMED_PROFILE_ZONE("Environment Display Pass");
@@ -1578,7 +1628,35 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         NAMED_PROFILE_ZONE("Transparent Pass");
         for (uint32 c = opaque_count; c < draws.size(); ++c)
         {
-            auto& dc                        = draws[c];
+            auto& dc = draws[c];
+
+            if (frustum_culling)
+            {
+                auto& bb = dc.bounding_box;
+                if (!camera_frustum.intersects_fast(bb))
+                    continue;
+            }
+            if (m_debug_bounds)
+            {
+                auto& bb     = dc.bounding_box;
+                auto corners = bb.get_corners();
+                m_debug_drawer.set_color(color_rgb(1.0f, 0.0f, 0.0f));
+                m_debug_drawer.add(corners[0], corners[1]);
+                m_debug_drawer.add(corners[1], corners[3]);
+                m_debug_drawer.add(corners[3], corners[2]);
+                m_debug_drawer.add(corners[2], corners[6]);
+                m_debug_drawer.add(corners[6], corners[4]);
+                m_debug_drawer.add(corners[4], corners[0]);
+                m_debug_drawer.add(corners[0], corners[2]);
+
+                m_debug_drawer.add(corners[5], corners[4]);
+                m_debug_drawer.add(corners[4], corners[6]);
+                m_debug_drawer.add(corners[6], corners[7]);
+                m_debug_drawer.add(corners[7], corners[3]);
+                m_debug_drawer.add(corners[3], corners[1]);
+                m_debug_drawer.add(corners[1], corners[5]);
+                m_debug_drawer.add(corners[5], corners[7]);
+            }
             optional<scene_primitive&> prim = scene->get_scene_primitive(dc.primitive_id);
             if (!prim)
             {
@@ -1841,6 +1919,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_composing_pass_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer);
         m_composing_pass_pipeline->get_resource_mapping()->set("texture_hdr_input", m_hdr_buffer_render_targets[0]);
         m_composing_pass_pipeline->get_resource_mapping()->set("sampler_hdr_input", m_nearest_sampler);
+        m_composing_pass_pipeline->get_resource_mapping()->set("texture_geometry_depth_input", m_hdr_buffer_render_targets.back());
+        m_composing_pass_pipeline->get_resource_mapping()->set("sampler_geometry_depth_input", m_nearest_sampler);
 
         m_frame_context->submit_pipeline_state_resources();
 
@@ -1850,6 +1930,15 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_renderer_info.last_frame.draw_calls++;
         m_renderer_info.last_frame.vertices += 3;
         m_frame_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in geometry shader.
+    }
+
+    // debug lines
+    if (m_debug_bounds)
+    {
+        m_renderer_info.last_frame.draw_calls++;
+        m_renderer_info.last_frame.vertices += m_debug_drawer.vertex_count();
+        // use the already set render targets ...
+        m_debug_drawer.execute();
     }
 
     // fxaa
@@ -1995,6 +2084,7 @@ void deferred_pbr_renderer::on_ui_widget()
     if (ImGui::CollapsingHeader("Debug", flags))
     {
         checkbox("Render Wireframe", &m_wireframe, false);
+        checkbox("Debug Bounds", &m_debug_bounds, false);
 
         m_renderer_data.debug_view_enabled          = false;
         m_renderer_data.position_debug_view         = false;

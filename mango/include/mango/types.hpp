@@ -2,7 +2,7 @@
 //! This file has different typedefs mostly for convenience and some perfect forwarding helper functions for standard types as well as some helpful macro definitions.
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2020
+//! \date      2021
 //! \copyright Apache License 2.0
 
 #ifndef MANGO_TYPES_HPP
@@ -77,6 +77,9 @@ namespace mango
 
     //! \brief Type alias for a glm::vec4.
     using vec4 = glm::vec4;
+
+    //! \brief Type alias for a glm::quat.
+    using quat = glm::quat;
 
     //! \brief Type alias for a glm::dvec2.
     using dvec2 = glm::dvec2;
@@ -247,7 +250,7 @@ namespace mango
     struct color_rgba
     {
         //! \cond NO_COND
-        color_rgba(glm::vec4 v = glm::vec4(0.0f))
+        color_rgba(vec4 v = vec4(0.0f))
         {
             values = v;
         }
@@ -300,7 +303,7 @@ namespace mango
                 float r, g, b, a;
             };
 
-            glm::vec4 values;
+            vec4 values;
         };
 #pragma warning(pop)
         //! \endcond

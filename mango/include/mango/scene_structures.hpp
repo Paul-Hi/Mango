@@ -168,7 +168,7 @@ namespace mango
         //! \brief The position of the \a transform.
         vec3 position;
         //! \brief The rotation of the \a transform.
-        glm::quat rotation;
+        quat rotation;
         //! \brief The scale of the \a transform.
         vec3 scale;
 

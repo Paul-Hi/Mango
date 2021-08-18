@@ -1,7 +1,7 @@
 //! \file      renderer_impl.hpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2020
+//! \date      2021
 //! \copyright Apache License 2.0
 
 #ifndef MANGO_RENDERER_IMPL_HPP
@@ -83,6 +83,8 @@ namespace mango
 
     //! \brief The sampler and texture binding point for the output target color hdr attachment to compose.
 #define COMPOSING_HDR_SAMPLER 0
+    //! \brief The sampler and texture binding point for the output target depth attachment to pass through.
+#define COMPOSING_DEPTH_SAMPLER 1
 
     //! \brief The image binding point for the output target color hdr attachment to compute the average luminance for.
 #define HDR_IMAGE_LUMINANCE_COMPUTE 0

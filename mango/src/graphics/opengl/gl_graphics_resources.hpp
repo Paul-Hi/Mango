@@ -695,7 +695,7 @@ namespace mango
         case gfx_primitive_topology::primitive_topology_point_list:
             return GL_POINT;
         case gfx_primitive_topology::primitive_topology_line_list:
-            return GL_LINE;
+            return GL_LINES;
         case gfx_primitive_topology::primitive_topology_line_loop:
             return GL_LINE_LOOP;
         case gfx_primitive_topology::primitive_topology_line_strip:

@@ -1,7 +1,7 @@
 //! \file      environment_display_step.cpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2020
+//! \date      2021
 //! \copyright Apache License 2.0
 
 #include <mango/imgui_helper.hpp>
@@ -108,7 +108,6 @@ bool environment_display_step::create_step_resources()
         if (!check_creation(m_cubemap_pass_vertex.get(), "cubemap pass vertex shader"))
             return false;
 
-
         res_resource_desc.defines.clear();
     }
     // fragment stage
@@ -137,7 +136,6 @@ bool environment_display_step::create_step_resources()
         m_cubemap_pass_fragment = graphics_device->create_shader_stage(shader_info);
         if (!check_creation(m_cubemap_pass_fragment.get(), "cubemap pass fragment shader"))
             return false;
-
 
         res_resource_desc.defines.clear();
     }

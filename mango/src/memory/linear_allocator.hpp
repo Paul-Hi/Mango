@@ -1,7 +1,7 @@
 //! \file      linear_allocator.hpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2020
+//! \date      2021
 //! \copyright Apache License 2.0
 
 #ifndef MANGO_LINEAR_ALLOCATOR_HPP
