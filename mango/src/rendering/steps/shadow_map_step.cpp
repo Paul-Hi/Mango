@@ -33,7 +33,6 @@ shadow_map_step::shadow_map_step(const shadow_settings& settings)
     MANGO_ASSERT(m_shadow_data.sample_count >= 8 && m_shadow_data.sample_count <= 64, "Sample count is not in valid range 8 - 64!");
     MANGO_ASSERT(m_shadow_data.cascade_count > 0 && m_shadow_data.cascade_count < 5, "Cascade count has to be between 1 and 4!");
     MANGO_ASSERT(m_cascade_data.lambda > 0.0f && m_cascade_data.lambda < 1.0f, "Lambda has to be between 0.0 and 1.0!");
-    m_dirty_cascades = true;
 }
 
 shadow_map_step::~shadow_map_step() {}
@@ -241,19 +240,24 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
     m_cascade_data.camera_far            = camera_far;
     m_cascade_data.directional_direction = directional_direction;
 
-    if (m_dirty_cascades || (glm::abs(m_shadow_data.split_depth[0] - camera_near) > 1e-5f) || (glm::abs(m_shadow_data.split_depth[m_shadow_data.cascade_count] - camera_far) > 1e-5f))
+    const float& clip_near  = camera_near;
+    const float& clip_far   = camera_far;
+    const float& clip_range = clip_far - clip_near;
+    const float& min_z      = clip_near;
+    const float& max_z      = min_z + clip_range;
+    const float& ratio      = max_z / min_z;
+    const float& range      = max_z - min_z;
+
+    float cascade_splits[max_shadow_mapping_cascades];
+
+    // Based on method presented in https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
+    for (int32 i = 0; i < m_shadow_data.cascade_count; ++i)
     {
-        m_dirty_cascades                                       = false;
-        m_shadow_data.split_depth[0]                           = camera_near;
-        m_shadow_data.split_depth[m_shadow_data.cascade_count] = camera_far;
-        for (int32 i = 1; i < m_shadow_data.cascade_count; ++i)
-        {
-            float p                      = static_cast<float>(i) / static_cast<float>(m_shadow_data.cascade_count);
-            float log                    = camera_near * std::pow((camera_far / camera_near), p);
-            float uniform                = camera_near + (camera_far - camera_near) * p;
-            float C_i                    = m_cascade_data.lambda * log + (1.0f - m_cascade_data.lambda) * uniform;
-            m_shadow_data.split_depth[i] = C_i;
-        }
+        float p           = static_cast<float>(i + 1) / static_cast<float>(m_shadow_data.cascade_count);
+        float log         = min_z * std::pow(glm::abs(ratio), p);
+        float uniform     = min_z + range * p;
+        float d           = m_cascade_data.lambda * (log - uniform) + uniform;
+        cascade_splits[i] = (d - clip_near) / clip_range;
     }
 
     // calculate camera frustum in world space
@@ -270,21 +274,23 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         frustum_corners[i] = vec3(inv / inv.w);
     }
 
+    float interpolation   = (m_shadow_data.cascade_interpolation_range - clip_near) / clip_range;
+    float last_split_dist = 0.0f;
     for (int32 casc = 0; casc < m_shadow_data.cascade_count; ++casc)
     {
         vec3 center = vec3(0.0f);
         vec3 current_frustum_corners[8];
+        float split_dist = cascade_splits[casc] - interpolation;
         for (int32 i = 0; i < 4; ++i)
         {
-            vec3 corner_ray = frustum_corners[i + 4] - frustum_corners[i];
-            vec3 near_ray   = corner_ray * static_cast<float>((m_shadow_data.split_depth[casc] - m_shadow_data.cascade_interpolation_range) / m_shadow_data.split_depth[m_shadow_data.cascade_count]);
-            vec3 far_ray = corner_ray * static_cast<float>((m_shadow_data.split_depth[casc + 1] + m_shadow_data.cascade_interpolation_range) / m_shadow_data.split_depth[m_shadow_data.cascade_count]);
-            current_frustum_corners[i]     = frustum_corners[i] + near_ray;
-            current_frustum_corners[i + 4] = frustum_corners[i] + far_ray;
-            center += current_frustum_corners[i];
+            vec3 dist                      = frustum_corners[i + 4] - frustum_corners[i];
+            current_frustum_corners[i + 4] = frustum_corners[i] + (dist * split_dist);
+            current_frustum_corners[i]     = frustum_corners[i] + (dist * last_split_dist);
             center += current_frustum_corners[i + 4];
+            center += current_frustum_corners[i];
         }
         center /= 8.0f;
+        last_split_dist = split_dist;
 
         float radius = 0.0f;
         for (int32 i = 0; i < 8; ++i)
@@ -294,19 +300,20 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         }
         radius = std::ceil(radius * 16.0f) / 16.0f;
 
-        vec3 max_value = vec3(radius);
-        vec3 min_value = -max_value;
+        vec3 max_extends = vec3(radius);
+        vec3 min_extends = -max_extends;
 
         // calculate view projection
 
         mat4 projection;
         mat4 view;
-        vec3 up = GLOBAL_UP;
-        if (1.0f - glm::dot(up, glm::normalize(m_cascade_data.directional_direction)) < 1e-5f)
+        vec3 up             = GLOBAL_UP;
+        vec3 light_to_point = -glm::normalize(m_cascade_data.directional_direction);
+        if (glm::dot(up, light_to_point) < 1e-5f)
             up = GLOBAL_RIGHT;
-        view                           = glm::lookAt(center + glm::normalize(m_cascade_data.directional_direction) * (-min_value.z + m_shadow_map_offset), center, up);
-        projection                     = glm::ortho(min_value.x, max_value.x, min_value.y, max_value.y, 0.0f, (max_value.z - min_value.z) + m_shadow_map_offset);
-        m_shadow_data.far_planes[casc] = (max_value.z - min_value.z) + m_shadow_map_offset;
+        view                           = glm::lookAt(center - light_to_point * (-min_extends.z + m_shadow_map_offset), center, up);
+        projection                     = glm::ortho(min_extends.x, max_extends.x, min_extends.y, max_extends.y, 0.0f, (max_extends.z - min_extends.z) + m_shadow_map_offset);
+        m_shadow_data.far_planes[casc] = (max_extends.z - min_extends.z) + m_shadow_map_offset;
 
         mat4 shadow_matrix = projection * view;
         vec4 origin        = vec4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -319,9 +326,9 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         offset.w = 0.0f;
         projection[3] += offset;
 
-
+        m_shadow_data.split_depth[casc]              = (clip_near + split_dist * clip_range);
         m_shadow_data.view_projection_matrices[casc] = projection * view;
-        m_cascade_data.frusta[casc] = bounding_frustum(view, projection);
+        m_cascade_data.frusta[casc]                  = bounding_frustum(view, projection);
     }
 }
 
@@ -357,7 +364,7 @@ void shadow_map_step::on_ui_widget()
     {
         int32& sample_count = m_shadow_data.sample_count;
         slider_int_n("Sample Count", &sample_count, 1, default_ivalue, 8, 64);
-        float& l_size    = m_shadow_data.shadow_light_size;
+        float& l_size = m_shadow_data.shadow_light_size;
         slider_float_n("Light Size PCFF", &l_size, 1, default_value, 1.0f, 16.0f);
     }
 
@@ -380,6 +387,5 @@ void shadow_map_step::on_ui_widget()
     default_value[0]           = 0.5f;
     slider_float_n("Cascade Interpolation Range", &interpolation_range, 1, default_value, 0.0f, 10.0f);
     slider_float_n("Cascade Splits Lambda", &m_cascade_data.lambda, 1, default_value, 0.0f, 1.0f);
-    m_dirty_cascades = true; // For now always in debug. // TODO Paul...
     ImGui::PopID();
 }

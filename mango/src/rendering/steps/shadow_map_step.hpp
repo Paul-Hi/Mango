@@ -25,10 +25,10 @@ namespace mango
         {
             std140_mat4 view_projection_matrices[max_shadow_mapping_cascades]; //!< The view projection matrices.
             // TODO Paul: We really should not use arrays with that padding -.-
-            std140_float_array split_depth[max_shadow_mapping_cascades + 1]; //!< The calculated split depths. Times two because of better alignment
-            std140_vec4 far_planes;                                          //!< The far planes of the shadow views.
-            std140_int resolution                    = 2048;                 //!< The shadow map resolution.
-            std140_int cascade_count                 = 3;                    //!< The number of cascades.
+            std140_float_array split_depth[max_shadow_mapping_cascades]; //!< The calculated split depths.
+            std140_vec4 far_planes;                                      //!< The far planes of the shadow views.
+            std140_int resolution                    = 2048;             //!< The shadow map resolution.
+            std140_int cascade_count                 = 3;                //!< The number of cascades.
             std140_float cascade_interpolation_range = 0.5f;   //!< The range to use for interpolating the cascades. Larger values mean smoother transition, but less quality and performance impact.
             std140_int sample_count                  = 16;     //!< The sample count. Larger values can look more natural, but may cause artefacts and performance drops.
             std140_float slope_bias                  = 0.005f; //!< The slope bias.
@@ -141,9 +141,6 @@ namespace mango
 
         //! \brief The offset for the projection.
         float m_shadow_map_offset = 0.0f; // TODO Paul: This can probably be done better.
-
-        //! \brief Dirty bit for cascade count update.
-        bool m_dirty_cascades;
 
         //! \brief The shadow data buffer.
         gfx_handle<const gfx_buffer> m_shadow_data_buffer;

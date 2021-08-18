@@ -2,7 +2,7 @@
 #define MANGO_SHADOW_FUNCTIONS_GLSL
 
 #include <shadow.glsl>
-#include <shadow.glsl>
+#include <camera.glsl>
 #include <common_constants_and_functions.glsl>
 
 // interpolation_mode: 0 -> no interpolation | 1 -> interpolation from cascade_id to cascade_id + 1 - shadow_cascade_interpolation_range | 2 -> interpolation from cascade_id - 1  + shadow_cascade_interpolation_range to cascade_id
@@ -10,14 +10,13 @@ int compute_cascade_id(in float view_depth, out float interpolation_factor, out 
 {
     interpolation_mode = 0;
     int cascade_id = 0;
-    int num_cascades = shadow_cascade_count;
-    for(int i = 1; i <= num_cascades; ++i)
+    for(int i = 0; i < shadow_cascade_count; ++i)
     {
         float i_value = split_depth[i];
-        if(view_depth <= i_value)
+        if(view_depth < i_value)
         {
-            cascade_id = i - 1;
-            float i_minus_one_value = split_depth[i - 1];
+            cascade_id = i;
+            float i_minus_one_value = i > 0 ? split_depth[i - 1] : camera_near;
             float mid = (i_value + i_minus_one_value) * 0.5;
             if(view_depth > mid && view_depth > i_value - shadow_cascade_interpolation_range)
             {
@@ -37,7 +36,7 @@ int compute_cascade_id(in float view_depth, out float interpolation_factor, out 
 
     if(cascade_id == 0 && interpolation_mode == 2)
         interpolation_mode = 0;
-    if(cascade_id == num_cascades - 1 && interpolation_mode == 1)
+    if(cascade_id == shadow_cascade_count - 1 && interpolation_mode == 1)
         interpolation_mode = 0;
 
     return cascade_id;
