@@ -1,5 +1,4 @@
 #include <../include/camera.glsl>
-#include <../include/renderer.glsl>
 
 layout(location = 0) in vec3 vertex_data_position;
 

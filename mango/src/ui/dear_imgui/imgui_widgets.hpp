@@ -1,17 +1,17 @@
 //! \file      imgui_widgets.hpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2020
+//! \date      2021
 //! \copyright Apache License 2.0
 
 #ifndef MANGO_IMGUI_WIDGETS_HPP
 #define MANGO_IMGUI_WIDGETS_HPP
 
-#include "tinyfiledialogs.h"
-#include <core/context_impl.hpp>
 //! \cond NO_COND
 #define GLM_FORCE_SILENT_WARNINGS 1
 //! \endcond
+#include "tinyfiledialogs.h"
+#include <core/context_impl.hpp>
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtx/vector_angle.hpp>
 #include <mango/imgui_helper.hpp>
@@ -661,9 +661,9 @@ namespace mango
 
                                         if (changed)
                                         {
-                                            glm::quat x_quat         = glm::angleAxis(glm::radians(tr->rotation_hint.x - rotation_hint_before.x), vec3(1.0f, 0.0f, 0.0f));
-                                            glm::quat y_quat         = glm::angleAxis(glm::radians(tr->rotation_hint.y - rotation_hint_before.y), vec3(0.0f, 1.0f, 0.0f));
-                                            glm::quat z_quat         = glm::angleAxis(glm::radians(tr->rotation_hint.z - rotation_hint_before.z), vec3(0.0f, 0.0f, 1.0f));
+                                            quat x_quat         = glm::angleAxis(glm::radians(tr->rotation_hint.x - rotation_hint_before.x), vec3(1.0f, 0.0f, 0.0f));
+                                            quat y_quat         = glm::angleAxis(glm::radians(tr->rotation_hint.y - rotation_hint_before.y), vec3(0.0f, 1.0f, 0.0f));
+                                            quat z_quat         = glm::angleAxis(glm::radians(tr->rotation_hint.z - rotation_hint_before.z), vec3(0.0f, 0.0f, 1.0f));
                                             tr->public_data.rotation = x_quat * y_quat * z_quat * tr->public_data.rotation;
                                             tr->public_data.update();
                                         }

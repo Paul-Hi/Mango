@@ -9,6 +9,7 @@
 
 #include <graphics/graphics_resources.hpp>
 #include <mango/scene_structures.hpp>
+#include <util/intersect.hpp>
 
 namespace mango
 {
@@ -123,6 +124,9 @@ namespace mango
         gfx_format index_type;
         //! \brief The \a draw_call_description providing information to schedule a draw call for this \a scene_primitive.
         draw_call_description draw_call_desc;
+
+        //! \brief The \a axis_aligned_bounding_box of this \a scene_primitive.
+        axis_aligned_bounding_box bounding_box;
 
         scene_primitive()
             : index_type(gfx_format::t_unsigned_byte)

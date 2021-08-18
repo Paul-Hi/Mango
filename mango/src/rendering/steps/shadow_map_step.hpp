@@ -1,7 +1,7 @@
 //! \file      shadow_map_step.hpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2020
+//! \date      2021
 //! \copyright Apache License 2.0
 
 #ifndef MANGO_SHADOW_MAP_STEP_HPP
@@ -10,6 +10,7 @@
 #include <core/context_impl.hpp>
 #include <graphics/graphics.hpp>
 #include <rendering/steps/render_step.hpp>
+#include <util/intersect.hpp>
 
 namespace mango
 {
@@ -24,10 +25,10 @@ namespace mango
         {
             std140_mat4 view_projection_matrices[max_shadow_mapping_cascades]; //!< The view projection matrices.
             // TODO Paul: We really should not use arrays with that padding -.-
-            std140_float_array split_depth[max_shadow_mapping_cascades + 1]; //!< The calculated split depths. Times two because of better alignment
-            std140_vec4 far_planes;                                          //!< The far planes of the shadow views.
-            std140_int resolution                    = 2048;                 //!< The shadow map resolution.
-            std140_int cascade_count                 = 3;                    //!< The number of cascades.
+            std140_float_array split_depth[max_shadow_mapping_cascades]; //!< The calculated split depths.
+            std140_vec4 far_planes;                                      //!< The far planes of the shadow views.
+            std140_int resolution                    = 2048;             //!< The shadow map resolution.
+            std140_int cascade_count                 = 3;                //!< The number of cascades.
             std140_float cascade_interpolation_range = 0.5f;   //!< The range to use for interpolating the cascades. Larger values mean smoother transition, but less quality and performance impact.
             std140_int sample_count                  = 16;     //!< The sample count. Larger values can look more natural, but may cause artefacts and performance drops.
             std140_float slope_bias                  = 0.005f; //!< The slope bias.
@@ -35,7 +36,7 @@ namespace mango
             std140_int filter_mode                   = 0;      //!< shadow_filtering parameter.
             std140_float shadow_width                = 1.0f;   //!< Width of the PCF shadow.
             std140_float shadow_light_size           = 4.0f;   //!< Size of the light used for PCSS shadow.
-            std140_float pad0;                                 //!< Padding.
+            std140_int cascade                       = 0;      //!< The currently rendered cascade. Only used in the rendering process, not required in th lookup while lighting is calculated.
             std140_float pad1;                                 //!< Padding.
             std140_float pad2;                                 //!< Padding.
         };
@@ -98,6 +99,14 @@ namespace mango
             return m_shadow_data.resolution;
         }
 
+        //! \brief Returns a \a bounding_frustum of a shadow map cascade.
+        //! \param[in] cascade_idx The index of the cascade to query the \a bounding_frustum for.
+        //! \return The \a bounding_frustum of the shadow map cascade.
+        inline const bounding_frustum& get_cascade_frustum(int32 cascade_idx)
+        {
+            return m_cascade_data.frusta[cascade_idx];
+        }
+
         //! \brief Updates the cascades for CSM.
         //! \details Calculates the camera frustum, the cascade split depths and the view projection matrices for the directional light.
         //! \param[in] dt Time since last call.
@@ -136,9 +145,6 @@ namespace mango
         //! \brief The offset for the projection.
         float m_shadow_map_offset = 0.0f; // TODO Paul: This can probably be done better.
 
-        //! \brief Dirty bit for cascade count update.
-        bool m_dirty_cascades;
-
         //! \brief The shadow data buffer.
         gfx_handle<const gfx_buffer> m_shadow_data_buffer;
 
@@ -147,12 +153,12 @@ namespace mango
 
         struct
         {
-            float camera_near;          //!< The cameras near plane depth.
-            float camera_far;           //!< The cameras far plane depth.
-            vec3 directional_direction; //!< The direction to the light.
-            float lambda;               //!< Lambda used to calculate split depths uniform <-> log.
-
-        } m_cascade_data; //!< Data required to calculate shadow cascades.
+            float camera_near;                                    //!< The cameras near plane depth.
+            float camera_far;                                     //!< The cameras far plane depth.
+            vec3 directional_direction;                           //!< The direction to the light.
+            float lambda;                                         //!< Lambda used to calculate split depths uniform <-> log.
+            bounding_frustum frusta[max_shadow_mapping_cascades]; //!< List of current frusta.
+        } m_cascade_data;                                         //!< Data required to calculate shadow cascades.
     };
 } // namespace mango
 

@@ -1,14 +1,14 @@
 //! \file      scene_impl.cpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2020
+//! \date      2021
 //! \copyright Apache License 2.0
 
-#include <core/context_impl.hpp>
-#include <glad/glad.h>
 //! \cond NO_COND
 #define GLM_FORCE_SILENT_WARNINGS 1
 //! \endcond
+#include <core/context_impl.hpp>
+#include <glad/glad.h>
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -1614,11 +1614,11 @@ void scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const s
         }
         if (n.rotation.size() == 4)
         {
-            tr.public_data.rotation = glm::quat(static_cast<float>(n.rotation[3]), static_cast<float>(n.rotation[0]), static_cast<float>(n.rotation[1]), static_cast<float>(n.rotation[2]));
+            tr.public_data.rotation = quat(static_cast<float>(n.rotation[3]), static_cast<float>(n.rotation[0]), static_cast<float>(n.rotation[1]), static_cast<float>(n.rotation[2]));
         }
         else
         {
-            tr.public_data.rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+            tr.public_data.rotation = quat(1.0f, 0.0f, 0.0f, 0.0f);
         }
         if (n.scale.size() == 3)
         {
@@ -1827,12 +1827,12 @@ sid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const
                 sp.vertex_layout.attribute_descriptions[description_index] = attrib_desc;
                 description_index++;
 
-                // AABB // TODO Paul: AABB
-                // if (attrib_location == 0)
-                // {
-                //     sp.bounding_box.min = accessor.minValues.data();
-                //     sp.bounding_box.max = accessor.maxValues.data();
-                // }
+                // AABB
+                if (attrib_location == 0)
+                {
+                    sp.bounding_box = axis_aligned_bounding_box::from_min_max(vec3(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]),
+                                                                              vec3(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]));
+                }
             }
             else
             {
@@ -2277,7 +2277,7 @@ void scene_impl::update(float dt)
             {
                 // recalculate node matrices
                 nd.local_transformation_matrix = glm::translate(mat4(1.0), tr.public_data.position);
-                nd.local_transformation_matrix = nd.local_transformation_matrix * glm::toMat4(tr.public_data.rotation);
+                nd.local_transformation_matrix = nd.local_transformation_matrix * glm::mat4_cast(tr.public_data.rotation);
                 nd.local_transformation_matrix = glm::scale(nd.local_transformation_matrix, tr.public_data.scale);
 
                 nd.global_transformation_matrix = nd.local_transformation_matrix;

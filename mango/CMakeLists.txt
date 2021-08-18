@@ -27,15 +27,12 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/scene.hpp
     # Renderer
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/renderer.hpp
-    #Utils
+    # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/packed_freelist.hpp
 )
 
 set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/hashing.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/helpers.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/signal.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/timer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.hpp
@@ -43,6 +40,11 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/linear_allocator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/free_list_allocator.hpp
 
+    # Utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/hashing.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/helpers.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/signal.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/intersect.hpp
     # Display
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/display_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/display_event_handler_impl.hpp
@@ -84,6 +86,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/environment_display_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/debug_drawer.hpp
 )
 
 set(SOURCES
@@ -95,10 +98,13 @@ set(SOURCES
     # ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/mesh_factory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/helpers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/linear_allocator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/free_list_allocator.cpp
 
+
+    # Utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/helpers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/intersect.cpp
     # Display
     $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/glfw/glfw_display.cpp>
     $<$<BOOL:${LINUX}>:${CMAKE_CURRENT_SOURCE_DIR}/src/core/glfw/glfw_display.cpp>
@@ -126,6 +132,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer_pipeline_cache.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_renderer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/debug_drawer.cpp
 )
 
 add_library(mango

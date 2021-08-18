@@ -4,14 +4,12 @@ vec4 tonemap_with_gamma_correction(in vec4 color);
 
 void main()
 {
-    bool no_correction = debug_view_enabled;
-    if (no_correction) // TODO Paul: This is weird.
-    {
-        frag_color = texture(sampler_hdr_input, texcoord);
-        return;
-    }
+    float depth  = texture(sampler_geometry_depth_input, texcoord).r;
+    gl_FragDepth = depth; // pass through for debug drawer (atm).
 
-    frag_color = tonemap_with_gamma_correction(texture(sampler_hdr_input, texcoord));
+    bool no_correction = debug_view_enabled; // TODO Paul: This is weird.
+
+    frag_color = no_correction ? texture(sampler_hdr_input, texcoord) : tonemap_with_gamma_correction(texture(sampler_hdr_input, texcoord));
 }
 
 vec3 uncharted2_tonemap(in vec3 color)
