@@ -10,6 +10,7 @@
 #include <core/context_impl.hpp>
 #include <graphics/graphics.hpp>
 #include <rendering/steps/render_step.hpp>
+#include <util/intersect.hpp>
 
 namespace mango
 {
@@ -35,7 +36,7 @@ namespace mango
             std140_int filter_mode                   = 0;      //!< shadow_filtering parameter.
             std140_float shadow_width                = 1.0f;   //!< Width of the PCF shadow.
             std140_float shadow_light_size           = 4.0f;   //!< Size of the light used for PCSS shadow.
-            std140_float pad0;                                 //!< Padding.
+            std140_int cascade                       = 0;      //!< The currently rendered cascade. Only used in the rendering process, not required in th lookup while lighting is calculated.
             std140_float pad1;                                 //!< Padding.
             std140_float pad2;                                 //!< Padding.
         };
@@ -98,6 +99,11 @@ namespace mango
             return m_shadow_data.resolution;
         }
 
+        inline const bounding_frustum& get_cascade_frustum(int32 cascade_idx)
+        {
+            return m_cascade_data.frusta[cascade_idx];
+        }
+
         //! \brief Updates the cascades for CSM.
         //! \details Calculates the camera frustum, the cascade split depths and the view projection matrices for the directional light.
         //! \param[in] dt Time since last call.
@@ -147,12 +153,12 @@ namespace mango
 
         struct
         {
-            float camera_near;          //!< The cameras near plane depth.
-            float camera_far;           //!< The cameras far plane depth.
-            vec3 directional_direction; //!< The direction to the light.
-            float lambda;               //!< Lambda used to calculate split depths uniform <-> log.
-
-        } m_cascade_data; //!< Data required to calculate shadow cascades.
+            float camera_near;                                    //!< The cameras near plane depth.
+            float camera_far;                                     //!< The cameras far plane depth.
+            vec3 directional_direction;                           //!< The direction to the light.
+            float lambda;                                         //!< Lambda used to calculate split depths uniform <-> log.
+            bounding_frustum frusta[max_shadow_mapping_cascades]; //!< List of current frusta.
+        } m_cascade_data;                                         //!< Data required to calculate shadow cascades.
     };
 } // namespace mango
 

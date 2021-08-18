@@ -79,46 +79,17 @@ namespace mango
     {
       public:
         //! \brief Constructs a \a bounding_frustum.
-        //! \param[in] near_z Near plane z value.
-        //! \param[in] far_z Fat plane z value.
-        //! \param[in] right_slope Slope from near to far in +x direction.
-        //! \param[in] left_slope Slope from near to far in -x direction.
-        //! \param[in] bottom_slope Slope from near to far in +y direction
-        //! \param[in] top_slope Slope from near to far in -y direction.
-        //! \param[in] frustum_origin The origin of the new \a bounding_frustum.
-        //! \param[in] frustum_rotation The rotation of the new \a bounding_frustum.
-        bounding_frustum(float near_z, float far_z, float right_slope, float left_slope, float bottom_slope, float top_slope, const vec3& frustum_origin, const quat& frustum_rotation)
-            : z_near(near_z)
-            , z_far(far_z)
-            , slope_right(right_slope)
-            , slope_left(left_slope)
-            , slope_bottom(bottom_slope)
-            , slope_top(top_slope)
-            , origin(frustum_origin)
-            , rotation(frustum_rotation)
+        //! \param[in] frustum_planes The six bounding planes of the new \a bounding_frustum.
+        bounding_frustum(const std::array<vec4, 6>& frustum_planes)
+            : planes(frustum_planes)
         {
         }
-        //! \brief Constructs a \a bounding_frustum from a projection matrix.
-        //! \details Matrix must not include any translation, rotation or scale, only a projection.
+        //! \brief Constructs a \a bounding_frustum from a view projection matrix.
+        //! \param[in] view The view matrix to construct the \a bounding_frustum from.
         //! \param[in] projection The projection matrix to construct the \a bounding_frustum from.
-        bounding_frustum(const mat4& projection);
-        bounding_frustum()
-            : z_near(0.0f)
-            , z_far(0.0f)
-            , slope_right(0.0f)
-            , slope_left(0.0f)
-            , slope_bottom(0.0f)
-            , slope_top(0.0f)
-            , origin(0.0f)
-            , rotation(1.0f, 0.0f, 0.0f, 0.0f)
-        {
-        }
+        bounding_frustum(const mat4& view, const mat4& projection);
+        bounding_frustum() = default;
 
-        //! \brief Creates and returns a transformed \a bounding_frustum.
-        //! \details Does only transform the box! No recalculation based on transformed enclosed geometry is done here!
-        //! \param[in] transformation_matrix The transformation to transform the \a bounding_frustum.
-        //! \return A transformed \a bounding_frustum.
-        bounding_frustum get_transformed(mat4 transformation_matrix);
         //! \brief Retrieves the \a bounding_sphere of the \a bounding_frustum.
         //! \return The \a bounding_sphere enclosing the \a bounding_frustum.
         bounding_sphere get_bounding_sphere();
@@ -128,9 +99,10 @@ namespace mango
         //! \brief Retrieves center point of the \a bounding_frustum.
         //! \return The center point.
         vec3 get_center();
-        //! \brief Retrieves the corner points of the \a bounding_frustum.
+        //! \brief Retrieves frustum corner points for a given view projection matrix.
+        //! \param[in] view_projection The view projection matrix to use.
         //! \return The corner points.
-        std::array<vec3, 8> get_corners();
+        static std::array<vec3, 8> get_corners(const mat4& view_projection);
 
         //! \brief Checks the intersection of this \a bounding_frustum with another one.
         //! \return True, if the two \a bounding_frustums intersect, else false.
@@ -156,23 +128,9 @@ namespace mango
         //! \return The \a containment_result of the query.
         containment_result contains(const axis_aligned_bounding_box& other) const;
 
-        //! \brief Near plane z value.
-        float z_near;
-        //! \brief Far plane z value.
-        float z_far;
-        //! \brief Slope from near to far in +x direction.
-        float slope_left;
-        //! \brief Slope from near to far in -x direction.
-        float slope_right;
-        //! \brief Slope from near to far in +y direction.
-        float slope_top;
-        //! \brief Slope from near to far in -y direction.
-        float slope_bottom;
-
-        //! \brief Origin of the frustum.
-        vec3 origin;
-        //! \brief Rotation of the frustum.
-        quat rotation;
+        //! \brief Planes of the frustum.
+        //! \details Planes are: x,y,z = normal pointing inwards / w = offset to (0,0,0).
+        std::array<vec4, 6> planes;
     };
 
     //! \brief An axis aligned bounding box.
@@ -204,7 +162,7 @@ namespace mango
         axis_aligned_bounding_box get_transformed(mat4 transformation_matrix) const;
         //! \brief Retrieves the corner points of the \a axis_aligned_bounding_box.
         //! \return The corner points.
-        std::array<vec3, 8> get_corners();
+        std::array<vec3, 8> get_corners() const;
 
         //! \brief Checks the intersection of this \a axis_aligned_bounding_box with another one.
         //! \return True, if the two \a axis_aligned_bounding_boxes intersect, else false.

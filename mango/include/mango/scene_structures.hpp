@@ -484,7 +484,7 @@ namespace mango
             , emissive_intensity(default_emissive_intensity)
             , double_sided(false)
             , alpha_mode(material_alpha_mode::mode_opaque)
-            , alpha_cutoff(0.5f)
+            , alpha_cutoff(1.0f)
 
         {
         }

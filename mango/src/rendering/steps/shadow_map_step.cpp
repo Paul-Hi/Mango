@@ -257,7 +257,7 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
     }
 
     // calculate camera frustum in world space
-    // TODO Paul: As soon as we need that more often we should do this in the camera.
+    // TODO Paul: Could we extract this to bounding_frustum?
     vec3 frustum_corners[8] = {
         vec3(-1.0f, 1.0f, -1.0f), vec3(1.0f, 1.0f, -1.0f), vec3(1.0f, -1.0f, -1.0f), vec3(-1.0f, -1.0f, -1.0f),
         vec3(-1.0f, 1.0f, 1.0f),  vec3(1.0f, 1.0f, 1.0f),  vec3(1.0f, -1.0f, 1.0f),  vec3(-1.0f, -1.0f, 1.0f),
@@ -319,7 +319,9 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         offset.w = 0.0f;
         projection[3] += offset;
 
+
         m_shadow_data.view_projection_matrices[casc] = projection * view;
+        m_cascade_data.frusta[casc] = bounding_frustum(view, projection);
     }
 }
 

@@ -43,64 +43,22 @@ containment_result bounding_sphere::contains(const axis_aligned_bounding_box& ot
     return containment_result::disjoint; // TODO
 }
 
-bounding_frustum::bounding_frustum(const mat4& projection)
+bounding_frustum::bounding_frustum(const mat4& view, const mat4& projection)
 {
-    // Calculate camera frustum in world space
-    static vec3 points_hom[6] = {
-        vec3(-1.0f, 0.0f, 1.0f), // (far) left
-        vec3(1.0f, 0.0f, 1.0f),  // (far) right
-        vec3(0.0f, -1.0f, 1.0f), // (far) bottom
-        vec3(0.0f, 1.0f, 1.0f),  // (far) top
-
-        vec3(0.0f, 0.0f, -1.0f), // near center
-        vec3(0.0f, 0.0f, 1.0f),  // far center
-    };
-
-    vec3 points[6];
-    mat4 inverse_projection = glm::inverse(projection);
-    for (int32 i = 0; i < 6; ++i)
-    {
-        vec4 p    = inverse_projection * vec4(points_hom[i], 1.0f);
-        points[i] = vec3(p / p.w);
-    }
-
-    origin   = vec3(0.0f);
-    rotation = quat(1.0f, 0.0f, 0.0f, 0.0f);
-
-    z_near = points[4].z;
-    z_far  = points[5].z;
-
-    slope_left   = (points[0] / points[0].z).x;
-    slope_right  = (points[1] / points[1].z).x;
-    slope_bottom = (points[2] / points[2].z).y;
-    slope_top    = (points[3] / points[3].z).y;
-}
-
-bounding_frustum bounding_frustum::get_transformed(mat4 transformation_matrix)
-{
-    bounding_frustum result;
-    vec3 s;
-    vec4 p;
-    vec3 t;
-    quat tr_rotation;
-    vec3 tr_scale;
-    glm::decompose(transformation_matrix, tr_scale, tr_rotation, t, s, p);
-
-    result.rotation = rotation * tr_rotation;
-
-    result.origin = vec3(transformation_matrix * vec4(origin, 1.0f));
-
-    float scale = glm::compMax(tr_scale);
-
-    result.z_near = z_near * scale;
-    result.z_far  = z_far * scale;
-
-    result.slope_left   = slope_left;
-    result.slope_right  = slope_right;
-    result.slope_bottom = slope_bottom;
-    result.slope_top    = slope_top;
-
-    return result;
+    // Gribb/Hartmann
+    mat4 combined = glm::transpose(projection * view);
+    // Left
+    planes[0] = glm::normalize(combined[3] + combined[0]);
+    // Right
+    planes[1] = glm::normalize(combined[3] - combined[0]);
+    // Top
+    planes[2] = glm::normalize(combined[3] - combined[1]);
+    // Bottom
+    planes[3] = glm::normalize(combined[3] + combined[1]);
+    // Near
+    planes[4] = glm::normalize(combined[3] + combined[2]);
+    // Far
+    planes[5] = glm::normalize(combined[3] - combined[2]);
 }
 
 bounding_sphere bounding_frustum::get_bounding_sphere()
@@ -118,34 +76,32 @@ vec3 bounding_frustum::get_center()
     return vec3(0.0f); // TODO
 }
 
-std::array<vec3, 8> bounding_frustum::get_corners()
+std::array<vec3, 8> bounding_frustum::get_corners(const mat4& view_projection)
 {
-    vec4 stored[6] = {
-        vec4(z_near),                                // near
-        vec4(z_far),                                 // far
-        vec4(slope_right, slope_top, 1.0f, 0.0f),    // top right
-        vec4(slope_right, slope_bottom, 1.0f, 0.0f), // bottom right
-        vec4(slope_left, slope_top, 1.0f, 0.0f),     // top left
-        vec4(slope_left, slope_bottom, 1.0f, 0.0f),  // bottom left
+    // Homogenous points
+    static vec4 hom[8] = {
+        { 1.0f, 1.0f, 0.0f, 1.0f },   // top right near
+        { 1.0f, -1.0f, 0.0f, 1.0f },  // bottom right near
+        { -1.0f, 1.0f, 0.0f, 1.0f },  // top left near
+        { -1.0f, -1.0f, 0.0f, 1.0f }, // bottom left near
+        { 1.0f, 1.0f, 1.0f, 1.0f },   // top right far
+        { 1.0f, -1.0f, 1.0f, 1.0f },  // bottom right far
+        { -1.0f, 1.0f, 1.0f, 1.0f },  // top left far
+        { -1.0f, -1.0f, 1.0f, 1.0f }  // bottom left far
     };
+    std::array<vec4, 8> intermediate;
+    std::array<vec3, 8> points;
 
-    std::array<vec3, 8> points = {
-        stored[0] * stored[2], // top right near
-        stored[0] * stored[3], // bottom right near
-        stored[0] * stored[4], // top left near
-        stored[0] * stored[5], // bottom left near
-        stored[1] * stored[2], // top right far
-        stored[1] * stored[3], // bottom right far
-        stored[1] * stored[4], // top left far
-        stored[1] * stored[5]  // bottom left far
-    };
+    mat4 inverse = glm::inverse(view_projection);
 
-    for (int32 i = 0; i < 8; ++i)
+    for (int i = 0; i < 8; i++)
     {
-        points[i] = (rotation * points[i]) + origin;
+        intermediate[i] = inverse * hom[i];
+
+        points[i] = vec3(intermediate[i] / intermediate[i].w);
     }
 
-    return points;
+    return points; // TODO
 }
 
 bool bounding_frustum::intersects(const bounding_frustum& other) const
@@ -165,21 +121,7 @@ bool bounding_frustum::intersects(const axis_aligned_bounding_box& other) const
 
 bool bounding_frustum::intersects_fast(const axis_aligned_bounding_box& other) const
 {
-    // setup frustum planes (normals point inwards)
-    // x,y,z normal / w offset
-    vec4 planes[6] = {
-        vec4(0.0f, 0.0f, -1.0f, z_near),      // near
-        vec4(0.0f, 0.0f, 1.0f, -z_far),       // far
-        vec4(-1.0f, 0.0f, slope_right, 0.0f), // right
-        vec4(1.0f, 0.0f, -slope_left, 0.0f),  // left
-        vec4(0.0f, -1.0f, slope_top, 0.0f),   // top
-        vec4(0.0f, 1.0f, -slope_bottom, 0.0f) // bottom
-    };
-
-    // Transform box to frustum space
-    mat4 transformation_matrix             = glm::translate(glm::mat4_cast(glm::inverse(rotation)), -origin);
-    axis_aligned_bounding_box bounding_box = other.get_transformed(transformation_matrix);
-    auto corners                           = bounding_box.get_corners();
+    auto corners = other.get_corners();
 
     // First check all planes
     for (int32 i = 0; i < 6; ++i)
@@ -253,7 +195,7 @@ axis_aligned_bounding_box axis_aligned_bounding_box::get_transformed(mat4 transf
     return axis_aligned_bounding_box::from_min_max(min_value, max_value);
 }
 
-std::array<vec3, 8> axis_aligned_bounding_box::get_corners()
+std::array<vec3, 8> axis_aligned_bounding_box::get_corners() const
 {
     std::array<vec3, 8> points = {
         center + vec3(extents.x, extents.y, extents.z),   //

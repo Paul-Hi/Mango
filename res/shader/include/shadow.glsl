@@ -19,6 +19,7 @@ layout(binding = SHADOW_DATA_BUFFER_BINDING_POINT, std140) uniform shadow_data
     int   shadow_filter_mode;
     float shadow_width;
     float shadow_light_size;
+    int   cascade;
 };
 
 #endif // MANGO_SHADOW_GLSL
