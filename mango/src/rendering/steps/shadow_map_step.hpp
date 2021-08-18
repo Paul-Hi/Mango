@@ -99,6 +99,9 @@ namespace mango
             return m_shadow_data.resolution;
         }
 
+        //! \brief Returns a \a bounding_frustum of a shadow map cascade.
+        //! \param[in] cascade_idx The index of the cascade to query the \a bounding_frustum for.
+        //! \return The \a bounding_frustum of the shadow map cascade.
         inline const bounding_frustum& get_cascade_frustum(int32 cascade_idx)
         {
             return m_cascade_data.frusta[cascade_idx];

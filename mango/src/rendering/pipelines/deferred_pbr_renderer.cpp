@@ -59,7 +59,10 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
     m_renderer_data.metallic_debug_view         = false;
     m_renderer_data.show_cascades               = false;
 
-    m_vsync = configuration.is_vsync_enabled();
+    m_vsync           = configuration.is_vsync_enabled();
+    m_wireframe       = configuration.should_draw_wireframe();
+    m_frustum_culling = configuration.is_frustum_culling_enabled();
+    m_debug_bounds    = configuration.should_draw_debug_bounds();
 
     auto device_context = m_graphics_device->create_graphics_device_context();
     device_context->begin();
@@ -1084,9 +1087,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     auto instances     = scene->get_render_instances();
     if (m_debug_bounds)
         m_debug_drawer.clear();
-    bool frustum_culling = true; // TODO Paul: Hardcoded!
     bounding_frustum camera_frustum;
-    if (frustum_culling)
+    if (m_frustum_culling)
     {
         camera_frustum = bounding_frustum(mat4(m_camera_data.view_matrix), mat4(m_camera_data.projection_matrix));
         if (m_debug_bounds)
@@ -1218,10 +1220,10 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                     {
                         auto& dc = draws[c];
 
-                        if (frustum_culling)
+                        if (m_frustum_culling)
                         {
                             auto& bb = dc.bounding_box;
-                            if (!cascade_frustum.intersects_fast(bb))
+                            if (!cascade_frustum.intersects(bb))
                                 continue;
                         }
 
@@ -1332,10 +1334,10 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         {
             auto& dc = draws[c];
 
-            if (frustum_culling)
+            if (m_frustum_culling)
             {
                 auto& bb = dc.bounding_box;
-                if (!camera_frustum.intersects_fast(bb))
+                if (!camera_frustum.intersects(bb))
                     continue;
             }
             if (m_debug_bounds)
@@ -1613,10 +1615,10 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         {
             auto& dc = draws[c];
 
-            if (frustum_culling)
+            if (m_frustum_culling)
             {
                 auto& bb = dc.bounding_box;
-                if (!camera_frustum.intersects_fast(bb))
+                if (!camera_frustum.intersects(bb))
                     continue;
             }
             if (m_debug_bounds)
@@ -1985,6 +1987,7 @@ void deferred_pbr_renderer::on_ui_widget()
         device_context->end();
         device_context->submit();
     }
+    checkbox("Frustum Culling", &m_frustum_culling, true);
     ImGui::Separator();
     bool has_environment_display = m_pipeline_steps[mango::render_pipeline_step::environment_display] != nullptr;
     bool has_shadow_map          = m_pipeline_steps[mango::render_pipeline_step::shadow_map] != nullptr;

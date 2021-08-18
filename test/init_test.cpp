@@ -29,6 +29,7 @@ namespace mango
     TEST_F(init_test, init_does_not_fail_on_context_creation)
     {
         ASSERT_NO_FATAL_FAILURE(m_application = std::make_shared<fake_application>());
+        EXPECT_CALL(*m_application, create()).WillOnce(Return(true));
         auto mango_context = m_application->m_context;
         mango_context->set_application(m_application);
 

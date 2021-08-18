@@ -140,9 +140,8 @@ namespace mango
         //! \brief The light stack managing all lights.
         light_stack m_light_stack;
 
+        //! \brief The \a debug_drawer to debug draw.
         debug_drawer m_debug_drawer;
-
-        bool m_debug_bounds;
 
         //! \brief Optional additional steps of the deferred pipeline.
         shared_ptr<render_step> m_pipeline_steps[mango::render_pipeline_step::number_of_steps];
@@ -157,7 +156,13 @@ namespace mango
         gfx_handle<const gfx_semaphore> m_luminance_semaphore;
 
         //! \brief True if the renderer should draw wireframe, else false.
-        bool m_wireframe = false;
+        bool m_wireframe;
+
+        //! \brief True if the renderer should draw debug bounds, else false.
+        bool m_debug_bounds;
+
+        //! \brief True if the renderer should cull primitives against camera and shadow frusta, else false.
+        bool m_frustum_culling;
 
         //! \brief The \a gfx_semaphore used to synchronize \a renderer frames.
         gfx_handle<const gfx_semaphore> m_frame_semaphore;

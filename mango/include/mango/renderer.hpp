@@ -411,22 +411,31 @@ namespace mango
         renderer_configuration()
             : m_base_pipeline(render_pipeline::default_pbr)
             , m_vsync(true)
+            , m_wireframe(false)
+            , m_frustum_culling(true)
+            , m_debug_bounds(false)
         {
             std::memset(m_render_steps, 0, render_pipeline_step::number_of_steps * sizeof(bool));
         }
 
         //! \brief Constructs a \a renderer_configuration with specific values.
         //! \param[in] base_render_pipeline The  base \a render_pipeline of the \a renderer to configure.
-        //! \param[in] vsync The  setting for the \a renderer. Spezifies if vertical synchronization should be enabled or disabled.
-        renderer_configuration(render_pipeline base_render_pipeline, bool vsync)
+        //! \param[in] vsync The setting for the \a renderer. Spezifies if vertical synchronization should be enabled or disabled.
+        //! \param[in] wireframe The setting for the \a renderer. Spezifies if wireframe should be drawn or not.
+        //! \param[in] frustum_culling The setting for the \a renderer. Spezifies if frustum culling should be enabled or disabled.
+        //! \param[in] draw_debug_bounds The setting for the \a renderer. Spezifies if debug bounds should be drawn or not.
+        renderer_configuration(render_pipeline base_render_pipeline, bool vsync, bool wireframe, bool frustum_culling, bool draw_debug_bounds)
             : m_base_pipeline(base_render_pipeline)
             , m_vsync(vsync)
+            , m_wireframe(wireframe)
+            , m_frustum_culling(frustum_culling)
+            , m_debug_bounds(draw_debug_bounds)
         {
             std::memset(m_render_steps, 0, render_pipeline_step::number_of_steps * sizeof(bool));
         }
 
         //! \brief Sets or changes the base \a render_pipeline of the \a renderer in the \a renderer_configuration.
-        //! \param[in] base_render_pipeline The  base \a render_pipeline of the \a renderer to configure.
+        //! \param[in] base_render_pipeline The base \a render_pipeline of the \a renderer to configure.
         //! \return A reference to the modified \a renderer_configuration.
         inline renderer_configuration& set_base_render_pipeline(render_pipeline base_render_pipeline)
         {
@@ -468,7 +477,7 @@ namespace mango
         }
 
         //! \brief Sets or changes the setting for vertical synchronization in the \a renderer_configuration.
-        //! \param[in] vsync The  setting for the \a renderer. Spezifies if vertical synchronization should be enabled or disabled.
+        //! \param[in] vsync The setting for the \a renderer. Spezifies if vertical synchronization should be enabled or disabled.
         //! \return A reference to the modified \a renderer_configuration.
         inline renderer_configuration& set_vsync(bool vsync)
         {
@@ -476,11 +485,59 @@ namespace mango
             return *this;
         }
 
+        //! \brief Sets or changes the setting for wireframe drawing in the \a renderer_configuration.
+        //! \param[in] wireframe The setting for the \a renderer. Spezifies if wireframe should be drawn or not.
+        //! \return A reference to the modified \a renderer_configuration.
+        inline renderer_configuration& draw_wireframe(bool wireframe)
+        {
+            m_wireframe = wireframe;
+            return *this;
+        }
+
+        //! \brief Sets or changes the setting for frustum culling in the \a renderer_configuration.
+        //! \param[in] cull The setting for the \a renderer. Spezifies if frustum culling should be enabled or disabled.
+        //! \return A reference to the modified \a renderer_configuration.
+        inline renderer_configuration& set_frustum_culling(bool cull)
+        {
+            m_frustum_culling = cull;
+            return *this;
+        }
+
+        //! \brief Sets or changes the setting for drawing debug bounds in the \a renderer_configuration.
+        //! \param[in] draw The setting for the \a renderer. Spezifies if debug bounds should be drawn or not.
+        //! \return A reference to the modified \a renderer_configuration.
+        inline renderer_configuration& draw_debug_bounds(bool draw)
+        {
+            m_debug_bounds = draw;
+            return *this;
+        }
+
         //! \brief Retrieves and returns the setting for vertical synchronization of the \a renderer_configuration.
-        //! \return The current  vertical synchronization setting.
+        //! \return The current vertical synchronization setting.
         inline bool is_vsync_enabled() const
         {
             return m_vsync;
+        }
+
+        //! \brief Retrieves and returns the setting for wireframe drawing of the \a renderer_configuration.
+        //! \return The current wireframe drawing setting.
+        inline bool should_draw_wireframe() const
+        {
+            return m_wireframe;
+        }
+
+        //! \brief Retrieves and returns the setting for frustum culling of the \a renderer_configuration.
+        //! \return The current frustum culling setting.
+        inline bool is_frustum_culling_enabled() const
+        {
+            return m_frustum_culling;
+        }
+
+        //! \brief Retrieves and returns the setting for drawing debug bounds of the \a renderer_configuration.
+        //! \return The current setting for drawing debug bounds.
+        inline bool should_draw_debug_bounds() const
+        {
+            return m_debug_bounds;
         }
 
         //! \brief Retrieves and returns the base \a render_pipeline set in the \a renderer_configuration.
@@ -525,6 +582,16 @@ namespace mango
         render_pipeline m_base_pipeline;
         //! \brief The setting of the \a renderer_configuration to enable or disable vertical synchronization.
         bool m_vsync;
+
+        //! \brief TThe setting of the \a renderer_configuration to enable or disable wireframe.
+        bool m_wireframe;
+
+        //! \brief The setting of the \a renderer_configuration to enable or disable drawing of debug bounds.
+        bool m_debug_bounds;
+
+        //! \brief The setting of the \a renderer_configuration to enable or disable culling primitives against camera and shadow frusta.
+        bool m_frustum_culling;
+
         //! \brief The additional \a render_pipeline_steps of the \a renderer_configuration to enable or disable vertical synchronization.
         bool m_render_steps[render_pipeline_step::number_of_steps];
 
@@ -567,7 +634,7 @@ namespace mango
       public:
         //! \brief Checks if vertical synchronization is enabled.
         //! \return True if vertical synchronization is enabled, else false.
-        virtual bool is_vsync_enabled() const                  = 0;
+        virtual bool is_vsync_enabled() const = 0;
 
         //! \brief Retrieves the current \a renderer_info.
         //! \return A constant reference to the current \a renderer_info.
@@ -575,7 +642,7 @@ namespace mango
     };
 
     //! \brief A unique pointer holding a \a renderer.
-    using renderer_ptr    = std::unique_ptr<renderer>;
+    using renderer_ptr = std::unique_ptr<renderer>;
 
     //! \brief A constant pointer pointing to a \a renderer.
     using renderer_handle = const renderer*;

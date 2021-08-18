@@ -4,7 +4,6 @@
 //! \date      2021
 //! \copyright Apache License 2.0
 
-#include <glm/gtx/matrix_decompose.hpp>
 #include <util/intersect.hpp>
 
 using namespace mango;
@@ -16,31 +15,7 @@ bool bounding_sphere::intersects(const bounding_sphere& other) const
 
 bool bounding_sphere::intersects(const bounding_frustum& other) const
 {
-    return false; // TODO
-}
-
-bool bounding_sphere::intersects(const axis_aligned_bounding_box& other) const
-{
-    return false; // TODO
-}
-
-containment_result bounding_sphere::contains(const bounding_sphere& other) const
-{
-    if (!intersects(other))
-        return containment_result::disjoint;
-    bool contains = radius >= other.radius;
-    contains      = contains && glm::distance(other.center, center) < radius;
-    return contains ? containment_result::contain : containment_result::intersect;
-}
-
-containment_result bounding_sphere::contains(const bounding_frustum& other) const
-{
-    return containment_result::disjoint; // TODO
-}
-
-containment_result bounding_sphere::contains(const axis_aligned_bounding_box& other) const
-{
-    return containment_result::disjoint; // TODO
+    return other.intersects(*this);
 }
 
 bounding_frustum::bounding_frustum(const mat4& view, const mat4& projection)
@@ -48,32 +23,31 @@ bounding_frustum::bounding_frustum(const mat4& view, const mat4& projection)
     // Gribb/Hartmann
     mat4 combined = glm::transpose(projection * view);
     // Left
-    planes[0] = glm::normalize(combined[3] + combined[0]);
+    planes[0] = combined[3] + combined[0];
     // Right
-    planes[1] = glm::normalize(combined[3] - combined[0]);
+    planes[1] = combined[3] - combined[0];
     // Top
-    planes[2] = glm::normalize(combined[3] - combined[1]);
+    planes[2] = combined[3] - combined[1];
     // Bottom
-    planes[3] = glm::normalize(combined[3] + combined[1]);
+    planes[3] = combined[3] + combined[1];
     // Near
-    planes[4] = glm::normalize(combined[3] + combined[2]);
+    planes[4] = combined[3] + combined[2];
     // Far
-    planes[5] = glm::normalize(combined[3] - combined[2]);
-}
+    planes[5] = combined[3] - combined[2];
 
-bounding_sphere bounding_frustum::get_bounding_sphere()
-{
-    return bounding_sphere(); // TODO
-}
+    float len0 = glm::length(vec3(planes[0].x, planes[0].y, planes[0].z));
+    float len1 = glm::length(vec3(planes[1].x, planes[1].y, planes[1].z));
+    float len2 = glm::length(vec3(planes[2].x, planes[2].y, planes[2].z));
+    float len3 = glm::length(vec3(planes[3].x, planes[3].y, planes[3].z));
+    float len4 = glm::length(vec3(planes[4].x, planes[4].y, planes[4].z));
+    float len5 = glm::length(vec3(planes[5].x, planes[5].y, planes[5].z));
 
-axis_aligned_bounding_box bounding_frustum::get_axis_aligned_bounding_box()
-{
-    return axis_aligned_bounding_box(); // TODO
-}
-
-vec3 bounding_frustum::get_center()
-{
-    return vec3(0.0f); // TODO
+    planes[0] /= len0;
+    planes[1] /= len1;
+    planes[2] /= len2;
+    planes[3] /= len3;
+    planes[4] /= len4;
+    planes[5] /= len5;
 }
 
 std::array<vec3, 8> bounding_frustum::get_corners(const mat4& view_projection)
@@ -101,35 +75,32 @@ std::array<vec3, 8> bounding_frustum::get_corners(const mat4& view_projection)
         points[i] = vec3(intermediate[i] / intermediate[i].w);
     }
 
-    return points; // TODO
-}
-
-bool bounding_frustum::intersects(const bounding_frustum& other) const
-{
-    return false; // TODO
+    return points;
 }
 
 bool bounding_frustum::intersects(const bounding_sphere& other) const
 {
-    return false; // TODO
+    for (int32 i = 0; i < 6; ++i)
+    {
+        if (dot(planes[i], vec4(other.center, 1.0f)) < -other.radius)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool bounding_frustum::intersects(const axis_aligned_bounding_box& other) const
 {
-    return false; // TODO
-}
-
-bool bounding_frustum::intersects_fast(const axis_aligned_bounding_box& other) const
-{
     auto corners = other.get_corners();
 
-    // First check all planes
     for (int32 i = 0; i < 6; ++i)
     {
         bool inside = false;
         for (int j = 0; j < 8; ++j)
         {
-            if (dot(planes[i], vec4(corners[j], 1.0f)) > 0.0f)
+            if (dot(planes[i], vec4(corners[j], 1.0f)) >= 0.0f)
             {
                 inside = true;
                 break;
@@ -141,21 +112,6 @@ bool bounding_frustum::intersects_fast(const axis_aligned_bounding_box& other) c
     }
 
     return true;
-}
-
-containment_result bounding_frustum::contains(const bounding_frustum& other) const
-{
-    return containment_result::disjoint; // TODO
-}
-
-containment_result bounding_frustum::contains(const bounding_sphere& other) const
-{
-    return containment_result::disjoint; // TODO
-}
-
-containment_result bounding_frustum::contains(const axis_aligned_bounding_box& other) const
-{
-    return containment_result::disjoint; // TODO
 }
 
 axis_aligned_bounding_box axis_aligned_bounding_box::from_min_max(const vec3& min_point, const vec3& max_point)
@@ -213,30 +169,10 @@ std::array<vec3, 8> axis_aligned_bounding_box::get_corners() const
 
 bool axis_aligned_bounding_box::intersects(const axis_aligned_bounding_box& other) const
 {
-    return false; // TODO
-}
-
-bool axis_aligned_bounding_box::intersects(const bounding_sphere& other) const
-{
-    return false; // TODO
+    return !glm::any(glm::greaterThan(glm::abs(center - other.center), extents + other.extents));
 }
 
 bool axis_aligned_bounding_box::intersects(const bounding_frustum& other) const
 {
     return other.intersects(*this);
-}
-
-containment_result axis_aligned_bounding_box::contains(const axis_aligned_bounding_box& other) const
-{
-    return containment_result::disjoint; // TODO
-}
-
-containment_result axis_aligned_bounding_box::contains(const bounding_sphere& other) const
-{
-    return containment_result::disjoint; // TODO
-}
-
-containment_result axis_aligned_bounding_box::contains(const bounding_frustum& other) const
-{
-    return containment_result::disjoint; // TODO
 }

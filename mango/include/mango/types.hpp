@@ -8,10 +8,10 @@
 #ifndef MANGO_TYPES_HPP
 #define MANGO_TYPES_HPP
 
-#include <functional>
 //! \cond NO_COND
 #define GLM_FORCE_SILENT_WARNINGS 1
 //! \endcond
+#include <functional>
 #include <algorithm>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>

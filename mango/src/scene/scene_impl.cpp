@@ -4,11 +4,11 @@
 //! \date      2021
 //! \copyright Apache License 2.0
 
-#include <core/context_impl.hpp>
-#include <glad/glad.h>
 //! \cond NO_COND
 #define GLM_FORCE_SILENT_WARNINGS 1
 //! \endcond
+#include <core/context_impl.hpp>
+#include <glad/glad.h>
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/quaternion.hpp>

@@ -159,7 +159,7 @@ void debug_drawer::update_buffer()
     PROFILE_ZONE;
     auto& graphics_device = m_shared_context->get_graphics_device();
 
-    while (m_vertices.size() * sizeof(vec3) > m_buffer_size)
+    while (static_cast<int32>(m_vertices.size()) * sizeof(vec3) > m_buffer_size)
     {
         m_buffer_size *= 2;
         buffer_create_info buffer_info;
@@ -173,7 +173,7 @@ void debug_drawer::update_buffer()
 
     auto device_context = graphics_device->create_graphics_device_context();
     device_context->begin();
-    device_context->set_buffer_data(m_vertex_buffer, 0, m_vertices.size() * sizeof(vec3), m_vertices.data());
+    device_context->set_buffer_data(m_vertex_buffer, 0, static_cast<int32>(m_vertices.size()) * sizeof(vec3), m_vertices.data());
     device_context->end();
     device_context->submit();
     m_vertex_count = static_cast<int32>(m_vertices.size()) / 2;

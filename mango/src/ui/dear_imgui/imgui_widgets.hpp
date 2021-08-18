@@ -7,11 +7,11 @@
 #ifndef MANGO_IMGUI_WIDGETS_HPP
 #define MANGO_IMGUI_WIDGETS_HPP
 
-#include "tinyfiledialogs.h"
-#include <core/context_impl.hpp>
 //! \cond NO_COND
 #define GLM_FORCE_SILENT_WARNINGS 1
 //! \endcond
+#include "tinyfiledialogs.h"
+#include <core/context_impl.hpp>
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtx/vector_angle.hpp>
 #include <mango/imgui_helper.hpp>

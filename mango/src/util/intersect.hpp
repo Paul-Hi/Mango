@@ -13,10 +13,13 @@
 //! \endcond
 #include <array>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 #include <mango/types.hpp>
 
 namespace mango
 {
+    // Interesting: https://github.com/gszauer/GamePhysicsCookbook
+
     //! \brief The result of any contains(...) check.
     enum containment_result : uint8
     {
@@ -53,19 +56,6 @@ namespace mango
         //! \brief Checks the intersection of this \a bounding_sphere with a \a bounding_frustum.
         //! \return True, if the \a bounding_sphere and the \a bounding_frustum intersect, else false.
         bool intersects(const bounding_frustum& other) const;
-        //! \brief Checks the intersection of this \a bounding_sphere with an \a axis_aligned_bounding_box.
-        //! \return True, if the \a bounding_sphere and the \a axis_aligned_bounding_box intersect, else false.
-        bool intersects(const axis_aligned_bounding_box& other) const;
-
-        //! \brief Checks if this \a bounding_sphere contains another one.
-        //! \return The \a containment_result of the query.
-        containment_result contains(const bounding_sphere& other) const;
-        //! \brief Checks if this \a bounding_sphere contains a \a bounding_frustum.
-        //! \return The \a containment_result of the query.
-        containment_result contains(const bounding_frustum& other) const;
-        //! \brief Checks if this \a bounding_sphere contains an \a axis_aligned_bounding_box.
-        //! \return The \a containment_result of the query.
-        containment_result contains(const axis_aligned_bounding_box& other) const;
 
         //! \brief The center point of the \a bounding_sphere.
         vec3 center;
@@ -90,43 +80,17 @@ namespace mango
         bounding_frustum(const mat4& view, const mat4& projection);
         bounding_frustum() = default;
 
-        //! \brief Retrieves the \a bounding_sphere of the \a bounding_frustum.
-        //! \return The \a bounding_sphere enclosing the \a bounding_frustum.
-        bounding_sphere get_bounding_sphere();
-        //! \brief Retrieves the \a axis_aligned_bounding_box of the \a bounding_frustum.
-        //! \return The \a axis_aligned_bounding_box enclosing the \a bounding_frustum.
-        axis_aligned_bounding_box get_axis_aligned_bounding_box();
-        //! \brief Retrieves center point of the \a bounding_frustum.
-        //! \return The center point.
-        vec3 get_center();
         //! \brief Retrieves frustum corner points for a given view projection matrix.
         //! \param[in] view_projection The view projection matrix to use.
         //! \return The corner points.
         static std::array<vec3, 8> get_corners(const mat4& view_projection);
 
-        //! \brief Checks the intersection of this \a bounding_frustum with another one.
-        //! \return True, if the two \a bounding_frustums intersect, else false.
-        bool intersects(const bounding_frustum& other) const;
         //! \brief Checks the intersection of this \a bounding_frustum with a \a bounding_sphere.
         //! \return True, if the \a bounding_frustum and the \a bounding_sphere intersect, else false.
         bool intersects(const bounding_sphere& other) const;
         //! \brief Checks the intersection of this \a bounding_frustum with a \a axis_aligned_bounding_box.
         //! \return True, if the \a bounding_frustum and the \a axis_aligned_bounding_box intersect, else false.
         bool intersects(const axis_aligned_bounding_box& other) const;
-        //! \brief Checks the intersection of this \a bounding_frustum with a \a axis_aligned_bounding_box.
-        //! \details The fast version that is not 100% accurate.
-        //! \return True, if the \a bounding_frustum and the \a axis_aligned_bounding_box intersect, else false.
-        bool intersects_fast(const axis_aligned_bounding_box& other) const;
-
-        //! \brief Checks if this \a bounding_frustum contains another one.
-        //! \return The \a containment_result of the query.
-        containment_result contains(const bounding_frustum& other) const;
-        //! \brief Checks if this \a bounding_frustum contains a \a bounding_sphere.
-        //! \return The \a containment_result of the query.
-        containment_result contains(const bounding_sphere& other) const;
-        //! \brief Checks if this \a bounding_frustum contains a \a axis_aligned_bounding_box.
-        //! \return The \a containment_result of the query.
-        containment_result contains(const axis_aligned_bounding_box& other) const;
 
         //! \brief Planes of the frustum.
         //! \details Planes are: x,y,z = normal pointing inwards / w = offset to (0,0,0).
@@ -167,22 +131,9 @@ namespace mango
         //! \brief Checks the intersection of this \a axis_aligned_bounding_box with another one.
         //! \return True, if the two \a axis_aligned_bounding_boxes intersect, else false.
         bool intersects(const axis_aligned_bounding_box& other) const;
-        //! \brief Checks the intersection of this \a axis_aligned_bounding_box with a \a bounding_sphere.
-        //! \return True, if the \a axis_aligned_bounding_box and the \a bounding_sphere intersect, else false.
-        bool intersects(const bounding_sphere& other) const;
         //! \brief Checks the intersection of this \a axis_aligned_bounding_box with a \a bounding_frustum.
         //! \return True, if the \a axis_aligned_bounding_box and the \a bounding_frustum intersect, else false.
         bool intersects(const bounding_frustum& other) const;
-
-        //! \brief Checks if this \a axis_aligned_bounding_box contains another one.
-        //! \return The \a containment_result of the query.
-        containment_result contains(const axis_aligned_bounding_box& other) const;
-        //! \brief Checks if this \a axis_aligned_bounding_box contains a \a bounding_sphere.
-        //! \return The \a containment_result of the query.
-        containment_result contains(const bounding_sphere& other) const;
-        //! \brief Checks if this \a axis_aligned_bounding_box contains a \a bounding_frustum.
-        //! \return The \a containment_result of the query.
-        containment_result contains(const bounding_frustum& other) const;
 
         //! \brief The center point of the \a axis_aligned_bounding_box.
         vec3 center;
