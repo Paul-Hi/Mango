@@ -29,6 +29,8 @@ namespace mango
 #define SHADOW_DATA_BUFFER_BINDING_POINT 5
     //! \brief The binding point for the \a luminance_data buffer.
 #define LUMINANCE_DATA_BUFFER_BINDING_POINT 6
+    //! \brief The binding point for the \a animation_data buffer.
+#define ANIMATION_DATA_BUFFER_BINDING_POINT 7
 
     //! \brief The vertex input binding point for the position vertex attribute.
 #define VERTEX_INPUT_POSITION 0
@@ -130,8 +132,8 @@ namespace mango
         std140_mat3 normal_matrix; //!< The normal matrix.
         std140_bool has_normals;   //!< Specifies if the mesh has normals as a vertex attribute.
         std140_bool has_tangents;  //!< Specifies if the mesh has tangents as a vertex attribute.
-        std140_float padding0;     //!< Padding.
-        std140_float padding1;     //!< Padding.
+        std140_bool has_joints;   //!< Specifies if the mesh has joints as a vertex attribute.
+        std140_bool has_weights;  //!< Specifies if the mesh has weights as a vertex attribute.
     };
 
     //! \brief Uniform buffer struct for material data.
@@ -152,15 +154,6 @@ namespace mango
         std140_int alpha_mode;                  //!< Specifies the alpha mode to render the material with.
         std140_float alpha_cutoff;              //!< Specifies the alpha cutoff value to render the material with.
         std140_float padding0;                  //!< Padding.
-    };
-
-    //! \brief Structure to store data for adaptive exposure.
-    //! \details Bound to binding point 6.
-    struct luminance_data
-    {
-        std140_int histogram[256]; //!< The histogram data
-        std140_vec4 params;        //!< Parameters used for automatic exposure calculation.
-        std140_float luminance;    //!< Smoothed out average luminance.
     };
 
     //! \brief Structure to store data for light data.
@@ -187,6 +180,24 @@ namespace mango
         std140_float padding0; //!< Padding.
         std140_float padding1; //!< Padding.
         std140_float padding2; //!< Padding.
+    };
+
+    //! \brief Structure to store data for adaptive exposure.
+    //! \details Bound to binding point 6.
+    struct luminance_data
+    {
+        std140_int histogram[256]; //!< The histogram data
+        std140_vec4 params;        //!< Parameters used for automatic exposure calculation.
+        std140_float luminance;    //!< Smoothed out average luminance.
+    };
+
+    static const int32 max_skin_joints = 512; // TODO Paul: Hardcoded ... Not good!
+
+    //! \brief Shader storage buffer struct for animation data.
+    //! \details Bound once per frame to binding point 7.
+    struct animation_data
+    {
+        std140_mat4 joint_matrices[max_skin_joints]; //!< The joint matrices.
     };
 
     //! \brief The implementation of the \a renderer.

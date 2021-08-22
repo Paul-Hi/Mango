@@ -32,6 +32,8 @@ scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& conte
     , m_scene_buffer_views()
     , m_scene_meshes()
     , m_scene_primitives()
+    , m_scene_joints()
+    , m_scene_skins()
     , m_scene_cameras()
     , m_scene_lights()
     , m_scene_transforms()
@@ -1069,6 +1071,20 @@ optional<scene_primitive&> scene_impl::get_scene_primitive(sid instance_id)
     return m_scene_primitives.at(prim);
 }
 
+optional<scene_joint&> scene_impl::get_scene_joint(sid instance_id)
+{
+    PROFILE_ZONE;
+    packed_freelist_id prim = instance_id.id();
+
+    if (!m_scene_joints.contains(prim))
+    {
+        MANGO_LOG_WARN("Joint with ID {0} does not exist!", instance_id.id().get());
+        return NULL_OPTION;
+    }
+
+    return m_scene_joints.at(prim);
+}
+
 optional<scene_texture&> scene_impl::get_scene_texture(sid instance_id)
 {
     PROFILE_ZONE;
@@ -1475,8 +1491,6 @@ std::pair<gfx_handle<const gfx_texture>, gfx_handle<const gfx_sampler>> scene_im
 
 std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& default_scenario)
 {
-    auto& graphics_device = m_shared_context->get_graphics_device();
-
     model_resource_description desc;
     desc.path = path.c_str();
 
@@ -1495,8 +1509,14 @@ std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& def
         MANGO_LOG_DEBUG("The gltf model has {0} scenarios. At the moment only the default one is loaded!", m.scenes.size());
     }
 
-    // load buffers
-    std::vector<sid> buffer_ids(m.buffers.size());
+    model_import_loading_data loading_data;
+    loading_data.buffer_ids.reserve(m.buffers.size());
+    loading_data.skins.reserve(m.skins.size());
+    // Resize since we want a mapping without insertion order.
+    loading_data.buffer_view_ids.resize(m.bufferViews.size());
+    loading_data.node_map.resize(m.nodes.size());
+
+    // load buffers - scene_buffers do not really have a sense atm...
     for (int32 i = 0; i < static_cast<int32>(m.buffers.size()); ++i)
     {
         const tinygltf::Buffer& t_buffer = m.buffers[i];
@@ -1507,46 +1527,7 @@ std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& def
         buf.name             = t_buffer.name;
         buf.data             = t_buffer.data;
 
-        buffer_ids[i] = buffer_object_id;
-    }
-    // load buffer views
-    std::vector<sid> buffer_view_ids(m.bufferViews.size());
-    for (int32 i = 0; i < static_cast<int32>(m.bufferViews.size()); ++i)
-    {
-        const tinygltf::BufferView& buffer_view = m.bufferViews[i];
-        if (buffer_view.target == 0)
-        {
-            MANGO_LOG_DEBUG("Buffer view target is zero!"); // We can continue here.
-        }
-
-        const tinygltf::Buffer& t_buffer = m.buffers[buffer_view.buffer];
-
-        sid buffer_view_object_id = sid::create(m_scene_buffer_views.emplace(), scene_structure_type::scene_structure_internal_buffer_view);
-        scene_buffer_view& view   = m_scene_buffer_views.back();
-        view.instance_id          = buffer_view_object_id;
-        view.offset               = 0; // buffer_view.byteOffset; -> Is done on upload.
-        view.size                 = static_cast<int32>(buffer_view.byteLength);
-        view.stride               = static_cast<int32>(buffer_view.byteStride);
-        view.buffer               = buffer_ids[buffer_view.buffer];
-
-        buffer_create_info buffer_info;
-        buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
-        buffer_info.buffer_target = (buffer_view.target == 0 || buffer_view.target == GL_ARRAY_BUFFER) ? gfx_buffer_target::buffer_target_vertex : gfx_buffer_target::buffer_target_index;
-        buffer_info.size          = buffer_view.byteLength;
-
-        view.graphics_buffer = graphics_device->create_buffer(buffer_info);
-
-        // upload data
-        auto device_context = graphics_device->create_graphics_device_context();
-        device_context->begin();
-        const unsigned char* buffer_start = t_buffer.data.data() + buffer_view.byteOffset;
-        const void* buffer_data           = static_cast<const void*>(buffer_start);
-        device_context->set_buffer_data(view.graphics_buffer, 0, view.size, const_cast<void*>(buffer_data));
-        device_context->end();
-        device_context->submit();
-        // TODO Paul: Are interleaved buffers loaded multiple times?
-
-        buffer_view_ids[i] = buffer_view_object_id;
+        loading_data.buffer_ids.push_back(buffer_object_id);
     }
 
     int32 scene_id                 = m.defaultScene > -1 ? m.defaultScene : 0;
@@ -1567,8 +1548,33 @@ std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& def
      */
     for (int32 i = 0; i < static_cast<int32>(t_scene.nodes.size()); ++i)
     {
-        build_model_node(m, m.nodes.at(t_scene.nodes.at(i)), buffer_view_ids, sc.nodes, invalid_sid, scenario_id);
+        sid node_id = build_model_node(m, m.nodes.at(t_scene.nodes.at(i)), invalid_sid, scenario_id, loading_data);
+
+        loading_data.node_map[t_scene.nodes.at(i)] = node_id;
     }
+
+    // Fill the node references of the joints in each skin.
+    for (int32 i = 0; i < static_cast<int32>(loading_data.skins.size()); ++i)
+    {
+        int32 skin_idx             = loading_data.skins[i].first;
+        const tinygltf::Skin& skin = m.skins[skin_idx];
+        sid skin_id                = loading_data.skins[i].second;
+        scene_skin& sk             = m_scene_skins.at(skin_id.id());
+        for (int32 j = 0; j < static_cast<int32>(sk.scene_joints.size()); ++j)
+        {
+            sid joint_id       = sk.scene_joints[j];
+            scene_joint& joint = m_scene_joints.at(joint_id.id());
+
+            joint.node_id = loading_data.node_map[skin.joints[j]];
+
+            scene_node& bone_node = m_scene_nodes.at(joint.node_id.id());
+            bone_node.public_data.name.append("_joint");
+            bone_node.joint_id = joint_id;
+            bone_node.type |= node_type::joint;
+        }
+    }
+
+    sc.nodes = loading_data.scenario_nodes;
 
     std::vector<sid> result;
     result.push_back(scenario_id);
@@ -1576,7 +1582,7 @@ std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& def
     return result;
 }
 
-void scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<sid>& buffer_view_ids, std::vector<sid>& scenario_nodes, sid parent_node_id, sid scenario_id)
+sid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, sid parent_node_id, sid scenario_id, model_import_loading_data& loading_data)
 {
     PROFILE_ZONE;
 
@@ -1588,7 +1594,7 @@ void scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const s
     nd.public_data.parent_node         = parent_node_id;
 
     // add to scenario
-    scenario_nodes.push_back(node_id);
+    loading_data.scenario_nodes.push_back(node_id);
 
     sid transform_id    = sid::create(m_scene_transforms.emplace(), scene_structure_type::scene_structure_transform);
     scene_transform& tr = m_scene_transforms.back();
@@ -1638,8 +1644,19 @@ void scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const s
     {
         MANGO_ASSERT(n.mesh < static_cast<int32>(m.meshes.size()), "Invalid gltf mesh!");
         MANGO_LOG_DEBUG("Node contains a mesh!");
-        nd.mesh_id = build_model_mesh(m, m.meshes.at(n.mesh), buffer_view_ids, node_id);
+        nd.mesh_id = build_model_mesh(m, m.meshes.at(n.mesh), node_id, loading_data);
         nd.type |= node_type::mesh;
+    }
+
+    if (n.skin > -1)
+    {
+        MANGO_ASSERT(n.skin < static_cast<int32>(m.skins.size()), "Invalid gltf skin!");
+        MANGO_LOG_DEBUG("Node contains a skin!");
+        nd.skin_id = build_model_skin(m, m.skins.at(n.skin), node_id, loading_data);
+        nd.type |= node_type::skin;
+
+        // Store skin for later.
+        loading_data.skins.push_back({ n.skin, nd.skin_id });
     }
 
     if (n.camera > -1)
@@ -1659,8 +1676,12 @@ void scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const s
     {
         MANGO_ASSERT(n.children[i] < static_cast<int32>(m.nodes.size()), "Invalid gltf node!");
 
-        build_model_node(m, m.nodes.at(n.children.at(i)), buffer_view_ids, scenario_nodes, node_id, scenario_id);
+        sid child_id = build_model_node(m, m.nodes.at(n.children.at(i)), node_id, scenario_id, loading_data);
+
+        loading_data.node_map[n.children.at(i)] = child_id;
     }
+
+    return node_id;
 }
 
 sid scene_impl::build_model_camera(tinygltf::Camera& camera, sid containing_node_id)
@@ -1711,7 +1732,7 @@ sid scene_impl::build_model_camera(tinygltf::Camera& camera, sid containing_node
     return camera_id;
 }
 
-sid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const std::vector<sid>& buffer_view_ids, sid containing_node_id)
+sid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, sid containing_node_id, model_import_loading_data& loading_data)
 {
     PROFILE_ZONE;
     sid mesh_id                     = sid::create(m_scene_meshes.emplace(), scene_structure_type::scene_structure_mesh);
@@ -1741,7 +1762,7 @@ sid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const
         {
             const tinygltf::Accessor& index_accessor = m.accessors[primitive.indices];
 
-            packed_freelist_id view_id     = buffer_view_ids[index_accessor.bufferView].id(); // TODO Paul: Do we need to check the index?
+            packed_freelist_id view_id     = get_gpu_buffer_view(m, index_accessor.bufferView, loading_data).id(); // TODO Paul: Do we need to check the index?
             sp.index_buffer_view           = m_scene_buffer_views.at(view_id);
             sp.index_type                  = static_cast<gfx_format>(index_accessor.componentType); // cast should be okay
             sp.draw_call_desc.index_count  = static_cast<int32>(index_accessor.count);
@@ -1791,17 +1812,36 @@ sid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const
                 attrib_location            = 1;
                 sp.public_data.has_normals = true;
             }
-            else if (attrib.first.compare("TEXCOORD_0") == 0)
-                attrib_location = 2;
             else if (attrib.first.compare("TANGENT") == 0)
             {
-                attrib_location             = 3;
+                attrib_location             = 2;
                 sp.public_data.has_tangents = true;
+            }
+            else if (attrib.first.compare("TEXCOORD_0") == 0)
+                attrib_location = 3;
+            else if (attrib.first.compare("TEXCOORD_1") == 0)
+                MANGO_LOG_DEBUG("A second set of uvs is currently not supported and is ignored!");
+            else if (attrib.first.compare("COLOR_0") == 0)
+                MANGO_LOG_DEBUG("Vertex colors are currently not supported and are ignored!");
+            else if (attrib.first.compare("JOINTS_0") == 0)
+            {
+                attrib_location           = 4;
+                sp.public_data.has_joints = true;
+            }
+            else if (attrib.first.compare("WEIGHTS_0") == 0)
+            {
+                attrib_location            = 5;
+                sp.public_data.has_weights = true;
+            }
+            else
+            {
+                MANGO_LOG_DEBUG("Unknown vertex attribute {0} is not supported and is ignored!", attrib.first);
+                continue;
             }
 
             if (attrib_location > -1)
             {
-                packed_freelist_id view_id = buffer_view_ids[accessor.bufferView].id(); // TODO Paul: Do we need to check the index?
+                packed_freelist_id view_id = get_gpu_buffer_view(m, accessor.bufferView, loading_data).id(); // TODO Paul: Do we need to check the index?
                 auto buffer_v              = m_scene_buffer_views.at(view_id);
                 buffer_v.offset += static_cast<int32>(accessor.byteOffset);
                 sp.vertex_buffer_views.emplace_back(buffer_v);
@@ -1815,7 +1855,8 @@ sid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const
                 // TODO Paul: Does this work with matrix types?
                 attrib_desc.attribute_format =
                     graphics::get_attribute_format_for_component_info(static_cast<gfx_format>(accessor.componentType), get_attrib_component_count_from_tinygltf_types(accessor.type));
-                attrib_desc.location = attrib_location;
+                attrib_desc.location   = attrib_location;
+                attrib_desc.normalized = false; // accessor.normalized;
 
                 if (attrib_location == 0 && sp.index_type == gfx_format::invalid)
                 {
@@ -1834,18 +1875,123 @@ sid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const
                                                                               vec3(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]));
                 }
             }
-            else
-            {
-                MANGO_LOG_DEBUG("Vertex attribute is ignored: {0}!", attrib.first);
-                continue;
-            }
         }
         sp.vertex_layout.binding_description_count   = description_index;
         sp.vertex_layout.attribute_description_count = description_index;
-        msh.scene_primitives.push_back(sp);
+        msh.scene_primitives.push_back(primitive_id);
     }
 
     return mesh_id;
+}
+
+sid scene_impl::build_model_skin(tinygltf::Model& m, tinygltf::Skin& skin, sid containing_node_id, model_import_loading_data& loading_data)
+{
+    PROFILE_ZONE;
+    sid skin_id     = sid::create(m_scene_skins.emplace(), scene_structure_type::scene_structure_internal_skin);
+    scene_skin& sk  = m_scene_skins.back();
+    sk.instance_id  = skin_id;
+    sk.root_node_id = containing_node_id;
+
+    const tinygltf::Accessor& ibm_accessor = m.accessors[skin.inverseBindMatrices];
+    packed_freelist_id view_id             = get_cpu_buffer_view(m, ibm_accessor.bufferView, loading_data).id(); // TODO Paul: Do we need to check the index?
+    scene_buffer_view& view                = m_scene_buffer_views.at(view_id);
+    const mat4* ibm_data                   = static_cast<const mat4*>(map_cpu_buffer_view_data(view));
+    std::vector<mat4> inverse_bind_matrices(ibm_data, ibm_data + ibm_accessor.count); // TODO Paul: Check if this is working properly.
+
+    for (int32 i = 0; i < static_cast<int32>(skin.joints.size()); ++i)
+    {
+        sid joint_id       = sid::create(m_scene_joints.emplace(), scene_structure_type::scene_structure_internal_joint);
+        scene_joint& joint = m_scene_joints.back();
+        joint.instance_id  = joint_id;
+        // The node_id is filled after the traversal of the whole scene node hierarchy.
+        joint.node_id                    = invalid_sid;
+        joint.inverse_bind_matrix        = inverse_bind_matrices[i];
+        joint.vertex_attribute_joint_idx = i;
+        sk.scene_joints.push_back(joint_id);
+    }
+
+    return skin_id;
+}
+
+sid scene_impl::get_gpu_buffer_view(tinygltf::Model& m, int buffer_view_id, model_import_loading_data& loading_data)
+{
+    PROFILE_ZONE;
+    if (loading_data.buffer_view_ids[buffer_view_id] != invalid_sid)
+        return loading_data.buffer_view_ids[buffer_view_id];
+
+    auto& graphics_device = m_shared_context->get_graphics_device();
+
+    const tinygltf::BufferView& buffer_view = m.bufferViews[buffer_view_id];
+
+    const tinygltf::Buffer& t_buffer = m.buffers[buffer_view.buffer];
+
+    sid buffer_view_object_id = sid::create(m_scene_buffer_views.emplace(), scene_structure_type::scene_structure_internal_buffer_view);
+    scene_buffer_view& view   = m_scene_buffer_views.back();
+    view.instance_id          = buffer_view_object_id;
+    view.offset               = 0; // buffer_view.byteOffset; -> Is done on upload.
+    view.size                 = static_cast<int32>(buffer_view.byteLength);
+    view.stride               = static_cast<int32>(buffer_view.byteStride);
+    view.buffer               = loading_data.buffer_ids[buffer_view.buffer];
+
+    buffer_create_info buffer_info;
+    buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
+    buffer_info.buffer_target = (buffer_view.target == 0 || buffer_view.target == GL_ARRAY_BUFFER) ? gfx_buffer_target::buffer_target_vertex : gfx_buffer_target::buffer_target_index;
+    buffer_info.size          = buffer_view.byteLength;
+
+    view.graphics_buffer = graphics_device->create_buffer(buffer_info);
+
+    // upload data
+    auto device_context = graphics_device->create_graphics_device_context();
+    device_context->begin();
+    const unsigned char* buffer_start = t_buffer.data.data() + buffer_view.byteOffset;
+    const void* buffer_data           = static_cast<const void*>(buffer_start);
+    device_context->set_buffer_data(view.graphics_buffer, 0, view.size, const_cast<void*>(buffer_data));
+    device_context->end();
+    device_context->submit();
+
+    loading_data.buffer_view_ids[buffer_view_id] = buffer_view_object_id;
+
+    return buffer_view_object_id;
+}
+
+sid scene_impl::get_cpu_buffer_view(tinygltf::Model& m, int buffer_view_id, model_import_loading_data& loading_data)
+{
+    PROFILE_ZONE;
+    if (loading_data.buffer_view_ids[buffer_view_id] != invalid_sid)
+        return loading_data.buffer_view_ids[buffer_view_id];
+
+    const tinygltf::BufferView& buffer_view = m.bufferViews[buffer_view_id];
+
+    sid buffer_view_object_id = sid::create(m_scene_buffer_views.emplace(), scene_structure_type::scene_structure_internal_buffer_view);
+    scene_buffer_view& view   = m_scene_buffer_views.back();
+    view.instance_id          = buffer_view_object_id;
+    view.offset               = static_cast<int32>(buffer_view.byteOffset);
+    view.size                 = static_cast<int32>(buffer_view.byteLength);
+    view.stride               = static_cast<int32>(buffer_view.byteStride);
+    view.buffer               = loading_data.buffer_ids[buffer_view.buffer];
+    view.graphics_buffer      = nullptr; // Will be left at nullptr.
+
+    loading_data.buffer_view_ids[buffer_view_id] = buffer_view_object_id;
+
+    return buffer_view_object_id;
+}
+
+const void* scene_impl::map_cpu_buffer_view_data(const scene_buffer_view& view)
+{
+    PROFILE_ZONE;
+    packed_freelist_id bv = view.buffer.id();
+
+    if (!m_scene_buffers.contains(bv))
+    {
+        MANGO_LOG_WARN("Buffer with ID {0} does not exist!", view.buffer.id().get());
+        return nullptr;
+    }
+
+    const scene_buffer& buffer = m_scene_buffers.at(bv);
+
+    const unsigned char* data_start = buffer.data.data();
+
+    return data_start + view.offset;
 }
 
 void scene_impl::load_material(material& mat, const tinygltf::Material& primitive_material, tinygltf::Model& m)
@@ -2285,29 +2431,19 @@ void scene_impl::update(float dt)
                 tr.changes_handled();
             }
 
+            mat4 parent_global_transform(1.0f);
             if (nd.public_data.parent_node.is_valid())
             {
                 packed_freelist_id parent_id    = nd.public_data.parent_node.id();
-                auto& parent_transformation     = m_scene_nodes.at(parent_id).global_transformation_matrix;
-                nd.global_transformation_matrix = parent_transformation * nd.local_transformation_matrix;
+                parent_global_transform         = m_scene_nodes.at(parent_id).global_transformation_matrix;
+                nd.global_transformation_matrix = parent_global_transform * nd.local_transformation_matrix;
             }
 
-            if ((nd.type & node_type::camera) != node_type::empty_leaf)
+            if ((nd.type & node_type::joint) != node_type::empty_leaf)
             {
-                // update camera targets - matrices should be calculated by the renderer on demand
-                packed_freelist_id camera_id = nd.camera_id.id();
-                scene_camera& cam            = m_scene_cameras.at(camera_id);
-
-                vec3& target = (cam.type == camera_type::perspective) ? cam.public_data_as_perspective->target : cam.public_data_as_orthographic->target;
-
-                vec3 front = target - vec3(nd.global_transformation_matrix[3]);
-
-                if (glm::length(front) > 1e-5)
-                    front = glm::normalize(front);
-                else
-                {
-                    front = GLOBAL_FORWARD;
-                }
+                packed_freelist_id joint_id = nd.joint_id.id();
+                scene_joint& joint          = m_scene_joints.at(joint_id);
+                joint.joint_matrix          = nd.global_transformation_matrix * joint.inverse_bind_matrix;
             }
 
             // add to render instances

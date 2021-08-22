@@ -174,6 +174,7 @@ bool environment_display_step::create_step_resources()
     attrib_desc.offset           = 0;
     attrib_desc.attribute_format = gfx_format::rgb32f;
     attrib_desc.location         = 0;
+    attrib_desc.normalized       = false;
 
     cubemap_pass_info.vertex_input_state.binding_descriptions[0]   = binding_desc;
     cubemap_pass_info.vertex_input_state.attribute_descriptions[0] = attrib_desc;

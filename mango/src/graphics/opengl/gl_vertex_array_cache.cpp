@@ -105,11 +105,11 @@ gl_handle gl_vertex_array_cache::create(const vao_create_info& create_info, cons
         const int32& attribute_index       = input_descriptor->attribute_descriptions[i].location;
         const int32& relative_offset       = input_descriptor->attribute_descriptions[i].offset;
         const gfx_format& attribute_format = input_descriptor->attribute_descriptions[i].attribute_format;
+        const bool& normalized             = input_descriptor->attribute_descriptions[i].normalized;
 
         gl_enum type           = 0;
         int32 number_of_values = 0;
-        bool normalized        = 0;
-        gfx_format_to_gl_attribute_data(attribute_format, type, number_of_values, normalized);
+        gfx_format_to_gl_attribute_data(attribute_format, type, number_of_values);
 
         glEnableVertexArrayAttrib(vertex_array, attribute_index);
         glVertexArrayAttribFormat(vertex_array, attribute_index, number_of_values, type, normalized, relative_offset);

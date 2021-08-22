@@ -8,8 +8,10 @@
 
 layout(location = VERTEX_INPUT_POSITION) in vec3 vertex_data_position;
 layout(location = VERTEX_INPUT_NORMAL) in vec3 vertex_data_normal;
-layout(location = VERTEX_INPUT_TEXCOORD) in vec2 vertex_data_texcoord;
 layout(location = VERTEX_INPUT_TANGENT) in vec4 vertex_data_tangent;
+layout(location = VERTEX_INPUT_TEXCOORD0) in vec2 vertex_data_texcoord;
+layout(location = VERTEX_INPUT_JOINT) in vec4 vertex_data_joint;
+layout(location = VERTEX_INPUT_WEIGHT) in vec4 vertex_data_weight;
 
 out shared_data
 {
@@ -23,6 +25,8 @@ out shared_data
 #include <camera.glsl>
 
 #include <model.glsl>
+
+#include <animation.glsl>
 
 #endif // VERTEX
 

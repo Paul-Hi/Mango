@@ -112,6 +112,11 @@ namespace mango
         //! \return An optional \a scene_primitive reference.
         optional<scene_primitive&> get_scene_primitive(sid instance_id);
 
+        //! \brief Retrieves a \a scene_joint from the \a scene.
+        //! \param[in] instance_id The \a sid of the \a scene_joint to retrieve from the \a scene.
+        //! \return An optional \a scene_joint reference.
+        optional<scene_joint&> get_scene_joint(sid instance_id);
+
         //! \brief Retrieves a \a scene_texture from the \a scene.
         //! \param[in] instance_id The \a sid of the \a scene_texture to retrieve from the \a scene.
         //! \return An optional \a scene_texture reference.
@@ -166,6 +171,16 @@ namespace mango
         std::pair<gfx_handle<const gfx_texture>, gfx_handle<const gfx_sampler>> create_gfx_texture_and_sampler(const image_resource& img, bool standard_color_space, bool high_dynamic_range,
                                                                                                                const sampler_create_info& sampler_info);
 
+        struct model_import_loading_data
+        {
+            std::vector<sid> buffer_ids;
+            std::vector<sid> buffer_view_ids;
+            std::vector<sid> scenario_nodes;
+            std::vector<std::pair<int32, sid>> skins; // Pair (tinygltf::Skin index, skin sid).
+            std::vector<sid> node_map;
+            // Can be extended.
+        };
+
         //! \brief Loads a model file and creates a \a scenario list with \a sids of all \a scenarios in the model.
         //! \details Creates and stores all necessary resources and structures to add the model to a scene.
         //! \param[in] path The full path to the model to load.
@@ -176,11 +191,11 @@ namespace mango
         //! \brief Builds a \a node from a tinygltf model node.
         //! \param[in] m The loaded tinygltf model.
         //! \param[in] n The tinygltf model node.
-        //! \param[in] buffer_view_ids The \a sids of all loaded \a scene_buffer_views.
-        //! \param[in,out] scenario_nodes All \a sids of all \a nodes added to the \a scenario.
         //! \param[in] parent_node_id The \a sid of the parent \a node.
         //! \param[in] scenario_id The \a sid of the \a scenario.
-        void build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<sid>& buffer_view_ids, std::vector<sid>& scenario_nodes, sid parent_node_id, sid scenario_id);
+        //! \param[in,out] loading_data The \a model_import_loading_data required to load scenes.
+        //! \return The \a sid of the created \a scene_node.
+        sid build_model_node(tinygltf::Model& m, tinygltf::Node& n, sid parent_node_id, sid scenario_id, model_import_loading_data& loading_data);
 
         //! \brief Builds a \a scene_camera from a tinygltf model camera.
         //! \param[in] camera The loaded tinygltf model camera.
@@ -191,10 +206,24 @@ namespace mango
         //! \brief Builds a \a scene_mesh from a tinygltf model mesh.
         //! \param[in] m The loaded tinygltf model.
         //! \param[in] mesh The loaded tinygltf model mesh.
-        //! \param[in] buffer_view_ids The \a sids of all loaded \a scene_buffer_views.
         //! \param[in] containing_node_id The \a sid of the \a node the \a scene_mesh should be added to.
+        //! \param[in,out] loading_data The \a model_import_loading_data required to load scenes.
         //! \return The \a sid of the created \a scene_mesh.
-        sid build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const std::vector<sid>& buffer_view_ids, sid containing_node_id);
+        sid build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, sid containing_node_id, model_import_loading_data& loading_data);
+
+        //! \brief Builds a \a scene_skin from a tinygltf model skin.
+        //! \param[in] m The loaded tinygltf model.
+        //! \param[in] skin The loaded tinygltf model skin.
+        //! \param[in] containing_node_id The \a sid of the \a node the \a scene_skin should be added to.
+        //! \param[in,out] loading_data The \a model_import_loading_data required to load scenes.
+        //! \return The \a sid of the created \a scene_skin.
+        sid build_model_skin(tinygltf::Model& m, tinygltf::Skin& skin, sid containing_node_id, model_import_loading_data& loading_data);
+
+        sid get_gpu_buffer_view(tinygltf::Model& m, int buffer_view_id, model_import_loading_data& loading_data);
+
+        sid get_cpu_buffer_view(tinygltf::Model& m, int buffer_view_id, model_import_loading_data& loading_data);
+
+        const void* map_cpu_buffer_view_data(const scene_buffer_view& view);
 
         //! \brief Builds a \a material from a tinygltf model material.
         //! \param[out] mat The \a material to load into.
@@ -229,6 +258,12 @@ namespace mango
 
         //! \brief The \a packed_freelist for all \a scene_primitives in the \a scene.
         packed_freelist<scene_primitive, 32768> m_scene_primitives;
+
+        //! \brief The \a packed_freelist for all \a scene_joints in the \a scene.
+        packed_freelist<scene_joint, 128> m_scene_joints;
+
+        //! \brief The \a packed_freelist for all \a scene_skins in the \a scene.
+        packed_freelist<scene_skin, 8> m_scene_skins;
 
         //! \brief The \a packed_freelist for all \a scene_cameras in the \a scene.
         packed_freelist<scene_camera, 64> m_scene_cameras;

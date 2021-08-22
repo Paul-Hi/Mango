@@ -155,6 +155,9 @@ namespace mango
         //! \brief The \a gfx_semaphore used to synchronize luminance calculation.
         gfx_handle<const gfx_semaphore> m_luminance_semaphore;
 
+        //! \brief The shader storage buffer mapping for the animation data.
+        gfx_handle<const gfx_buffer> m_animation_data_buffer;
+
         //! \brief True if the renderer should draw wireframe, else false.
         bool m_wireframe;
 

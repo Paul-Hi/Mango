@@ -103,6 +103,7 @@ bool debug_drawer::create_pipeline_resources()
     attrib_desc.offset           = 0;
     attrib_desc.attribute_format = gfx_format::rgb32f;
     attrib_desc.location         = 0;
+    attrib_desc.normalized       = false;
 
     debug_drawing_pass_info.vertex_input_state.binding_descriptions[0]   = binding_desc;
     debug_drawing_pass_info.vertex_input_state.attribute_descriptions[0] = attrib_desc;
@@ -116,6 +117,7 @@ bool debug_drawer::create_pipeline_resources()
     attrib_desc.offset           = 0;
     attrib_desc.attribute_format = gfx_format::rgb32f;
     attrib_desc.location         = 1;
+    attrib_desc.normalized       = false;
 
     debug_drawing_pass_info.vertex_input_state.binding_descriptions[1]   = binding_desc;
     debug_drawing_pass_info.vertex_input_state.attribute_descriptions[1] = attrib_desc;

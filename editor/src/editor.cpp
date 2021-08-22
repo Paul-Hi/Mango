@@ -112,11 +112,11 @@ bool editor::create()
 
     // test settings comment in to have some example scene
     {
-        sid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
+        sid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/CesiumMan/glTF/CesiumMan.gltf");
         // sid bb                      = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/other_3d_models/living_room/living_room.glb");
         optional<mango::model&> mod = m_current_scene->get_model(bb);
         MANGO_ASSERT(mod, "Model not existent!");
-        node model_root_node               = node("Sponza");
+        node model_root_node               = node("CesiumMan");
         sid model_instance_root            = m_current_scene->add_node(model_root_node);
         model_instance_root                = m_current_scene->add_model_to_scene(bb, mod->scenarios.at(mod->default_scenario), model_instance_root);
         optional<transform&> mod_transform = m_current_scene->get_transform(model_instance_root);

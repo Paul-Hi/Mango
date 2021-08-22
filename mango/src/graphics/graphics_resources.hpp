@@ -90,6 +90,8 @@ namespace mango
         gfx_format attribute_format;
         //! \brief A byte offset of this attribute relative to the start of an element in the vertex input binding.
         int32 offset;
+        //! \brief True if the values in the given format should be normalized, else false.
+        bool normalized;
     };
 
     //! \brief Descriptor specifying the vertex input layout.

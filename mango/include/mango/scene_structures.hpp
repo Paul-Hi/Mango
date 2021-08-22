@@ -40,7 +40,9 @@ namespace mango
         scene_structure_model,
         scene_structure_internal_buffer,
         scene_structure_internal_buffer_view,
-        scene_structure_count = scene_structure_internal_buffer_view
+        scene_structure_internal_joint,
+        scene_structure_internal_skin,
+        scene_structure_count = scene_structure_internal_skin
     };
 
     //! \brief An Id for all scene objects.
@@ -513,6 +515,11 @@ namespace mango
         //! \brief True if the \a primitive has tangents in the vertex data, else false.
         bool has_tangents;
 
+        //! \brief True if the \a primitive has joints in the vertex data, else false.
+        bool has_joints;
+        //! \brief True if the \a primitive has weights in the vertex data, else false.
+        bool has_weights;
+
         //! \brief TThe \a sid of the \a primitives \a material.
         sid material;
 
@@ -520,6 +527,8 @@ namespace mango
             : type(primitive_type::custom)
             , has_normals(false)
             , has_tangents(false)
+            , has_joints(false)
+            , has_weights(false)
 
         {
         }

@@ -425,11 +425,13 @@ namespace mango
                     {
                         optional<scene_material&> mat = application_scene->get_scene_material(object);
                         MANGO_ASSERT(mat, "Material referenced by primitive does not exist!");
-                        string selectable = "Primitive " + std::to_string(p) + " - Material: " + mat->public_data.name;
-                        bool selected     = selected_primitive == m->scene_primitives[p].public_data.instance_id;
+                        string selectable               = "Primitive " + std::to_string(p) + " - Material: " + mat->public_data.name;
+                        optional<scene_primitive&> prim = application_scene->get_scene_primitive(m->scene_primitives[p]);
+                        MANGO_ASSERT(mat, "Material referenced by primitive does not exist!");
+                        bool selected = selected_primitive == prim->public_data.instance_id;
                         if (ImGui::Selectable(selectable.c_str(), &selected))
                         {
-                            selected_primitive = m->scene_primitives[p].public_data.instance_id;
+                            selected_primitive = prim->public_data.instance_id;
                         }
                     }
                 },
@@ -661,9 +663,9 @@ namespace mango
 
                                         if (changed)
                                         {
-                                            quat x_quat         = glm::angleAxis(glm::radians(tr->rotation_hint.x - rotation_hint_before.x), vec3(1.0f, 0.0f, 0.0f));
-                                            quat y_quat         = glm::angleAxis(glm::radians(tr->rotation_hint.y - rotation_hint_before.y), vec3(0.0f, 1.0f, 0.0f));
-                                            quat z_quat         = glm::angleAxis(glm::radians(tr->rotation_hint.z - rotation_hint_before.z), vec3(0.0f, 0.0f, 1.0f));
+                                            quat x_quat              = glm::angleAxis(glm::radians(tr->rotation_hint.x - rotation_hint_before.x), vec3(1.0f, 0.0f, 0.0f));
+                                            quat y_quat              = glm::angleAxis(glm::radians(tr->rotation_hint.y - rotation_hint_before.y), vec3(0.0f, 1.0f, 0.0f));
+                                            quat z_quat              = glm::angleAxis(glm::radians(tr->rotation_hint.z - rotation_hint_before.z), vec3(0.0f, 0.0f, 1.0f));
                                             tr->public_data.rotation = x_quat * y_quat * z_quat * tr->public_data.rotation;
                                             tr->public_data.update();
                                         }
@@ -719,6 +721,18 @@ namespace mango
                                                     {
                                                         ImGui::AlignTextToFramePadding();
                                                         ImGui::Text(prim->public_data.has_tangents ? ICON_FA_CHECK : ICON_FA_TIMES);
+                                                    });
+                                        custom_info("Vertex Joints: ",
+                                                    [&prim]()
+                                                    {
+                                                        ImGui::AlignTextToFramePadding();
+                                                        ImGui::Text(prim->public_data.has_joints ? ICON_FA_CHECK : ICON_FA_TIMES);
+                                                    });
+                                        custom_info("Vertex Weights: ",
+                                                    [&prim]()
+                                                    {
+                                                        ImGui::AlignTextToFramePadding();
+                                                        ImGui::Text(prim->public_data.has_weights ? ICON_FA_CHECK : ICON_FA_TIMES);
                                                     });
                                     });
         }

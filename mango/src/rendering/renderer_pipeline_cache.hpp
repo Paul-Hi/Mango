@@ -108,6 +108,8 @@ namespace mango
                         return false;
                     if (ad0.offset != ad1.offset)
                         return false;
+                    if (ad0.normalized != ad1.normalized)
+                        return false;
                 }
 
                 return true;
@@ -145,6 +147,7 @@ namespace mango
                     res = res * 31 + std::hash<uint32>()(static_cast<uint32>(ad.attribute_format));
                     res = res * 31 + std::hash<int32>()(ad.location);
                     res = res * 31 + std::hash<int32>()(ad.offset);
+                    res = res * 31 + std::hash<bool>()(ad.normalized);
                 }
 
                 return res;

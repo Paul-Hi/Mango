@@ -716,201 +716,162 @@ namespace mango
     //! \param[in] attribute_format The \a gfx_format specifying the vertex attribute data format.
     //! \param[out] component_type The component type as \a gl_enum.
     //! \param[out] number_of_components The number of components in the format.
-    //! \param[out] normalized True if the the attribute data is normalized, else false.
     //! \return The number of mipmap levels.
-    inline void gfx_format_to_gl_attribute_data(const gfx_format& attribute_format, gl_enum& component_type, int32& number_of_components, bool& normalized)
+    inline void gfx_format_to_gl_attribute_data(const gfx_format& attribute_format, gl_enum& component_type, int32& number_of_components)
     {
         switch (attribute_format)
         {
         case gfx_format::r8:
             component_type       = GL_UNSIGNED_BYTE;
             number_of_components = 1;
-            normalized           = true;
             break;
         case gfx_format::r16:
             component_type       = GL_UNSIGNED_SHORT;
             number_of_components = 1;
-            normalized           = true;
             break;
         case gfx_format::r16f:
             component_type       = GL_HALF_FLOAT;
             number_of_components = 1;
-            normalized           = false;
             break;
         case gfx_format::r32f:
             component_type       = GL_FLOAT;
             number_of_components = 1;
-            normalized           = false;
             break;
         case gfx_format::r8i:
             component_type       = GL_BYTE;
             number_of_components = 1;
-            normalized           = true;
             break;
         case gfx_format::r16i:
             component_type       = GL_SHORT;
             number_of_components = 1;
-            normalized           = true;
             break;
         case gfx_format::r32i:
             component_type       = GL_INT;
             number_of_components = 1;
-            normalized           = true;
             break;
         case gfx_format::r8ui:
             component_type       = GL_UNSIGNED_BYTE;
             number_of_components = 1;
-            normalized           = true;
             break;
         case gfx_format::r16ui:
             component_type       = GL_UNSIGNED_SHORT;
             number_of_components = 1;
-            normalized           = true;
             break;
         case gfx_format::r32ui:
             component_type       = GL_UNSIGNED_INT;
             number_of_components = 1;
-            normalized           = true;
             break;
         case gfx_format::rg8:
             component_type       = GL_UNSIGNED_BYTE;
             number_of_components = 2;
-            normalized           = true;
             break;
         case gfx_format::rg16:
             component_type       = GL_UNSIGNED_SHORT;
             number_of_components = 2;
-            normalized           = true;
             break;
         case gfx_format::rg16f:
             component_type       = GL_HALF_FLOAT;
             number_of_components = 2;
-            normalized           = false;
             break;
         case gfx_format::rg32f:
             component_type       = GL_FLOAT;
             number_of_components = 2;
-            normalized           = false;
             break;
         case gfx_format::rg8i:
             component_type       = GL_BYTE;
             number_of_components = 2;
-            normalized           = true;
             break;
         case gfx_format::rg16i:
             component_type       = GL_SHORT;
             number_of_components = 2;
-            normalized           = true;
             break;
         case gfx_format::rg32i:
             component_type       = GL_INT;
             number_of_components = 2;
-            normalized           = true;
             break;
         case gfx_format::rg8ui:
             component_type       = GL_UNSIGNED_BYTE;
             number_of_components = 2;
-            normalized           = true;
             break;
         case gfx_format::rg16ui:
             component_type       = GL_UNSIGNED_SHORT;
             number_of_components = 2;
-            normalized           = true;
             break;
         case gfx_format::rg32ui:
             component_type       = GL_UNSIGNED_INT;
             number_of_components = 2;
-            normalized           = true;
             break;
         case gfx_format::rgb8i:
             component_type       = GL_BYTE;
             number_of_components = 3;
-            normalized           = true;
             break;
         case gfx_format::rgb8ui:
             component_type       = GL_UNSIGNED_BYTE;
             number_of_components = 3;
-            normalized           = true;
             break;
         case gfx_format::rgb16f:
             component_type       = GL_HALF_FLOAT;
             number_of_components = 3;
-            normalized           = false;
             break;
         case gfx_format::rgb16i:
             component_type       = GL_SHORT;
             number_of_components = 3;
-            normalized           = true;
             break;
         case gfx_format::rgb16ui:
             component_type       = GL_UNSIGNED_SHORT;
             number_of_components = 3;
-            normalized           = true;
             break;
         case gfx_format::rgb32f:
             component_type       = GL_FLOAT;
             number_of_components = 3;
-            normalized           = false;
             break;
         case gfx_format::rgb32i:
             component_type       = GL_INT;
             number_of_components = 3;
-            normalized           = true;
             break;
         case gfx_format::rgb32ui:
             component_type       = GL_UNSIGNED_INT;
             number_of_components = 3;
-            normalized           = true;
             break;
         case gfx_format::rgba8:
             component_type       = GL_UNSIGNED_BYTE;
             number_of_components = 4;
-            normalized           = true;
             break;
         case gfx_format::rgba16:
             component_type       = GL_SHORT;
             number_of_components = 4;
-            normalized           = true;
             break;
         case gfx_format::rgba16f:
             component_type       = GL_HALF_FLOAT;
             number_of_components = 4;
-            normalized           = false;
             break;
         case gfx_format::rgba32f:
             component_type       = GL_FLOAT;
             number_of_components = 4;
-            normalized           = false;
             break;
         case gfx_format::rgba8i:
             component_type       = GL_BYTE;
             number_of_components = 4;
-            normalized           = true;
             break;
         case gfx_format::rgba16i:
             component_type       = GL_UNSIGNED_BYTE;
             number_of_components = 4;
-            normalized           = true;
             break;
         case gfx_format::rgba32i:
             component_type       = GL_UNSIGNED_BYTE;
             number_of_components = 4;
-            normalized           = true;
             break;
         case gfx_format::rgba8ui:
             component_type       = GL_UNSIGNED_BYTE;
             number_of_components = 4;
-            normalized           = true;
             break;
         case gfx_format::rgba16ui:
             component_type       = GL_UNSIGNED_SHORT;
             number_of_components = 4;
-            normalized           = true;
             break;
         case gfx_format::rgba32ui:
             component_type       = GL_UNSIGNED_INT;
             number_of_components = 4;
-            normalized           = true;
             break;
         default:
             MANGO_ASSERT(false, "Invalid format! Could also be, that I did not think of adding this here!");

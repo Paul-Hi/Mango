@@ -138,5 +138,4 @@ vec2 sample_hammersley(in uint i, in float inverse_sample_count)
     return vec2(float(i) * inverse_sample_count, radical_inverse_VdC(i));
 }
 
-
 #endif // MANGO_COMMON_CONSTANTS_AND_FUNCTIONS_GLSL

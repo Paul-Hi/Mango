@@ -78,21 +78,21 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
         // create an extra object that is capable to render environment cubemaps.
         auto environment_display = std::make_shared<environment_display_step>(configuration.get_environment_display_settings());
         environment_display->attach(m_shared_context);
-        m_pipeline_steps[mango::render_pipeline_step::environment_display] = std::static_pointer_cast<render_step>(environment_display);
+        m_pipeline_steps[mango::render_pipeline_step::environment_display] = environment_display;
     }
     if (configuration.get_render_steps()[mango::render_pipeline_step::shadow_map])
     {
         auto step_shadow_map = std::make_shared<shadow_map_step>(configuration.get_shadow_settings());
         step_shadow_map->attach(m_shared_context);
         m_pipeline_cache.set_shadow_base(step_shadow_map->get_shadow_pass_pipeline_base());
-        m_pipeline_steps[mango::render_pipeline_step::shadow_map] = std::static_pointer_cast<render_step>(step_shadow_map);
+        m_pipeline_steps[mango::render_pipeline_step::shadow_map] = step_shadow_map;
         m_renderer_data.shadow_step_enabled                       = true;
     }
     if (configuration.get_render_steps()[mango::render_pipeline_step::fxaa])
     {
         auto step_fxaa = std::make_shared<fxaa_step>(configuration.get_fxaa_settings());
         step_fxaa->attach(m_shared_context);
-        m_pipeline_steps[mango::render_pipeline_step::fxaa] = std::static_pointer_cast<render_step>(step_fxaa);
+        m_pipeline_steps[mango::render_pipeline_step::fxaa] = step_fxaa;
     }
 }
 
@@ -323,6 +323,11 @@ bool deferred_pbr_renderer::create_buffers()
         return false;
 
     buffer_info.buffer_target = gfx_buffer_target::buffer_target_shader_storage;
+    buffer_info.size          = sizeof(animation_data) + max_skin_joints * sizeof(mat4);
+    m_animation_data_buffer   = m_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(m_animation_data_buffer.get(), "animation data buffer"))
+        return false;
+
     buffer_info.buffer_access = gfx_buffer_access::buffer_access_mapped_access_read_write;
     buffer_info.size          = sizeof(luminance_data);
     m_luminance_data_buffer   = m_graphics_device->create_buffer(buffer_info);
@@ -334,9 +339,10 @@ bool deferred_pbr_renderer::create_buffers()
     m_luminance_data_mapping = static_cast<luminance_data*>(device_context->map_buffer_data(m_luminance_data_buffer, 0, sizeof(luminance_data)));
     device_context->end();
     device_context->submit();
-    if (!check_mapping(m_luminance_data_mapping, "luminance data buffer"))
+    if (!check_mapping(m_luminance_data_mapping, "luminance data mapping"))
         return false;
 
+//TODO - this doesn't initialize the m_luminance_data_mapping completely...
     memset(&m_luminance_data_mapping->histogram[0], 0, 256 * sizeof(int32));
     m_luminance_data_mapping->luminance = 1.0f;
 
@@ -363,11 +369,12 @@ bool deferred_pbr_renderer::create_shader_stages()
         shader_info.stage         = gfx_shader_stage_type::shader_stage_vertex;
         shader_info.shader_source = source_desc;
 
-        shader_info.resource_count = 2;
+        shader_info.resource_count = 3;
 
         shader_info.resources = { {
             { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
             { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, "model_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_vertex, ANIMATION_DATA_BUFFER_BINDING_POINT, "animation_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
         } };
 
         m_geometry_pass_vertex = m_graphics_device->create_shader_stage(shader_info);
@@ -648,6 +655,8 @@ bool deferred_pbr_renderer::create_pipeline_resources()
             { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
               gfx_shader_resource_access::shader_access_dynamic },
             { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+              gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_vertex, ANIMATION_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
               gfx_shader_resource_access::shader_access_dynamic },
 
             { gfx_shader_stage_type::shader_stage_fragment, MATERIAL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
@@ -1113,6 +1122,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         }
     }
 
+    std::vector<std140_mat4> joint_matrices(max_skin_joints);
+    int32 joint_count = 0;
+
     for (auto instance : instances)
     {
         optional<scene_node&> node = scene->get_scene_node(instance.node_id);
@@ -1142,12 +1154,14 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
             for (int32 i = 0; i < static_cast<int32>(mesh->scene_primitives.size()); ++i)
             {
-                scene_primitive p = mesh->scene_primitives[i];
+                sid primitive_id             = mesh->scene_primitives[i];
+                optional<scene_primitive&> p = scene->get_scene_primitive(primitive_id);
+                MANGO_ASSERT(p, "Non existing primitive in instances!");
 
-                a_draw.primitive_id = p.public_data.instance_id;
-                a_draw.material_id  = p.public_data.material;
+                a_draw.primitive_id = p->public_data.instance_id;
+                a_draw.material_id  = p->public_data.material;
 
-                optional<scene_material&> mat = scene->get_scene_material(p.public_data.material);
+                optional<scene_material&> mat = scene->get_scene_material(p->public_data.material);
                 MANGO_ASSERT(mat, "Non existing material in instances!");
 
                 a_draw.transparent = mat->public_data.alpha_mode > material_alpha_mode::mode_mask;
@@ -1155,16 +1169,28 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
                 a_draw.view_depth = (mat4(m_camera_data.view_projection_matrix) * node->global_transformation_matrix * vec4(0, 0, 0, 1)).z;
 
-                a_draw.bounding_box = p.bounding_box.get_transformed(node->global_transformation_matrix);
+                a_draw.bounding_box = p->bounding_box.get_transformed(node->global_transformation_matrix);
 
                 draws.push_back(a_draw);
             }
+        }
+        if ((node->type & node_type::joint) != node_type::empty_leaf)
+        {
+            optional<scene_joint&> joint = scene->get_scene_joint(node->joint_id);
+            MANGO_ASSERT(joint, "Non existing joint in instances!");
+            joint_matrices[joint->vertex_attribute_joint_idx] = std140_mat4(joint->joint_matrix);
+            joint_count++;
         }
         if ((node->type & node_type::camera) != node_type::empty_leaf)
         {
             // TODO First is active one at the moment.
         }
+        if ((node->type & node_type::skin) != node_type::empty_leaf)
+        {
+            // Nothing to do here atm?!
+        }
     }
+    m_frame_context->set_buffer_data(m_animation_data_buffer, 0, sizeof(mat4) * joint_count, joint_matrices.data());
 
     m_light_stack.update(scene);
 
@@ -1259,6 +1285,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                         m_model_data.normal_matrix = std140_mat3(mat3(glm::transpose(glm::inverse(node->global_transformation_matrix))));
                         m_model_data.has_normals   = prim->public_data.has_normals;
                         m_model_data.has_tangents  = prim->public_data.has_tangents;
+                        m_model_data.has_joints   = prim->public_data.has_joints;
+                        m_model_data.has_weights  = prim->public_data.has_weights;
 
                         m_frame_context->set_buffer_data(m_model_data_buffer, 0, sizeof(m_model_data), &m_model_data);
 
@@ -1389,6 +1417,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             m_frame_context->set_viewport(0, 1, &window_viewport);
 
             dc_pipeline->get_resource_mapping()->set("camera_data", m_camera_data_buffer);
+            dc_pipeline->get_resource_mapping()->set("animation_data", m_animation_data_buffer);
 
             m_model_data.model_matrix  = node->global_transformation_matrix;
             m_model_data.normal_matrix = std140_mat3(mat3(glm::transpose(glm::inverse(node->global_transformation_matrix))));
@@ -2005,7 +2034,7 @@ void deferred_pbr_renderer::on_ui_widget()
             {
                 auto environment_display = std::make_shared<environment_display_step>(environment_display_settings(0.0f)); // TODO Paul: Settings?
                 environment_display->attach(m_shared_context);
-                m_pipeline_steps[mango::render_pipeline_step::environment_display] = std::static_pointer_cast<render_step>(environment_display);
+                m_pipeline_steps[mango::render_pipeline_step::environment_display] = environment_display;
             }
             else
             {
@@ -2029,7 +2058,7 @@ void deferred_pbr_renderer::on_ui_widget()
                 auto step_shadow_map = std::make_shared<shadow_map_step>(shadow_settings());
                 step_shadow_map->attach(m_shared_context);
                 m_pipeline_cache.set_shadow_base(step_shadow_map->get_shadow_pass_pipeline_base());
-                m_pipeline_steps[mango::render_pipeline_step::shadow_map] = std::static_pointer_cast<render_step>(step_shadow_map);
+                m_pipeline_steps[mango::render_pipeline_step::shadow_map] = step_shadow_map;
                 m_renderer_data.shadow_step_enabled                       = true;
             }
             else
@@ -2054,7 +2083,7 @@ void deferred_pbr_renderer::on_ui_widget()
                 auto step_fxaa = std::make_shared<fxaa_step>(fxaa_settings(fxaa_quality_preset::medium_quality, 0.0f));
                 step_fxaa->attach(m_shared_context);
                 step_fxaa->set_output_targets(m_output_target, m_ouput_depth_target);
-                m_pipeline_steps[mango::render_pipeline_step::fxaa] = std::static_pointer_cast<render_step>(step_fxaa);
+                m_pipeline_steps[mango::render_pipeline_step::fxaa] = step_fxaa;
             }
             else
             {

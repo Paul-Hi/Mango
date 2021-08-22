@@ -82,14 +82,14 @@ namespace mango
 
         //! \brief The \a sid of viewed \a scene_buffer.
         sid buffer;
-        //! \brief The offset of the \a scene_buffer_vie
+        //! \brief The offset of the \a scene_buffer_view.
         int32 offset;
-        //! \brief The size of the \a scene_buffer_view.w.
+        //! \brief The size of the \a scene_buffer_view.
         int32 size;
-        //! \brief The stride of the \a scene_buffer_view.w.
+        //! \brief The stride of the \a scene_buffer_view.
         int32 stride;
 
-        //! \brief The gpu \a gfx_buffer of the \a scene_buffer_view.
+        //! \brief The gpu \a gfx_buffer of the \a scene_buffer_view or nullptr if it is only relevant for the cpu.
         gfx_handle<const gfx_buffer> graphics_buffer;
 
         scene_buffer_view()
@@ -142,8 +142,8 @@ namespace mango
         //! \brief The public \a mesh data.
         mesh public_data;
 
-        //! \brief All the \a scene_primives contained by this \a scene_mesh.
-        std::vector<scene_primitive> scene_primitives;
+        //! \brief All \a sids of the \a scene_primives contained by this \a scene_mesh.
+        std::vector<sid> scene_primitives;
 
         scene_mesh() = default;
         //! \brief The \a scene_mesh is an internal scene structure.
@@ -230,6 +230,57 @@ namespace mango
         }
     };
 
+    //! \brief An internal structure holding data for joints used for pose transformations.
+    struct scene_joint
+    {
+        //! \brief The \a sid of this instance.
+        sid instance_id;
+
+        //! \brief The \a sid of the \a scene_joints \a scene_node.
+        sid node_id;
+
+        //! \brief The inverse bind matrix of this joint.
+        //! \details Matrix transforming the joint to the root joint in the default pose.
+        mat4 inverse_bind_matrix;
+
+        //! \brief The joint matrix of this joint.
+        //! \details Matrix calculated for every frame in the update function.
+        //! \details inverse(parent_global_transform) * joint_global_transform * inverse_bind_matrix.
+        mat4 joint_matrix;
+
+        //! \brief The index of the joint in the vertex attributes.
+        //! \details Used to map the joint_matrix correctly later on.
+        int32 vertex_attribute_joint_idx;
+
+        scene_joint()
+            : inverse_bind_matrix(1.0f)
+            , joint_matrix(1.0f)
+            , vertex_attribute_joint_idx(-1)
+        {
+        }
+        //! \brief The \a scene_joint is an internal scene structure.
+        DECLARE_SCENE_INTERNAL(scene_joint);
+    };
+
+    //! \brief An internal structure holding data for skins having bone information.
+    struct scene_skin
+    {
+        //! \brief The \a sid of this instance.
+        sid instance_id;
+        //! \brief The name of the \a scene_skin.
+        string name;
+
+        //! \brief The \a sid of the \a scene_skins root \a scene_node.
+        sid root_node_id;
+
+        //! \brief All the \a sids of the \a scene_joints contained by this \a scene_skin.
+        std::vector<sid> scene_joints;
+
+        scene_skin() = default;
+        //! \brief The \a scene_skin is an internal scene structure.
+        DECLARE_SCENE_INTERNAL(scene_skin);
+    };
+
     //! \brief The type of a \a scene_node.
     //! \details Bitset.
     enum class node_type : uint8
@@ -238,7 +289,9 @@ namespace mango
         is_parent  = 1 << 0,
         mesh       = 1 << 1,
         camera     = 1 << 2,
-        light      = 1 << 3
+        light      = 1 << 3,
+        skin       = 1 << 4,
+        joint      = 1 << 5
     };
     MANGO_ENABLE_BITMASK_OPERATIONS(node_type)
 
@@ -271,6 +324,12 @@ namespace mango
         //! \brief The \a sid of the nodes \a scene_lights, or invalid_sid.
         //! \details Ordered by type: 0 = directional, 1 = skylight, 2 = atmospheric_light.
         sid light_ids[3]; // Accessed via type.
+
+        //! \brief The \a sid of the nodes \a scene_skin, or invalid_sid.
+        sid skin_id;
+
+        //! \brief The \a sid of the nodes \a scene_joint, or invalid_sid.
+        sid joint_id;
 
         scene_node()
             : type(node_type::empty_leaf)
