@@ -112,11 +112,11 @@ bool editor::create()
 
     // test settings comment in to have some example scene
     {
-        sid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/CesiumMan/glTF/CesiumMan.gltf");
+        sid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/dancing_stormtrooper/dancing_stormtrooper.glb");
         // sid bb                      = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/other_3d_models/living_room/living_room.glb");
         optional<mango::model&> mod = m_current_scene->get_model(bb);
         MANGO_ASSERT(mod, "Model not existent!");
-        node model_root_node               = node("CesiumMan");
+        node model_root_node               = node("Dancing Stormtrooper");
         sid model_instance_root            = m_current_scene->add_node(model_root_node);
         model_instance_root                = m_current_scene->add_model_to_scene(bb, mod->scenarios.at(mod->default_scenario), model_instance_root);
         optional<transform&> mod_transform = m_current_scene->get_transform(model_instance_root);
@@ -127,7 +127,7 @@ bool editor::create()
         node dl_node               = node("Directional Sun Light");
         sid directional_light_node = m_current_scene->add_node(dl_node);
         directional_light dl;
-        dl.direction                = vec3(0.2f, 1.0f, 0.15f); // vec3(0.9f, 0.05f, 0.65f);
+        dl.direction                = vec3(0.9f, 0.05f, 0.65f);
         dl.intensity                = default_directional_intensity;
         dl.color                    = mango::color_rgb(1.0f, 0.387f, 0.207f);
         dl.cast_shadows             = true;

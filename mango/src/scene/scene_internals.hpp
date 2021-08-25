@@ -281,6 +281,67 @@ namespace mango
         DECLARE_SCENE_INTERNAL(scene_skin);
     };
 
+    enum class animation_target_path : uint8
+    {
+        unknown = 0,
+        translation,
+        rotation,
+        scale,
+        weights // Not supported atm
+    };
+    enum class animation_interpolation_type : uint8
+    {
+        unknown = 0,
+        linear,
+        step,
+        cubic_spline
+    };
+
+    struct animation_channel
+    {
+        int32 sampler_idx;
+        sid target;
+        animation_target_path target_path;
+    };
+
+    struct animation_sampler
+    {
+        std::vector<float> frames;
+        std::vector<vec4> values; // ALways storing vec4 even though they could be vec3.
+        animation_interpolation_type interpolation_type;
+    };
+
+    //! \brief An internal structure holding animation data.
+    struct scene_animation
+    {
+        //! \brief The \a sid of this instance.
+        sid instance_id;
+        //! \brief The name of the \a scene_animation.
+        string name;
+
+        //! \brief All  \a animation_channels of this \a scene_animation.
+        std::vector<animation_channel> channels;
+
+        //! \brief All  \a animation_samplers of this \a scene_animation.
+        std::vector<animation_sampler> samplers;
+
+        float duration;
+
+        bool is_playing;
+
+        float current_time;
+
+
+        scene_animation()
+            : duration(0.0f)
+            , is_playing(false)
+            , current_time(0.0f)
+        {
+        }
+        //! \brief The \a scene_animation is an internal scene structure.
+        DECLARE_SCENE_INTERNAL(scene_animation);
+    };
+
     //! \brief The type of a \a scene_node.
     //! \details Bitset.
     enum class node_type : uint8

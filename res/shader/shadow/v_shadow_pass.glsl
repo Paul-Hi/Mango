@@ -9,6 +9,8 @@ layout(location = VERTEX_INPUT_WEIGHT) in vec4 vertex_data_weight;
 
 #include <../include/model.glsl>
 
+#include <../include/animation.glsl>
+
 out shared_data
 {
     vec2 texcoord;
@@ -16,7 +18,18 @@ out shared_data
 
 vec4 get_world_position()
 {
-    return model_matrix * vec4(vertex_data_position, 1.0);
+    mat4 vertex_transform = model_matrix;
+    if(has_joints && has_weights)
+    {
+        mat4 skin_matrix = vertex_data_weight.x * joint_matrices[int(vertex_data_joint.x)] +
+                           vertex_data_weight.y * joint_matrices[int(vertex_data_joint.y)] +
+                           vertex_data_weight.z * joint_matrices[int(vertex_data_joint.z)] +
+                           vertex_data_weight.w * joint_matrices[int(vertex_data_joint.w)];
+
+        // gltf implementation says: Ignore transformation of the mesh node, only apply transformation of skeleton node.
+        vertex_transform = skin_matrix;
+    }
+    return vertex_transform * vec4(vertex_data_position, 1.0);
 }
 
 void main()

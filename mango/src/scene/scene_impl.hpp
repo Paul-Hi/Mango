@@ -223,7 +223,7 @@ namespace mango
 
         sid get_cpu_buffer_view(tinygltf::Model& m, int buffer_view_id, model_import_loading_data& loading_data);
 
-        const void* map_cpu_buffer_view_data(const scene_buffer_view& view);
+        const void* map_cpu_buffer_view_data(const scene_buffer_view& view, int32 accessor_offset);
 
         //! \brief Builds a \a material from a tinygltf model material.
         //! \param[out] mat The \a material to load into.
@@ -260,10 +260,13 @@ namespace mango
         packed_freelist<scene_primitive, 32768> m_scene_primitives;
 
         //! \brief The \a packed_freelist for all \a scene_joints in the \a scene.
-        packed_freelist<scene_joint, 128> m_scene_joints;
+        packed_freelist<scene_joint, 512> m_scene_joints;
 
         //! \brief The \a packed_freelist for all \a scene_skins in the \a scene.
         packed_freelist<scene_skin, 8> m_scene_skins;
+
+        //! \brief The \a packed_freelist for all \a scene_animations in the \a scene.
+        packed_freelist<scene_animation, 32> m_scene_animations;
 
         //! \brief The \a packed_freelist for all \a scene_cameras in the \a scene.
         packed_freelist<scene_camera, 64> m_scene_cameras;

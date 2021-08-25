@@ -28,6 +28,7 @@ void main()
                            vertex_data_weight.z * joint_matrices[int(vertex_data_joint.z)] +
                            vertex_data_weight.w * joint_matrices[int(vertex_data_joint.w)];
 
+        // gltf implementation says: Ignore transformation of the mesh node, only apply transformation of skeleton node.
         vertex_transform = skin_matrix;
         normal_transform = mat3(transpose(inverse(skin_matrix))); // TODO Paul: Transpose and inverse in shader sufficient?
     }

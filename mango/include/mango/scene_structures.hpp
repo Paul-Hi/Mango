@@ -42,7 +42,8 @@ namespace mango
         scene_structure_internal_buffer_view,
         scene_structure_internal_joint,
         scene_structure_internal_skin,
-        scene_structure_count = scene_structure_internal_skin
+        scene_structure_internal_animation,
+        scene_structure_count = scene_structure_internal_animation
     };
 
     //! \brief An Id for all scene objects.

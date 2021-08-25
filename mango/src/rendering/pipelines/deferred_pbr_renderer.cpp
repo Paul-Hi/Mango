@@ -342,7 +342,7 @@ bool deferred_pbr_renderer::create_buffers()
     if (!check_mapping(m_luminance_data_mapping, "luminance data mapping"))
         return false;
 
-//TODO - this doesn't initialize the m_luminance_data_mapping completely...
+    // TODO - this doesn't initialize the m_luminance_data_mapping completely...
     memset(&m_luminance_data_mapping->histogram[0], 0, 256 * sizeof(int32));
     m_luminance_data_mapping->luminance = 1.0f;
 
@@ -1280,13 +1280,14 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
                         m_frame_context->set_buffer_data(shadow_data_buffer, 0, sizeof(shadow_map_step::shadow_data), &(data));
                         dc_pipeline->get_resource_mapping()->set("shadow_data", shadow_data_buffer);
+                        dc_pipeline->get_resource_mapping()->set("animation_data", m_animation_data_buffer);
 
                         m_model_data.model_matrix  = node->global_transformation_matrix;
                         m_model_data.normal_matrix = std140_mat3(mat3(glm::transpose(glm::inverse(node->global_transformation_matrix))));
                         m_model_data.has_normals   = prim->public_data.has_normals;
                         m_model_data.has_tangents  = prim->public_data.has_tangents;
-                        m_model_data.has_joints   = prim->public_data.has_joints;
-                        m_model_data.has_weights  = prim->public_data.has_weights;
+                        m_model_data.has_joints    = prim->public_data.has_joints;
+                        m_model_data.has_weights   = prim->public_data.has_weights;
 
                         m_frame_context->set_buffer_data(m_model_data_buffer, 0, sizeof(m_model_data), &m_model_data);
 

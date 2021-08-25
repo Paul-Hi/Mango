@@ -20,9 +20,14 @@
 
 using namespace mango;
 
-static int32 get_attrib_component_count_from_tinygltf_types(int32 type);
+static int32 get_attrib_component_count_from_tinygltf_type(int32 type);
 static gfx_sampler_filter get_texture_filter_from_tinygltf(int32 filter);
 static gfx_sampler_edge_wrap get_texture_wrap_from_tinygltf(int32 wrap);
+static animation_interpolation_type get_interpolation_type_from_tinygltf(const string& type);
+static animation_target_path get_target_path_from_tinygltf(const string& target_path);
+static vec3 interpolate_translation(const vec3& last, const vec3& next, float d, const animation_interpolation_type& type);
+static quat interpolate_rotation(const quat& last, const quat& next, float d, const animation_interpolation_type& type);
+static vec3 interpolate_scale(const vec3& last, const vec3& next, float d, const animation_interpolation_type& type);
 
 scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& context)
     : m_shared_context(context)
@@ -34,6 +39,7 @@ scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& conte
     , m_scene_primitives()
     , m_scene_joints()
     , m_scene_skins()
+    , m_scene_animations()
     , m_scene_cameras()
     , m_scene_lights()
     , m_scene_transforms()
@@ -1574,6 +1580,70 @@ std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& def
         }
     }
 
+    // load animations
+    for (int32 i = 0; i < static_cast<int32>(m.animations.size()); ++i)
+    {
+        const tinygltf::Animation& t_anim = m.animations[i];
+
+        sid animation_object_id = sid::create(m_scene_animations.emplace(), scene_structure_type::scene_structure_internal_animation);
+        scene_animation& anim   = m_scene_animations.back();
+        anim.instance_id        = animation_object_id;
+        anim.name               = t_anim.name;
+
+        for (auto c : t_anim.channels)
+        {
+            animation_channel channel;
+            channel.sampler_idx = c.sampler;
+            channel.target      = loading_data.node_map[c.target_node];
+            channel.target_path = get_target_path_from_tinygltf(c.target_path);
+            anim.channels.push_back(channel);
+        }
+
+        // gltf input accessor should define frames in seconds
+        float min_kf = 3600.0, max_kf = -3600.0; // one hour min, max :D
+
+        for (auto s : t_anim.samplers)
+        {
+            animation_sampler sampler;
+
+            const tinygltf::Accessor& input_accessor = m.accessors[s.input];
+            sid input_view_id                        = get_cpu_buffer_view(m, input_accessor.bufferView, loading_data);
+            MANGO_ASSERT(input_accessor.type == TINYGLTF_TYPE_SCALAR, "Tinygltf input accessor has to be of a scalar type!");
+            min_kf                        = glm::min(min_kf, static_cast<float>(input_accessor.minValues[0]));
+            max_kf                        = glm::max(max_kf, static_cast<float>(input_accessor.maxValues[0]));
+            scene_buffer_view& input_view = m_scene_buffer_views.at(input_view_id.id());
+            const float* input_data       = static_cast<const float*>(map_cpu_buffer_view_data(input_view, input_accessor.byteOffset));
+            sampler.frames.insert(sampler.frames.end(), input_data, input_data + input_accessor.count);
+
+            const tinygltf::Accessor& output_accessor = m.accessors[s.output];
+            sid output_view_id                        = get_cpu_buffer_view(m, output_accessor.bufferView, loading_data);
+            scene_buffer_view& output_view            = m_scene_buffer_views.at(output_view_id.id());
+            if (get_attrib_component_count_from_tinygltf_type(output_accessor.type) == 4)
+            {
+                const vec4* output_data = static_cast<const vec4*>(map_cpu_buffer_view_data(output_view, output_accessor.byteOffset));
+                for (int32 v = 0; v < output_accessor.count; ++v)
+                {
+                    sampler.values.push_back(output_data[v]);
+                }
+            }
+            else if (get_attrib_component_count_from_tinygltf_type(output_accessor.type) == 3)
+            {
+                const vec3* output_data = static_cast<const vec3*>(map_cpu_buffer_view_data(output_view, output_accessor.byteOffset));
+                for (int32 v = 0; v < output_accessor.count; ++v)
+                {
+                    sampler.values.push_back(vec4(output_data[v], 0.0f));
+                }
+            }
+            else
+                MANGO_ASSERT(false, "Invalid component count {0} for animation sampler output accessor!");
+
+            sampler.interpolation_type = get_interpolation_type_from_tinygltf(s.interpolation);
+            anim.samplers.push_back(sampler);
+        }
+
+        anim.duration = max_kf - min_kf;
+    }
+
     sc.nodes = loading_data.scenario_nodes;
 
     std::vector<sid> result;
@@ -1854,7 +1924,7 @@ sid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, sid c
                 attrib_desc.offset  = 0; // TODO Paul: Does that work with interleaved buffers?
                 // TODO Paul: Does this work with matrix types?
                 attrib_desc.attribute_format =
-                    graphics::get_attribute_format_for_component_info(static_cast<gfx_format>(accessor.componentType), get_attrib_component_count_from_tinygltf_types(accessor.type));
+                    graphics::get_attribute_format_for_component_info(static_cast<gfx_format>(accessor.componentType), get_attrib_component_count_from_tinygltf_type(accessor.type));
                 attrib_desc.location   = attrib_location;
                 attrib_desc.normalized = false; // accessor.normalized;
 
@@ -1895,8 +1965,8 @@ sid scene_impl::build_model_skin(tinygltf::Model& m, tinygltf::Skin& skin, sid c
     const tinygltf::Accessor& ibm_accessor = m.accessors[skin.inverseBindMatrices];
     packed_freelist_id view_id             = get_cpu_buffer_view(m, ibm_accessor.bufferView, loading_data).id(); // TODO Paul: Do we need to check the index?
     scene_buffer_view& view                = m_scene_buffer_views.at(view_id);
-    const mat4* ibm_data                   = static_cast<const mat4*>(map_cpu_buffer_view_data(view));
-    std::vector<mat4> inverse_bind_matrices(ibm_data, ibm_data + ibm_accessor.count); // TODO Paul: Check if this is working properly.
+    const mat4* ibm_data                   = static_cast<const mat4*>(map_cpu_buffer_view_data(view, ibm_accessor.byteOffset));
+    std::vector<mat4> inverse_bind_matrices(ibm_data, ibm_data + ibm_accessor.count);
 
     for (int32 i = 0; i < static_cast<int32>(skin.joints.size()); ++i)
     {
@@ -1976,7 +2046,7 @@ sid scene_impl::get_cpu_buffer_view(tinygltf::Model& m, int buffer_view_id, mode
     return buffer_view_object_id;
 }
 
-const void* scene_impl::map_cpu_buffer_view_data(const scene_buffer_view& view)
+const void* scene_impl::map_cpu_buffer_view_data(const scene_buffer_view& view, int32 accessor_offset)
 {
     PROFILE_ZONE;
     packed_freelist_id bv = view.buffer.id();
@@ -1991,7 +2061,7 @@ const void* scene_impl::map_cpu_buffer_view_data(const scene_buffer_view& view)
 
     const unsigned char* data_start = buffer.data.data();
 
-    return data_start + view.offset;
+    return data_start + view.offset + accessor_offset;
 }
 
 void scene_impl::load_material(material& mat, const tinygltf::Material& primitive_material, tinygltf::Model& m)
@@ -2409,6 +2479,57 @@ void scene_impl::update(float dt)
     PROFILE_ZONE;
     MANGO_UNUSED(dt);
 
+    for (const packed_freelist_id& id : m_scene_animations)
+    {
+        scene_animation& anim = m_scene_animations.at(id);
+        // if (!anim.is_playing)
+        //     continue;
+
+        anim.current_time += dt;
+        anim.current_time = glm::mod(anim.current_time, anim.duration);
+
+        for (const animation_channel& channel : anim.channels)
+        {
+            packed_freelist_id target_id    = channel.target.id();
+            scene_node& target              = m_scene_nodes.at(target_id);
+            packed_freelist_id transform_id = target.node_transform.id();
+            scene_transform& tr             = m_scene_transforms.at(transform_id);
+
+            const animation_sampler& sampler = anim.samplers[channel.sampler_idx];
+            auto next                        = std::lower_bound(sampler.frames.begin(), sampler.frames.end(), anim.current_time);
+            int32 next_idx                   = (next - sampler.frames.begin()) % sampler.frames.size();
+            int32 last_idx                   = next_idx - 1 < 0 ? sampler.frames.size() - 1 : next_idx - 1;
+            float next_time                  = sampler.frames[next_idx];
+            float last_time                  = sampler.frames[last_idx];
+            float d                          = (anim.current_time - last_time) / (next_time - last_time);
+            const vec4& next_value           = sampler.values[next_idx];
+            const vec4& last_value           = sampler.values[last_idx];
+            switch (channel.target_path)
+            {
+            case animation_target_path::translation:
+            {
+                tr.public_data.position = interpolate_translation(vec3(last_value.x, last_value.y, last_value.z), vec3(next_value.x, next_value.y, next_value.z), d, sampler.interpolation_type);
+                break;
+            }
+            case animation_target_path::rotation:
+            {
+                tr.public_data.rotation =
+                    interpolate_rotation(quat(last_value.w, last_value.x, last_value.y, last_value.z), quat(next_value.w, next_value.x, next_value.y, next_value.z), d, sampler.interpolation_type);
+                break;
+            }
+            case animation_target_path::scale:
+            {
+                tr.public_data.scale = interpolate_scale(vec3(last_value.x, last_value.y, last_value.z), vec3(next_value.x, next_value.y, next_value.z), d, sampler.interpolation_type);
+                break;
+            }
+            default:
+                break;
+            }
+
+            tr.public_data.update();
+        }
+    }
+
     m_render_instances.clear();
 
     sg_bfs_for_each(
@@ -2658,7 +2779,7 @@ string scene_impl::get_display_name(sid object) // TODO Paul: Make that better!
     return "";
 }
 
-static int32 get_attrib_component_count_from_tinygltf_types(int32 type)
+static int32 get_attrib_component_count_from_tinygltf_type(int32 type)
 {
     switch (type)
     {
@@ -2716,5 +2837,77 @@ static gfx_sampler_edge_wrap get_texture_wrap_from_tinygltf(int32 wrap)
     default:
         MANGO_ASSERT(false, "Unknown edge wrap from tinygltf!");
         return gfx_sampler_edge_wrap::sampler_edge_wrap_unknown;
+    }
+}
+
+static animation_interpolation_type get_interpolation_type_from_tinygltf(const string& type)
+{
+    if (type.compare("LINEAR") == 0)
+        return animation_interpolation_type::linear;
+    if (type.compare("STEP") == 0)
+        return animation_interpolation_type::step;
+    if (type.compare("CUBICSPLINE") == 0)
+        MANGO_LOG_WARN("Cubic spline interpolation is currently not supported. Using linear interpolation!");
+        return animation_interpolation_type::cubic_spline;
+
+    MANGO_LOG_ERROR("Unknown interpolation type {0}. Using linear interpolation!", type);
+    return animation_interpolation_type::linear;
+}
+
+static animation_target_path get_target_path_from_tinygltf(const string& target_path)
+{
+    if (target_path.compare("translation") == 0)
+        return animation_target_path::translation;
+    if (target_path.compare("rotation") == 0)
+        return animation_target_path::rotation;
+    if (target_path.compare("scale") == 0)
+        return animation_target_path::scale;
+
+    MANGO_LOG_ERROR("Unknown interpolation type {0}!", target_path);
+    return animation_target_path::unknown;
+}
+
+static vec3 interpolate_translation(const vec3& last, const vec3& next, float d, const animation_interpolation_type& type)
+{
+    switch (type)
+    {
+    case animation_interpolation_type::step:
+        return last;
+    case animation_interpolation_type::linear:
+        return glm::mix(last, next, d);
+    case animation_interpolation_type::cubic_spline:
+        return glm::mix(last, next, d);
+    default:
+        return glm::mix(last, next, d);
+    }
+}
+
+static quat interpolate_rotation(const quat& last, const quat& next, float d, const animation_interpolation_type& type)
+{
+    switch (type)
+    {
+    case animation_interpolation_type::step:
+        return last;
+    case animation_interpolation_type::linear:
+        return glm::slerp(last, next, d);
+    case animation_interpolation_type::cubic_spline:
+        return glm::slerp(last, next, d);
+    default:
+        return glm::slerp(last, next, d);
+    }
+}
+
+static vec3 interpolate_scale(const vec3& last, const vec3& next, float d, const animation_interpolation_type& type)
+{
+    switch (type)
+    {
+    case animation_interpolation_type::step:
+        return last;
+    case animation_interpolation_type::linear:
+        return glm::mix(last, next, d);
+    case animation_interpolation_type::cubic_spline:
+        return glm::mix(last, next, d);
+    default:
+        return glm::mix(last, next, d);
     }
 }

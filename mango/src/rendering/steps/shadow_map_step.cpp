@@ -98,9 +98,12 @@ bool shadow_map_step::create_step_resources()
         shader_info.stage         = gfx_shader_stage_type::shader_stage_vertex;
         shader_info.shader_source = source_desc;
 
-        shader_info.resource_count = 1;
+        shader_info.resource_count = 2;
 
-        shader_info.resources = { { { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, "model_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 } } };
+        shader_info.resources = { {
+            { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, "model_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_vertex, ANIMATION_DATA_BUFFER_BINDING_POINT, "animation_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+        } };
 
         m_shadow_pass_vertex = graphics_device->create_shader_stage(shader_info);
         if (!check_creation(m_shadow_pass_vertex.get(), "shadow pass vertex shader"))
@@ -162,6 +165,8 @@ bool shadow_map_step::create_step_resources()
         m_shadow_pass_pipeline_create_info_base = graphics_device->provide_graphics_pipeline_create_info();
         auto shadow_pass_pipeline_layout        = graphics_device->create_pipeline_resource_layout({
             { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+              gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_vertex, ANIMATION_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
               gfx_shader_resource_access::shader_access_dynamic },
 
             { gfx_shader_stage_type::shader_stage_geometry, SHADOW_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,

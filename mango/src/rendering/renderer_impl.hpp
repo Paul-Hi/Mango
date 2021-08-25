@@ -191,7 +191,7 @@ namespace mango
         std140_float luminance;    //!< Smoothed out average luminance.
     };
 
-    static const int32 max_skin_joints = 512; // TODO Paul: Hardcoded ... Not good!
+    static const int32 max_skin_joints = 128; // TODO Paul: Hardcoded ... Not good!
 
     //! \brief Shader storage buffer struct for animation data.
     //! \details Bound once per frame to binding point 7.
