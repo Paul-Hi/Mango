@@ -19,7 +19,7 @@ out shared_data
 vec4 get_world_position()
 {
     mat4 vertex_transform = model_matrix;
-    if(has_joints && has_weights)
+    if(has_skinned_animation)
     {
         mat4 skin_matrix = vertex_data_weight.x * joint_matrices[int(vertex_data_joint.x)] +
                            vertex_data_weight.y * joint_matrices[int(vertex_data_joint.y)] +

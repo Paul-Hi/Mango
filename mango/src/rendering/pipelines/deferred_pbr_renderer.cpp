@@ -711,6 +711,8 @@ bool deferred_pbr_renderer::create_pipeline_resources()
               gfx_shader_resource_access::shader_access_dynamic },
             { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
               gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_vertex, ANIMATION_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+              gfx_shader_resource_access::shader_access_dynamic },
 
             { gfx_shader_stage_type::shader_stage_fragment, MATERIAL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
               gfx_shader_resource_access::shader_access_dynamic },
@@ -986,6 +988,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         sid material_id;
         float view_depth;
         bool transparent;
+        int32 skin_idx;
         axis_aligned_bounding_box bounding_box; // Does not contribute to order.
 
         bool operator<(const draw_key& other) const
@@ -993,6 +996,11 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             if (transparent < other.transparent)
                 return true;
             if (other.transparent < transparent)
+                return false;
+
+            if (skin_idx < other.skin_idx)
+                return true;
+            if (other.skin_idx < skin_idx)
                 return false;
 
             if (view_depth > other.view_depth)
@@ -1122,8 +1130,11 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         }
     }
 
-    std::vector<std140_mat4> joint_matrices(max_skin_joints);
-    int32 joint_count = 0;
+    // TODO Paul: This solution is not ideal - Change it, when there is a better idea!
+    std::vector<std::array<std140_mat4, max_skin_joints>> joint_matrices;
+    std::vector<int32> joint_matrix_counts;
+    std::unordered_map<int32, int32> skin_to_list_idx;
+    int32 current_skin = 0;
 
     for (auto instance : instances)
     {
@@ -1140,6 +1151,21 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 optional<scene_light&> light = scene->get_scene_light(node->light_ids[i]);
                 MANGO_ASSERT(light, "Non existing light in instances!");
                 m_light_stack.push(light.value());
+            }
+        }
+        if ((node->type & node_type::skin) != node_type::empty_leaf)
+        {
+            auto pair = skin_to_list_idx.find(node->skin_id.id().get());
+            if (pair != skin_to_list_idx.end())
+            {
+                current_skin = pair->second;
+            }
+            else
+            {
+                current_skin                    = joint_matrices.size();
+                skin_to_list_idx[node->skin_id.id().get()] = current_skin;
+                joint_matrices.emplace_back(std::array<std140_mat4, max_skin_joints>());
+                joint_matrix_counts.push_back(0);
             }
         }
         if ((node->type & node_type::mesh) != node_type::empty_leaf)
@@ -1171,6 +1197,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
                 a_draw.bounding_box = p->bounding_box.get_transformed(node->global_transformation_matrix);
 
+                a_draw.skin_idx = current_skin;
+
                 draws.push_back(a_draw);
             }
         }
@@ -1178,19 +1206,29 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         {
             optional<scene_joint&> joint = scene->get_scene_joint(node->joint_id);
             MANGO_ASSERT(joint, "Non existing joint in instances!");
-            joint_matrices[joint->vertex_attribute_joint_idx] = std140_mat4(joint->joint_matrix);
-            joint_count++;
+
+            auto pair = skin_to_list_idx.find(joint->skin_id.id().get());
+            if (pair != skin_to_list_idx.end())
+            {
+                current_skin = pair->second;
+            }
+            else
+            {
+                current_skin                    = joint_matrices.size();
+                skin_to_list_idx[joint->skin_id.id().get()] = current_skin;
+                joint_matrices.emplace_back(std::array<std140_mat4, max_skin_joints>());
+                joint_matrix_counts.push_back(0);
+            }
+
+            // MANGO_ASSERT(current_skin_offset + joint->vertex_attribute_joint_idx < max_skin_joints);
+            joint_matrices[current_skin][joint->vertex_attribute_joint_idx] = std140_mat4(joint->joint_matrix);
+            joint_matrix_counts[current_skin]++;
         }
         if ((node->type & node_type::camera) != node_type::empty_leaf)
         {
             // TODO First is active one at the moment.
         }
-        if ((node->type & node_type::skin) != node_type::empty_leaf)
-        {
-            // Nothing to do here atm?!
-        }
     }
-    m_frame_context->set_buffer_data(m_animation_data_buffer, 0, sizeof(mat4) * joint_count, joint_matrices.data());
 
     m_light_stack.update(scene);
 
@@ -1279,15 +1317,15 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                         m_frame_context->set_viewport(0, 1, &shadow_viewport);
 
                         m_frame_context->set_buffer_data(shadow_data_buffer, 0, sizeof(shadow_map_step::shadow_data), &(data));
+                        m_frame_context->set_buffer_data(m_animation_data_buffer, 0, sizeof(mat4) * joint_matrix_counts[dc.skin_idx], joint_matrices[dc.skin_idx].data());
                         dc_pipeline->get_resource_mapping()->set("shadow_data", shadow_data_buffer);
                         dc_pipeline->get_resource_mapping()->set("animation_data", m_animation_data_buffer);
 
-                        m_model_data.model_matrix  = node->global_transformation_matrix;
-                        m_model_data.normal_matrix = std140_mat3(mat3(glm::transpose(glm::inverse(node->global_transformation_matrix))));
-                        m_model_data.has_normals   = prim->public_data.has_normals;
-                        m_model_data.has_tangents  = prim->public_data.has_tangents;
-                        m_model_data.has_joints    = prim->public_data.has_joints;
-                        m_model_data.has_weights   = prim->public_data.has_weights;
+                        m_model_data.model_matrix          = node->global_transformation_matrix;
+                        m_model_data.normal_matrix         = std140_mat3(mat3(glm::transpose(glm::inverse(node->global_transformation_matrix))));
+                        m_model_data.has_normals           = prim->public_data.has_normals;
+                        m_model_data.has_tangents          = prim->public_data.has_tangents;
+                        m_model_data.has_skinned_animation = prim->public_data.has_joints && prim->public_data.has_weights;
 
                         m_frame_context->set_buffer_data(m_model_data_buffer, 0, sizeof(m_model_data), &m_model_data);
 
@@ -1417,13 +1455,15 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                                           static_cast<float>(m_renderer_info.canvas.height) };
             m_frame_context->set_viewport(0, 1, &window_viewport);
 
+            m_frame_context->set_buffer_data(m_animation_data_buffer, 0, sizeof(mat4) * joint_matrix_counts[dc.skin_idx], joint_matrices[dc.skin_idx].data());
             dc_pipeline->get_resource_mapping()->set("camera_data", m_camera_data_buffer);
             dc_pipeline->get_resource_mapping()->set("animation_data", m_animation_data_buffer);
 
-            m_model_data.model_matrix  = node->global_transformation_matrix;
-            m_model_data.normal_matrix = std140_mat3(mat3(glm::transpose(glm::inverse(node->global_transformation_matrix))));
-            m_model_data.has_normals   = prim->public_data.has_normals;
-            m_model_data.has_tangents  = prim->public_data.has_tangents;
+            m_model_data.model_matrix          = node->global_transformation_matrix;
+            m_model_data.normal_matrix         = std140_mat3(mat3(glm::transpose(glm::inverse(node->global_transformation_matrix))));
+            m_model_data.has_normals           = prim->public_data.has_normals;
+            m_model_data.has_tangents          = prim->public_data.has_tangents;
+            m_model_data.has_skinned_animation = prim->public_data.has_joints && prim->public_data.has_weights;
 
             m_frame_context->set_buffer_data(m_model_data_buffer, 0, sizeof(m_model_data), &m_model_data);
 
@@ -1699,12 +1739,15 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                                           static_cast<float>(m_renderer_info.canvas.height) };
             m_frame_context->set_viewport(0, 1, &window_viewport);
 
+            m_frame_context->set_buffer_data(m_animation_data_buffer, 0, sizeof(mat4) * joint_matrix_counts[dc.skin_idx], joint_matrices[dc.skin_idx].data());
             dc_pipeline->get_resource_mapping()->set("camera_data", m_camera_data_buffer);
+            dc_pipeline->get_resource_mapping()->set("animation_data", m_animation_data_buffer);
 
-            m_model_data.model_matrix  = node->global_transformation_matrix;
-            m_model_data.normal_matrix = std140_mat3(mat3(glm::transpose(glm::inverse(node->global_transformation_matrix))));
-            m_model_data.has_normals   = prim->public_data.has_normals;
-            m_model_data.has_tangents  = prim->public_data.has_tangents;
+            m_model_data.model_matrix          = node->global_transformation_matrix;
+            m_model_data.normal_matrix         = std140_mat3(mat3(glm::transpose(glm::inverse(node->global_transformation_matrix))));
+            m_model_data.has_normals           = prim->public_data.has_normals;
+            m_model_data.has_tangents          = prim->public_data.has_tangents;
+            m_model_data.has_skinned_animation = prim->public_data.has_joints && prim->public_data.has_weights;
 
             m_frame_context->set_buffer_data(m_model_data_buffer, 0, sizeof(m_model_data), &m_model_data);
 

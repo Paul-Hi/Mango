@@ -128,12 +128,12 @@ namespace mango
     //! \details Bound once per model to binding point 2.
     struct model_data
     {
-        std140_mat4 model_matrix;  //!< The model matrix.
-        std140_mat3 normal_matrix; //!< The normal matrix.
-        std140_bool has_normals;   //!< Specifies if the mesh has normals as a vertex attribute.
-        std140_bool has_tangents;  //!< Specifies if the mesh has tangents as a vertex attribute.
-        std140_bool has_joints;   //!< Specifies if the mesh has joints as a vertex attribute.
-        std140_bool has_weights;  //!< Specifies if the mesh has weights as a vertex attribute.
+        std140_mat4 model_matrix;          //!< The model matrix.
+        std140_mat3 normal_matrix;         //!< The normal matrix.
+        std140_bool has_normals;           //!< Specifies if the mesh has normals as a vertex attribute.
+        std140_bool has_tangents;          //!< Specifies if the mesh has tangents as a vertex attribute.
+        std140_bool has_skinned_animation; //!< Specifies if the mesh has joints and weights as a vertex attribute.
+        std140_float pad;                  //!< Padding.
     };
 
     //! \brief Uniform buffer struct for material data.
@@ -191,7 +191,7 @@ namespace mango
         std140_float luminance;    //!< Smoothed out average luminance.
     };
 
-    static const int32 max_skin_joints = 128; // TODO Paul: Hardcoded ... Not good!
+    static const int32 max_skin_joints = 256; // TODO Paul: Hardcoded ... Not good!
 
     //! \brief Shader storage buffer struct for animation data.
     //! \details Bound once per frame to binding point 7.

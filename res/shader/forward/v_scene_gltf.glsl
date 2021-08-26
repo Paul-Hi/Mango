@@ -21,7 +21,7 @@ void main()
 {
     mat4 vertex_transform = model_matrix;
     mat3 normal_transform = normal_matrix;
-    if(has_joints && has_weights)
+    if(has_skinned_animation)
     {
         mat4 skin_matrix = vertex_data_weight.x * joint_matrices[int(vertex_data_joint.x)] +
                            vertex_data_weight.y * joint_matrices[int(vertex_data_joint.y)] +

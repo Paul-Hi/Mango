@@ -1091,6 +1091,20 @@ optional<scene_joint&> scene_impl::get_scene_joint(sid instance_id)
     return m_scene_joints.at(prim);
 }
 
+optional<scene_skin&> scene_impl::get_scene_skin(sid instance_id)
+{
+    PROFILE_ZONE;
+    packed_freelist_id prim = instance_id.id();
+
+    if (!m_scene_skins.contains(prim))
+    {
+        MANGO_LOG_WARN("Skin with ID {0} does not exist!", instance_id.id().get());
+        return NULL_OPTION;
+    }
+
+    return m_scene_skins.at(prim);
+}
+
 optional<scene_texture&> scene_impl::get_scene_texture(sid instance_id)
 {
     PROFILE_ZONE;
@@ -1957,10 +1971,10 @@ sid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, sid c
 sid scene_impl::build_model_skin(tinygltf::Model& m, tinygltf::Skin& skin, sid containing_node_id, model_import_loading_data& loading_data)
 {
     PROFILE_ZONE;
-    sid skin_id     = sid::create(m_scene_skins.emplace(), scene_structure_type::scene_structure_internal_skin);
-    scene_skin& sk  = m_scene_skins.back();
-    sk.instance_id  = skin_id;
-    sk.root_node_id = containing_node_id;
+    sid skin_id           = sid::create(m_scene_skins.emplace(), scene_structure_type::scene_structure_internal_skin);
+    scene_skin& sk        = m_scene_skins.back();
+    sk.instance_id        = skin_id;
+    sk.containing_nide_id = containing_node_id;
 
     const tinygltf::Accessor& ibm_accessor = m.accessors[skin.inverseBindMatrices];
     packed_freelist_id view_id             = get_cpu_buffer_view(m, ibm_accessor.bufferView, loading_data).id(); // TODO Paul: Do we need to check the index?
@@ -1973,6 +1987,7 @@ sid scene_impl::build_model_skin(tinygltf::Model& m, tinygltf::Skin& skin, sid c
         sid joint_id       = sid::create(m_scene_joints.emplace(), scene_structure_type::scene_structure_internal_joint);
         scene_joint& joint = m_scene_joints.back();
         joint.instance_id  = joint_id;
+        joint.skin_id      = skin_id;
         // The node_id is filled after the traversal of the whole scene node hierarchy.
         joint.node_id                    = invalid_sid;
         joint.inverse_bind_matrix        = inverse_bind_matrices[i];
@@ -2532,7 +2547,7 @@ void scene_impl::update(float dt)
 
     m_render_instances.clear();
 
-    sg_bfs_for_each(
+    sg_dfs_for_each(
         [this](hierarchy_node& hn)
         {
             packed_freelist_id node_id      = hn.node_id.id();
@@ -2565,6 +2580,11 @@ void scene_impl::update(float dt)
                 packed_freelist_id joint_id = nd.joint_id.id();
                 scene_joint& joint          = m_scene_joints.at(joint_id);
                 joint.joint_matrix          = nd.global_transformation_matrix * joint.inverse_bind_matrix;
+            }
+
+            if ((nd.type & node_type::skin) != node_type::empty_leaf)
+            {
+                packed_freelist_id s = nd.skin_id.id();
             }
 
             // add to render instances
@@ -2848,7 +2868,7 @@ static animation_interpolation_type get_interpolation_type_from_tinygltf(const s
         return animation_interpolation_type::step;
     if (type.compare("CUBICSPLINE") == 0)
         MANGO_LOG_WARN("Cubic spline interpolation is currently not supported. Using linear interpolation!");
-        return animation_interpolation_type::cubic_spline;
+    return animation_interpolation_type::cubic_spline;
 
     MANGO_LOG_ERROR("Unknown interpolation type {0}. Using linear interpolation!", type);
     return animation_interpolation_type::linear;

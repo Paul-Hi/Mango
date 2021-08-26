@@ -13,6 +13,7 @@
 #include <map>
 #include <queue>
 #include <scene/scene_internals.hpp>
+#include <stack>
 #include <util/helpers.hpp>
 
 namespace mango
@@ -116,6 +117,11 @@ namespace mango
         //! \param[in] instance_id The \a sid of the \a scene_joint to retrieve from the \a scene.
         //! \return An optional \a scene_joint reference.
         optional<scene_joint&> get_scene_joint(sid instance_id);
+
+        //! \brief Retrieves a \a scene_skin from the \a scene.
+        //! \param[in] instance_id The \a sid of the \a scene_skin to retrieve from the \a scene.
+        //! \return An optional \a scene_skin reference.
+        optional<scene_skin&> get_scene_skin(sid instance_id);
 
         //! \brief Retrieves a \a scene_texture from the \a scene.
         //! \param[in] instance_id The \a sid of the \a scene_texture to retrieve from the \a scene.
@@ -337,20 +343,40 @@ namespace mango
         //! \param[in] lambda The lambda function to call for each \a hierarchy_node.
         void sg_bfs_for_each(std::function<bool(hierarchy_node& hn)> lambda)
         {
-            std::queue<hierarchy_node*> stack;
-            stack.push(m_scene_graph_root.get());
+            std::queue<hierarchy_node*> queue;
+            queue.push(m_scene_graph_root.get());
 
-            while (!stack.empty())
+            while (!queue.empty())
             {
-                auto current = stack.front();
+                auto current = queue.front();
+                queue.pop();
 
                 if (!lambda(*current))
                     break;
 
                 for (auto& c : current->children)
-                    stack.push(c.get());
+                    queue.push(c.get());
 
+            }
+        }
+
+        //! \brief Helper function to execute a function for all \a hierarchy_nodes in a depth first manner.
+        //! \param[in] lambda The lambda function to call for each \a hierarchy_node.
+        void sg_dfs_for_each(std::function<bool(hierarchy_node& hn)> lambda)
+        {
+            std::stack<hierarchy_node*> stack;
+            stack.push(m_scene_graph_root.get());
+
+            while (!stack.empty())
+            {
+                auto current = stack.top();
                 stack.pop();
+
+                if (!lambda(*current))
+                    break;
+
+                for (auto& c : current->children) // In theory we need to reverse this, but it should be irrelevant.
+                    stack.push(c.get());
             }
         }
 

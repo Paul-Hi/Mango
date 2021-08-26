@@ -226,6 +226,7 @@ namespace mango
         //! \brief Notifies that all changes were adressed. Should be called after the \a scene_transform was updated.
         inline void changes_handled() // TODO Paul: Could be handled better.
         {
+            rotation_hint = glm::degrees(glm::eulerAngles(public_data.rotation));
             public_data.changed = false;
         }
     };
@@ -235,6 +236,9 @@ namespace mango
     {
         //! \brief The \a sid of this instance.
         sid instance_id;
+
+        //! \brief The \a sid of the \a scene_skin this \a scene_joint is contained by.
+        sid skin_id;
 
         //! \brief The \a sid of the \a scene_joints \a scene_node.
         sid node_id;
@@ -270,8 +274,8 @@ namespace mango
         //! \brief The name of the \a scene_skin.
         string name;
 
-        //! \brief The \a sid of the \a scene_skins root \a scene_node.
-        sid root_node_id;
+        //! \brief The \a sid of the \a scene_skins containing \a scene_node.
+        sid containing_nide_id;
 
         //! \brief All the \a sids of the \a scene_joints contained by this \a scene_skin.
         std::vector<sid> scene_joints;
@@ -307,7 +311,7 @@ namespace mango
     struct animation_sampler
     {
         std::vector<float> frames;
-        std::vector<vec4> values; // ALways storing vec4 even though they could be vec3.
+        std::vector<vec4> values; // Always storing vec4 even though they could be vec3.
         animation_interpolation_type interpolation_type;
     };
 
