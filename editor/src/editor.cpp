@@ -57,7 +57,7 @@ bool editor::create()
         .show_widget(mango::ui_widget::graphics_info)
         .show_widget(mango::ui_widget::renderer_ui)
         .show_widget(mango::ui_widget::scene_inspector)
-        .show_widget(mango::ui_widget::entity_component_inspector)
+        .show_widget(mango::ui_widget::scene_object_component_inspector)
         .show_widget(mango::ui_widget::primitive_material_inspector)
         .submit_custom("Editor",
                        [this](bool& enabled)

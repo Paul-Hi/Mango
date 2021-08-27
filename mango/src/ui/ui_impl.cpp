@@ -25,12 +25,12 @@ ui_impl::ui_impl(const ui_configuration& configuration, const shared_ptr<context
     , m_shared_context(context)
     , m_cinema_view(false)
 {
-    m_enabled_ui_widgets[render_view]                = true;
-    m_enabled_ui_widgets[graphics_info]              = true;
-    m_enabled_ui_widgets[scene_inspector]            = true;
-    m_enabled_ui_widgets[entity_component_inspector] = true;
-    m_enabled_ui_widgets[renderer_ui]                = true;
-    m_enabled_ui_widgets[number_of_ui_widgets]       = true; // Custom
+    m_enabled_ui_widgets[render_view]                      = configuration.get_ui_widgets()[render_view];
+    m_enabled_ui_widgets[graphics_info]                    = configuration.get_ui_widgets()[graphics_info];
+    m_enabled_ui_widgets[scene_inspector]                  = configuration.get_ui_widgets()[scene_inspector];
+    m_enabled_ui_widgets[scene_object_component_inspector] = configuration.get_ui_widgets()[scene_object_component_inspector];
+    m_enabled_ui_widgets[primitive_material_inspector]     = configuration.get_ui_widgets()[primitive_material_inspector];
+    m_enabled_ui_widgets[renderer_ui]                      = configuration.get_ui_widgets()[renderer_ui];
     setup();
 }
 
@@ -165,12 +165,11 @@ void ui_impl::setup()
 
     if (m_configuration.is_dock_space_enabled())
     {
-        // // TODO Paul: When docking is enabled we setup a default layout.
+        // TODO Paul: When docking is enabled we setup a default layout.
     }
     else
     {
         // TODO Paul: Make an option available to disable render view and make the renderer draw directly into the hardware backbuffer.
-        // When docking is disabled we also have to specify a position for the render view.
     }
 
     // TODO Paul: There has to be a cleaner solution for this. Could be a problem with multiple windows.
@@ -234,8 +233,8 @@ void ui_impl::update(float)
                 m_enabled_ui_widgets[graphics_info] = true;
             if (available_widgets[ui_widget::scene_inspector] && ImGui::MenuItem("Scene Inspector"))
                 m_enabled_ui_widgets[scene_inspector] = true;
-            if (available_widgets[ui_widget::entity_component_inspector] && ImGui::MenuItem("Entity Component Inspector"))
-                m_enabled_ui_widgets[entity_component_inspector] = true;
+            if (available_widgets[ui_widget::scene_object_component_inspector] && ImGui::MenuItem("Scene Object - Component Inspector"))
+                m_enabled_ui_widgets[scene_object_component_inspector] = true;
             if (available_widgets[ui_widget::primitive_material_inspector] && ImGui::MenuItem("Primitive - Material Inspector"))
                 m_enabled_ui_widgets[primitive_material_inspector] = true;
             if (available_widgets[ui_widget::renderer_ui] && ImGui::MenuItem("Renderer UI"))
@@ -272,8 +271,8 @@ void ui_impl::update(float)
 
     // ECS Inspector
     static sid selected_primitive = invalid_sid;
-    if (available_widgets[ui_widget::entity_component_inspector] && m_enabled_ui_widgets[entity_component_inspector] && !m_cinema_view)
-        entity_component_inspector_widget(m_shared_context, m_enabled_ui_widgets[entity_component_inspector], selected, viewport_size, selected_primitive);
+    if (available_widgets[ui_widget::scene_object_component_inspector] && m_enabled_ui_widgets[scene_object_component_inspector] && !m_cinema_view)
+        scene_object_component_inspector_widget(m_shared_context, m_enabled_ui_widgets[scene_object_component_inspector], selected, viewport_size, selected_primitive);
 
     // Primitive - Material Inspector
     if (available_widgets[ui_widget::primitive_material_inspector] && m_enabled_ui_widgets[primitive_material_inspector] && !m_cinema_view)

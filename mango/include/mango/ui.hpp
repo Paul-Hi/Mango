@@ -17,7 +17,7 @@ namespace mango
         render_view,                //!< Widget displaying the rendered scene.
         graphics_info,              //!< Widget giving some graphics info.
         scene_inspector,            //!< Widget displaying the scene hierachy.
-        entity_component_inspector, //! Widget displaying component properties for the selected entity.
+        scene_object_component_inspector, //! Widget displaying component properties for the selected sid object.
         primitive_material_inspector, //! Widget displaying primitive and material information for selected primitive.
         renderer_ui,                //! Widget displaying render system related settings and debugging information.
         number_of_ui_widgets        //!< Number of widgets.
