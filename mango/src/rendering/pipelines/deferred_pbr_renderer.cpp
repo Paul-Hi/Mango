@@ -1246,7 +1246,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                             continue;
                         }
 
-                        gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_shadow(prim->vertex_layout, prim->input_assembly);
+                        gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_shadow(prim->vertex_layout, prim->input_assembly, mat->public_data.double_sided);
 
                         m_frame_context->bind_pipeline(dc_pipeline);
                         gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(shadow_pass->resolution()), static_cast<float>(shadow_pass->resolution()) };
@@ -1381,7 +1381,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 continue;
             }
 
-            gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_opaque(prim->vertex_layout, prim->input_assembly, m_wireframe);
+            gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_opaque(prim->vertex_layout, prim->input_assembly, m_wireframe, mat->public_data.double_sided);
 
             m_frame_context->bind_pipeline(dc_pipeline);
             gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
@@ -1661,7 +1661,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 continue;
             }
 
-            gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_transparent(prim->vertex_layout, prim->input_assembly, m_wireframe);
+            gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_transparent(prim->vertex_layout, prim->input_assembly, m_wireframe, mat->public_data.double_sided);
 
             m_frame_context->bind_pipeline(dc_pipeline);
 
