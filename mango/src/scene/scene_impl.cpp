@@ -278,7 +278,7 @@ sid scene_impl::load_model_from_gltf(const string& path)
     sid model_id    = sid::create(m_scene_models.emplace(), scene_structure_type::scene_structure_model);
     mod.instance_id = model_id;
 
-    mod.scenarios = load_model_from_file(path, mod.default_scenario);
+    mod.scenarios = load_model_from_file(path, mod, mod.default_scenario);
 
     scene_model& md = m_scene_models.back();
     md.public_data  = mod;
@@ -353,6 +353,8 @@ sid scene_impl::add_model_to_scene(sid model_to_add, sid scenario_id, sid contai
 
     scene_node& nd_containing = m_scene_nodes.at(node);
     nd_containing.type |= node_type::is_parent;
+    nd_containing.type |= node_type::model;
+    nd_containing.model_id = model_to_add;
 
     auto found = std::find(m.public_data.scenarios.begin(), m.public_data.scenarios.end(), scenario_id);
     if (found == m.public_data.scenarios.end())
@@ -428,6 +430,7 @@ void scene_impl::remove_node(sid node_id)
         if (root.children <= 0)
         {
             root.type &= ~node_type::is_parent;
+            root.type &= ~node_type::model; // Just in case it contained children with meshes.
             root.children = 0;
         }
     }
@@ -1105,6 +1108,20 @@ optional<scene_skin&> scene_impl::get_scene_skin(sid instance_id)
     return m_scene_skins.at(prim);
 }
 
+optional<scene_animation&> scene_impl::get_scene_animation(sid instance_id)
+{
+    PROFILE_ZONE;
+    packed_freelist_id prim = instance_id.id();
+
+    if (!m_scene_animations.contains(prim))
+    {
+        MANGO_LOG_WARN("Animation with ID {0} does not exist!", instance_id.id().get());
+        return NULL_OPTION;
+    }
+
+    return m_scene_animations.at(prim);
+}
+
 optional<scene_texture&> scene_impl::get_scene_texture(sid instance_id)
 {
     PROFILE_ZONE;
@@ -1324,6 +1341,7 @@ void scene_impl::detach(sid child_node)
     if (p.children <= 0)
     {
         p.type &= ~node_type::is_parent;
+        p.type &= ~node_type::model; // Just in case it contained children with meshes.
         p.children = 0;
     }
 
@@ -1382,6 +1400,7 @@ unique_ptr<scene_impl::hierarchy_node> scene_impl::detach_and_get(sid child_node
     if (p.children <= 0)
     {
         p.type &= ~node_type::is_parent;
+        p.type &= ~node_type::model; // Just in case it contained children with meshes.
         p.children = 0;
     }
 
@@ -1509,7 +1528,7 @@ std::pair<gfx_handle<const gfx_texture>, gfx_handle<const gfx_sampler>> scene_im
     return result;
 }
 
-std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& default_scenario)
+std::vector<sid> scene_impl::load_model_from_file(const string& path, model& mod, int32& default_scenario)
 {
     model_resource_description desc;
     desc.path = path.c_str();
@@ -1603,6 +1622,7 @@ std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& def
         scene_animation& anim   = m_scene_animations.back();
         anim.instance_id        = animation_object_id;
         anim.name               = t_anim.name;
+        anim.model_id           = mod.instance_id;
 
         for (auto c : t_anim.channels)
         {
@@ -1656,6 +1676,8 @@ std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& def
         }
 
         anim.duration = max_kf - min_kf;
+
+        mod.animations.push_back(animation_object_id);
     }
 
     sc.nodes = loading_data.scenario_nodes;
@@ -2497,8 +2519,8 @@ void scene_impl::update(float dt)
     for (const packed_freelist_id& id : m_scene_animations)
     {
         scene_animation& anim = m_scene_animations.at(id);
-        // if (!anim.is_playing)
-        //     continue;
+        if (!anim.is_playing)
+            continue;
 
         anim.current_time += dt;
         anim.current_time = glm::mod(anim.current_time, anim.duration);
@@ -2700,7 +2722,9 @@ std::vector<sid> scene_impl::draw_scene_hierarchy_internal(hierarchy_node* curre
         {
             for (auto it = current->children.begin(); it != current->children.end(); it++)
             {
-                auto& child           = *it;
+                auto& child = *it;
+                if ((m_scene_nodes.at(child->node_id.id()).type & node_type::joint) != node_type::empty_leaf) // Do not show joint nodes!
+                    continue;
                 auto removed_children = draw_scene_hierarchy_internal(child.get(), selected);
                 to_remove.insert(to_remove.end(), removed_children.begin(), removed_children.end());
             }

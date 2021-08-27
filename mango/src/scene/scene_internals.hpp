@@ -322,6 +322,8 @@ namespace mango
         sid instance_id;
         //! \brief The name of the \a scene_animation.
         string name;
+        //! \brief The \a sid of \a scene_model the animation was loaded with.
+        sid model_id;
 
         //! \brief All  \a animation_channels of this \a scene_animation.
         std::vector<animation_channel> channels;
@@ -350,13 +352,14 @@ namespace mango
     //! \details Bitset.
     enum class node_type : uint8
     {
-        empty_leaf = 0,
-        is_parent  = 1 << 0,
-        mesh       = 1 << 1,
-        camera     = 1 << 2,
-        light      = 1 << 3,
-        skin       = 1 << 4,
-        joint      = 1 << 5
+        empty_leaf           = 0,
+        is_parent            = 1 << 0,
+        model                = 1 << 1,
+        mesh                 = 1 << 2,
+        camera               = 1 << 3,
+        light                = 1 << 4,
+        skin                 = 1 << 5,
+        joint                = 1 << 6
     };
     MANGO_ENABLE_BITMASK_OPERATIONS(node_type)
 
@@ -390,11 +393,15 @@ namespace mango
         //! \details Ordered by type: 0 = directional, 1 = skylight, 2 = atmospheric_light.
         sid light_ids[3]; // Accessed via type.
 
+        //! \brief The \a sid of the nodes \a scene_model, or invalid_sid.
+        sid model_id;
+
         //! \brief The \a sid of the nodes \a scene_skin, or invalid_sid.
         sid skin_id;
-
         //! \brief The \a sid of the nodes \a scene_joint, or invalid_sid.
         sid joint_id;
+        //! \brief The \a sid of the nodes \a scene_animation_controller, or invalid_sid.
+        sid animation_controller_id;
 
         scene_node()
             : type(node_type::empty_leaf)

@@ -593,6 +593,9 @@ namespace mango
         //! \brief Index in the list of scenarios providing the default \a scenario of the \a model.
         int32 default_scenario;
 
+        //! \brief List of \a sids referencing all scene_animations loaded with the \a model.
+        std::vector<sid> animations;
+
         model()
             : default_scenario(0)
         {

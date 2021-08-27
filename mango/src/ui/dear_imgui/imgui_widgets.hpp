@@ -689,7 +689,7 @@ namespace mango
             optional<scene_model&> m = application_scene->get_scene_model(object);
             MANGO_ASSERT(m, "Model to inspect does not exist!");
             details::draw_component("Model",
-                                    [object, &m]()
+                                    [&m, &application_scene]()
                                     {
                                         custom_info("Model Path: ",
                                                     [&m]()
@@ -697,6 +697,13 @@ namespace mango
                                                         ImGui::AlignTextToFramePadding();
                                                         ImGui::Text(m->public_data.file_path.c_str());
                                                     });
+
+                                        for (sid anim_id : m->public_data.animations)
+                                        {
+                                            optional<scene_animation&> anim = application_scene->get_scene_animation(anim_id);
+                                            MANGO_ASSERT(anim, "Animation to inspect does not exist!");
+                                            checkbox("Playing \"" + anim->name + "\"", &(anim->is_playing), false);
+                                        }
                                     });
         }
 
@@ -1024,6 +1031,10 @@ namespace mango
                 if ((node->type & node_type::mesh) != node_type::empty_leaf)
                 {
                     details::inspect_mesh(node->mesh_id, application_scene, selected_primitive);
+                }
+                if ((node->type & node_type::model) != node_type::empty_leaf)
+                {
+                    details::inspect_model(node->model_id, application_scene);
                 }
                 if (is_camera)
                 {

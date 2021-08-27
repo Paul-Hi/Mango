@@ -123,6 +123,11 @@ namespace mango
         //! \return An optional \a scene_skin reference.
         optional<scene_skin&> get_scene_skin(sid instance_id);
 
+        //! \brief Retrieves a \a scene_animation from the \a scene.
+        //! \param[in] instance_id The \a sid of the \a scene_animation to retrieve from the \a scene.
+        //! \return An optional \a scene_animation reference.
+        optional<scene_animation&> get_scene_animation(sid instance_id);
+
         //! \brief Retrieves a \a scene_texture from the \a scene.
         //! \param[in] instance_id The \a sid of the \a scene_texture to retrieve from the \a scene.
         //! \return An optional \a scene_texture reference.
@@ -190,9 +195,10 @@ namespace mango
         //! \brief Loads a model file and creates a \a scenario list with \a sids of all \a scenarios in the model.
         //! \details Creates and stores all necessary resources and structures to add the model to a scene.
         //! \param[in] path The full path to the model to load.
+        //! \param[in,out] mod A reference to the model to fill.
         //! \param[out] default_scenario The default \a scenario in the loaded \a model.
         //! \return The list with \a sids of all \a scenarios in the model.
-        std::vector<sid> load_model_from_file(const string& path, int32& default_scenario);
+        std::vector<sid> load_model_from_file(const string& path, model& mod, int32& default_scenario);
 
         //! \brief Builds a \a node from a tinygltf model node.
         //! \param[in] m The loaded tinygltf model.
