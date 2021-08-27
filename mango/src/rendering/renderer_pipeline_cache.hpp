@@ -46,19 +46,22 @@ namespace mango
         //! \param[in] geo_vid The \a vertex_input_descriptor of the geometry.
         //! \param[in] geo_iad The \a input_assembly_dedscriptor of the geometry.
         //! \param[in] wireframe True if the pipeline should render wireframe, else false.
+        //! \param[in] double_sided True if the pipeline should render double sided, else false.
         //! \return A \a gfx_handle of a \a gfx_pipeline to use for rendering opaque geometry.
-        gfx_handle<const gfx_pipeline> get_opaque(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool wireframe);
+        gfx_handle<const gfx_pipeline> get_opaque(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool wireframe, bool double_sided);
         //! \brief Gets a graphics \a gfx_pipeline for transparent geometry.
         //! \param[in] geo_vid The \a vertex_input_descriptor of the geometry.
         //! \param[in] geo_iad The \a input_assembly_dedscriptor of the geometry.
         //! \param[in] wireframe True if the pipeline should render wireframe, else false.
+        //! \param[in] double_sided True if the pipeline should render double sided, else false.
         //! \return A \a gfx_handle of a \a gfx_pipeline to use for rendering transparent geometry.
-        gfx_handle<const gfx_pipeline> get_transparent(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool wireframe);
+        gfx_handle<const gfx_pipeline> get_transparent(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool wireframe, bool double_sided);
         //! \brief Gets a graphics \a gfx_pipeline for shadow pass geometry.
         //! \param[in] geo_vid The \a vertex_input_descriptor of the geometry.
         //! \param[in] geo_iad The \a input_assembly_dedscriptor of the geometry.
+        //! \param[in] double_sided True if the pipeline should render double sided, else false.
         //! \return A \a gfx_handle of a \a gfx_pipeline to use for rendering shadow pass geometry.
-        gfx_handle<const gfx_pipeline> get_shadow(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad);
+        gfx_handle<const gfx_pipeline> get_shadow(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool double_sided);
 
       private:
         //! \brief Key for caching \a gfx_pipelines.
@@ -70,6 +73,8 @@ namespace mango
             input_assembly_descriptor iad;
             //! \brief True if the cached pipeline renders wireframe, else false.
             bool wireframe;
+            //! \brief True if the pipeline should render double sided, else false.
+            bool double_sided;
 
             //! \brief Comparison operator equal.
             //! \param other The other \a pipeline_key.
@@ -77,6 +82,8 @@ namespace mango
             bool operator==(const pipeline_key& other) const
             {
                 if (wireframe != other.wireframe)
+                    return false;
+                if (double_sided != other.double_sided)
                     return false;
 
                 if (vid.binding_description_count != other.vid.binding_description_count)
@@ -128,6 +135,7 @@ namespace mango
                 size_t res = 17;
 
                 res = res * 31 + std::hash<bool>()(k.wireframe);
+                res = res * 31 + std::hash<bool>()(k.double_sided);
                 res = res * 31 + std::hash<int32>()(k.vid.binding_description_count);
                 res = res * 31 + std::hash<uint8>()(static_cast<uint8>(k.iad.topology));
 

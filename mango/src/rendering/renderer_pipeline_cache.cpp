@@ -9,12 +9,13 @@
 
 using namespace mango;
 
-gfx_handle<const gfx_pipeline> renderer_pipeline_cache::get_opaque(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool wireframe)
+gfx_handle<const gfx_pipeline> renderer_pipeline_cache::get_opaque(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool wireframe, bool double_sided)
 {
     pipeline_key key;
     key.vid       = geo_vid;
     key.iad       = geo_iad;
     key.wireframe = wireframe;
+    key.double_sided = double_sided;
     auto it       = m_opaque_cache.find(key);
     if (it != m_opaque_cache.end())
         return it->second;
@@ -25,6 +26,8 @@ gfx_handle<const gfx_pipeline> renderer_pipeline_cache::get_opaque(const vertex_
     create_info.input_assembly_state = geo_iad;
     if (wireframe)
         create_info.rasterization_state.polygon_mode = gfx_polygon_mode::polygon_mode_line;
+    if (double_sided)
+        create_info.rasterization_state.cull_mode = gfx_cull_mode_flag_bits::mode_none;
 
     auto& graphics_device = m_shared_context->get_graphics_device();
 
@@ -35,12 +38,13 @@ gfx_handle<const gfx_pipeline> renderer_pipeline_cache::get_opaque(const vertex_
     return created_pipeline;
 }
 
-gfx_handle<const gfx_pipeline> renderer_pipeline_cache::get_transparent(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool wireframe)
+gfx_handle<const gfx_pipeline> renderer_pipeline_cache::get_transparent(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool wireframe, bool double_sided)
 {
     pipeline_key key;
     key.vid       = geo_vid;
     key.iad       = geo_iad;
     key.wireframe = wireframe;
+    key.double_sided = double_sided;
     auto it       = m_transparent_cache.find(key);
     if (it != m_transparent_cache.end())
         return it->second;
@@ -51,6 +55,8 @@ gfx_handle<const gfx_pipeline> renderer_pipeline_cache::get_transparent(const ve
     create_info.input_assembly_state = geo_iad;
     if (wireframe)
         create_info.rasterization_state.polygon_mode = gfx_polygon_mode::polygon_mode_line;
+    if (double_sided)
+        create_info.rasterization_state.cull_mode = gfx_cull_mode_flag_bits::mode_none;
 
     auto& graphics_device = m_shared_context->get_graphics_device();
 
@@ -61,12 +67,13 @@ gfx_handle<const gfx_pipeline> renderer_pipeline_cache::get_transparent(const ve
     return created_pipeline;
 }
 
-gfx_handle<const gfx_pipeline> renderer_pipeline_cache::get_shadow(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad)
+gfx_handle<const gfx_pipeline> renderer_pipeline_cache::get_shadow(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool double_sided)
 {
     pipeline_key key;
     key.vid       = geo_vid;
     key.iad       = geo_iad;
     key.wireframe = false;
+    key.double_sided = double_sided;
     auto it       = m_shadow_cache.find(key);
     if (it != m_shadow_cache.end())
         return it->second;
@@ -75,6 +82,8 @@ gfx_handle<const gfx_pipeline> renderer_pipeline_cache::get_shadow(const vertex_
 
     create_info.vertex_input_state   = geo_vid;
     create_info.input_assembly_state = geo_iad;
+    if (double_sided)
+        create_info.rasterization_state.cull_mode = gfx_cull_mode_flag_bits::mode_none;
 
     auto& graphics_device = m_shared_context->get_graphics_device();
 
