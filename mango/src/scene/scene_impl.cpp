@@ -2378,22 +2378,22 @@ std::vector<sid> scene_impl::draw_scene_hierarchy_internal(hierarchy_node* curre
     {
         m_ui_selected_sid = current->node_id;
     }
-    if (ImGui::IsItemClicked(1) && !ImGui::IsPopupOpen(("##entity_menu" + std::to_string(current->node_id.id().get())).c_str()))
+    if (ImGui::IsItemClicked(1) && !ImGui::IsPopupOpen(("##object_menu" + std::to_string(current->node_id.id().get())).c_str()))
     {
         m_ui_selected_sid = current->node_id;
-        ImGui::OpenPopup(("##entity_menu" + std::to_string(current->node_id.id().get())).c_str());
+        ImGui::OpenPopup(("##object_menu" + std::to_string(current->node_id.id().get())).c_str());
     }
 
     std::vector<sid> to_remove;
-    if (ImGui::BeginPopup(("##entity_menu" + std::to_string(current->node_id.id().get())).c_str()))
+    if (ImGui::BeginPopup(("##object_menu" + std::to_string(current->node_id.id().get())).c_str()))
     {
-        if (ImGui::Selectable(("Add Entity##entity_menu" + std::to_string(current->node_id.id().get())).c_str()))
+        if (ImGui::Selectable(("Add Scene Object##object_menu" + std::to_string(current->node_id.id().get())).c_str()))
         {
             node nd;
             nd.parent_node    = current->node_id;
             m_ui_selected_sid = add_node(nd);
         }
-        if (!(m_root_node == current->node_id) && ImGui::Selectable(("Remove Entity##entity_menu" + std::to_string(current->node_id.id().get())).c_str()))
+        if (!(m_root_node == current->node_id) && ImGui::Selectable(("Remove Scene Object##object_menu" + std::to_string(current->node_id.id().get())).c_str()))
         {
             m_ui_selected_sid = invalid_sid;
             to_remove.push_back(current->node_id);

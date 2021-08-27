@@ -924,7 +924,7 @@ namespace mango
     //! \brief Draws a scene graph in the user interface.
     //! \param[in] application_scene The current \a scene of the \a application.
     //! \param[in,out] enabled True if the window is open, else false.
-    //! \param[in,out] selected The sid of the currently selected entity, can be updated by this function.
+    //! \param[in,out] selected The sid of the currently selected object, can be updated by this function.
     void scene_inspector_widget(const unique_ptr<scene_impl>& application_scene, bool& enabled, sid& selected)
     {
         ImGui::Begin("Scene Inspector", &enabled);
@@ -937,7 +937,7 @@ namespace mango
         }
         if (ImGui::BeginPopup("##scene_menu"))
         {
-            if (ImGui::Selectable("Add Entity##scene_menu"))
+            if (ImGui::Selectable("Add Scene Object##scene_menu"))
             {
                 auto new_node = node();
                 selected      = application_scene->add_node(new_node);
@@ -972,15 +972,15 @@ namespace mango
         ImGui::End();
     }
 
-    //! \brief Draws the entity component inspector for a given object in the user interface.
+    //! \brief Draws the scene object component inspector for a given object in the user interface.
     //! \param[in] shared_context The shared context of mango.
     //! \param[in,out] enabled True if the window is open, else false.
     //! \param[in] object The object the components should be inspected.
     //! \param[in] viewport_size The size of the render_view, when enabled, else some base size.
     //! \param[in,out] selected_primitive The last selected primitive -> Should be updated by inspect_mesh().
-    void entity_component_inspector_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, sid object, const ImVec2& viewport_size, sid& selected_primitive)
+    void scene_object_component_inspector_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, sid object, const ImVec2& viewport_size, sid& selected_primitive)
     {
-        ImGui::Begin("Entity Component Inspector", &enabled);
+        ImGui::Begin("Scene Object - Component Inspector", &enabled);
         if (object != invalid_sid)
         {
             auto& application_scene  = shared_context->get_internal_scene();
