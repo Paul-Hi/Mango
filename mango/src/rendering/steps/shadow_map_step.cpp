@@ -57,8 +57,8 @@ bool shadow_map_step::create_step_resources()
 
     // samplers
     sampler_create_info sampler_info;
-    sampler_info.sampler_min_filter      = gfx_sampler_filter::sampler_filter_nearest;
-    sampler_info.sampler_max_filter      = gfx_sampler_filter::sampler_filter_nearest;
+    sampler_info.sampler_min_filter      = gfx_sampler_filter::sampler_filter_linear;
+    sampler_info.sampler_max_filter      = gfx_sampler_filter::sampler_filter_linear;
     sampler_info.enable_comparison_mode  = true;
     sampler_info.comparison_operator     = gfx_compare_operator::compare_operator_less_equal;
     sampler_info.edge_value_wrap_u       = gfx_sampler_edge_wrap::sampler_edge_wrap_clamp_to_edge;

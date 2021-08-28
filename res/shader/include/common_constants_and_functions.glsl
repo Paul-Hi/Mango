@@ -37,12 +37,12 @@ float interleaved_gradient_noise(in vec2 pos)
     return fract(magic.z * fract(dot(pos, magic.xy)));
 }
 
-vec2 vogel_disc_sample(in int sample_idx, in int sample_count, in float rotation)
+vec2 vogel_disc_sample(in int sample_idx, in int sample_count, in float phi)
 {
     float golden_angle = 2.399963;
 
     float r = sqrt(sample_idx + 0.5) / sqrt(sample_count);
-    float theta = sample_idx * golden_angle + rotation;
+    float theta = sample_idx * golden_angle + phi;
 
     float s = sin(theta);
     float c = cos(theta);
