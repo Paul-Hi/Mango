@@ -4,7 +4,7 @@
 
 const uint sample_count = 512; // sufficient because of the mipmap optimization -> we would need more without!
 const float inverse_sample_count = 1.0 / float(sample_count);
-const float width_sqr = 1024.0 * 1024.0;
+const float width_sqr = 2048.0 * 2048.0; // TODO Paul: Hardcoded and random since higher is better -.-
 
 layout(local_size_x = 32, local_size_y = 32) in;
 

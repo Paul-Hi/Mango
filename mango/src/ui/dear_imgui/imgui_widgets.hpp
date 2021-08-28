@@ -308,7 +308,6 @@ namespace mango
                     {
                         if (type_changed)
                             l->public_data_as_skylight = skylight();
-                        // TODO Paul: NEXT
                         checkbox("Use HDR Texture", &l->public_data_as_skylight->use_texture, false);
                         if (l->public_data_as_skylight->use_texture) // hdr texture
                         {

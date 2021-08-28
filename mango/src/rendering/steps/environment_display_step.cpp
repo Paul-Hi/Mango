@@ -247,13 +247,10 @@ void environment_display_step::on_ui_widget()
 {
     ImGui::PushID("environment_display_step");
     // Render Level 0.0 - 10.0
-    static float tmp = 0.0f;
-
-    m_cubemap_data.render_level = tmp;
     float& render_level         = m_cubemap_data.render_level;
     float default_value         = 0.0f;
     slider_float_n("Blur Level", &render_level, 1, &default_value, 0.0f, 10.0f);
-    tmp = m_cubemap_data.render_level;
+    m_cubemap_data.render_level = render_level;
 
     ImGui::PopID();
 }

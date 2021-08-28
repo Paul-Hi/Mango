@@ -11,7 +11,7 @@ void get_normal_tangent_bitangent(out vec3 normal, out vec3 tangent, out vec3 bi
         if(has_normals)
         {
             bitangent = cross(normal, tangent);
-            if(vertex_data_tangent.w == -1.0) // TODO Paul: Check this convention.
+            if(vertex_data_tangent.w == -1.0)
                 bitangent *= -1.0;
         }
     }

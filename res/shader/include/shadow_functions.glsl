@@ -46,11 +46,10 @@ vec2 sample_blocker(in vec2 shadow_uv, in float receiver_z, in int cascade_id, i
 {
     float average_depth = 0.0;
     int blocker_count = 0;
-    float theta = interleaved_gradient_noise(gl_FragCoord.xy);
-    mat2 rotation = mat2(vec2(cos(theta), sin(theta)), vec2(-sin(theta), cos(theta)));
+    float phi = interleaved_gradient_noise(gl_FragCoord.xy);
     for(int i = 0; i < sample_count; ++i)
     {
-        vec2 sample_uv = shadow_uv + vogel_disc_sample(i, sample_count, rotation) * search_radius;
+        vec2 sample_uv = shadow_uv + vogel_disc_sample(i, sample_count, phi) * search_radius;
         bvec2 outside = greaterThan(sample_uv, vec2(1.0)) || lessThan(sample_uv, vec2(0.0));
         if(any(outside))
             continue;
@@ -69,11 +68,10 @@ vec2 sample_blocker(in vec2 shadow_uv, in float receiver_z, in int cascade_id, i
 float pcf(in vec2 shadow_uv, in float receiver_z, in int cascade_id, in int sample_count, in float filter_radius)
 {
     float sum = 0.0;
-    float theta = interleaved_gradient_noise(gl_FragCoord.xy);
-    mat2 rotation = mat2(vec2(cos(theta), sin(theta)), vec2(-sin(theta), cos(theta)));
+    float phi = interleaved_gradient_noise(gl_FragCoord.xy);
     for(int i = 0; i < sample_count; ++i)
     {
-        vec2 sample_uv = shadow_uv + vogel_disc_sample(i, sample_count, rotation) * filter_radius;
+        vec2 sample_uv = shadow_uv + vogel_disc_sample(i, sample_count, phi) * filter_radius;
         bvec2 outside = greaterThan(sample_uv, vec2(1.0)) || lessThan(sample_uv, vec2(0.0));
         if(any(outside))
         {
@@ -88,7 +86,7 @@ float pcf(in vec2 shadow_uv, in float receiver_z, in int cascade_id, in int samp
 
 float pcss(in vec2 shadow_uv, in float receiver_z, in int cascade_id, in int sample_count)
 {
-    vec2 blocker_data = sample_blocker(shadow_uv, receiver_z, cascade_id, sample_count, shadow_light_size / shadow_resolution);
+    vec2 blocker_data = sample_blocker(shadow_uv, receiver_z, cascade_id, sample_count, (1.0 + shadow_light_size * 2.0) / shadow_resolution);
     if(blocker_data.y < 1)
         return 1.0;
 
