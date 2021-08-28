@@ -594,7 +594,7 @@ namespace mango
         sampler_edge_wrap_last = sampler_edge_wrap_clamp_to_edge_mirrored
     };
 
-    // TODO Should these be in here?
+    // TODO Paul: Should these be in here?
     //! \brief A boolean in the glsl std140 layout.
     struct std140_bool
     {

@@ -7,6 +7,7 @@
 #include <core/glfw/glfw_display.hpp>
 #include <mango/log.hpp>
 #include <mango/profile.hpp>
+#include <stb_image.h>
 
 using namespace mango;
 
@@ -184,8 +185,11 @@ bool glfw_display::create_glfw_opengl()
 
     glfwSetWindowPos(m_glfw_display_data.native_handle, m_glfw_display_data.info.x, m_glfw_display_data.info.y);
 
-    // TODO Paul: Fancy icon please?
-    // glfwSetWindowIcon(window, 2, images);
+    // TODO Paul: Direct stbi_load call -.-
+    GLFWimage images[1];
+    images[0].pixels = stbi_load("res/textures/logo.png", &images[0].width, &images[0].height, 0, 4); // rgba channels
+    glfwSetWindowIcon(m_glfw_display_data.native_handle, 1, images);
+    stbi_image_free(images[0].pixels);
 
     // Event callback setup
     if (m_glfw_display_data.info.display_event_handler)
@@ -198,102 +202,132 @@ bool glfw_display::create_glfw_opengl()
         //
 
         // Window position callback
-        glfwSetWindowPosCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window, int x_pos, int y_pos) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.x          = x_pos;
-            data->info.y          = y_pos;
-            data->info.display_event_handler->on_window_position(x_pos, x_pos);
-        });
+        glfwSetWindowPosCallback(m_glfw_display_data.native_handle,
+                                 [](GLFWwindow* window, int x_pos, int y_pos)
+                                 {
+                                     glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                     data->info.x            = x_pos;
+                                     data->info.y            = y_pos;
+                                     data->info.display_event_handler->on_window_position(x_pos, x_pos);
+                                 });
 
         // Window size callback
-        glfwSetWindowSizeCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window, int w, int h) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.width      = w;
-            data->info.height     = h;
-            data->info.display_event_handler->on_window_resize(w, h);
-        });
+        glfwSetWindowSizeCallback(m_glfw_display_data.native_handle,
+                                  [](GLFWwindow* window, int w, int h)
+                                  {
+                                      glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                      data->info.width        = w;
+                                      data->info.height       = h;
+                                      data->info.display_event_handler->on_window_resize(w, h);
+                                  });
 
         // Window close callback
-        glfwSetWindowCloseCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.display_event_handler->on_window_close();
-        });
+        glfwSetWindowCloseCallback(m_glfw_display_data.native_handle,
+                                   [](GLFWwindow* window)
+                                   {
+                                       glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                       data->info.display_event_handler->on_window_close();
+                                   });
 
         // Window refresh callback
-        glfwSetWindowRefreshCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.display_event_handler->on_window_refresh();
-        });
+        glfwSetWindowRefreshCallback(m_glfw_display_data.native_handle,
+                                     [](GLFWwindow* window)
+                                     {
+                                         glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                         data->info.display_event_handler->on_window_refresh();
+                                     });
 
         // Window focus callback
-        glfwSetWindowFocusCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window, int focused) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.display_event_handler->on_window_focus(focused);
-        });
+        glfwSetWindowFocusCallback(m_glfw_display_data.native_handle,
+                                   [](GLFWwindow* window, int focused)
+                                   {
+                                       glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                       data->info.display_event_handler->on_window_focus(focused);
+                                   });
 
         // Window iconify callback
-        glfwSetWindowIconifyCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window, int iconified) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.display_event_handler->on_window_iconify(iconified);
-        });
+        glfwSetWindowIconifyCallback(m_glfw_display_data.native_handle,
+                                     [](GLFWwindow* window, int iconified)
+                                     {
+                                         glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                         data->info.display_event_handler->on_window_iconify(iconified);
+                                     });
 
         // Window maximize callback
-        glfwSetWindowMaximizeCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window, int maximized) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.display_event_handler->on_window_maximize(maximized);
-        });
+        glfwSetWindowMaximizeCallback(m_glfw_display_data.native_handle,
+                                      [](GLFWwindow* window, int maximized)
+                                      {
+                                          glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                          data->info.display_event_handler->on_window_maximize(maximized);
+                                      });
 
         // Window framebuffer size callback
-        glfwSetFramebufferSizeCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window, int w, int h) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.display_event_handler->on_window_framebuffer_resize(w, h);
-        });
+        glfwSetFramebufferSizeCallback(m_glfw_display_data.native_handle,
+                                       [](GLFWwindow* window, int w, int h)
+                                       {
+                                           glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                           data->info.display_event_handler->on_window_framebuffer_resize(w, h);
+                                       });
 
         // Window content scale callback
-        glfwSetWindowContentScaleCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window, float x_scale, float y_scale) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.display_event_handler->on_window_content_scale(x_scale, y_scale);
-        });
+        glfwSetWindowContentScaleCallback(m_glfw_display_data.native_handle,
+                                          [](GLFWwindow* window, float x_scale, float y_scale)
+                                          {
+                                              glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                              data->info.display_event_handler->on_window_content_scale(x_scale, y_scale);
+                                          });
 
         //
         // Input callbacks.
         //
 
         // Mouse button callback
-        glfwSetMouseButtonCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window, int button, int action, int mods) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.display_event_handler->on_input_mouse_button(static_cast<mouse_button>(button), static_cast<input_action>(action), static_cast<modifier>(mods));
-        });
+        glfwSetMouseButtonCallback(m_glfw_display_data.native_handle,
+                                   [](GLFWwindow* window, int button, int action, int mods)
+                                   {
+                                       glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                       data->info.display_event_handler->on_input_mouse_button(static_cast<mouse_button>(button), static_cast<input_action>(action), static_cast<modifier>(mods));
+                                   });
 
         // Cursor position callback
-        glfwSetCursorPosCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window, double x_pos, double y_pos) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.display_event_handler->on_input_cursor_position(x_pos, y_pos);
-        });
+        glfwSetCursorPosCallback(m_glfw_display_data.native_handle,
+                                 [](GLFWwindow* window, double x_pos, double y_pos)
+                                 {
+                                     glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                     data->info.display_event_handler->on_input_cursor_position(x_pos, y_pos);
+                                 });
 
         // Cursor enter callback
-        glfwSetCursorEnterCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window, int entered) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.display_event_handler->on_input_cursor_enter(entered);
-        });
+        glfwSetCursorEnterCallback(m_glfw_display_data.native_handle,
+                                   [](GLFWwindow* window, int entered)
+                                   {
+                                       glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                       data->info.display_event_handler->on_input_cursor_enter(entered);
+                                   });
 
         // Scroll callback
-        glfwSetScrollCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window, double x_off, double y_off) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.display_event_handler->on_input_scroll(x_off, y_off);
-        });
+        glfwSetScrollCallback(m_glfw_display_data.native_handle,
+                              [](GLFWwindow* window, double x_off, double y_off)
+                              {
+                                  glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                  data->info.display_event_handler->on_input_scroll(x_off, y_off);
+                              });
 
         // Key callback
-        glfwSetKeyCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window, int key, int, int action, int mods) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.display_event_handler->on_input_key(static_cast<key_code>(key), static_cast<input_action>(action), static_cast<modifier>(mods));
-        });
+        glfwSetKeyCallback(m_glfw_display_data.native_handle,
+                           [](GLFWwindow* window, int key, int, int action, int mods)
+                           {
+                               glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                               data->info.display_event_handler->on_input_key(static_cast<key_code>(key), static_cast<input_action>(action), static_cast<modifier>(mods));
+                           });
 
         // Drop callback
-        glfwSetDropCallback(m_glfw_display_data.native_handle, [](GLFWwindow* window, int path_count, const char** paths) {
-            glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
-            data->info.display_event_handler->on_input_drop(path_count, paths);
-        });
+        glfwSetDropCallback(m_glfw_display_data.native_handle,
+                            [](GLFWwindow* window, int path_count, const char** paths)
+                            {
+                                glfw_display_data* data = static_cast<glfw_display_data*>(glfwGetWindowUserPointer(window));
+                                data->info.display_event_handler->on_input_drop(path_count, paths);
+                            });
     }
 
     MANGO_LOG_DEBUG("Created new opengl display!");

@@ -40,6 +40,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/linear_allocator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/free_list_allocator.hpp
 
+
     # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/hashing.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/helpers.hpp
