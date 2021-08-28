@@ -464,7 +464,7 @@ void scene_impl::remove_perspective_camera(sid node_id)
     if (containing_node.is_valid())
     {
         packed_freelist_id cn = containing_node.id();
-        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Is this assertion right?
+        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
         scene_node& nd = m_scene_nodes.at(cn);
         nd.camera_id   = invalid_sid;
         nd.type &= ~node_type::camera;
@@ -507,7 +507,7 @@ void scene_impl::remove_orthographic_camera(sid node_id)
     if (containing_node.is_valid())
     {
         packed_freelist_id cn = containing_node.id();
-        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Is this assertion right?
+        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
         scene_node& nd = m_scene_nodes.at(cn);
         nd.camera_id   = invalid_sid;
         nd.type &= ~node_type::camera;
@@ -550,7 +550,7 @@ void scene_impl::remove_mesh(sid node_id)
     if (containing_node.is_valid())
     {
         packed_freelist_id cn = containing_node.id();
-        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Is this assertion right?
+        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
         scene_node& nd                                            = m_scene_nodes.at(cn);
         nd.light_ids[static_cast<uint8>(light_type::directional)] = invalid_sid;
         nd.type &= ~node_type::mesh;
@@ -593,7 +593,7 @@ void scene_impl::remove_directional_light(sid node_id)
     if (containing_node.is_valid())
     {
         packed_freelist_id cn = containing_node.id();
-        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Is this assertion right?
+        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
         scene_node& nd                                            = m_scene_nodes.at(cn);
         nd.light_ids[static_cast<uint8>(light_type::directional)] = invalid_sid;
         nd.type &= ~node_type::light;
@@ -636,7 +636,7 @@ void scene_impl::remove_skylight(sid node_id)
     if (containing_node.is_valid())
     {
         packed_freelist_id cn = containing_node.id();
-        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Is this assertion right?
+        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
         scene_node& nd                                         = m_scene_nodes.at(cn);
         nd.light_ids[static_cast<uint8>(light_type::skylight)] = invalid_sid;
         nd.type &= ~node_type::light;
@@ -679,7 +679,7 @@ void scene_impl::remove_atmospheric_light(sid node_id)
     if (containing_node.is_valid())
     {
         packed_freelist_id cn = containing_node.id();
-        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Is this assertion right?
+        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
         scene_node& nd                                            = m_scene_nodes.at(cn);
         nd.light_ids[static_cast<uint8>(light_type::atmospheric)] = invalid_sid;
         nd.type &= ~node_type::light;
