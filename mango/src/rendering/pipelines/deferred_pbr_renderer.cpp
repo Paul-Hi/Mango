@@ -302,19 +302,9 @@ bool deferred_pbr_renderer::create_buffers()
     if (!check_creation(m_renderer_data_buffer.get(), "renderer data buffer"))
         return false;
 
-    buffer_info.size     = sizeof(camera_data);
-    m_camera_data_buffer = m_graphics_device->create_buffer(buffer_info);
-    if (!check_creation(m_camera_data_buffer.get(), "camera data buffer"))
-        return false;
-
     buffer_info.size    = sizeof(model_data);
     m_model_data_buffer = m_graphics_device->create_buffer(buffer_info);
     if (!check_creation(m_model_data_buffer.get(), "model data buffer"))
-        return false;
-
-    buffer_info.size       = sizeof(material_data);
-    m_material_data_buffer = m_graphics_device->create_buffer(buffer_info);
-    if (!check_creation(m_material_data_buffer.get(), "material data buffer"))
         return false;
 
     buffer_info.size    = sizeof(light_data);

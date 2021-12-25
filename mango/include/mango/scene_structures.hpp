@@ -14,157 +14,17 @@ namespace mango
 {
     //! \brief Macro to add some default operators and constructors to every scene structure.
 #define DECLARE_SCENE_STRUCTURE(c)    \
-    sid instance_id;                  \
-    ~c()        = default;            \
-    c(const c&) = default;            \
-    c(c&&)      = default;            \
+    bool changed = true;              \
+    ~c()         = default;           \
+    c(const c&)  = default;           \
+    c(c&&)       = default;           \
     c& operator=(const c&) = default; \
     c& operator=(c&&) = default;
-
-    //! \brief Describes the type of an element referenced by a \a sid.
-    enum class scene_structure_type : uint8
-    {
-        scene_structure_unknown,
-        scene_structure_transform,
-        scene_structure_perspective_camera,
-        scene_structure_orthographic_camera,
-        scene_structure_directional_light,
-        scene_structure_skylight,
-        scene_structure_atmospheric_light,
-        scene_structure_texture,
-        scene_structure_material,
-        scene_structure_primitive,
-        scene_structure_mesh,
-        scene_structure_node,
-        scene_structure_scenario,
-        scene_structure_model,
-        scene_structure_internal_buffer,
-        scene_structure_internal_buffer_view,
-        scene_structure_count = scene_structure_internal_buffer_view
-    };
-
-    //! \brief An Id for all scene objects.
-    //! \details Similar to an entity.
-    struct sid
-    {
-      public:
-        sid()
-            : m_pf_id()
-            , m_structure_type(scene_structure_type::scene_structure_unknown)
-        {
-        }
-        ~sid() = default;
-        //! \brief Copy constructor.
-        sid(const sid&) = default;
-        //! \brief Move constructor.
-        sid(sid&&) = default;
-        //! \brief Assignment operator.
-        sid& operator=(const sid&) = default;
-        //! \brief Move assignment operator.
-        sid& operator=(sid&&) = default;
-
-        //! \brief Checks if the \a sid is valid.
-        //! \return True if the \a sid is valid and the structure is known, else false.
-        inline bool is_valid()
-        {
-            return m_structure_type != scene_structure_type::scene_structure_unknown;
-        }
-
-        //! \brief Comparison operator equal.
-        //! \param other The other \a sid.
-        //! \return True if other \a sid is equal to the current one, else false.
-        bool operator==(const sid& other) const
-        {
-            return (m_pf_id.get() == other.id().get()) && (m_structure_type == other.m_structure_type);
-        }
-
-        //! \brief Comparison operator not equal.
-        //! \param other The other \a sid.
-        //! \return True if other \a sid is not equal to the current one, else false.
-        bool operator!=(const sid& other) const
-        {
-            return (m_pf_id.get() != other.id().get()) || (m_structure_type != other.m_structure_type);
-        }
-
-        //! \brief Comparison operator less.
-        //! \param other The other \a sid.
-        //! \return True if other \a sid is less then the current one, else false.
-        bool operator<(const sid& other) const
-        {
-            return (m_pf_id.get() == other.id().get());
-        }
-
-        //! \brief Returns the internal \a packed_freelist_id.
-        //! \return A constant reference to the internal \a packed_freelist_id.
-        inline const packed_freelist_id& id() const
-        {
-            return m_pf_id;
-        }
-
-        //! \brief Retrieves the \a scene_structure_type of the element referenced by the id.
-        //! \return A constant reference to the \a scene_structure_type of the element referenced by the id.
-        inline const scene_structure_type& structure_type() const
-        {
-            return m_structure_type;
-        }
-
-      private:
-        friend class scene_impl;
-        friend struct sid_hash;
-
-        //! \brief Constructor for internal creation of \a sids.
-        //! \param[in] pf_id The \a packed_freelist_id of the new \a sid.
-        //! \param[in] tp The \a scene_structure_type of the new \a sid.
-        sid(packed_freelist_id pf_id, scene_structure_type tp)
-            : m_pf_id(pf_id)
-            , m_structure_type(tp)
-        {
-        }
-
-        //! \brief Creates a new \a sid.
-        //! \param[in] pf_id The \a packed_freelist_id of the new \a sid.
-        //! \param[in] tp The \a scene_structure_type of the new \a sid.
-        //! \return The created \a sid.
-        inline static sid create(packed_freelist_id pf_id, scene_structure_type tp)
-        {
-            return sid(pf_id, tp);
-        }
-
-        //! \brief The \a packed_freelist_id of the \a sid.
-        packed_freelist_id m_pf_id;
-        //! \brief The \a scene_structure_type of the \a sid.
-        scene_structure_type m_structure_type;
-    };
-
-    //! \brief An invalid \a sid.
-    static const sid invalid_sid;
-
-    //! \brief Hash for the \a sid structure.
-    struct sid_hash
-    {
-        //! \brief Function call operator.
-        //! \details Hashes the \a sid.
-        //! \param[in] k The \a sid to hash.
-        //! \return The hash for the given \a sid.
-        std::size_t operator()(const sid& k) const
-        {
-            // https://stackoverflow.com/questions/1646807/quick-and-simple-hash-code-combinations/
-
-            size_t res = 17;
-            res        = res * 31 + std::hash<uint32>()(k.id().get());
-            res        = res * 31 + std::hash<uint8>()(static_cast<uint8>(k.m_structure_type));
-
-            return res;
-        };
-    };
 
     //! \brief Public structure holding transformation informations.
     //! \details Used to store position, rotation and scale for a node.
     struct transform
     {
-        //! \brief The \a sid of the containing node.
-        sid containing_node;
-
         //! \brief The position of the \a transform.
         vec3 position;
         //! \brief The rotation of the \a transform.
@@ -172,42 +32,22 @@ namespace mango
         //! \brief The scale of the \a transform.
         vec3 scale;
 
+        //! \brief Rotation hint. Equal to the transforms quaternion rotation, but converted to euler angles.
+        vec3 rotation_hint;
+
         transform()
             : position(0.0f)
             , rotation(1.0f, 0.0f, 0.0f, 0.0f)
             , scale(1.0f)
-            , changed(false)
         {
         }
         //! \brief \a Transform is a scene structure.
         DECLARE_SCENE_STRUCTURE(transform);
-
-        //! \brief Marks the \a transform to be updated.
-        //! \details Has to be called after making changes.
-        inline void update()
-        {
-            changed = true;
-        }
-
-        //! \brief Checks if the \a transform has been updated.
-        //! \return True if changes were made, else false.
-        inline bool dirty() // TODO Paul: Could be handled better.
-        {
-            return changed;
-        }
-
-      private:
-        friend struct scene_transform; // TODO Paul: Could be handled better.
-        //! \brief Change flag. True if changes were made, else false.
-        bool changed;
     };
 
     //! \brief Public structure holding informations for a perspective camera.
     struct perspective_camera
     {
-        //! \brief The \a sid of the containing node.
-        sid containing_node;
-
         //! \brief The aspect ratio of the \a perspective_camera.
         float aspect;
         //! \brief The vertical field of view of the \a perspective_camera in radians.
@@ -230,6 +70,9 @@ namespace mango
         //! \brief The target point of the \a perspective_camera.
         vec3 target;
 
+        //! \brief The \a uid of the GPU data of the \a perspective_camera.
+        uid gpu_data;
+
         perspective_camera()
             : aspect(0.0f)
             , vertical_field_of_view(0.0f)
@@ -249,9 +92,6 @@ namespace mango
     //! \brief Public structure holding informations for an orthographic camera.
     struct orthographic_camera
     {
-        //! \brief The \a sid of the containing node.
-        sid containing_node;
-
         //! \brief The zoom factor of the \a orthographic_camera in x direction.
         float x_mag;
         //! \brief The zoom factor of the \a orthographic_camera in y direction.
@@ -274,6 +114,9 @@ namespace mango
         //! \brief The target point of the \a orthographic_camera.
         vec3 target;
 
+        //! \brief The \a uid of the GPU data of the \a orthographic_camera.
+        uid gpu_data;
+
         orthographic_camera()
             : x_mag(0.0f)
             , y_mag(0.0f)
@@ -293,9 +136,6 @@ namespace mango
     //! \brief Structure holding informations for a directional light.
     struct directional_light
     {
-        //! \brief The \a sid of the containing node.
-        sid containing_node;
-
         //! \brief The direction of the \a directional_light from the point to the light.
         vec3 direction;
         //! \brief The color of the \a directional_light. Values between 0.0 and 1.0.
@@ -322,11 +162,8 @@ namespace mango
     //! \brief Public structure holding informations for a skylight.
     struct skylight
     {
-        //! \brief The \a sid of the containing node.
-        sid containing_node;
-
-        //! \brief The \a sid of the environment texture of the \a skylight.
-        sid hdr_texture;
+        //! \brief The \a uid of the environment texture of the \a skylight.
+        uid hdr_texture;
         //! \brief The intensity of the \a skylight in cd/m^2.
         float intensity;
         //! \brief True if the \a skylight should use a texture, else false.
@@ -350,9 +187,6 @@ namespace mango
     //! \brief Public structure holding informations for a atmospheric light.
     struct atmospheric_light
     {
-        //! \brief The \a sid of the containing node.
-        sid containing_node;
-
         // TODO Paul: Add documentation, when these work again.
         //! \cond NO_COND
 
@@ -399,6 +233,9 @@ namespace mango
         //! \brief True if the \a texture was loaded as high dynamic range, else false.
         bool high_dynamic_range;
 
+        //! \brief The \a uid of the GPU data of the \a texture.
+        uid gpu_data;
+
         texture()
             : standard_color_space(false)
             , high_dynamic_range(false)
@@ -407,25 +244,6 @@ namespace mango
         }
         //! \brief \a Texture is a scene structure.
         DECLARE_SCENE_STRUCTURE(texture);
-
-        //! \brief Marks the \a texture to be updated.
-        //! \details Has to be called after making changes.
-        inline void update()
-        {
-            changed = true;
-        }
-
-        //! \brief Checks if the \a texture has been updated.
-        //! \return True if changes were made, else false.
-        inline bool dirty() // TODO Paul: Could be handled better.
-        {
-            return changed;
-        }
-
-      private:
-        friend struct scene_texture; // TODO Paul: Could be handled better.
-        //! \brief Change flag. True if changes were made, else false.
-        bool changed;
     };
 
     //! \brief The alpha mode of a \a material.
@@ -446,35 +264,38 @@ namespace mango
 
         //! \brief The base color of the \a material. Values between 0.0 and 1.0.
         color_rgba base_color;
-        //! \brief The \a sid of the base color texture of the \a material. \a Texture should be in standard color space.
-        sid base_color_texture;
+        //! \brief The \a uid of the base color texture of the \a material. \a Texture should be in standard color space.
+        uid base_color_texture;
         //! \brief The metallic property of the \a material. Value between 0.0 and 1.0.
         normalized_float metallic;
         //! \brief The roughness property of the \a material. Value between 0.0 and 1.0.
         normalized_float roughness;
-        //! \brief The \a sid of the metallic and roughness texture of the \a material. \a Texture could also include an occlusion value in the blue component.
-        sid metallic_roughness_texture;
+        //! \brief The \a uid of the metallic and roughness texture of the \a material. \a Texture could also include an occlusion value in the blue component.
+        uid metallic_roughness_texture;
         //! \brief True if the metallic roughness texture of the \a material includes an occlusion value in the blue component, else false.
         bool packed_occlusion;
 
-        //! \brief The \a sid of the normal texture of the \a material.
-        sid normal_texture;
-        //! \brief The \a sid of the occlusion texture of the \a material.
-        sid occlusion_texture;
+        //! \brief The \a uid of the normal texture of the \a material.
+        uid normal_texture;
+        //! \brief The \a uid of the occlusion texture of the \a material.
+        uid occlusion_texture;
 
         //! \brief The emissive color of the \a material. Values between 0.0 and 1.0.
         color_rgb emissive_color;
-        //! \brief The \a sid of the emissive color texture of the \a material. \a Texture should be in standard color space.
-        sid emissive_texture;
+        //! \brief The \a uid of the emissive color texture of the \a material. \a Texture should be in standard color space.
+        uid emissive_texture;
         //! \brief The emissive intensity of the \a material in lumen.
         float emissive_intensity;
 
-        //! \brief True if the \a material should be rendered double sided, else false.
-        bool double_sided;
+        //! \brief True if the \a material should be rendered double uided, else false.
+        bool double_uided;
         //! \brief The \a material_alpha_mode of the \a material.
         material_alpha_mode alpha_mode;
         //! \brief The alpha cutoff of the \a material. Value between 0.0 and 1.0.
         normalized_float alpha_cutoff;
+
+        //! \brief The \a uid of the GPU data of the \a material.
+        uid gpu_data;
 
         material()
             : base_color()
@@ -482,7 +303,7 @@ namespace mango
             , roughness(1.0f)
             , packed_occlusion(false)
             , emissive_intensity(default_emissive_intensity)
-            , double_sided(false)
+            , double_uided(false)
             , alpha_mode(material_alpha_mode::mode_opaque)
             , alpha_cutoff(1.0f)
 
@@ -513,8 +334,11 @@ namespace mango
         //! \brief True if the \a primitive has tangents in the vertex data, else false.
         bool has_tangents;
 
-        //! \brief TThe \a sid of the \a primitives \a material.
-        sid material;
+        //! \brief The \a uid of the \a primitives \a material.
+        uid material;
+
+        //! \brief The \a uid of the GPU data of the \a primitive.
+        uid gpu_data;
 
         primitive()
             : type(primitive_type::custom)
@@ -533,12 +357,45 @@ namespace mango
         //! \brief The name of the \a mesh.
         string name;
 
-        //! \brief The \a sid of the containing node.
-        sid containing_node;
+        //! \brief List of primitive \a uids of this mesh.
+        std::vector<uid> primitives;
+
+        //! \brief The \a uid of the GPU data of the \a mesh.
+        uid gpu_data;
 
         mesh() = default;
         //! \brief \a Mesh is a scene structure.
         DECLARE_SCENE_STRUCTURE(mesh);
+    };
+
+    //! \brief The type of a \a scene_node.
+    //! \details Bitset.
+    enum class node_type : uint8
+    {
+        hierarchy           = 0,
+        instance            = 1 << 0,
+        mesh                = 1 << 1,
+        perspective_camera  = 1 << 2,
+        orthographic_camera = 1 << 3,
+        directional_light   = 1 << 4,
+        skylight            = 1 << 5,
+        atmospheric_light   = 1 << 6
+    };
+    MANGO_ENABLE_BITMASK_OPERATIONS(node_type)
+
+    //! \brief The type of a light.
+    enum class light_type : uint8
+    {
+        directional = 0,
+        skylight,
+        atmospheric
+    };
+
+    //! \brief The type of a camera.
+    enum class camera_type : uint8
+    {
+        perspective = 0,
+        orthographic
     };
 
     //! \brief Public structure holding informations for a node.
@@ -547,27 +404,46 @@ namespace mango
         //! \brief The name of the \a node.
         string name;
 
-        //! \brief The \a sid of the \a scenario holding the \a node. Currently not really in use.
-        sid containing_scenario;
+        //! \brief List of \a uids referencing all children nodes.
+        std::vector<uid> children;
 
-        //! \brief The \a sid of the parent \a node.
-        sid parent_node;
+        //! \brief The type of the \a node.
+        node_type type;
+
+        //! \brief The \a uid of the nodes \a transform.
+        uid transform_id;
+        //! \brief The \a uid of the nodes \a mesh if node is one.
+        uid mesh_id;
+        //! \brief The \a uid of the nodes \a camera if node is one.
+        //! \details Ordered by camera_type: 0 = perspective_camera, 1 = orthographic_camera.
+        uid camera_ids[2];
+        //! \brief The \a uid of the nodes \a lights if node is one.
+        //! \details Ordered by light_type: 0 = directional, 1 = skylight, 2 = atmospheric_light.
+        uid light_ids[3]; // Accessed via type.
 
         node() = default;
 
         //! \brief Constructor taking a name.
         //! \param[in] node_name The name for the new node.
         node(const string& node_name)
-            : name(node_name){};
+            : name(node_name)
+            , type(node_type::hierarchy){};
 
         //! \brief \a Node is a scene structure.
         DECLARE_SCENE_STRUCTURE(node);
     };
 
-    //! \brief Public structure holding informations for a scenario. At the moment not to relevant.
+    //! \brief Public structure holding informations for a scenario.
     struct scenario
     {
         scenario() = default;
+
+        //! \brief List if \a uids referencing all root nodes in the \a scenario.
+        std::vector<uid> root_nodes;
+
+        //! \brief The \a uid of the GPU data for all lights in the \a sceario.
+        uid lights_gpu_data;
+
         //! \brief \a Scenario is a scene structure.
         DECLARE_SCENE_STRUCTURE(scenario);
     };
@@ -578,8 +454,8 @@ namespace mango
         //! \brief The full file path of the loaded model.
         string file_path;
 
-        //! \brief List if \a sids referencing all scenarios in the \a model.
-        std::vector<sid> scenarios;
+        //! \brief List of \a uids referencing all scenarios in the \a model.
+        std::vector<uid> scenarios;
         //! \brief Index in the list of scenarios providing the default \a scenario of the \a model.
         int32 default_scenario;
 

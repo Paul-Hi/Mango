@@ -11,25 +11,6 @@
 
 namespace mango
 {
-    //! \brief An id used to index the \a packed_freelist.
-    struct packed_freelist_id
-    {
-        //! \brief Retrieves the internal lookup id.
-        //! \return A constant reference to the internal lookup id.
-        inline const uint32& get() const
-        {
-            return lookup_id;
-        }
-
-      private:
-        template <typename T, ptr_size C>
-        friend class packed_freelist;
-
-        //! \brief Id of the lookup.
-        //! \details 16 least significant bits = index of this lookup in the lookup array / 16 most significant bits = usage count of this lookup.
-        uint32 lookup_id = 0;
-    };
-
     //! \brief A packed list class providing contiguous access.
     template <typename element, ptr_size capacity>
     class packed_freelist
@@ -48,7 +29,7 @@ namespace mango
         struct lookup
         {
             //! \brief The freelist id of this lookup.
-            packed_freelist_id id;
+            uid id;
 
             //! \brief Index in the elements array.
             uint16 element_index;
@@ -60,23 +41,23 @@ namespace mango
         //! \brief Iterator for the \a packed_freelist.
         struct iterator
         {
-            //! \brief Constructs a new iterator starting on given \a packed_freelist_id.
+            //! \brief Constructs a new iterator starting on given \a uid.
             //! \param[in] id A pointer to the id, the iterator starts on.
-            iterator(packed_freelist_id* id)
+            iterator(uid* id)
             {
                 m_current = id;
             }
 
             //! \brief Dereference operator.
-            //! \return The \a packed_freelist_id pointed to by the iterator.
-            packed_freelist_id operator*()
+            //! \return The \a uid pointed to by the iterator.
+            uid operator*()
             {
                 return *m_current;
             }
 
             //! \brief Arrow operator.
-            //! \return The pointer to the \a packed_freelist_id pointed to by the iterator.
-            packed_freelist_id* operator->()
+            //! \return The pointer to the \a uid pointed to by the iterator.
+            uid* operator->()
             {
                 return m_current;
             }
@@ -115,8 +96,8 @@ namespace mango
             }
 
           private:
-            //! \brief The current \a packed_freelist_id the iterator points to.
-            packed_freelist_id* m_current;
+            //! \brief The current \a uid the iterator points to.
+            uid* m_current;
         };
 
         packed_freelist()
@@ -126,7 +107,7 @@ namespace mango
             m_size             = 0;
             m_element_array    = static_cast<element*>(new element[capacity]);
             m_lookup_array     = static_cast<lookup*>(new lookup[capacity]);
-            m_reverse_id_array = static_cast<packed_freelist_id*>(new packed_freelist_id[capacity]);
+            m_reverse_id_array = static_cast<uid*>(new uid[capacity]);
 
             m_free_id_dequeue = 0;
             m_free_id_enqueue = capacity - 1;
@@ -134,6 +115,7 @@ namespace mango
             for (uint16 i = 0; i < capacity; i++)
             {
                 m_lookup_array[i].id.lookup_id  = i;
+                m_lookup_array[i].id.valid      = true;
                 m_lookup_array[i].element_index = deleted;
                 m_lookup_array[i].next          = i + 1;
             }
@@ -148,10 +130,10 @@ namespace mango
             delete[] m_reverse_id_array;
         }
 
-        //! \brief Inserts a new element in the \a packed_freelist and returns the corresponding \a packed_freelist_id.
+        //! \brief Inserts a new element in the \a packed_freelist and returns the corresponding \a uid.
         //! \param[in] value The value of type \a element.
-        //! \return The \a packed_freelist_id of the inserted element.
-        packed_freelist_id insert(const element& value)
+        //! \return The \a uid of the inserted element.
+        uid insert(const element& value)
         {
             lookup& look      = m_lookup_array[m_free_id_dequeue];
             m_free_id_dequeue = look.next;
@@ -170,10 +152,10 @@ namespace mango
             return look.id;
         }
 
-        //! \brief Inserts a new element in the \a packed_freelist by moving it and returns the corresponding \a packed_freelist_id.
+        //! \brief Inserts a new element in the \a packed_freelist by moving it and returns the corresponding \a uid.
         //! \param[in] value The value of type \a element to move into the packed_freelist.
-        //! \return The \a packed_freelist_id of the inserted element.
-        packed_freelist_id insert(const element&& value)
+        //! \return The \a uid of the inserted element.
+        uid insert(const element&& value)
         {
             lookup& look      = m_lookup_array[m_free_id_dequeue];
             m_free_id_dequeue = look.next;
@@ -192,11 +174,11 @@ namespace mango
             return look.id;
         }
 
-        //! \brief Inserts a new element in the \a packed_freelist by emplacing it and returns the corresponding \a packed_freelist_id.
+        //! \brief Inserts a new element in the \a packed_freelist by emplacing it and returns the corresponding \a uid.
         //! \param[in] args The arguments used for creating the element to emplace.
-        //! \return The \a packed_freelist_id of the inserted element.
+        //! \return The \a uid of the inserted element.
         template <class... Args>
-        packed_freelist_id emplace(Args&&... args)
+        uid emplace(Args&&... args)
         {
             lookup& look      = m_lookup_array[m_free_id_dequeue];
             m_free_id_dequeue = look.next;
@@ -215,28 +197,28 @@ namespace mango
             return look.id;
         }
 
-        //! \brief Checks if a element for a given \a packed_freelist_id is contained in the \a packed_freelist.
-        //! \param[in] id The \a packed_freelist_id to check
-        //! \return True if the element with \a packed_freelist_id id is contained in the \a packed_freelist, else false.
-        inline bool contains(packed_freelist_id id) const
+        //! \brief Checks if a element for a given \a uid is contained in the \a packed_freelist.
+        //! \param[in] id The \a uid to check
+        //! \return True if the element with \a uid id is contained in the \a packed_freelist, else false.
+        inline bool contains(uid id) const
         {
             lookup& look = m_lookup_array[id.lookup_id & id_index_mask];
             return look.id.lookup_id == id.lookup_id && look.element_index != deleted;
         }
 
         //! \brief Subscript operator.
-        //! \param id The \a packed_freelist_id to get the element for.
+        //! \param id The \a uid to get the element for.
         //! \return The corresponding element for id.
-        inline element& operator[](packed_freelist_id id)
+        inline element& operator[](uid id)
         {
             MANGO_ASSERT(contains(id), "Trying to access non contained value!");
             return *(m_element_array + m_lookup_array[id.lookup_id & id_index_mask].element_index);
         }
 
-        //! \brief Returns an element for a given \a packed_freelist_id.
-        //! \param id The \a packed_freelist_id to get the element for.
+        //! \brief Returns an element for a given \a uid.
+        //! \param id The \a uid to get the element for.
         //! \return The corresponding element for id.
-        inline element& at(packed_freelist_id id)
+        inline element& at(uid id)
         {
             MANGO_ASSERT(contains(id), "Trying to access non contained value!");
             return *(m_element_array + m_lookup_array[id.lookup_id & id_index_mask].element_index);
@@ -250,8 +232,8 @@ namespace mango
         }
 
         //! \brief Erases an element from the \a packed_freelist.
-        //! \param id The \a packed_freelist_id to erase the corresponding the element for.
-        void erase(packed_freelist_id id)
+        //! \param id The \a uid to erase the corresponding the element for.
+        void erase(uid id)
         {
             MANGO_ASSERT(contains(id), "Trying to erase non contained value!");
             lookup& look = m_lookup_array[id.lookup_id & id_index_mask];
@@ -327,8 +309,8 @@ namespace mango
         element* m_element_array;
         //! \brief The contiguous list of lokkups.
         lookup* m_lookup_array;
-        //! \brief The contiguous list of \a packed_freelist_ids for reverse lookup.
-        packed_freelist_id* m_reverse_id_array;
+        //! \brief The contiguous list of \a uids for reverse lookup.
+        uid* m_reverse_id_array;
     };
 
     //! \brief Returns an iterator for the \a packed_freelist pointing to the first element.

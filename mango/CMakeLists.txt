@@ -56,7 +56,7 @@ set(PRIVATE_HEADERS
     # Resources
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resources_impl.hpp
     # Scene
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_internals.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_structures_internal.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_impl.hpp
     # UI
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_impl.hpp

@@ -39,7 +39,7 @@ namespace mango
             struct
             {
                 //! \brief The \a gfx_uid of the \a gfx_buffer bound as vertex buffer.
-                gfx_uid uid = invalid_uid;
+                gfx_uid uid = invalid_gfx_uid;
                 //! \brief The offset in the \a gfx_buffer bound as vertex buffer.
                 int32 offset = 0;
 
@@ -49,7 +49,7 @@ namespace mango
             int16 binding_bitmask = 0;
 
             //! \brief The \a gfx_uid of the \a gfx_buffer bound as index buffer.
-            gfx_uid index_buffer = invalid_uid;
+            gfx_uid index_buffer = invalid_gfx_uid;
 
             //! \brief Comparison operator equal.
             //! \param other The other \a vertex_array_key.
