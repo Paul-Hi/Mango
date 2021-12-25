@@ -69,24 +69,6 @@ namespace mango
         //! \brief The graphics uniform buffer for uploading \a renderer_data.
         gfx_handle<const gfx_buffer> m_renderer_data_buffer;
 
-        //! \brief The current \a camera_data.
-        camera_data m_camera_data;
-        //! \brief The graphics uniform buffer for uploading \a camera_data.
-        gfx_handle<const gfx_buffer> m_camera_data_buffer;
-
-        //! \brief The current \a model_data.
-        model_data m_model_data;
-        //! \brief The graphics uniform buffer for uploading \a model_data.
-        gfx_handle<const gfx_buffer> m_model_data_buffer;
-
-        //! \brief The current \a material_data.
-        material_data m_material_data;
-        //! \brief The graphics uniform buffer for uploading \a material_data.
-        gfx_handle<const gfx_buffer> m_material_data_buffer;
-
-        //! \brief The graphics uniform buffer for uploading \a light_data. Filled with data provided by the \a light_stack.
-        gfx_handle<const gfx_buffer> m_light_data_buffer;
-
         //! \brief The vertex \a shader_stage for the deferred geometry pass.
         gfx_handle<const gfx_shader_stage> m_geometry_pass_vertex;
         //! \brief The fragment \a shader_stage for the deferred geometry pass.

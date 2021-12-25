@@ -54,7 +54,7 @@ namespace mango
     using gfx_uid = int64;
 
     //! \brief An invalid \a gfx_uid.
-    static const gfx_uid invalid_uid = -1;
+    static const gfx_uid invalid_gfx_uid = -1;
 
     //! \brief Interface for all objects on the gpu or interactong with the gpu.
     class gfx_device_object
