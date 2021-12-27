@@ -58,6 +58,7 @@ set(PRIVATE_HEADERS
     # Scene
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_structures_internal.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_helper.hpp
     # UI
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.hpp
@@ -117,6 +118,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resources_impl.cpp
     # Scene
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_helper.cpp
     # UI
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.cpp
