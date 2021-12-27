@@ -102,7 +102,7 @@ uid scene_impl::add_perspective_camera(perspective_camera& new_perspective_camer
     if (!check_creation(data.camera_data_buffer.get(), "camera data buffer"))
         return invalid_uid;
 
-    vec3 camera_position = m_transforms.at(nd.transform_id).position;
+    const vec3& camera_position = m_transforms.at(nd.transform_id).position;
 
     mat4 view, projection;
     view_projection_perspective_camera(new_perspective_camera, camera_position, view, projection);
@@ -171,7 +171,7 @@ uid scene_impl::add_orthographic_camera(orthographic_camera& new_orthographic_ca
     if (!check_creation(data.camera_data_buffer.get(), "camera data buffer"))
         return invalid_uid;
 
-    vec3 camera_position = m_transforms.at(nd.transform_id).position;
+    const vec3& camera_position = m_transforms.at(nd.transform_id).position;
 
     mat4 view, projection;
     view_projection_orthographic_camera(new_orthographic_camera, camera_position, view, projection);
@@ -407,8 +407,6 @@ void scene_impl::add_model_to_scene(uid model_to_add, uid scenario_id, uid node_
         return;
     }
 
-    node& containing_node = m_nodes.at(node_id);
-
     if (!model_to_add.is_valid() || !scenario_id.is_valid())
     {
         MANGO_LOG_WARN("Model or scenario are not valid! Can not add model to scene!");
@@ -426,8 +424,9 @@ void scene_impl::add_model_to_scene(uid model_to_add, uid scenario_id, uid node_
         return;
     }
 
-    model& m       = m_models.at(model_to_add);
-    scenario& scen = m_scenarios.at(scenario_id);
+    const model& m        = m_models.at(model_to_add);
+    const scenario& scen  = m_scenarios.at(scenario_id);
+    node& containing_node = m_nodes.at(node_id);
 
     auto found = std::find(m.scenarios.begin(), m.scenarios.end(), scenario_id);
     if (found == m.scenarios.end())
@@ -436,6 +435,7 @@ void scene_impl::add_model_to_scene(uid model_to_add, uid scenario_id, uid node_
         return;
     }
 
+    containing_node.type |= node_type::instance;
     for (uid node_id : scen.root_nodes)
     {
         containing_node.children.push_back(node_id);
@@ -445,298 +445,259 @@ void scene_impl::add_model_to_scene(uid model_to_add, uid scenario_id, uid node_
 void scene_impl::remove_node(uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = node_id.id();
 
-    if (!m_scene_nodes.contains(node))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove node!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove node!", node_id.get());
         return;
     }
 
-    scene_node& to_remove = m_scene_nodes.at(node);
+    const node& to_remove = m_nodes.at(node_id);
 
-    if (to_remove.type != node_type::empty_leaf)
+    bool only_unlink = (to_remove.type & node_type::instance) != node_type::hierarchy;
+
+    switch (to_remove.type)
     {
-        MANGO_LOG_WARN("Node with ID {0} has children or holds another object! Will not remove node!", node_id.id().get());
-        return;
+    case node_type::hierarchy:
+    case node_type::instance:
+    case node_type::mesh:
+        remove_mesh(to_remove.mesh_id);
+    case node_type::perspective_camera:
+        remove_perspective_camera(to_remove.camera_ids[static_cast<uint8>(camera_type::perspective)]);
+    case node_type::orthographic_camera:
+        remove_orthographic_camera(to_remove.camera_ids[static_cast<uint8>(camera_type::orthographic)]);
+    case node_type::directional_light:
+        remove_directional_light(to_remove.light_ids[static_cast<uint8>(light_type::directional)]);
+    case node_type::skylight:
+        remove_skylight(to_remove.light_ids[static_cast<uint8>(light_type::skylight)]);
+    case node_type::atmospheric_light:
+        remove_atmospheric_light(to_remove.light_ids[static_cast<uint8>(light_type::atmospheric)]);
     }
 
-    if (to_remove.public_data.parent_node.is_valid())
+    if (!only_unlink)
     {
-        detach(node_id);
-        // afterwards th subtree is attached to the root
-        // so first detach from root
-        scene_node& root = m_scene_nodes.at(m_root_node.id());
-        root.children--;
-        if (root.children <= 0)
+        for (uid c : to_remove.children)
         {
-            root.type &= ~node_type::is_parent;
-            root.children = 0;
+            remove_node(c);
         }
     }
 
-    m_scene_nodes.erase(node);
-
-    // scene graph
-    m_scene_graph_root->children.pop_back(); // just destroy it :D
+    m_nodes.erase(node_id);
 }
 
 void scene_impl::remove_perspective_camera(uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node_pf = node_id.id();
 
-    if (!m_scene_nodes.contains(node_pf))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove perspective camera!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove perspective camera!", node_id.get());
         return;
     }
 
-    scene_node& node = m_scene_nodes.at(node_pf);
+    node& node = m_nodes.at(node_id);
 
-    if ((node.type & node_type::camera) == node_type::empty_leaf)
+    if ((node.type & node_type::perspective_camera) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a camera! Can not remove perspective camera!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a perspective camera! Can not remove perspective camera!", node_id.get());
         return;
     }
 
-    packed_freelist_id cam = node.camera_id.id();
+    uid camera_id = node.camera_ids[static_cast<uint8>(camera_type::perspective)];
 
-    if (!m_scene_cameras.contains(cam))
+    if (!m_perspective_cameras.contains(camera_id))
     {
-        MANGO_LOG_WARN("Camera with ID {0} does not exist! Can not remove perspective camera!", cam.get());
+        MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not remove perspective camera!", camera_id.get());
         return;
     }
 
-    scene_camera& to_remove = m_scene_cameras.at(cam);
+    const perspective_camera& to_remove = m_perspective_cameras.at(camera_id);
 
-    uid containing_node = to_remove.public_data_as_perspective->containing_node;
+    uid gpu_data_id = to_remove.gpu_data;
+    MANGO_ASSERT(m_camera_gpu_data.contains(gpu_data_id), "Camera gpu data for perspective camera does not exist!");
 
-    if (containing_node.is_valid())
-    {
-        packed_freelist_id cn = containing_node.id();
-        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
-        scene_node& nd = m_scene_nodes.at(cn);
-        nd.camera_id   = invalid_uid;
-        nd.type &= ~node_type::camera;
-    }
+    node.type &= ~node_type::perspective_camera;
+    node.camera_ids[static_cast<uint8>(camera_type::perspective)] = invalid_uid;
 
-    m_scene_cameras.erase(cam);
+    m_camera_gpu_data.erase(gpu_data_id);
+    m_perspective_cameras.erase(camera_id);
 }
 
 void scene_impl::remove_orthographic_camera(uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node_pf = node_id.id();
 
-    if (!m_scene_nodes.contains(node_pf))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove orthographic camera!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove orthographic camera!", node_id.get());
         return;
     }
 
-    scene_node& node = m_scene_nodes.at(node_pf);
+    node& node = m_nodes.at(node_id);
 
-    if ((node.type & node_type::camera) == node_type::empty_leaf)
+    if ((node.type & node_type::orthographic_camera) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a camera! Can not remove orthographic camera!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a orthographic camera! Can not remove orthographic camera!", node_id.get());
         return;
     }
 
-    packed_freelist_id cam = node.camera_id.id();
+    uid camera_id = node.camera_ids[static_cast<uint8>(camera_type::orthographic)];
 
-    if (!m_scene_cameras.contains(cam))
+    if (!m_orthographic_cameras.contains(camera_id))
     {
-        MANGO_LOG_WARN("Camera with ID {0} does not exist! Can not remove orthographic camera!", cam.get());
+        MANGO_LOG_WARN("Orthographic camera with ID {0} does not exist! Can not remove orthographic camera!", camera_id.get());
         return;
     }
 
-    scene_camera& to_remove = m_scene_cameras.at(cam);
+    const orthographic_camera& to_remove = m_orthographic_cameras.at(camera_id);
 
-    uid containing_node = to_remove.public_data_as_orthographic->containing_node;
+    uid gpu_data_id = to_remove.gpu_data;
+    MANGO_ASSERT(m_camera_gpu_data.contains(gpu_data_id), "Camera gpu data for orthographic camera does not exist!");
 
-    if (containing_node.is_valid())
-    {
-        packed_freelist_id cn = containing_node.id();
-        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
-        scene_node& nd = m_scene_nodes.at(cn);
-        nd.camera_id   = invalid_uid;
-        nd.type &= ~node_type::camera;
-    }
+    node.type &= ~node_type::orthographic_camera;
+    node.camera_ids[static_cast<uint8>(camera_type::orthographic)] = invalid_uid;
 
-    m_scene_cameras.erase(cam);
-}
-
-void scene_impl::remove_mesh(uid node_id)
-{
-    PROFILE_ZONE;
-    packed_freelist_id node_pf = node_id.id();
-
-    if (!m_scene_nodes.contains(node_pf))
-    {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove mesh!", node_id.id().get());
-        return;
-    }
-
-    scene_node& node = m_scene_nodes.at(node_pf);
-
-    if ((node.type & node_type::mesh) == node_type::empty_leaf)
-    {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a mesh! Can not remove mesh!", node_id.id().get());
-        return;
-    }
-
-    packed_freelist_id m = node.mesh_id.id();
-
-    if (!m_scene_meshes.contains(m))
-    {
-        MANGO_LOG_WARN("Mesh with ID {0} does not exist! Can not remove mesh!", m.get());
-        return;
-    }
-
-    scene_mesh& to_remove = m_scene_meshes.at(m);
-
-    uid containing_node = to_remove.public_data.containing_node;
-
-    if (containing_node.is_valid())
-    {
-        packed_freelist_id cn = containing_node.id();
-        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
-        scene_node& nd                                            = m_scene_nodes.at(cn);
-        nd.light_ids[static_cast<uint8>(light_type::directional)] = invalid_uid;
-        nd.type &= ~node_type::mesh;
-    }
-
-    m_scene_meshes.erase(m);
+    m_camera_gpu_data.erase(gpu_data_id);
+    m_orthographic_cameras.erase(camera_id);
 }
 
 void scene_impl::remove_directional_light(uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node_pf = node_id.id();
 
-    if (!m_scene_nodes.contains(node_pf))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove directional light!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove directional light!", node_id.get());
         return;
     }
 
-    scene_node& node = m_scene_nodes.at(node_pf);
+    node& node = m_nodes.at(node_id);
 
-    if ((node.type & node_type::light) == node_type::empty_leaf)
+    if ((node.type & node_type::directional_light) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a light! Can not remove directional light!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a directional light! Can not remove directional light!", node_id.get());
         return;
     }
 
-    packed_freelist_id light = node.light_ids[static_cast<uint8>(light_type::directional)].id();
+    uid light_id = node.light_ids[static_cast<uint8>(light_type::directional)];
 
-    if (!m_scene_lights.contains(light))
+    if (!m_directional_lights.contains(light_id))
     {
-        MANGO_LOG_WARN("Light with ID {0} does not exist! Can not remove directional light!", light.get());
+        MANGO_LOG_WARN("Directional light with ID {0} does not exist! Can not remove directional light!", light_id.get());
         return;
     }
 
-    scene_light& to_remove = m_scene_lights.at(light);
+    node.type &= ~node_type::directional_light;
+    node.camera_ids[static_cast<uint8>(light_type::directional)] = invalid_uid;
 
-    uid containing_node = to_remove.public_data_as_directional_light->containing_node;
-
-    if (containing_node.is_valid())
-    {
-        packed_freelist_id cn = containing_node.id();
-        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
-        scene_node& nd                                            = m_scene_nodes.at(cn);
-        nd.light_ids[static_cast<uint8>(light_type::directional)] = invalid_uid;
-        nd.type &= ~node_type::light;
-    }
-
-    m_scene_lights.erase(light);
+    m_directional_lights.erase(light_id);
 }
 
 void scene_impl::remove_skylight(uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node_pf = node_id.id();
 
-    if (!m_scene_nodes.contains(node_pf))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove skylight!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove skylight!", node_id.get());
         return;
     }
 
-    scene_node& node = m_scene_nodes.at(node_pf);
+    node& node = m_nodes.at(node_id);
 
-    if ((node.type & node_type::light) == node_type::empty_leaf)
+    if ((node.type & node_type::skylight) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a light! Can not remove skylight!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a skylight! Can not remove skylight!", node_id.get());
         return;
     }
 
-    packed_freelist_id light = node.light_ids[static_cast<uint8>(light_type::skylight)].id();
+    uid light_id = node.light_ids[static_cast<uint8>(light_type::skylight)];
 
-    if (!m_scene_lights.contains(light))
+    if (!m_skylights.contains(light_id))
     {
-        MANGO_LOG_WARN("Light with ID {0} does not exist! Can not remove skylight!", light.get());
+        MANGO_LOG_WARN("Skylight with ID {0} does not exist! Can not remove skylight!", light_id.get());
         return;
     }
 
-    scene_light& to_remove = m_scene_lights.at(light);
+    const skylight& to_remove = m_skylights.at(light_id);
 
-    uid containing_node = to_remove.public_data_as_skylight->containing_node;
-
-    if (containing_node.is_valid())
+    if (to_remove.hdr_texture.is_valid())
     {
-        packed_freelist_id cn = containing_node.id();
-        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
-        scene_node& nd                                         = m_scene_nodes.at(cn);
-        nd.light_ids[static_cast<uint8>(light_type::skylight)] = invalid_uid;
-        nd.type &= ~node_type::light;
+        remove_texture_gpu_data(to_remove.hdr_texture);
     }
 
-    m_scene_lights.erase(light);
+    node.type &= ~node_type::skylight;
+    node.camera_ids[static_cast<uint8>(light_type::skylight)] = invalid_uid;
+
+    m_skylights.erase(light_id);
 }
 
 void scene_impl::remove_atmospheric_light(uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node_pf = node_id.id();
 
-    if (!m_scene_nodes.contains(node_pf))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove atmospheric light!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove atmospheric light!", node_id.get());
         return;
     }
 
-    scene_node& node = m_scene_nodes.at(node_pf);
+    node& node = m_nodes.at(node_id);
 
-    if ((node.type & node_type::light) == node_type::empty_leaf)
+    if ((node.type & node_type::atmospheric_light) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a light! Can not remove atmospheric light!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a atmospheric light! Can not remove atmospheric light!", node_id.get());
         return;
     }
 
-    packed_freelist_id light = node.light_ids[static_cast<uint8>(light_type::atmospheric)].id();
+    uid light_id = node.light_ids[static_cast<uint8>(light_type::atmospheric)];
 
-    if (!m_scene_lights.contains(light))
+    if (!m_atmospheric_lights.contains(light_id))
     {
-        MANGO_LOG_WARN("Light with ID {0} does not exist! Can not remove atmospheric light!", light.get());
+        MANGO_LOG_WARN("Atmospheric light with ID {0} does not exist! Can not remove atmospheric light!", light_id.get());
         return;
     }
 
-    scene_light& to_remove = m_scene_lights.at(light);
+    node.type &= ~node_type::atmospheric_light;
+    node.camera_ids[static_cast<uint8>(light_type::atmospheric)] = invalid_uid;
 
-    uid containing_node = to_remove.public_data_as_atmospheric_light->containing_node;
+    m_atmospheric_lights.erase(light_id);
+}
 
-    if (containing_node.is_valid())
+void scene_impl::unload_gltf_model(uid model_id)
+{
+    PROFILE_ZONE;
+
+    if (!m_models.contains(model_id))
     {
-        packed_freelist_id cn = containing_node.id();
-        MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
-        scene_node& nd                                            = m_scene_nodes.at(cn);
-        nd.light_ids[static_cast<uint8>(light_type::atmospheric)] = invalid_uid;
-        nd.type &= ~node_type::light;
+        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not unload model!", model_id.get());
+        return;
     }
 
-    m_scene_lights.erase(light);
+    const model& m = m_models.at(model_id);
+
+    for (auto sc : m.scenarios)
+    {
+        if (!m_scenarios.contains(sc))
+        {
+            MANGO_LOG_WARN("Scenario with ID {0} does not exist! Can not unload model!", sc.get());
+            return;
+        }
+
+        const scenario& scen = m_scenarios.at(sc);
+        for (auto node : scen.root_nodes)
+        {
+            remove_node(node);
+        }
+
+        uid lights_gpu_data = scen.lights_gpu_data;
+        MANGO_ASSERT(m_light_gpu_data.contains(lights_gpu_data), "Light gpu data for scenario does not exist!");
+
+        m_light_gpu_data.erase(lights_gpu_data);
+        m_scenarios.erase(sc);
+    }
+
+    m_models.erase(model_id);
 }
 
 optional<node&> scene_impl::get_node(uid node_id)

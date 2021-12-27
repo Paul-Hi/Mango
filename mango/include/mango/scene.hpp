@@ -36,7 +36,7 @@ namespace mango
         //! \return The node \a uid referencing the added \a orthographic_camera.
         virtual uid add_orthographic_camera(orthographic_camera& new_orthographic_camera, uid node_id) = 0;
 
-        // virtual uid add_mesh_primitive(primitive& new_primitive, uid node_id) = 0;
+        // virtual uid add_mesh(mesh& new_mesh, uid node_id) = 0;
 
         //! \brief Adds a \a directional_light to the \a scene.
         //! \param[in] new_directional_light The \a directional_light to add to the \a scene.
@@ -99,9 +99,7 @@ namespace mango
         //! \param[in] node_id The \a uid of the containing \a node of the \a orthographic_camera to remove from the \a scene.
         virtual void remove_orthographic_camera(uid node_id) = 0;
 
-        //! \brief Removes a \a mesh from the \a scene.
-        //! \param[in] node_id The \a uid of the containing \a node of the \a mesh to remove from the \a scene.
-        virtual void remove_mesh(uid node_id) = 0;
+        // virtual void remove_mesh(uid node_id) = 0;
 
         //! \brief Removes a \a directional_light from the \a scene.
         //! \param[in] node_id The \a uid of the containing \a node of the \a directional_light to remove from the \a scene.
@@ -114,6 +112,11 @@ namespace mango
         //! \brief Removes a \a atmospheric_light from the \a scene.
         //! \param[in] node_id The \a uid of the containing \a node of the \a atmospheric_light to remove from the \a scene.
         virtual void remove_atmospheric_light(uid node_id) = 0;
+
+        //! \brief Unloads a \a model loaded from a gltf file.
+        //! \details This should only be called, when every instance is removed from the scene, since it corrupts children at the moment.
+        //! \param[in] model_id The \a uid of the loaded model to remove.
+        virtual void unload_gltf_model(uid model_id) = 0;
 
         //! \brief Retrieves a \a node from the \a scene.
         //! \param[in] node_id The \a uid of the \a node to retrieve from the \a scene.
