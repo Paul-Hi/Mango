@@ -46,10 +46,10 @@ namespace mango
         void remove_node(uid node_id) override;
         void remove_perspective_camera(uid node_id) override;
         void remove_orthographic_camera(uid node_id) override;
-        void remove_mesh(uid node_id) override;
         void remove_directional_light(uid node_id) override;
         void remove_skylight(uid node_id) override;
         void remove_atmospheric_light(uid node_id) override;
+        void unload_gltf_model(uid model_id) override;
 
         optional<node&> get_node(uid node_id) override;
         optional<transform&> get_transform(uid node_id) override;
@@ -71,6 +71,10 @@ namespace mango
 
         void attach(uid child_node, uid parent_node) override;
         void detach(uid child_node, uid parent_node) override;
+
+        //! \brief Removes \a texture_gpu_data for a given \a uid.
+        //! \param[in] instance_id The \a uid of the \a texture to remove for from the \a scene.
+        void remove_texture_gpu_data(uid texture_id);
 
         //! \brief Retrieves a \a texture_gpu_data from the \a scene.
         //! \param[in] instance_id The \a uid of the \a texture_gpu_data to retrieve from the \a scene.
