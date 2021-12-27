@@ -14,6 +14,7 @@
 #include <glm/gtx/quaternion.hpp>
 #include <mango/profile.hpp>
 #include <mango/resources.hpp>
+#include <scene/scene_helper.hpp>
 #include <scene/scene_impl.hpp>
 #include <ui/dear_imgui/icons_font_awesome_5.hpp>
 #include <ui/dear_imgui/imgui_glfw.hpp>
@@ -90,6 +91,8 @@ uid scene_impl::add_perspective_camera(perspective_camera& new_perspective_camer
         return invalid_uid;
     }
 
+    node& nd = m_nodes.at(node_id);
+
     buffer_create_info buffer_info;
     buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
     buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
@@ -99,19 +102,50 @@ uid scene_impl::add_perspective_camera(perspective_camera& new_perspective_camer
     if (!check_creation(data.camera_data_buffer.get(), "camera data buffer"))
         return invalid_uid;
 
+    vec3 camera_position = m_transforms.at(nd.transform_id).position;
+
+    mat4 view, projection;
+    view_projection_perspective_camera(new_perspective_camera, camera_position, view, projection);
+    const mat4 view_projection = projection * view;
+
+    data.per_camera_data.view_matrix             = view;
+    data.per_camera_data.projection_matrix       = projection;
+    data.per_camera_data.view_projection_matrix  = view_projection;
+    data.per_camera_data.inverse_view_projection = glm::inverse(view_projection);
+    data.per_camera_data.camera_position         = camera_position;
+    data.per_camera_data.camera_near             = new_perspective_camera.z_near;
+    data.per_camera_data.camera_far              = new_perspective_camera.z_far;
+
+    if (new_perspective_camera.adaptive_exposure) // Has to be calculated each frame if enabled.
+        data.per_camera_data.camera_exposure = 1.0f;
+    else
+    {
+        float ape = new_perspective_camera.physical.aperture;
+        float shu = new_perspective_camera.physical.shutter_speed;
+        float iso = new_perspective_camera.physical.iso;
+
+        float e                              = ((ape * ape) * 100.0f) / (shu * iso);
+        data.per_camera_data.camera_exposure = 1.0f / (1.2f * e);
+    }
+
+    auto device_context = m_scene_graphics_device->create_graphics_device_context();
+    device_context->begin();
+    device_context->set_buffer_data(data.camera_data_buffer, 0, sizeof(camera_data), const_cast<void*>((void*)(&(data.per_camera_data))));
+    device_context->end();
+    device_context->submit();
+
+    new_perspective_camera.changed = false;
     new_perspective_camera.gpu_data = m_camera_gpu_data.emplace(data);
 
     uid camera_id = m_perspective_cameras.emplace(new_perspective_camera);
-
-    node& nd = m_nodes.at(node_id);
-
-    nd.camera_ids[static_cast<uint8>(camera_type::perspective)] = camera_id;
-    nd.type |= node_type::perspective_camera;
 
     if (!m_main_camera_node.is_valid())
     {
         m_main_camera_node = node_id;
     }
+
+    nd.camera_ids[static_cast<uint8>(camera_type::perspective)] = camera_id;
+    nd.type |= node_type::perspective_camera;
 
     return camera_id;
 }
@@ -119,109 +153,169 @@ uid scene_impl::add_perspective_camera(perspective_camera& new_perspective_camer
 uid scene_impl::add_orthographic_camera(orthographic_camera& new_orthographic_camera, uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = node_id.id();
 
-    if (!m_scene_nodes.contains(node))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add orthographic camera!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add orthographic camera!", node_id.get());
         return invalid_uid;
     }
 
-    uid camera_id                                    = uid::create(m_scene_cameras.emplace(), scene_structure_type::scene_structure_orthographic_camera);
-    scene_camera& cam                                = m_scene_cameras.back();
-    cam.public_data_as_orthographic                  = new_orthographic_camera;
-    cam.public_data_as_orthographic->instance_id     = camera_id;
-    cam.public_data_as_orthographic->containing_node = node_id;
-    cam.type                                         = camera_type::orthographic;
+    node& nd = m_nodes.at(node_id);
 
-    scene_node& nd = m_scene_nodes.at(node);
-    nd.camera_id   = camera_id;
-    nd.type |= node_type::camera;
+    buffer_create_info buffer_info;
+    buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
+    buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
+    buffer_info.size          = sizeof(camera_data);
+    camera_gpu_data data;
+    data.camera_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(data.camera_data_buffer.get(), "camera data buffer"))
+        return invalid_uid;
+
+    vec3 camera_position = m_transforms.at(nd.transform_id).position;
+
+    mat4 view, projection;
+    view_projection_orthographic_camera(new_orthographic_camera, camera_position, view, projection);
+    const mat4 view_projection = projection * view;
+
+    data.per_camera_data.view_matrix             = view;
+    data.per_camera_data.projection_matrix       = projection;
+    data.per_camera_data.view_projection_matrix  = view_projection;
+    data.per_camera_data.inverse_view_projection = glm::inverse(view_projection);
+    data.per_camera_data.camera_position         = camera_position;
+    data.per_camera_data.camera_near             = new_orthographic_camera.z_near;
+    data.per_camera_data.camera_far              = new_orthographic_camera.z_far;
+
+    if (new_orthographic_camera.adaptive_exposure) // Has to be calculated each frame if enabled.
+        data.per_camera_data.camera_exposure = 1.0f;
+    else
+    {
+        float ape = new_orthographic_camera.physical.aperture;
+        float shu = new_orthographic_camera.physical.shutter_speed;
+        float iso = new_orthographic_camera.physical.iso;
+
+        float e                              = ((ape * ape) * 100.0f) / (shu * iso);
+        data.per_camera_data.camera_exposure = 1.0f / (1.2f * e);
+    }
+
+    auto device_context = m_scene_graphics_device->create_graphics_device_context();
+    device_context->begin();
+    device_context->set_buffer_data(data.camera_data_buffer, 0, sizeof(camera_data), const_cast<void*>((void*)(&(data.per_camera_data))));
+    device_context->end();
+    device_context->submit();
+
+    new_orthographic_camera.changed = false;
+    new_orthographic_camera.gpu_data = m_camera_gpu_data.emplace(data);
+
+    uid camera_id = m_orthographic_cameras.emplace(new_orthographic_camera);
 
     if (!m_main_camera_node.is_valid())
     {
         m_main_camera_node = node_id;
     }
 
-    return node_id;
+    nd.camera_ids[static_cast<uint8>(camera_type::orthographic)] = camera_id;
+    nd.type |= node_type::orthographic_camera;
+
+    return camera_id;
 }
 
 uid scene_impl::add_directional_light(directional_light& new_directional_light, uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = node_id.id();
 
-    if (!m_scene_nodes.contains(node))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add directional light!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add directional light!", node_id.get());
         return invalid_uid;
     }
 
-    uid light_id                                        = uid::create(m_scene_lights.emplace(), scene_structure_type::scene_structure_directional_light);
-    scene_light& l                                      = m_scene_lights.back();
-    l.public_data_as_directional_light                  = new_directional_light;
-    l.public_data_as_directional_light->instance_id     = light_id;
-    l.public_data_as_directional_light->containing_node = node_id;
-    l.type                                              = light_type::directional;
+    uid light_id = m_directional_lights.emplace(new_directional_light);
 
-    scene_node& nd                                            = m_scene_nodes.at(node);
+    node& nd = m_nodes.at(node_id);
+
     nd.light_ids[static_cast<uint8>(light_type::directional)] = light_id;
-    nd.type |= node_type::light;
+    nd.type |= node_type::directional_light;
 
-    return node_id;
+    return light_id;
 }
 
 uid scene_impl::add_skylight(skylight& new_skylight, uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = node_id.id();
 
-    if (!m_scene_nodes.contains(node))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add skylight!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add skylight!", node_id.get());
         return invalid_uid;
     }
 
-    uid skylight_id                                        = add_skylight_structure(new_skylight, node_id);
-    scene_node& nd                                         = m_scene_nodes.at(node);
-    nd.light_ids[static_cast<uint8>(light_type::skylight)] = skylight_id;
-    nd.type |= node_type::light;
+    uid light_id = m_skylights.emplace(new_skylight);
 
-    return node_id;
+    node& nd = m_nodes.at(node_id);
+
+    nd.light_ids[static_cast<uint8>(light_type::skylight)] = light_id;
+    nd.type |= node_type::skylight;
+
+    return light_id;
 }
 
 uid scene_impl::add_atmospheric_light(atmospheric_light& new_atmospheric_light, uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = node_id.id();
 
-    if (!m_scene_nodes.contains(node))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add atmospheric light!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add atmospheric light!", node_id.get());
         return invalid_uid;
     }
 
-    uid light_id                                        = uid::create(m_scene_lights.emplace(), scene_structure_type::scene_structure_atmospheric_light);
-    scene_light& l                                      = m_scene_lights.back();
-    l.public_data_as_atmospheric_light                  = new_atmospheric_light;
-    l.public_data_as_atmospheric_light->instance_id     = light_id;
-    l.public_data_as_atmospheric_light->containing_node = node_id;
-    l.type                                              = light_type::atmospheric;
+    uid light_id = m_atmospheric_lights.emplace(new_atmospheric_light);
 
-    scene_node& nd                                            = m_scene_nodes.at(node);
+    node& nd = m_nodes.at(node_id);
+
     nd.light_ids[static_cast<uint8>(light_type::atmospheric)] = light_id;
-    nd.type |= node_type::light;
+    nd.type |= node_type::atmospheric_light;
 
-    return node_id;
+    return light_id;
 }
 
 uid scene_impl::build_material(material& new_material)
 {
     PROFILE_ZONE;
 
-    uid material_id     = uid::create(m_scene_materials.emplace(), scene_structure_type::scene_structure_material);
-    scene_material& mat = m_scene_materials.back();
-    mat.public_data     = new_material;
+    buffer_create_info buffer_info;
+    buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
+    buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
+    buffer_info.size          = sizeof(material_data);
+    material_gpu_data data;
+    data.material_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(data.material_data_buffer.get(), "material data buffer"))
+        return invalid_uid;
+
+    data.per_material_data.base_color = new_material.base_color;
+    data.per_material_data.emissive_color = new_material.emissive_color;
+    data.per_material_data.metallic = new_material.metallic;
+    data.per_material_data.roughness = new_material.roughness;
+    data.per_material_data.base_color_texture = new_material.base_color_texture.is_valid();
+    data.per_material_data.roughness_metallic_texture = new_material.metallic_roughness_texture.is_valid();
+    data.per_material_data.occlusion_texture = new_material.occlusion_texture.is_valid();
+    data.per_material_data.packed_occlusion = new_material.packed_occlusion;
+    data.per_material_data.normal_texture = new_material.normal_texture.is_valid();
+    data.per_material_data.emissive_color_texture = new_material.emissive_texture.is_valid();
+    data.per_material_data.emissive_intensity = new_material.emissive_intensity;
+    data.per_material_data.alpha_mode = static_cast<uint8>(new_material.alpha_mode);
+    data.per_material_data.alpha_cutoff = new_material.alpha_cutoff;
+
+    auto device_context = m_scene_graphics_device->create_graphics_device_context();
+    device_context->begin();
+    device_context->set_buffer_data(data.material_data_buffer, 0, sizeof(material_data), const_cast<void*>((void*)(&(data.per_material_data))));
+    device_context->end();
+    device_context->submit();
+
+    new_material.changed = false;
+    new_material.gpu_data = m_material_gpu_data.emplace(data);
+
+    uid material_id = m_materials.emplace(new_material);
 
     return material_id;
 }

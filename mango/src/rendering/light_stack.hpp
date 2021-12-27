@@ -10,7 +10,7 @@
 #include <memory/free_list_allocator.hpp>
 #include <rendering/render_data_builder.hpp>
 #include <rendering/renderer_impl.hpp>
-#include <scene/scene_internals.hpp>
+#include <scene/scene_structures_internal.hpp>
 #include <unordered_map>
 
 namespace mango
