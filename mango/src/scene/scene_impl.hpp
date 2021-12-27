@@ -28,7 +28,7 @@ namespace mango
         scene_impl(const string& name, const shared_ptr<context_impl>& context);
         ~scene_impl();
 
-        uid add_node(node& new_node, optional<uid> parent_node) override;
+        uid add_node(const string& name, uid parent_node) override;
         uid add_perspective_camera(perspective_camera& new_perspective_camera, uid node_id) override;
         uid add_orthographic_camera(orthographic_camera& new_orthographic_camera, uid node_id) override;
         uid add_directional_light(directional_light& new_directional_light, uid node_id) override;

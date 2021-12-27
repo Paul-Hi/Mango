@@ -26,109 +26,112 @@ static gfx_sampler_edge_wrap get_texture_wrap_from_tinygltf(int32 wrap);
 
 scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& context)
     : m_shared_context(context)
-    , m_scene_textures()
-    , m_scene_materials()
-    , m_scene_buffers()
-    , m_scene_buffer_views()
-    , m_scene_meshes()
-    , m_scene_primitives()
-    , m_scene_cameras()
-    , m_scene_lights()
-    , m_scene_transforms()
-    , m_scene_nodes()
-    , m_scene_scenarios()
-    , m_scene_models()
+    , m_models()
+    , m_scenarios()
+    , m_light_gpu_data()
+    , m_nodes()
+    , m_transforms()
+    , m_meshes()
+    , m_mesh_gpu_data()
+    , m_primitives()
+    , m_primitive_gpu_data()
+    , m_materials()
+    , m_material_gpu_data()
+    , m_textures()
+    , m_texture_gpu_data()
+    , m_perspective_cameras()
+    , m_orthographic_cameras()
+    , m_camera_gpu_data()
+    , m_directional_lights()
+    , m_skylights()
+    , m_atmospheric_lights()
+    , m_buffer_views()
 {
     PROFILE_ZONE;
     MANGO_UNUSED(name);
 
-    scene_node root_node;
-    m_root_node                = sid::create(m_scene_nodes.emplace(root_node), scene_structure_type::scene_structure_node);
-    scene_node& nd             = m_scene_nodes.back();
-    nd.public_data             = node();
-    nd.public_data.instance_id = m_root_node;
-    nd.public_data.name        = "Root";
-
-    sid transform_id                                      = sid::create(m_scene_transforms.emplace(), scene_structure_type::scene_structure_transform);
-    m_scene_transforms.back().public_data.instance_id     = transform_id;
-    m_scene_transforms.back().public_data.containing_node = m_root_node;
-
-    nd.node_transform = transform_id;
-
-    m_scene_graph_root          = mango::make_unique<hierarchy_node>();
-    m_scene_graph_root->node_id = m_root_node;
+    node root("Root");
+    root.transform_id = m_transforms.emplace();
+    root.type         = node_type::hierarchy;
+    m_root_node       = m_nodes.emplace(root);
 }
 
 scene_impl::~scene_impl() {}
 
-sid scene_impl::add_node(node& new_node)
+uid scene_impl::add_node(const string& name, uid parent_node)
 {
     PROFILE_ZONE;
 
-    sid node_id                        = sid::create(m_scene_nodes.emplace(), scene_structure_type::scene_structure_node);
-    scene_node& nd                     = m_scene_nodes.back();
-    nd.public_data                     = new_node;
-    nd.public_data.instance_id         = node_id;
-    nd.public_data.containing_scenario = invalid_sid; // no scenario
+    node new_node(name);
+    new_node.transform_id = m_transforms.emplace();
+    new_node.type         = node_type::hierarchy;
 
-    if (!nd.public_data.parent_node.is_valid())
+    uid node_id = m_nodes.emplace(new_node);
+
+    if (!parent_node.is_valid())
     {
-        attach(nd.public_data.instance_id, m_root_node);
+        attach(node_id, m_root_node);
     }
     else
     {
-        attach(nd.public_data.instance_id, nd.public_data.parent_node);
+        attach(node_id, parent_node);
     }
 
     return node_id;
 }
 
-sid scene_impl::add_perspective_camera(perspective_camera& new_perspective_camera, sid containing_node_id)
+uid scene_impl::add_perspective_camera(perspective_camera& new_perspective_camera, uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = containing_node_id.id();
 
-    if (!m_scene_nodes.contains(node))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add perspective camera!", containing_node_id.id().get());
-        return invalid_sid;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add perspective camera!", node_id.get());
+        return invalid_uid;
     }
 
-    sid camera_id                                   = sid::create(m_scene_cameras.emplace(), scene_structure_type::scene_structure_perspective_camera);
-    scene_camera& cam                               = m_scene_cameras.back();
-    cam.public_data_as_perspective                  = new_perspective_camera;
-    cam.public_data_as_perspective->instance_id     = camera_id;
-    cam.public_data_as_perspective->containing_node = containing_node_id;
-    cam.type                                        = camera_type::perspective;
+    buffer_create_info buffer_info;
+    buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
+    buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
+    buffer_info.size          = sizeof(camera_data);
+    camera_gpu_data data;
+    data.camera_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(data.camera_data_buffer.get(), "camera data buffer"))
+        return invalid_uid;
 
-    scene_node& nd = m_scene_nodes.at(node);
-    nd.camera_id   = camera_id;
-    nd.type |= node_type::camera;
+    new_perspective_camera.gpu_data = m_camera_gpu_data.emplace(data);
+
+    uid camera_id = m_perspective_cameras.emplace(new_perspective_camera);
+
+    node& nd = m_nodes.at(node_id);
+
+    nd.camera_ids[static_cast<uint8>(camera_type::perspective)] = camera_id;
+    nd.type |= node_type::perspective_camera;
 
     if (!m_main_camera_node.is_valid())
     {
-        m_main_camera_node = containing_node_id;
+        m_main_camera_node = node_id;
     }
 
-    return containing_node_id;
+    return camera_id;
 }
 
-sid scene_impl::add_orthographic_camera(orthographic_camera& new_orthographic_camera, sid containing_node_id)
+uid scene_impl::add_orthographic_camera(orthographic_camera& new_orthographic_camera, uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = containing_node_id.id();
+    packed_freelist_id node = node_id.id();
 
     if (!m_scene_nodes.contains(node))
     {
-        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add orthographic camera!", containing_node_id.id().get());
-        return invalid_sid;
+        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add orthographic camera!", node_id.id().get());
+        return invalid_uid;
     }
 
-    sid camera_id                                    = sid::create(m_scene_cameras.emplace(), scene_structure_type::scene_structure_orthographic_camera);
+    uid camera_id                                    = uid::create(m_scene_cameras.emplace(), scene_structure_type::scene_structure_orthographic_camera);
     scene_camera& cam                                = m_scene_cameras.back();
     cam.public_data_as_orthographic                  = new_orthographic_camera;
     cam.public_data_as_orthographic->instance_id     = camera_id;
-    cam.public_data_as_orthographic->containing_node = containing_node_id;
+    cam.public_data_as_orthographic->containing_node = node_id;
     cam.type                                         = camera_type::orthographic;
 
     scene_node& nd = m_scene_nodes.at(node);
@@ -137,93 +140,93 @@ sid scene_impl::add_orthographic_camera(orthographic_camera& new_orthographic_ca
 
     if (!m_main_camera_node.is_valid())
     {
-        m_main_camera_node = containing_node_id;
+        m_main_camera_node = node_id;
     }
 
-    return containing_node_id;
+    return node_id;
 }
 
-sid scene_impl::add_directional_light(directional_light& new_directional_light, sid containing_node_id)
+uid scene_impl::add_directional_light(directional_light& new_directional_light, uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = containing_node_id.id();
+    packed_freelist_id node = node_id.id();
 
     if (!m_scene_nodes.contains(node))
     {
-        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add directional light!", containing_node_id.id().get());
-        return invalid_sid;
+        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add directional light!", node_id.id().get());
+        return invalid_uid;
     }
 
-    sid light_id                                        = sid::create(m_scene_lights.emplace(), scene_structure_type::scene_structure_directional_light);
+    uid light_id                                        = uid::create(m_scene_lights.emplace(), scene_structure_type::scene_structure_directional_light);
     scene_light& l                                      = m_scene_lights.back();
     l.public_data_as_directional_light                  = new_directional_light;
     l.public_data_as_directional_light->instance_id     = light_id;
-    l.public_data_as_directional_light->containing_node = containing_node_id;
+    l.public_data_as_directional_light->containing_node = node_id;
     l.type                                              = light_type::directional;
 
     scene_node& nd                                            = m_scene_nodes.at(node);
     nd.light_ids[static_cast<uint8>(light_type::directional)] = light_id;
     nd.type |= node_type::light;
 
-    return containing_node_id;
+    return node_id;
 }
 
-sid scene_impl::add_skylight(skylight& new_skylight, sid containing_node_id)
+uid scene_impl::add_skylight(skylight& new_skylight, uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = containing_node_id.id();
+    packed_freelist_id node = node_id.id();
 
     if (!m_scene_nodes.contains(node))
     {
-        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add skylight!", containing_node_id.id().get());
-        return invalid_sid;
+        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add skylight!", node_id.id().get());
+        return invalid_uid;
     }
 
-    sid skylight_id                                        = add_skylight_structure(new_skylight, containing_node_id);
+    uid skylight_id                                        = add_skylight_structure(new_skylight, node_id);
     scene_node& nd                                         = m_scene_nodes.at(node);
     nd.light_ids[static_cast<uint8>(light_type::skylight)] = skylight_id;
     nd.type |= node_type::light;
 
-    return containing_node_id;
+    return node_id;
 }
 
-sid scene_impl::add_atmospheric_light(atmospheric_light& new_atmospheric_light, sid containing_node_id)
+uid scene_impl::add_atmospheric_light(atmospheric_light& new_atmospheric_light, uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = containing_node_id.id();
+    packed_freelist_id node = node_id.id();
 
     if (!m_scene_nodes.contains(node))
     {
-        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add atmospheric light!", containing_node_id.id().get());
-        return invalid_sid;
+        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add atmospheric light!", node_id.id().get());
+        return invalid_uid;
     }
 
-    sid light_id                                        = sid::create(m_scene_lights.emplace(), scene_structure_type::scene_structure_atmospheric_light);
+    uid light_id                                        = uid::create(m_scene_lights.emplace(), scene_structure_type::scene_structure_atmospheric_light);
     scene_light& l                                      = m_scene_lights.back();
     l.public_data_as_atmospheric_light                  = new_atmospheric_light;
     l.public_data_as_atmospheric_light->instance_id     = light_id;
-    l.public_data_as_atmospheric_light->containing_node = containing_node_id;
+    l.public_data_as_atmospheric_light->containing_node = node_id;
     l.type                                              = light_type::atmospheric;
 
     scene_node& nd                                            = m_scene_nodes.at(node);
     nd.light_ids[static_cast<uint8>(light_type::atmospheric)] = light_id;
     nd.type |= node_type::light;
 
-    return containing_node_id;
+    return node_id;
 }
 
-sid scene_impl::build_material(material& new_material)
+uid scene_impl::build_material(material& new_material)
 {
     PROFILE_ZONE;
 
-    sid material_id     = sid::create(m_scene_materials.emplace(), scene_structure_type::scene_structure_material);
+    uid material_id     = uid::create(m_scene_materials.emplace(), scene_structure_type::scene_structure_material);
     scene_material& mat = m_scene_materials.back();
     mat.public_data     = new_material;
 
     return material_id;
 }
 
-sid scene_impl::load_texture_from_image(const string& path, bool standard_color_space, bool high_dynamic_range)
+uid scene_impl::load_texture_from_image(const string& path, bool standard_color_space, bool high_dynamic_range)
 {
     PROFILE_ZONE;
 
@@ -232,7 +235,7 @@ sid scene_impl::load_texture_from_image(const string& path, bool standard_color_
     tex.standard_color_space = standard_color_space;
     tex.high_dynamic_range   = high_dynamic_range;
 
-    sid texture_id  = sid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
+    uid texture_id  = uid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
     tex.instance_id = texture_id;
 
     // TODO Paul: We probably want more exposed settings here - at least in public_data!
@@ -260,14 +263,14 @@ sid scene_impl::load_texture_from_image(const string& path, bool standard_color_
     return texture_id;
 }
 
-sid scene_impl::load_model_from_gltf(const string& path)
+uid scene_impl::load_model_from_gltf(const string& path)
 {
     PROFILE_ZONE;
 
     model mod;
     mod.file_path = path;
 
-    sid model_id    = sid::create(m_scene_models.emplace(), scene_structure_type::scene_structure_model);
+    uid model_id    = uid::create(m_scene_models.emplace(), scene_structure_type::scene_structure_model);
     mod.instance_id = model_id;
 
     mod.scenarios = load_model_from_file(path, mod.default_scenario);
@@ -278,44 +281,44 @@ sid scene_impl::load_model_from_gltf(const string& path)
     return model_id;
 }
 
-sid scene_impl::add_skylight_from_hdr(const string& path, sid containing_node_id)
+uid scene_impl::add_skylight_from_hdr(const string& path, uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = containing_node_id.id();
+    packed_freelist_id node = node_id.id();
 
     if (!m_scene_nodes.contains(node))
     {
-        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add skylight!", containing_node_id.id().get());
-        return invalid_sid;
+        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add skylight!", node_id.id().get());
+        return invalid_uid;
     }
 
     // texture
-    sid texture_id = load_texture_from_image(path, false, true);
+    uid texture_id = load_texture_from_image(path, false, true);
 
     // skylight
     skylight sl;
     sl.hdr_texture  = texture_id;
     sl.use_texture  = true;
-    sid skylight_id = add_skylight_structure(sl, containing_node_id);
+    uid skylight_id = add_skylight_structure(sl, node_id);
 
     scene_node& nd                                         = m_scene_nodes.at(node);
     nd.light_ids[static_cast<uint8>(light_type::skylight)] = skylight_id;
     nd.type |= node_type::light;
 
-    return containing_node_id;
+    return node_id;
 }
 
-sid scene_impl::add_model_to_scene(sid model_to_add, sid scenario_id, sid containing_node_id)
+void scene_impl::add_model_to_scene(uid model_to_add, uid scenario_id, uid node_id)
 {
     PROFILE_ZONE;
-    if (model_to_add == invalid_sid || scenario_id == invalid_sid)
+    if (model_to_add == invalid_uid || scenario_id == invalid_uid)
     {
-        if (!m_scene_nodes.contains(containing_node_id.id()))
+        if (!m_scene_nodes.contains(node_id.id()))
         {
-            MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add model!", containing_node_id.id().get());
-            return invalid_sid;
+            MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add model!", node_id.id().get());
+            return invalid_uid;
         }
-        return invalid_sid;
+        return invalid_uid;
     }
 
     packed_freelist_id model_id = model_to_add.id();
@@ -324,23 +327,23 @@ sid scene_impl::add_model_to_scene(sid model_to_add, sid scenario_id, sid contai
     if (!m_scene_models.contains(model_id))
     {
         MANGO_LOG_WARN("Model with ID {0} does not exist! Can not add model to scene!", model_to_add.id().get());
-        return invalid_sid;
+        return invalid_uid;
     }
     if (!m_scene_scenarios.contains(scenario)) // TODO Scenarios.
     {
         MANGO_LOG_WARN("Scenario with ID {0} does not exist! Can not add model to scene!", scenario_id.id().get());
-        return invalid_sid;
+        return invalid_uid;
     }
 
     scene_model& m       = m_scene_models.at(model_id);
     scene_scenario& scen = m_scene_scenarios.at(scenario);
 
-    packed_freelist_id node = containing_node_id.id();
+    packed_freelist_id node = node_id.id();
 
     if (!m_scene_nodes.contains(node))
     {
         MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add model to scene!", model_to_add.id().get());
-        return invalid_sid;
+        return invalid_uid;
     }
 
     scene_node& nd_containing = m_scene_nodes.at(node);
@@ -350,14 +353,14 @@ sid scene_impl::add_model_to_scene(sid model_to_add, sid scenario_id, sid contai
     if (found == m.public_data.scenarios.end())
     {
         MANGO_LOG_WARN("Model to add does not contain scenario to add.");
-        return invalid_sid;
+        return invalid_uid;
     }
 
     hierarchy_node* containing_entry;
-    if (sg_bfs_node(containing_node_id, containing_entry))
+    if (sg_bfs_node(node_id, containing_entry))
     {
-        std::unordered_map<sid, hierarchy_node*, sid_hash> previous_added; // Should make the insertion faster, since, we don't need to bfs each time
-        for (sid node_id : scen.nodes)
+        std::unordered_map<uid, hierarchy_node*, uid_hash> previous_added; // Should make the insertion faster, since, we don't need to bfs each time
+        for (uid node_id : scen.nodes)
         {
             packed_freelist_id node_pf = node_id.id();
             MANGO_ASSERT(m_scene_nodes.contains(node_pf), "Something went wrong while loading the model! Can not add model to scene!");
@@ -377,21 +380,21 @@ sid scene_impl::add_model_to_scene(sid model_to_add, sid scenario_id, sid contai
             else // first
             {
                 containing_entry->children.emplace_back(std::move(current));
-                nd.public_data.parent_node = containing_node_id; // TODO Paul: This has to be reset or something like that?
+                nd.public_data.parent_node = node_id; // TODO Paul: This has to be reset or something like that?
                 nd_containing.children++;
             }
         }
 
-        return containing_node_id;
+        return node_id;
     }
     else
     {
-        MANGO_LOG_WARN("Node with ID {0} is not actively in the scene! Can not add model to scene!", containing_node_id.id().get());
-        return invalid_sid;
+        MANGO_LOG_WARN("Node with ID {0} is not actively in the scene! Can not add model to scene!", node_id.id().get());
+        return invalid_uid;
     }
 }
 
-void scene_impl::remove_node(sid node_id)
+void scene_impl::remove_node(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node = node_id.id();
@@ -430,7 +433,7 @@ void scene_impl::remove_node(sid node_id)
     m_scene_graph_root->children.pop_back(); // just destroy it :D
 }
 
-void scene_impl::remove_perspective_camera(sid node_id)
+void scene_impl::remove_perspective_camera(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node_pf = node_id.id();
@@ -459,21 +462,21 @@ void scene_impl::remove_perspective_camera(sid node_id)
 
     scene_camera& to_remove = m_scene_cameras.at(cam);
 
-    sid containing_node = to_remove.public_data_as_perspective->containing_node;
+    uid containing_node = to_remove.public_data_as_perspective->containing_node;
 
     if (containing_node.is_valid())
     {
         packed_freelist_id cn = containing_node.id();
         MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
         scene_node& nd = m_scene_nodes.at(cn);
-        nd.camera_id   = invalid_sid;
+        nd.camera_id   = invalid_uid;
         nd.type &= ~node_type::camera;
     }
 
     m_scene_cameras.erase(cam);
 }
 
-void scene_impl::remove_orthographic_camera(sid node_id)
+void scene_impl::remove_orthographic_camera(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node_pf = node_id.id();
@@ -502,21 +505,21 @@ void scene_impl::remove_orthographic_camera(sid node_id)
 
     scene_camera& to_remove = m_scene_cameras.at(cam);
 
-    sid containing_node = to_remove.public_data_as_orthographic->containing_node;
+    uid containing_node = to_remove.public_data_as_orthographic->containing_node;
 
     if (containing_node.is_valid())
     {
         packed_freelist_id cn = containing_node.id();
         MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
         scene_node& nd = m_scene_nodes.at(cn);
-        nd.camera_id   = invalid_sid;
+        nd.camera_id   = invalid_uid;
         nd.type &= ~node_type::camera;
     }
 
     m_scene_cameras.erase(cam);
 }
 
-void scene_impl::remove_mesh(sid node_id)
+void scene_impl::remove_mesh(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node_pf = node_id.id();
@@ -545,21 +548,21 @@ void scene_impl::remove_mesh(sid node_id)
 
     scene_mesh& to_remove = m_scene_meshes.at(m);
 
-    sid containing_node = to_remove.public_data.containing_node;
+    uid containing_node = to_remove.public_data.containing_node;
 
     if (containing_node.is_valid())
     {
         packed_freelist_id cn = containing_node.id();
         MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
         scene_node& nd                                            = m_scene_nodes.at(cn);
-        nd.light_ids[static_cast<uint8>(light_type::directional)] = invalid_sid;
+        nd.light_ids[static_cast<uint8>(light_type::directional)] = invalid_uid;
         nd.type &= ~node_type::mesh;
     }
 
     m_scene_meshes.erase(m);
 }
 
-void scene_impl::remove_directional_light(sid node_id)
+void scene_impl::remove_directional_light(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node_pf = node_id.id();
@@ -588,21 +591,21 @@ void scene_impl::remove_directional_light(sid node_id)
 
     scene_light& to_remove = m_scene_lights.at(light);
 
-    sid containing_node = to_remove.public_data_as_directional_light->containing_node;
+    uid containing_node = to_remove.public_data_as_directional_light->containing_node;
 
     if (containing_node.is_valid())
     {
         packed_freelist_id cn = containing_node.id();
         MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
         scene_node& nd                                            = m_scene_nodes.at(cn);
-        nd.light_ids[static_cast<uint8>(light_type::directional)] = invalid_sid;
+        nd.light_ids[static_cast<uint8>(light_type::directional)] = invalid_uid;
         nd.type &= ~node_type::light;
     }
 
     m_scene_lights.erase(light);
 }
 
-void scene_impl::remove_skylight(sid node_id)
+void scene_impl::remove_skylight(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node_pf = node_id.id();
@@ -631,21 +634,21 @@ void scene_impl::remove_skylight(sid node_id)
 
     scene_light& to_remove = m_scene_lights.at(light);
 
-    sid containing_node = to_remove.public_data_as_skylight->containing_node;
+    uid containing_node = to_remove.public_data_as_skylight->containing_node;
 
     if (containing_node.is_valid())
     {
         packed_freelist_id cn = containing_node.id();
         MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
         scene_node& nd                                         = m_scene_nodes.at(cn);
-        nd.light_ids[static_cast<uint8>(light_type::skylight)] = invalid_sid;
+        nd.light_ids[static_cast<uint8>(light_type::skylight)] = invalid_uid;
         nd.type &= ~node_type::light;
     }
 
     m_scene_lights.erase(light);
 }
 
-void scene_impl::remove_atmospheric_light(sid node_id)
+void scene_impl::remove_atmospheric_light(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node_pf = node_id.id();
@@ -674,21 +677,21 @@ void scene_impl::remove_atmospheric_light(sid node_id)
 
     scene_light& to_remove = m_scene_lights.at(light);
 
-    sid containing_node = to_remove.public_data_as_atmospheric_light->containing_node;
+    uid containing_node = to_remove.public_data_as_atmospheric_light->containing_node;
 
     if (containing_node.is_valid())
     {
         packed_freelist_id cn = containing_node.id();
         MANGO_ASSERT(m_scene_nodes.contains(cn), "Containing node does not exist!"); // TODO Paul: Is this assertion right?
         scene_node& nd                                            = m_scene_nodes.at(cn);
-        nd.light_ids[static_cast<uint8>(light_type::atmospheric)] = invalid_sid;
+        nd.light_ids[static_cast<uint8>(light_type::atmospheric)] = invalid_uid;
         nd.type &= ~node_type::light;
     }
 
     m_scene_lights.erase(light);
 }
 
-optional<node&> scene_impl::get_node(sid node_id)
+optional<node&> scene_impl::get_node(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node = node_id.id();
@@ -702,7 +705,7 @@ optional<node&> scene_impl::get_node(sid node_id)
     return m_scene_nodes.at(node).public_data;
 }
 
-optional<transform&> scene_impl::get_transform(sid node_id)
+optional<transform&> scene_impl::get_transform(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node_pf = node_id.id();
@@ -726,7 +729,7 @@ optional<transform&> scene_impl::get_transform(sid node_id)
     return m_scene_transforms.at(tr).public_data;
 }
 
-optional<perspective_camera&> scene_impl::get_perspective_camera(sid node_id)
+optional<perspective_camera&> scene_impl::get_perspective_camera(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node_pf = node_id.id();
@@ -761,7 +764,7 @@ optional<perspective_camera&> scene_impl::get_perspective_camera(sid node_id)
     return m_scene_cameras.at(cam).public_data_as_perspective.value();
 }
 
-optional<orthographic_camera&> scene_impl::get_orthographic_camera(sid node_id)
+optional<orthographic_camera&> scene_impl::get_orthographic_camera(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node_pf = node_id.id();
@@ -796,7 +799,7 @@ optional<orthographic_camera&> scene_impl::get_orthographic_camera(sid node_id)
     return m_scene_cameras.at(cam).public_data_as_orthographic.value();
 }
 
-optional<directional_light&> scene_impl::get_directional_light(sid node_id)
+optional<directional_light&> scene_impl::get_directional_light(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node_pf = node_id.id();
@@ -831,7 +834,7 @@ optional<directional_light&> scene_impl::get_directional_light(sid node_id)
     return m_scene_lights.at(light).public_data_as_directional_light.value();
 }
 
-optional<skylight&> scene_impl::get_skylight(sid node_id)
+optional<skylight&> scene_impl::get_skylight(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node_pf = node_id.id();
@@ -866,7 +869,7 @@ optional<skylight&> scene_impl::get_skylight(sid node_id)
     return m_scene_lights.at(light).public_data_as_skylight.value();
 }
 
-optional<atmospheric_light&> scene_impl::get_atmospheric_light(sid node_id)
+optional<atmospheric_light&> scene_impl::get_atmospheric_light(uid node_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node_pf = node_id.id();
@@ -901,7 +904,7 @@ optional<atmospheric_light&> scene_impl::get_atmospheric_light(sid node_id)
     return m_scene_lights.at(light).public_data_as_atmospheric_light.value();
 }
 
-optional<model&> scene_impl::get_model(sid instance_id)
+optional<model&> scene_impl::get_model(uid instance_id)
 {
     PROFILE_ZONE;
     packed_freelist_id m = instance_id.id();
@@ -915,7 +918,7 @@ optional<model&> scene_impl::get_model(sid instance_id)
     return m_scene_models.at(m).public_data;
 }
 
-optional<mesh&> scene_impl::get_mesh(sid instance_id)
+optional<mesh&> scene_impl::get_mesh(uid instance_id)
 {
     PROFILE_ZONE;
     packed_freelist_id m = instance_id.id();
@@ -929,7 +932,7 @@ optional<mesh&> scene_impl::get_mesh(sid instance_id)
     return m_scene_meshes.at(m).public_data;
 }
 
-optional<material&> scene_impl::get_material(sid instance_id)
+optional<material&> scene_impl::get_material(uid instance_id)
 {
     PROFILE_ZONE;
     packed_freelist_id mat = instance_id.id();
@@ -943,7 +946,7 @@ optional<material&> scene_impl::get_material(sid instance_id)
     return m_scene_materials.at(mat).public_data;
 }
 
-optional<texture&> scene_impl::get_texture(sid instance_id)
+optional<texture&> scene_impl::get_texture(uid instance_id)
 {
     PROFILE_ZONE;
     packed_freelist_id tex = instance_id.id();
@@ -957,7 +960,7 @@ optional<texture&> scene_impl::get_texture(sid instance_id)
     return m_scene_textures.at(tex).public_data;
 }
 
-optional<scene_node&> scene_impl::get_scene_node(sid instance_id)
+optional<scene_node&> scene_impl::get_scene_node(uid instance_id)
 {
     PROFILE_ZONE;
     packed_freelist_id node = instance_id.id();
@@ -971,7 +974,7 @@ optional<scene_node&> scene_impl::get_scene_node(sid instance_id)
     return m_scene_nodes.at(node);
 }
 
-optional<scene_transform&> scene_impl::get_scene_transform(sid instance_id)
+optional<scene_transform&> scene_impl::get_scene_transform(uid instance_id)
 {
     PROFILE_ZONE;
     packed_freelist_id tr = instance_id.id();
@@ -985,7 +988,7 @@ optional<scene_transform&> scene_impl::get_scene_transform(sid instance_id)
     return m_scene_transforms.at(tr);
 }
 
-optional<scene_camera&> scene_impl::get_scene_camera(sid instance_id)
+optional<scene_camera&> scene_impl::get_scene_camera(uid instance_id)
 {
     PROFILE_ZONE;
     packed_freelist_id cam = instance_id.id();
@@ -999,7 +1002,7 @@ optional<scene_camera&> scene_impl::get_scene_camera(sid instance_id)
     return m_scene_cameras.at(cam);
 }
 
-optional<scene_light&> scene_impl::get_scene_light(sid instance_id)
+optional<scene_light&> scene_impl::get_scene_light(uid instance_id)
 {
     PROFILE_ZONE;
     packed_freelist_id l = instance_id.id();
@@ -1013,7 +1016,7 @@ optional<scene_light&> scene_impl::get_scene_light(sid instance_id)
     return m_scene_lights.at(l);
 }
 
-optional<scene_material&> scene_impl::get_scene_material(sid instance_id)
+optional<scene_material&> scene_impl::get_scene_material(uid instance_id)
 {
     PROFILE_ZONE;
     packed_freelist_id mat = instance_id.id();
@@ -1027,7 +1030,7 @@ optional<scene_material&> scene_impl::get_scene_material(sid instance_id)
     return m_scene_materials.at(mat);
 }
 
-optional<scene_mesh&> scene_impl::get_scene_mesh(sid instance_id)
+optional<scene_mesh&> scene_impl::get_scene_mesh(uid instance_id)
 {
     PROFILE_ZONE;
     packed_freelist_id m = instance_id.id();
@@ -1041,7 +1044,7 @@ optional<scene_mesh&> scene_impl::get_scene_mesh(sid instance_id)
     return m_scene_meshes.at(m);
 }
 
-optional<scene_model&> scene_impl::get_scene_model(sid instance_id)
+optional<scene_model&> scene_impl::get_scene_model(uid instance_id)
 {
     PROFILE_ZONE;
     packed_freelist_id m = instance_id.id();
@@ -1055,7 +1058,7 @@ optional<scene_model&> scene_impl::get_scene_model(sid instance_id)
     return m_scene_models.at(m);
 }
 
-optional<scene_primitive&> scene_impl::get_scene_primitive(sid instance_id)
+optional<scene_primitive&> scene_impl::get_scene_primitive(uid instance_id)
 {
     PROFILE_ZONE;
     packed_freelist_id prim = instance_id.id();
@@ -1069,7 +1072,7 @@ optional<scene_primitive&> scene_impl::get_scene_primitive(sid instance_id)
     return m_scene_primitives.at(prim);
 }
 
-optional<scene_texture&> scene_impl::get_scene_texture(sid instance_id)
+optional<scene_texture&> scene_impl::get_scene_texture(uid instance_id)
 {
     PROFILE_ZONE;
     packed_freelist_id tex = instance_id.id();
@@ -1126,32 +1129,32 @@ optional<scene_camera&> scene_impl::get_active_scene_camera(vec3& position)
     return m_scene_cameras.at(cam);
 }
 
-sid scene_impl::get_active_camera_sid()
+uid scene_impl::get_active_camera_uid()
 {
     packed_freelist_id node_pf = m_main_camera_node.id();
     if (!m_scene_nodes.contains(node_pf))
     {
         MANGO_LOG_WARN("Node with ID {0} does not exist! Can not get active camera id!", m_main_camera_node.id().get());
-        return invalid_sid;
+        return invalid_uid;
     }
 
     scene_node& node = m_scene_nodes.at(node_pf);
     return node.camera_id;
 }
 
-sid scene_impl::get_active_scene_camera_node_sid()
+uid scene_impl::get_active_scene_camera_node_uid()
 {
     return m_main_camera_node;
 }
 
-sid scene_impl::get_root_node()
+uid scene_impl::get_root_node()
 {
     return m_root_node; // TODO Paul!
 }
 
-void scene_impl::set_main_camera(sid node_id)
+void scene_impl::set_main_camera(uid node_id)
 {
-    if (node_id == invalid_sid)
+    if (node_id == invalid_uid)
     {
         MANGO_ASSERT(false, "Can set active camera to invalid at the moment.");
     }
@@ -1183,7 +1186,7 @@ void scene_impl::set_main_camera(sid node_id)
     m_main_camera_node = node_id;
 }
 
-void scene_impl::attach(sid child_node, sid parent_node)
+void scene_impl::attach(uid child_node, uid parent_node)
 {
     PROFILE_ZONE;
     packed_freelist_id child  = child_node.id();
@@ -1205,7 +1208,7 @@ void scene_impl::attach(sid child_node, sid parent_node)
 
     if (!m_scene_transforms.contains(child))
     {
-        sid transform_id                                      = sid::create(m_scene_transforms.emplace(), scene_structure_type::scene_structure_transform);
+        uid transform_id                                      = uid::create(m_scene_transforms.emplace(), scene_structure_type::scene_structure_transform);
         m_scene_transforms.back().public_data.instance_id     = transform_id;
         m_scene_transforms.back().public_data.containing_node = child_node;
         c.node_transform                                      = transform_id;
@@ -1215,7 +1218,7 @@ void scene_impl::attach(sid child_node, sid parent_node)
 
     if (!m_scene_transforms.contains(parent))
     {
-        sid transform_id                                      = sid::create(m_scene_transforms.emplace(), scene_structure_type::scene_structure_transform);
+        uid transform_id                                      = uid::create(m_scene_transforms.emplace(), scene_structure_type::scene_structure_transform);
         m_scene_transforms.back().public_data.instance_id     = transform_id;
         m_scene_transforms.back().public_data.containing_node = parent_node;
         p.node_transform                                      = transform_id;
@@ -1246,7 +1249,7 @@ void scene_impl::attach(sid child_node, sid parent_node)
     parent_h->children.emplace_back(std::move(child_h));
 }
 
-void scene_impl::detach(sid child_node)
+void scene_impl::detach(uid child_node)
 {
     PROFILE_ZONE;
     packed_freelist_id child = child_node.id();
@@ -1316,10 +1319,10 @@ void scene_impl::detach(sid child_node)
     }
     p.children = static_cast<int32>(parent_h->children.size());
 
-    c.public_data.parent_node = sid();
+    c.public_data.parent_node = uid();
 }
 
-unique_ptr<scene_impl::hierarchy_node> scene_impl::detach_and_get(sid child_node)
+unique_ptr<scene_impl::hierarchy_node> scene_impl::detach_and_get(uid child_node)
 {
     PROFILE_ZONE;
     packed_freelist_id child = child_node.id();
@@ -1371,7 +1374,7 @@ unique_ptr<scene_impl::hierarchy_node> scene_impl::detach_and_get(sid child_node
     }
     p.children = static_cast<int32>(parent_h->children.size());
 
-    c.public_data.parent_node = sid();
+    c.public_data.parent_node = uid();
 
     return detached;
 }
@@ -1473,7 +1476,7 @@ std::pair<gfx_handle<const gfx_texture>, gfx_handle<const gfx_sampler>> scene_im
     return result;
 }
 
-std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& default_scenario)
+std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& default_scenario)
 {
     auto& graphics_device = m_shared_context->get_graphics_device();
 
@@ -1488,7 +1491,7 @@ std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& def
     if (m.scenes.size() <= 0)
     {
         MANGO_LOG_DEBUG("No scenarios in the gltf model found! Can not load invalid gltf.");
-        return std::vector<sid>();
+        return std::vector<uid>();
     }
     else
     {
@@ -1496,12 +1499,12 @@ std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& def
     }
 
     // load buffers
-    std::vector<sid> buffer_ids(m.buffers.size());
+    std::vector<uid> buffer_ids(m.buffers.size());
     for (int32 i = 0; i < static_cast<int32>(m.buffers.size()); ++i)
     {
         const tinygltf::Buffer& t_buffer = m.buffers[i];
 
-        sid buffer_object_id = sid::create(m_scene_buffers.emplace(), scene_structure_type::scene_structure_internal_buffer);
+        uid buffer_object_id = uid::create(m_scene_buffers.emplace(), scene_structure_type::scene_structure_internal_buffer);
         scene_buffer& buf    = m_scene_buffers.back();
         buf.instance_id      = buffer_object_id;
         buf.name             = t_buffer.name;
@@ -1510,7 +1513,7 @@ std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& def
         buffer_ids[i] = buffer_object_id;
     }
     // load buffer views
-    std::vector<sid> buffer_view_ids(m.bufferViews.size());
+    std::vector<uid> buffer_view_ids(m.bufferViews.size());
     for (int32 i = 0; i < static_cast<int32>(m.bufferViews.size()); ++i)
     {
         const tinygltf::BufferView& buffer_view = m.bufferViews[i];
@@ -1521,7 +1524,7 @@ std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& def
 
         const tinygltf::Buffer& t_buffer = m.buffers[buffer_view.buffer];
 
-        sid buffer_view_object_id = sid::create(m_scene_buffer_views.emplace(), scene_structure_type::scene_structure_internal_buffer_view);
+        uid buffer_view_object_id = uid::create(m_scene_buffer_views.emplace(), scene_structure_type::scene_structure_internal_buffer_view);
         scene_buffer_view& view   = m_scene_buffer_views.back();
         view.instance_id          = buffer_view_object_id;
         view.offset               = 0; // buffer_view.byteOffset; -> Is done on upload.
@@ -1555,7 +1558,7 @@ std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& def
     scenario scen;
     default_scenario = scene_id;
 
-    sid scenario_id  = sid::create(m_scene_scenarios.emplace(), scene_structure_type::scene_structure_scenario);
+    uid scenario_id  = uid::create(m_scene_scenarios.emplace(), scene_structure_type::scene_structure_scenario);
     scen.instance_id = scenario_id;
 
     scene_scenario& sc = m_scene_scenarios.back();
@@ -1567,20 +1570,20 @@ std::vector<sid> scene_impl::load_model_from_file(const string& path, int32& def
      */
     for (int32 i = 0; i < static_cast<int32>(t_scene.nodes.size()); ++i)
     {
-        build_model_node(m, m.nodes.at(t_scene.nodes.at(i)), buffer_view_ids, sc.nodes, invalid_sid, scenario_id);
+        build_model_node(m, m.nodes.at(t_scene.nodes.at(i)), buffer_view_ids, sc.nodes, invalid_uid, scenario_id);
     }
 
-    std::vector<sid> result;
+    std::vector<uid> result;
     result.push_back(scenario_id);
 
     return result;
 }
 
-void scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<sid>& buffer_view_ids, std::vector<sid>& scenario_nodes, sid parent_node_id, sid scenario_id)
+void scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<uid>& buffer_view_ids, std::vector<uid>& scenario_nodes, uid parent_node_id, uid scenario_id)
 {
     PROFILE_ZONE;
 
-    sid node_id                        = sid::create(m_scene_nodes.emplace(), scene_structure_type::scene_structure_node);
+    uid node_id                        = uid::create(m_scene_nodes.emplace(), scene_structure_type::scene_structure_node);
     scene_node& nd                     = m_scene_nodes.back();
     nd.public_data                     = node(n.name);
     nd.public_data.instance_id         = node_id;
@@ -1590,7 +1593,7 @@ void scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const s
     // add to scenario
     scenario_nodes.push_back(node_id);
 
-    sid transform_id    = sid::create(m_scene_transforms.emplace(), scene_structure_type::scene_structure_transform);
+    uid transform_id    = uid::create(m_scene_transforms.emplace(), scene_structure_type::scene_structure_transform);
     scene_transform& tr = m_scene_transforms.back();
 
     nd.node_transform = transform_id;
@@ -1663,14 +1666,14 @@ void scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const s
     }
 }
 
-sid scene_impl::build_model_camera(tinygltf::Camera& camera, sid containing_node_id)
+uid scene_impl::build_model_camera(tinygltf::Camera& camera, uid node_id)
 {
     PROFILE_ZONE;
-    sid camera_id;
+    uid camera_id;
 
     if (camera.type == "perspective")
     {
-        camera_id         = sid::create(m_scene_cameras.emplace(), scene_structure_type::scene_structure_perspective_camera);
+        camera_id         = uid::create(m_scene_cameras.emplace(), scene_structure_type::scene_structure_perspective_camera);
         scene_camera& cam = m_scene_cameras.back();
         cam.type          = camera_type::perspective;
         perspective_camera cam_data;
@@ -1685,11 +1688,11 @@ sid scene_impl::build_model_camera(tinygltf::Camera& camera, sid containing_node
 
         cam.public_data_as_perspective                  = cam_data;
         cam.public_data_as_perspective->instance_id     = camera_id;
-        cam.public_data_as_perspective->containing_node = containing_node_id;
+        cam.public_data_as_perspective->containing_node = node_id;
     }
     else // orthographic
     {
-        camera_id         = sid::create(m_scene_cameras.emplace(), scene_structure_type::scene_structure_orthographic_camera);
+        camera_id         = uid::create(m_scene_cameras.emplace(), scene_structure_type::scene_structure_orthographic_camera);
         scene_camera& cam = m_scene_cameras.back();
         cam.type          = camera_type::orthographic;
         orthographic_camera cam_data;
@@ -1705,26 +1708,26 @@ sid scene_impl::build_model_camera(tinygltf::Camera& camera, sid containing_node
 
         cam.public_data_as_orthographic                  = cam_data;
         cam.public_data_as_orthographic->instance_id     = camera_id;
-        cam.public_data_as_orthographic->containing_node = containing_node_id;
+        cam.public_data_as_orthographic->containing_node = node_id;
     }
 
     return camera_id;
 }
 
-sid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const std::vector<sid>& buffer_view_ids, sid containing_node_id)
+uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const std::vector<uid>& buffer_view_ids, uid node_id)
 {
     PROFILE_ZONE;
-    sid mesh_id                     = sid::create(m_scene_meshes.emplace(), scene_structure_type::scene_structure_mesh);
+    uid mesh_id                     = uid::create(m_scene_meshes.emplace(), scene_structure_type::scene_structure_mesh);
     scene_mesh& msh                 = m_scene_meshes.back();
     msh.public_data.instance_id     = mesh_id;
-    msh.public_data.containing_node = containing_node_id;
+    msh.public_data.containing_node = node_id;
     msh.public_data.name            = mesh.name.empty() ? "Unnamed" : mesh.name;
 
     for (int32 i = 0; i < static_cast<int32>(mesh.primitives.size()); ++i)
     {
         const tinygltf::Primitive& primitive = mesh.primitives[i];
 
-        sid primitive_id           = sid::create(m_scene_primitives.emplace(), scene_structure_type::scene_structure_primitive);
+        uid primitive_id           = uid::create(m_scene_primitives.emplace(), scene_structure_type::scene_structure_primitive);
         scene_primitive& sp        = m_scene_primitives.back();
         sp.public_data.instance_id = primitive_id;
         sp.public_data.type        = primitive_type::custom;
@@ -1754,7 +1757,7 @@ sid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const
             // vertex_count has to be set later.
         }
 
-        sid material_id     = sid::create(m_scene_materials.emplace(), scene_structure_type::scene_structure_material);
+        uid material_id     = uid::create(m_scene_materials.emplace(), scene_structure_type::scene_structure_material);
         scene_material& mat = m_scene_materials.back();
 
         // Some defaults
@@ -1780,7 +1783,7 @@ sid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const
             if (accessor.sparse.isSparse)
             {
                 MANGO_LOG_ERROR("Models with sparse accessors are currently not supported! Undefined behavior!");
-                return sid();
+                return uid();
             }
 
             int32 attrib_location = -1;
@@ -1858,7 +1861,7 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
     }
 
     mat.name         = primitive_material.name.empty() ? "Unnamed" : primitive_material.name;
-    mat.double_sided = primitive_material.doubleSided;
+    mat.double_uided = primitive_material.doubleuided;
 
     auto& pbr = primitive_material.pbrMetallicRoughness;
 
@@ -1923,7 +1926,7 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
 
         bool standard_color_space = true;
 
-        sid texture_id  = sid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
+        uid texture_id  = uid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
         tex.instance_id = texture_id;
 
         image_resource img;
@@ -1986,7 +1989,7 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
 
         bool standard_color_space = false;
 
-        sid texture_id  = sid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
+        uid texture_id  = uid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
         tex.instance_id = texture_id;
 
         image_resource img;
@@ -2052,7 +2055,7 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
 
             bool standard_color_space = false;
 
-            sid texture_id  = sid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
+            uid texture_id  = uid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
             tex.instance_id = texture_id;
 
             image_resource img;
@@ -2111,7 +2114,7 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
 
         bool standard_color_space = false;
 
-        sid texture_id  = sid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
+        uid texture_id  = uid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
         tex.instance_id = texture_id;
 
         image_resource img;
@@ -2174,7 +2177,7 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
 
         bool standard_color_space = true;
 
-        sid texture_id  = sid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
+        uid texture_id  = uid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
         tex.instance_id = texture_id;
 
         image_resource img;
@@ -2215,18 +2218,18 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
     }
 }
 
-sid scene_impl::add_skylight_structure(const skylight& new_skylight, sid containing_node_id)
+uid scene_impl::add_skylight_structure(const skylight& new_skylight, uid node_id)
 {
     PROFILE_ZONE;
 
-    sid light_id                               = sid::create(m_scene_lights.emplace(), scene_structure_type::scene_structure_skylight);
+    uid light_id                               = uid::create(m_scene_lights.emplace(), scene_structure_type::scene_structure_skylight);
     scene_light& l                             = m_scene_lights.back();
     l.public_data_as_skylight                  = new_skylight;
     l.public_data_as_skylight->instance_id     = light_id;
-    l.public_data_as_skylight->containing_node = containing_node_id;
+    l.public_data_as_skylight->containing_node = node_id;
     l.type                                     = light_type::skylight;
 
-    scene_node& nd                                         = m_scene_nodes.at(containing_node_id.id());
+    scene_node& nd                                         = m_scene_nodes.at(node_id.id());
     nd.light_ids[static_cast<uint8>(light_type::skylight)] = light_id;
     nd.type |= node_type::light;
 
@@ -2351,21 +2354,21 @@ void scene_impl::update(float dt)
     }
 }
 
-void scene_impl::draw_scene_hierarchy(sid& selected)
+void scene_impl::draw_scene_hierarchy(uid& selected)
 {
-    std::vector<sid> to_remove = draw_scene_hierarchy_internal(m_scene_graph_root.get(), selected);
+    std::vector<uid> to_remove = draw_scene_hierarchy_internal(m_scene_graph_root.get(), selected);
     for (auto n : to_remove)
         remove_node(n);
 }
 
-std::vector<sid> scene_impl::draw_scene_hierarchy_internal(hierarchy_node* current, sid& selected)
+std::vector<uid> scene_impl::draw_scene_hierarchy_internal(hierarchy_node* current, uid& selected)
 {
     optional<scene_node&> sc_node = get_scene_node(current->node_id);
     MANGO_ASSERT(sc_node, "Something is broken - Can not draw hierarchy for a non existing node!");
 
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 5));
     const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_FramePadding |
-                                     ImGuiTreeNodeFlags_AllowItemOverlap | ((m_ui_selected_sid == current->node_id) ? ImGuiTreeNodeFlags_Selected : 0) |
+                                     ImGuiTreeNodeFlags_AllowItemOverlap | ((m_ui_selected_uid == current->node_id) ? ImGuiTreeNodeFlags_Selected : 0) |
                                      ((current->children.empty()) ? ImGuiTreeNodeFlags_Leaf : 0);
 
     ImGui::PushID(current->node_id.id().get());
@@ -2376,26 +2379,26 @@ std::vector<sid> scene_impl::draw_scene_hierarchy_internal(hierarchy_node* curre
     ImGui::PopStyleVar();
     if (ImGui::IsItemClicked(0))
     {
-        m_ui_selected_sid = current->node_id;
+        m_ui_selected_uid = current->node_id;
     }
     if (ImGui::IsItemClicked(1) && !ImGui::IsPopupOpen(("##object_menu" + std::to_string(current->node_id.id().get())).c_str()))
     {
-        m_ui_selected_sid = current->node_id;
+        m_ui_selected_uid = current->node_id;
         ImGui::OpenPopup(("##object_menu" + std::to_string(current->node_id.id().get())).c_str());
     }
 
-    std::vector<sid> to_remove;
+    std::vector<uid> to_remove;
     if (ImGui::BeginPopup(("##object_menu" + std::to_string(current->node_id.id().get())).c_str()))
     {
         if (ImGui::Selectable(("Add Scene Object##object_menu" + std::to_string(current->node_id.id().get())).c_str()))
         {
             node nd;
             nd.parent_node    = current->node_id;
-            m_ui_selected_sid = add_node(nd);
+            m_ui_selected_uid = add_node(nd);
         }
         if (!(m_root_node == current->node_id) && ImGui::Selectable(("Remove Scene Object##object_menu" + std::to_string(current->node_id.id().get())).c_str()))
         {
-            m_ui_selected_sid = invalid_sid;
+            m_ui_selected_uid = invalid_uid;
             to_remove.push_back(current->node_id);
             removed = true;
         }
@@ -2432,11 +2435,11 @@ std::vector<sid> scene_impl::draw_scene_hierarchy_internal(hierarchy_node* curre
     }
 
     ImGui::PopID();
-    selected = m_ui_selected_sid;
+    selected = m_ui_selected_uid;
     return to_remove;
 }
 
-string scene_impl::get_display_name(sid object) // TODO Paul: Make that better!
+string scene_impl::get_display_name(uid object) // TODO Paul: Make that better!
 {
     switch (object.structure_type())
     {

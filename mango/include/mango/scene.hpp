@@ -19,10 +19,10 @@ namespace mango
         virtual ~scene() = default;
 
         //! \brief Adds a \a node to the \a scene.
-        //! \param[in] new_node The \a node to add to the \a scene.
+        //! \param[in] name The name of the new \a node to add to the \a scene.
         //! \param[in] parent_node An optional \a uid of the parent node to add the new \a node to.
         //! \return The \a uid referencing the added \a node.
-        virtual uid add_node(node& new_node, optional<uid> parent_node = NULL_OPTION) = 0;
+        virtual uid add_node(const string& name, uid parent_node = invalid_uid) = 0;
 
         //! \brief Adds a \a perspective_camera to the \a scene.
         //! \param[in] new_perspective_camera The \a perspective_camera to add to the \a scene.
