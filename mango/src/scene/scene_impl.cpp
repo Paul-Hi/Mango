@@ -435,11 +435,14 @@ void scene_impl::add_model_to_scene(uid model_to_add, uid scenario_id, uid node_
         return;
     }
 
-    containing_node.type |= node_type::instance;
-    for (uid node_id : scen.root_nodes)
+    if ((containing_node.type & node_type::instantiable) != node_type::hierarchy)
     {
-        containing_node.children.push_back(node_id);
+        // TODO Paul: This should be possible later on.
+        MANGO_LOG_WARN("Node with ID {0} is already instanced! Can not add model here!", node_id.get());
+        return;
     }
+
+    containing_node.children.push_back(scenario_id);
 }
 
 void scene_impl::remove_node(uid node_id)
@@ -451,15 +454,19 @@ void scene_impl::remove_node(uid node_id)
         MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove node!", node_id.get());
         return;
     }
+    if (node_id == m_root_node)
+    {
+        MANGO_LOG_WARN("Can not remove root node!");
+        return;
+    }
 
     const node& to_remove = m_nodes.at(node_id);
 
-    bool only_unlink = (to_remove.type & node_type::instance) != node_type::hierarchy;
-
     switch (to_remove.type)
     {
+    case node_type::instantiable:
+        return;
     case node_type::hierarchy:
-    case node_type::instance:
     case node_type::mesh:
         remove_mesh(to_remove.mesh_id);
     case node_type::perspective_camera:
@@ -472,14 +479,13 @@ void scene_impl::remove_node(uid node_id)
         remove_skylight(to_remove.light_ids[static_cast<uint8>(light_type::skylight)]);
     case node_type::atmospheric_light:
         remove_atmospheric_light(to_remove.light_ids[static_cast<uint8>(light_type::atmospheric)]);
+    default:
+        break;
     }
 
-    if (!only_unlink)
+    for (uid c : to_remove.children)
     {
-        for (uid c : to_remove.children)
-        {
-            remove_node(c);
-        }
+        remove_node(c);
     }
 
     m_nodes.erase(node_id);
@@ -559,6 +565,44 @@ void scene_impl::remove_orthographic_camera(uid node_id)
 
     m_camera_gpu_data.erase(gpu_data_id);
     m_orthographic_cameras.erase(camera_id);
+}
+
+void scene_impl::remove_mesh(uid node_id)
+{
+    PROFILE_ZONE;
+
+    if (!m_nodes.contains(node_id))
+    {
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove mesh!", node_id.get());
+        return;
+    }
+
+    node& node = m_nodes.at(node_id);
+
+    if ((node.type & node_type::mesh) == node_type::hierarchy)
+    {
+        MANGO_LOG_WARN("Node with ID {0} does not contain a mesh! Can not remove mesh!", node_id.get());
+        return;
+    }
+
+    uid mesh_id = node.mesh_id;
+
+    if (!m_meshes.contains(mesh_id))
+    {
+        MANGO_LOG_WARN("Mesh with ID {0} does not exist! Can not remove mesh!", mesh_id.get());
+        return;
+    }
+
+    const mesh& to_remove = m_meshes.at(mesh_id);
+
+    uid gpu_data_id = to_remove.gpu_data;
+    MANGO_ASSERT(m_camera_gpu_data.contains(gpu_data_id), "Camera gpu data for meshdoes not exist!");
+
+    node.type &= ~node_type::mesh;
+    node.mesh_id = invalid_uid;
+
+    m_mesh_gpu_data.erase(gpu_data_id);
+    m_meshes.erase(mesh_id);
 }
 
 void scene_impl::remove_directional_light(uid node_id)
@@ -687,7 +731,7 @@ void scene_impl::unload_gltf_model(uid model_id)
         const scenario& scen = m_scenarios.at(sc);
         for (auto node : scen.root_nodes)
         {
-            remove_node(node);
+            remove_instantiable_node(node);
         }
 
         uid lights_gpu_data = scen.lights_gpu_data;
@@ -703,270 +747,371 @@ void scene_impl::unload_gltf_model(uid model_id)
 optional<node&> scene_impl::get_node(uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = node_id.id();
 
-    if (!m_scene_nodes.contains(node))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve node!", node_id.get());
         return NULL_OPTION;
     }
 
-    return m_scene_nodes.at(node).public_data;
+    return m_nodes.at(node_id);
 }
 
 optional<transform&> scene_impl::get_transform(uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node_pf = node_id.id();
 
-    if (!m_scene_nodes.contains(node_pf))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve transform!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve transform!", node_id.get());
         return NULL_OPTION;
     }
 
-    scene_node& node = m_scene_nodes.at(node_pf);
+    const node& nd = m_nodes.at(node_id);
 
-    packed_freelist_id tr = node.node_transform.id();
-
-    if (!m_scene_transforms.contains(tr))
+    if (!m_transforms.contains(nd.transform_id))
     {
-        MANGO_LOG_WARN("Transform with ID {0} does not exist! Can not retrieve transform!", tr.get());
+        MANGO_LOG_WARN("Transform with ID {0} does not exist! Can not retrieve transform!", nd.transform_id.get());
         return NULL_OPTION;
     }
 
-    return m_scene_transforms.at(tr).public_data;
+    return m_transforms.at(nd.transform_id);
 }
 
 optional<perspective_camera&> scene_impl::get_perspective_camera(uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node_pf = node_id.id();
 
-    if (!m_scene_nodes.contains(node_pf))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve perspective camera!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve perspective camera!", node_id.get());
         return NULL_OPTION;
     }
 
-    scene_node& node = m_scene_nodes.at(node_pf);
+    const node& nd = m_nodes.at(node_id);
 
-    if ((node.type & node_type::camera) == node_type::empty_leaf)
+    if ((nd.type & node_type::perspective_camera) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a camera! Can not retrieve perspective camera!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a perspective camera! Can not retrieve perspective camera!", node_id.get());
+        return;
+    }
+
+    uid camera_id = nd.camera_ids[static_cast<uint8>(camera_type::perspective)];
+
+    if (!m_perspective_cameras.contains(camera_id))
+    {
+        MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not retrieve perspective camera!", camera_id.get());
         return NULL_OPTION;
     }
 
-    packed_freelist_id cam = node.camera_id.id();
-
-    if (!m_scene_cameras.contains(cam))
-    {
-        MANGO_LOG_WARN("Camera with ID {0} does not exist! Can not retrieve perspective camera!", cam.get());
-        return NULL_OPTION;
-    }
-    if (m_scene_cameras.at(cam).type != camera_type::perspective)
-    {
-        MANGO_LOG_WARN("Camera with ID {0} is not a perspective camera! Can not retrieve perspective camera!", node_id.id().get());
-        return NULL_OPTION;
-    }
-
-    return m_scene_cameras.at(cam).public_data_as_perspective.value();
+    return m_perspective_cameras.at(camera_id);
 }
 
 optional<orthographic_camera&> scene_impl::get_orthographic_camera(uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node_pf = node_id.id();
 
-    if (!m_scene_nodes.contains(node_pf))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve orthographic camera!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve orthographic camera!", node_id.get());
         return NULL_OPTION;
     }
 
-    scene_node& node = m_scene_nodes.at(node_pf);
+    const node& nd = m_nodes.at(node_id);
 
-    if ((node.type & node_type::camera) == node_type::empty_leaf)
+    if ((nd.type & node_type::orthographic_camera) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a camera! Can not retrieve orthographic camera!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a orthographic camera! Can not retrieve orthographic camera!", node_id.get());
+        return;
+    }
+
+    uid camera_id = nd.camera_ids[static_cast<uint8>(camera_type::orthographic)];
+
+    if (!m_orthographic_cameras.contains(camera_id))
+    {
+        MANGO_LOG_WARN("Orthographic camera with ID {0} does not exist! Can not retrieve orthographic camera!", camera_id.get());
         return NULL_OPTION;
     }
 
-    packed_freelist_id cam = node.camera_id.id();
-
-    if (!m_scene_cameras.contains(cam))
-    {
-        MANGO_LOG_WARN("Camera with ID {0} does not exist! Can not retrieve orthographic camera!", cam.get());
-        return NULL_OPTION;
-    }
-    if (m_scene_cameras.at(cam).type != camera_type::orthographic)
-    {
-        MANGO_LOG_WARN("Camera with ID {0} is not a orthographic camera! Can not retrieve orthographic camera!", node_id.id().get());
-        return NULL_OPTION;
-    }
-
-    return m_scene_cameras.at(cam).public_data_as_orthographic.value();
+    return m_orthographic_cameras.at(camera_id);
 }
 
 optional<directional_light&> scene_impl::get_directional_light(uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node_pf = node_id.id();
 
-    if (!m_scene_nodes.contains(node_pf))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve directional light!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve directional light!", node_id.get());
         return NULL_OPTION;
     }
 
-    scene_node& node = m_scene_nodes.at(node_pf);
+    const node& nd = m_nodes.at(node_id);
 
-    if ((node.type & node_type::light) == node_type::empty_leaf)
+    if ((nd.type & node_type::directional_light) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a light! Can not retrieve directional light!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a directional light! Can not retrieve directional light!", node_id.get());
+        return;
+    }
+
+    uid light_id = nd.light_ids[static_cast<uint8>(light_type::directional)];
+
+    if (!m_directional_lights.contains(light_id))
+    {
+        MANGO_LOG_WARN("Directional light with ID {0} does not exist! Can not retrieve directional light!", light_id.get());
         return NULL_OPTION;
     }
 
-    packed_freelist_id light = node.light_ids[static_cast<uint8>(light_type::directional)].id();
-
-    if (!m_scene_lights.contains(light))
-    {
-        MANGO_LOG_WARN("Light with ID {0} does not exist! Can not retrieve directional light!", node_id.id().get());
-        return NULL_OPTION;
-    }
-    if (m_scene_lights.at(light).type != light_type::directional)
-    {
-        MANGO_LOG_WARN("Light with ID {0} is not a directional light! Can not retrieve directional light!", node_id.id().get());
-        return NULL_OPTION;
-    }
-
-    return m_scene_lights.at(light).public_data_as_directional_light.value();
+    return m_directional_lights.at(light_id);
 }
 
 optional<skylight&> scene_impl::get_skylight(uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node_pf = node_id.id();
 
-    if (!m_scene_nodes.contains(node_pf))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve skylight!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve skylight!", node_id.get());
         return NULL_OPTION;
     }
 
-    scene_node& node = m_scene_nodes.at(node_pf);
+    const node& nd = m_nodes.at(node_id);
 
-    if ((node.type & node_type::light) == node_type::empty_leaf)
+    if ((nd.type & node_type::skylight) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a light! Can not retrieve skylight!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a skylight! Can not retrieve skylight!", node_id.get());
+        return;
+    }
+
+    uid light_id = nd.light_ids[static_cast<uint8>(light_type::skylight)];
+
+    if (!m_skylights.contains(light_id))
+    {
+        MANGO_LOG_WARN("Skylight with ID {0} does not exist! Can not retrieve skylight!", light_id.get());
         return NULL_OPTION;
     }
 
-    packed_freelist_id light = node.light_ids[static_cast<uint8>(light_type::skylight)].id();
-
-    if (!m_scene_lights.contains(light))
-    {
-        MANGO_LOG_WARN("Light with ID {0} does not exist! Can not retrieve skylight!", node_id.id().get());
-        return NULL_OPTION;
-    }
-    if (m_scene_lights.at(light).type != light_type::skylight)
-    {
-        MANGO_LOG_WARN("Light with ID {0} is not a skylight! Can not retrieve skylight!", node_id.id().get());
-        return NULL_OPTION;
-    }
-
-    return m_scene_lights.at(light).public_data_as_skylight.value();
+    return m_skylights.at(light_id);
 }
 
 optional<atmospheric_light&> scene_impl::get_atmospheric_light(uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node_pf = node_id.id();
 
-    if (!m_scene_nodes.contains(node_pf))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve atmospheric light!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve atmospheric light!", node_id.get());
         return NULL_OPTION;
     }
 
-    scene_node& node = m_scene_nodes.at(node_pf);
+    const node& nd = m_nodes.at(node_id);
 
-    if ((node.type & node_type::light) == node_type::empty_leaf)
+    if ((nd.type & node_type::atmospheric_light) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a light! Can not retrieve atmospheric light!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a atmospheric light! Can not retrieve atmospheric light!", node_id.get());
+        return;
+    }
+
+    uid light_id = nd.light_ids[static_cast<uint8>(light_type::atmospheric)];
+
+    if (!m_atmospheric_lights.contains(light_id))
+    {
+        MANGO_LOG_WARN("Atmospheric light with ID {0} does not exist! Can not retrieve atmospheric light!", light_id.get());
         return NULL_OPTION;
     }
 
-    packed_freelist_id light = node.light_ids[static_cast<uint8>(light_type::atmospheric)].id();
-
-    if (!m_scene_lights.contains(light))
-    {
-        MANGO_LOG_WARN("Light with ID {0} does not exist! Can not retrieve atmospheric light!", node_id.id().get());
-        return NULL_OPTION;
-    }
-    if (m_scene_lights.at(light).type != light_type::atmospheric)
-    {
-        MANGO_LOG_WARN("Light with ID {0} is not a atmospheric light! Can not retrieve atmospheric light!", node_id.id().get());
-        return NULL_OPTION;
-    }
-
-    return m_scene_lights.at(light).public_data_as_atmospheric_light.value();
+    return m_atmospheric_lights.at(light_id);
 }
 
 optional<model&> scene_impl::get_model(uid instance_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id m = instance_id.id();
 
-    if (!m_scene_models.contains(m))
+    if (!m_models.contains(instance_id))
     {
-        MANGO_LOG_WARN("Model with ID {0} does not exist!", instance_id.id().get());
+        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not retrieve model!", instance_id.get());
         return NULL_OPTION;
     }
 
-    return m_scene_models.at(m).public_data;
+    return m_models.at(instance_id);
 }
 
 optional<mesh&> scene_impl::get_mesh(uid instance_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id m = instance_id.id();
 
-    if (!m_scene_meshes.contains(m))
+    if (!m_meshes.contains(instance_id))
     {
-        MANGO_LOG_WARN("Mesh with ID {0} does not exist!", instance_id.id().get());
+        MANGO_LOG_WARN("Mesh with ID {0} does not exist! Can not retrieve mesh!", instance_id.get());
         return NULL_OPTION;
     }
 
-    return m_scene_meshes.at(m).public_data;
+    return m_meshes.at(instance_id);
 }
 
 optional<material&> scene_impl::get_material(uid instance_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id mat = instance_id.id();
 
-    if (!m_scene_materials.contains(mat))
+    if (!m_materials.contains(instance_id))
     {
-        MANGO_LOG_WARN("Material with ID {0} does not exist!", instance_id.id().get());
+        MANGO_LOG_WARN("Material with ID {0} does not exist! Can not retrieve material!", instance_id.get());
         return NULL_OPTION;
     }
 
-    return m_scene_materials.at(mat).public_data;
+    return m_materials.at(instance_id);
 }
 
 optional<texture&> scene_impl::get_texture(uid instance_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id tex = instance_id.id();
 
-    if (!m_scene_textures.contains(tex))
+    if (!m_textures.contains(instance_id))
     {
-        MANGO_LOG_WARN("Texture with ID {0} does not exist!", instance_id.id().get());
+        MANGO_LOG_WARN("Texture with ID {0} does not exist! Can not retrieve texture!", instance_id.get());
         return NULL_OPTION;
     }
 
-    return m_scene_textures.at(tex).public_data;
+    return m_textures.at(instance_id);
+}
+
+uid scene_impl::get_root_node()
+{
+    return m_root_node;
+}
+
+uid scene_impl::get_active_camera_uid()
+{
+    PROFILE_ZONE;
+
+    if (!m_nodes.contains(m_main_camera_node))
+    {
+        MANGO_LOG_WARN("Active camera node with ID {0} does not exist! Can not retrieve active camera data!", m_main_camera_node.get());
+        return invalid_uid;
+    }
+
+    const node& nd = m_nodes.at(m_main_camera_node);
+
+    if ((nd.type & node_type::perspective_camera) != node_type::hierarchy)
+    {
+        return nd.camera_ids[static_cast<uint8>(camera_type::perspective)];
+    }
+    if ((nd.type & node_type::orthographic_camera) != node_type::hierarchy)
+    {
+        return nd.camera_ids[static_cast<uint8>(camera_type::orthographic)];
+    }
+
+    MANGO_LOG_WARN("Active camera node with ID {0} does not contain any camera! Can not retrieve active camera data!", m_main_camera_node.get());
+    return invalid_uid;
+}
+
+void scene_impl::set_main_camera(uid node_id)
+{
+    if (!m_nodes.contains(node_id))
+    {
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not set as active camera!", node_id.get());
+        return;
+    }
+
+    const node& nd = m_nodes.at(node_id);
+
+    if ((nd.type & node_type::perspective_camera) != node_type::hierarchy)
+    {
+        m_main_camera_node = node_id;
+    }
+    if ((nd.type & node_type::orthographic_camera) != node_type::hierarchy)
+    {
+        m_main_camera_node = node_id;
+    }
+
+    MANGO_LOG_WARN("Node with ID {0} does not contain any camera! Can not set as active camera!", node_id.get());
+}
+
+void scene_impl::attach(uid child_node, uid parent_node)
+{
+    PROFILE_ZONE;
+
+    if (!m_nodes.contains(child_node))
+    {
+        MANGO_LOG_WARN("Child node with ID {0} does not exist! Can not attach!", child_node.get());
+        return;
+    }
+    if (!m_nodes.contains(parent_node))
+    {
+        MANGO_LOG_WARN("Parent node with ID {0} does not exist! Can not attach!", parent_node.get());
+        return;
+    }
+
+    node& parent = m_nodes.at(parent_node);
+
+    parent.children.push_back(child_node);
+}
+
+void scene_impl::detach(uid child_node, uid parent_node)
+{
+    PROFILE_ZONE;
+
+    if (!m_nodes.contains(child_node))
+    {
+        MANGO_LOG_WARN("Child node with ID {0} does not exist! Can not detach!", child_node.get());
+        return;
+    }
+    if (!m_nodes.contains(parent_node))
+    {
+        MANGO_LOG_WARN("Parent node with ID {0} does not exist! Can not detach!", parent_node.get());
+        return;
+    }
+    if (parent_node == m_root_node)
+    {
+        MANGO_LOG_WARN("Can not detach from root node - only removable would be possible!");
+        return;
+    }
+
+    const node& child = m_nodes.at(child_node);
+    node& parent = m_nodes.at(parent_node);
+
+    if ((child.type & node_type::instantiable) != node_type::hierarchy)
+    {
+        MANGO_LOG_WARN("Child is instantiated! Can not detach!");
+        return;
+    }
+    if ((parent.type & node_type::instantiable) != node_type::hierarchy)
+    {
+        MANGO_LOG_WARN("Parent is instantiated! Can not detach!");
+        return;
+    }
+
+    auto found = std::find(parent.children.begin(), parent.children.end(), child_node);
+    if (found == parent.children.end())
+    {
+        MANGO_LOG_WARN("Child is not attached to parent! Can not detach!");
+        return;
+    }
+
+    parent.children.erase(found);
+    node& root = m_nodes.at(m_root_node);
+    root.children.push_back(child_node);
+}
+
+void scene_impl::remove_texture_gpu_data(uid texture_id)
+{
+    PROFILE_ZONE;
+
+    if (!m_textures.contains(texture_id))
+    {
+        MANGO_LOG_WARN("Texture with ID {0} does not exist! Can not remove texture gpu data!", texture_id.get());
+        return;
+    }
+
+    const texture& tex = m_textures.at(texture_id);
+
+    if (!m_texture_gpu_data.contains(tex.gpu_data))
+    {
+        MANGO_LOG_WARN("Texture GPU Data with ID {0} does not exist! Can not remove texture gpu data!", tex.gpu_data.get());
+        return;
+    }
+
+    m_texture_gpu_data.erase(tex.gpu_data);
 }
 
 optional<scene_node&> scene_impl::get_scene_node(uid instance_id)
@@ -1138,197 +1283,9 @@ optional<scene_camera&> scene_impl::get_active_scene_camera(vec3& position)
     return m_scene_cameras.at(cam);
 }
 
-uid scene_impl::get_active_camera_uid()
-{
-    packed_freelist_id node_pf = m_main_camera_node.id();
-    if (!m_scene_nodes.contains(node_pf))
-    {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not get active camera id!", m_main_camera_node.id().get());
-        return invalid_uid;
-    }
-
-    scene_node& node = m_scene_nodes.at(node_pf);
-    return node.camera_id;
-}
-
 uid scene_impl::get_active_scene_camera_node_uid()
 {
     return m_main_camera_node;
-}
-
-uid scene_impl::get_root_node()
-{
-    return m_root_node; // TODO Paul!
-}
-
-void scene_impl::set_main_camera(uid node_id)
-{
-    if (node_id == invalid_uid)
-    {
-        MANGO_ASSERT(false, "Can set active camera to invalid at the moment.");
-    }
-
-    packed_freelist_id node_pf = node_id.id();
-
-    if (!m_scene_nodes.contains(node_pf))
-    {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not set as active camera!", node_id.id().get());
-        return;
-    }
-
-    scene_node& node = m_scene_nodes.at(node_pf);
-
-    if ((node.type & node_type::camera) == node_type::empty_leaf)
-    {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a camera! Can not set as active camera!", node_id.id().get());
-        return;
-    }
-
-    packed_freelist_id cam = node.camera_id.id();
-
-    if (!m_scene_cameras.contains(cam))
-    {
-        MANGO_LOG_WARN("Camera with ID {0} does not exist! Can not set as active camera!", cam.get());
-        return;
-    }
-
-    m_main_camera_node = node_id;
-}
-
-void scene_impl::attach(uid child_node, uid parent_node)
-{
-    PROFILE_ZONE;
-    packed_freelist_id child  = child_node.id();
-    packed_freelist_id parent = parent_node.id();
-
-    if (!m_scene_nodes.contains(child))
-    {
-        MANGO_LOG_WARN("Child node with ID {0} does not exist! Can not attach to parent!", child_node.id().get());
-        return;
-    }
-
-    if (!m_scene_nodes.contains(parent))
-    {
-        MANGO_LOG_WARN("Parent node with ID {0} does not exist! Can not attach to child!", parent_node.id().get());
-        return;
-    }
-
-    scene_node& c = m_scene_nodes.at(child);
-
-    if (!m_scene_transforms.contains(child))
-    {
-        uid transform_id                                      = uid::create(m_scene_transforms.emplace(), scene_structure_type::scene_structure_transform);
-        m_scene_transforms.back().public_data.instance_id     = transform_id;
-        m_scene_transforms.back().public_data.containing_node = child_node;
-        c.node_transform                                      = transform_id;
-    }
-
-    scene_node& p = m_scene_nodes.at(parent);
-
-    if (!m_scene_transforms.contains(parent))
-    {
-        uid transform_id                                      = uid::create(m_scene_transforms.emplace(), scene_structure_type::scene_structure_transform);
-        m_scene_transforms.back().public_data.instance_id     = transform_id;
-        m_scene_transforms.back().public_data.containing_node = parent_node;
-        p.node_transform                                      = transform_id;
-    }
-
-    unique_ptr<hierarchy_node> child_h = nullptr;
-    if (c.public_data.parent_node.is_valid())
-    {
-        child_h = std::move(detach_and_get(child_node));
-    }
-
-    c.public_data.parent_node = parent_node;
-
-    p.children++;
-    p.type |= node_type::is_parent;
-
-    // scene graph
-
-    if (!child_h)
-    {
-        child_h          = mango::make_unique<hierarchy_node>();
-        child_h->node_id = child_node;
-    }
-
-    hierarchy_node* parent_h;
-    bool res = sg_bfs_node(parent_node, parent_h);
-    MANGO_ASSERT(res, "Scene Graph is corrupted!");
-    parent_h->children.emplace_back(std::move(child_h));
-}
-
-void scene_impl::detach(uid child_node)
-{
-    PROFILE_ZONE;
-    packed_freelist_id child = child_node.id();
-
-    if (!m_scene_nodes.contains(child))
-    {
-        MANGO_LOG_WARN("Child node with ID {0} does not exist! Can not detach from parent!", child_node.id().get());
-        return;
-    }
-
-    scene_node& c = m_scene_nodes.at(child);
-
-    if (c.public_data.parent_node == m_root_node)
-    {
-        MANGO_LOG_DEBUG("Can not detach from root!"); // But we still have to move it to the end -.- ...
-        for (auto it = m_scene_graph_root->children.begin(); it != m_scene_graph_root->children.end();)
-        {
-            if (it->get()->node_id == child_node)
-            {
-                std::swap(*it, m_scene_graph_root->children.back());
-                return;
-            }
-            else
-                it++;
-        }
-    }
-
-    packed_freelist_id parent = c.public_data.parent_node.id();
-
-    if (!m_scene_nodes.contains(parent))
-    {
-        MANGO_LOG_WARN("Child node with ID {0} has no parent! Can not detach from parent!", child_node.id().get());
-        return;
-    }
-
-    scene_node& p = m_scene_nodes.at(parent);
-
-    p.children--;
-    if (p.children <= 0)
-    {
-        p.type &= ~node_type::is_parent;
-        p.children = 0;
-    }
-
-    // scene graph
-
-    hierarchy_node child_h;
-    child_h.node_id = child_node;
-
-    hierarchy_node* parent_h;
-    bool res = sg_bfs_node(c.public_data.parent_node, parent_h);
-    MANGO_ASSERT(res, "Scene Graph is corrupted!");
-    for (auto it = parent_h->children.begin(); it != parent_h->children.end();)
-    {
-        if (it->get()->node_id == child_node)
-        {
-            // attach to root so we can not loose any child relations
-            scene_node& root = m_scene_nodes.at(m_root_node.id());
-            root.children++;
-            root.type |= node_type::is_parent;
-            m_scene_graph_root->children.emplace_back(std::move(*it));
-            parent_h->children.erase(it);
-            break;
-        }
-        else
-            it++;
-    }
-    p.children = static_cast<int32>(parent_h->children.size());
-
-    c.public_data.parent_node = uid();
 }
 
 unique_ptr<scene_impl::hierarchy_node> scene_impl::detach_and_get(uid child_node)

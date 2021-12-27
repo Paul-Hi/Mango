@@ -46,6 +46,7 @@ namespace mango
         void remove_node(uid node_id) override;
         void remove_perspective_camera(uid node_id) override;
         void remove_orthographic_camera(uid node_id) override;
+        void remove_mesh(uid node_id); // For now no override since we only add them internally as well...
         void remove_directional_light(uid node_id) override;
         void remove_skylight(uid node_id) override;
         void remove_atmospheric_light(uid node_id) override;
@@ -184,6 +185,10 @@ namespace mango
         //! \param[in] primitive_material The loaded tinygltf model material.
         //! \param[in] m The loaded tinygltf model.
         void load_material(material& mat, const tinygltf::Material& primitive_material, tinygltf::Model& m);
+
+        //! \brief Removes a \a node even iff it is instantiable.
+        //! \param[in] node_id The \a uid of the \a node to remove.
+        void remove_instantiable_node(uid node_id);
 
         //! \brief Mangos internal context for shared usage in all \a scenes.
         shared_ptr<context_impl> m_shared_context;
