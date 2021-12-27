@@ -373,7 +373,7 @@ namespace mango
     enum class node_type : uint8
     {
         hierarchy           = 0,
-        instance            = 1 << 0,
+        instantiable        = 1 << 0,
         mesh                = 1 << 1,
         perspective_camera  = 1 << 2,
         orthographic_camera = 1 << 3,
