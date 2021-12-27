@@ -45,7 +45,7 @@ namespace mango
         //! \brief The gpu data per material.
         material_data per_material_data;
         //! \brief The graphics uniform buffer for uploading \a material_data.
-        gfx_handle<const gfx_buffer> m_material_data_buffer;
+        gfx_handle<const gfx_buffer> material_data_buffer;
 
         material_gpu_data() = default;
         //! \brief The \a material_gpu_data is an internal scene structure.
@@ -112,7 +112,7 @@ namespace mango
         //! \brief The gpu data per mesh.
         model_data per_mesh_data;
         //! \brief The graphics uniform buffer for uploading \a model_data.
-        gfx_handle<const gfx_buffer> m_model_data_buffer;
+        gfx_handle<const gfx_buffer> model_data_buffer;
 
         mesh_gpu_data() = default;
         //! \brief The \a mesh_gpu_data is an internal scene structure.
@@ -125,7 +125,7 @@ namespace mango
         //! \brief The gpu data per camera.
         camera_data per_camera_data;
         //! \brief The graphics uniform buffer for uploading \a camera_data.
-        gfx_handle<const gfx_buffer> m_camera_data_buffer;
+        gfx_handle<const gfx_buffer> camera_data_buffer;
 
         camera_gpu_data() = default;
         //! \brief The \a camera_gpu_data is an internal scene structure.
@@ -138,7 +138,7 @@ namespace mango
         //! \brief The gpu data for all lights (currently one for each scenario).
         light_data scenario_light_data;
         //! \brief The graphics uniform buffer for uploading \a light_data. Filled with data provided by the \a light_stack.
-        gfx_handle<const gfx_buffer> m_light_data_buffer;
+        gfx_handle<const gfx_buffer> light_data_buffer;
 
         light_gpu_data() = default;
         //! \brief The \a light_gpu_data is an internal scene structure.
