@@ -186,7 +186,7 @@ namespace mango
         //! \param[in] m The loaded tinygltf model.
         void load_material(material& mat, const tinygltf::Material& primitive_material, tinygltf::Model& m);
 
-        //! \brief Removes a \a node even iff it is instantiable.
+        //! \brief Removes a \a node even though it is instantiable.
         //! \param[in] node_id The \a uid of the \a node to remove.
         void remove_instantiable_node(uid node_id);
 

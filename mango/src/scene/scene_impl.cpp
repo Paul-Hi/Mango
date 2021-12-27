@@ -596,7 +596,7 @@ void scene_impl::remove_mesh(uid node_id)
     const mesh& to_remove = m_meshes.at(mesh_id);
 
     uid gpu_data_id = to_remove.gpu_data;
-    MANGO_ASSERT(m_camera_gpu_data.contains(gpu_data_id), "Camera gpu data for meshdoes not exist!");
+    MANGO_ASSERT(m_camera_gpu_data.contains(gpu_data_id), "Mesh gpu data for mesh does not exist!");
 
     node.type &= ~node_type::mesh;
     node.mesh_id = invalid_uid;
@@ -1107,242 +1107,123 @@ void scene_impl::remove_texture_gpu_data(uid texture_id)
 
     if (!m_texture_gpu_data.contains(tex.gpu_data))
     {
-        MANGO_LOG_WARN("Texture GPU Data with ID {0} does not exist! Can not remove texture gpu data!", tex.gpu_data.get());
+        MANGO_LOG_WARN("Texture gpu data with ID {0} does not exist! Can not remove texture gpu data!", tex.gpu_data.get());
         return;
     }
 
     m_texture_gpu_data.erase(tex.gpu_data);
 }
 
-optional<scene_node&> scene_impl::get_scene_node(uid instance_id)
+optional<texture_gpu_data&> scene_impl::get_texture_gpu_data(uid instance_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = instance_id.id();
 
-    if (!m_scene_nodes.contains(node))
+    if (!m_texture_gpu_data.contains(instance_id))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist!", instance_id.id().get());
+        MANGO_LOG_WARN("Texture gpu data with ID {0} does not exist! Can not retrieve texture gpu data!", instance_id.get());
         return NULL_OPTION;
     }
 
-    return m_scene_nodes.at(node);
+    return m_texture_gpu_data.at(instance_id);
 }
 
-optional<scene_transform&> scene_impl::get_scene_transform(uid instance_id)
+optional<material_gpu_data&> scene_impl::get_material_gpu_data(uid instance_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id tr = instance_id.id();
 
-    if (!m_scene_transforms.contains(tr))
+    if (!m_material_gpu_data.contains(instance_id))
     {
-        MANGO_LOG_WARN("Tranform with ID {0} does not exist!", instance_id.id().get());
+        MANGO_LOG_WARN("Material gpu data with ID {0} does not exist! Can not retrieve material gpu data!", instance_id.get());
         return NULL_OPTION;
     }
 
-    return m_scene_transforms.at(tr);
+    return m_material_gpu_data.at(instance_id);
 }
 
-optional<scene_camera&> scene_impl::get_scene_camera(uid instance_id)
+optional<primitive_gpu_data&> scene_impl::get_primitive_gpu_data(uid instance_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id cam = instance_id.id();
 
-    if (!m_scene_cameras.contains(cam))
+    if (!m_primitive_gpu_data.contains(instance_id))
     {
-        MANGO_LOG_WARN("Camera with ID {0} does not exist!", instance_id.id().get());
+        MANGO_LOG_WARN("Primitive gpu data with ID {0} does not exist! Can not retrieve primitive gpu data!", instance_id.get());
         return NULL_OPTION;
     }
 
-    return m_scene_cameras.at(cam);
+    return m_primitive_gpu_data.at(instance_id);
 }
 
-optional<scene_light&> scene_impl::get_scene_light(uid instance_id)
+optional<mesh_gpu_data&> scene_impl::get_mesh_gpu_data(uid instance_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id l = instance_id.id();
 
-    if (!m_scene_lights.contains(l))
+    if (!m_mesh_gpu_data.contains(instance_id))
     {
-        MANGO_LOG_WARN("Light with ID {0} does not exist!", instance_id.id().get());
+        MANGO_LOG_WARN("Mesh gpu data with ID {0} does not exist! Can not retrieve mesh gpu data!", instance_id.get());
         return NULL_OPTION;
     }
 
-    return m_scene_lights.at(l);
+    return m_mesh_gpu_data.at(instance_id);
 }
 
-optional<scene_material&> scene_impl::get_scene_material(uid instance_id)
+optional<camera_gpu_data&> scene_impl::get_camera_gpu_data(uid instance_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id mat = instance_id.id();
 
-    if (!m_scene_materials.contains(mat))
+    if (!m_camera_gpu_data.contains(instance_id))
     {
-        MANGO_LOG_WARN("Material with ID {0} does not exist!", instance_id.id().get());
+        MANGO_LOG_WARN("Canera gpu data with ID {0} does not exist! Can not retrieve camera gpu data!", instance_id.get());
         return NULL_OPTION;
     }
 
-    return m_scene_materials.at(mat);
+    return m_camera_gpu_data.at(instance_id);
 }
 
-optional<scene_mesh&> scene_impl::get_scene_mesh(uid instance_id)
+optional<light_gpu_data&> scene_impl::get_light_gpu_data(uid instance_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id m = instance_id.id();
 
-    if (!m_scene_meshes.contains(m))
+    if (!m_light_gpu_data.contains(instance_id))
     {
-        MANGO_LOG_WARN("Mesh with ID {0} does not exist!", instance_id.id().get());
+        MANGO_LOG_WARN("Light gpu data with ID {0} does not exist! Can not retrieve light gpu data!", instance_id.get());
         return NULL_OPTION;
     }
 
-    return m_scene_meshes.at(m);
+    return m_light_gpu_data.at(instance_id);
 }
 
-optional<scene_model&> scene_impl::get_scene_model(uid instance_id)
+optional<buffer_view&> scene_impl::get_buffer_view(uid instance_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id m = instance_id.id();
 
-    if (!m_scene_models.contains(m))
+    if (!m_buffer_views.contains(instance_id))
     {
-        MANGO_LOG_WARN("Model with ID {0} does not exist!", instance_id.id().get());
+        MANGO_LOG_WARN("Buffer view with ID {0} does not exist! Can not retrieve buffer view!", instance_id.get());
         return NULL_OPTION;
     }
 
-    return m_scene_models.at(m);
+    return m_buffer_views.at(instance_id);
 }
 
-optional<scene_primitive&> scene_impl::get_scene_primitive(uid instance_id)
+optional<camera_gpu_data&> scene_impl::get_active_camera_gpu_data()
 {
     PROFILE_ZONE;
-    packed_freelist_id prim = instance_id.id();
 
-    if (!m_scene_primitives.contains(prim))
+    uid active_camera_uid = get_active_camera_uid();
+
+    if(!active_camera_uid.is_valid())
     {
-        MANGO_LOG_WARN("Primitive with ID {0} does not exist!", instance_id.id().get());
+        MANGO_LOG_WARN("Active camera id is not valid! Can not retrieve active camera gpu data!");
         return NULL_OPTION;
     }
 
-    return m_scene_primitives.at(prim);
-}
-
-optional<scene_texture&> scene_impl::get_scene_texture(uid instance_id)
-{
-    PROFILE_ZONE;
-    packed_freelist_id tex = instance_id.id();
-
-    if (!m_scene_textures.contains(tex))
+    if (!m_camera_gpu_data.contains(active_camera_uid))
     {
-        MANGO_LOG_WARN("Texture with ID {0} does not exist!", instance_id.id().get());
+        MANGO_LOG_WARN("Camera gpu data with ID {0} does not exist! Can not retrieve camera gpu data!", active_camera_uid.get());
         return NULL_OPTION;
     }
 
-    return m_scene_textures.at(tex);
-}
-
-optional<scene_camera&> scene_impl::get_active_scene_camera(vec3& position)
-{
-    PROFILE_ZONE;
-    if (!m_main_camera_node.is_valid())
-        return NULL_OPTION;
-
-    packed_freelist_id node_pf = m_main_camera_node.id();
-
-    if (!m_scene_nodes.contains(node_pf))
-    {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not get active camera data!", m_main_camera_node.id().get());
-        return NULL_OPTION;
-    }
-
-    scene_node& node = m_scene_nodes.at(node_pf);
-
-    if ((node.type & node_type::camera) == node_type::empty_leaf)
-    {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a camera! Can not get active camera data!", m_main_camera_node.id().get());
-        return NULL_OPTION;
-    }
-
-    packed_freelist_id cam = node.camera_id.id();
-
-    if (!m_scene_cameras.contains(cam))
-    {
-        MANGO_LOG_WARN("Camera with ID {0} does not exist! Can not get active camera data!", cam.get());
-        return NULL_OPTION;
-    }
-
-    packed_freelist_id tr = node.node_transform.id();
-
-    if (!m_scene_transforms.contains(tr))
-    {
-        MANGO_LOG_WARN("Transform with ID {0} does not exist! Can not get active camera data!", tr.get());
-        return NULL_OPTION;
-    }
-
-    position = m_scene_transforms.at(tr).public_data.position;
-
-    return m_scene_cameras.at(cam);
-}
-
-uid scene_impl::get_active_scene_camera_node_uid()
-{
-    return m_main_camera_node;
-}
-
-unique_ptr<scene_impl::hierarchy_node> scene_impl::detach_and_get(uid child_node)
-{
-    PROFILE_ZONE;
-    packed_freelist_id child = child_node.id();
-
-    if (!m_scene_nodes.contains(child))
-    {
-        MANGO_LOG_WARN("Child node with ID {0} does not exist! Can not detach from parent!", child_node.id().get());
-        return nullptr;
-    }
-
-    scene_node& c = m_scene_nodes.at(child);
-
-    packed_freelist_id parent = c.public_data.parent_node.id();
-
-    if (!m_scene_nodes.contains(parent))
-    {
-        MANGO_LOG_WARN("Child node with ID {0} has no parent! Can not detach from parent!", child_node.id().get());
-        return nullptr;
-    }
-
-    scene_node& p = m_scene_nodes.at(parent);
-
-    p.children--;
-    if (p.children <= 0)
-    {
-        p.type &= ~node_type::is_parent;
-        p.children = 0;
-    }
-
-    // scene graph
-
-    hierarchy_node child_h;
-    child_h.node_id = child_node;
-
-    hierarchy_node* parent_h;
-    std::unique_ptr<hierarchy_node> detached = nullptr;
-    bool res                                 = sg_bfs_node(c.public_data.parent_node, parent_h);
-    MANGO_ASSERT(res, "Scene Graph is corrupted!");
-    for (auto it = parent_h->children.begin(); it != parent_h->children.end();)
-    {
-        if (it->get()->node_id == child_node)
-        {
-            detached = std::move(*it);
-            parent_h->children.erase(it);
-            break;
-        }
-        else
-            it++;
-    }
-    p.children = static_cast<int32>(parent_h->children.size());
-
-    c.public_data.parent_node = uid();
-
-    return detached;
+    return m_camera_gpu_data.at(active_camera_uid);
 }
 
 std::pair<gfx_handle<const gfx_texture>, gfx_handle<const gfx_sampler>> scene_impl::create_gfx_texture_and_sampler(const string& path, bool standard_color_space, bool high_dynamic_range,
@@ -1362,7 +1243,7 @@ std::pair<gfx_handle<const gfx_texture>, gfx_handle<const gfx_sampler>> scene_im
     gfx_format component_type = gfx_format::invalid;
     graphics::get_formats_for_image(img->number_components, img->bits, desc.is_standard_color_space, desc.is_hdr, internal, pixel_format, component_type);
 
-    // TODO Paul: We probably want more exposed settings here - at least in public_data!
+    // TODO Paul: We probably want more exposed settings here!
     texture_create_info tex_info;
     tex_info.texture_type   = gfx_texture_type::texture_type_2d; // TODO Is it?
     tex_info.texture_format = internal;
@@ -1407,7 +1288,7 @@ std::pair<gfx_handle<const gfx_texture>, gfx_handle<const gfx_sampler>> scene_im
     gfx_format component_type = gfx_format::invalid;
     graphics::get_formats_for_image(img.number_components, img.bits, standard_color_space, high_dynamic_range, internal, pixel_format, component_type);
 
-    // TODO Paul: We probably want more exposed settings here - at least in public_data!
+    // TODO Paul: We probably want more exposed settings here!
     texture_create_info tex_info;
     tex_info.texture_type   = gfx_texture_type::texture_type_2d; // TODO Is it?
     tex_info.texture_format = internal;
