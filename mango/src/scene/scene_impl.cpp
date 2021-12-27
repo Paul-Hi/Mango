@@ -134,7 +134,7 @@ uid scene_impl::add_perspective_camera(perspective_camera& new_perspective_camer
     device_context->end();
     device_context->submit();
 
-    new_perspective_camera.changed = false;
+    new_perspective_camera.changed  = false;
     new_perspective_camera.gpu_data = m_camera_gpu_data.emplace(data);
 
     uid camera_id = m_perspective_cameras.emplace(new_perspective_camera);
@@ -203,7 +203,7 @@ uid scene_impl::add_orthographic_camera(orthographic_camera& new_orthographic_ca
     device_context->end();
     device_context->submit();
 
-    new_orthographic_camera.changed = false;
+    new_orthographic_camera.changed  = false;
     new_orthographic_camera.gpu_data = m_camera_gpu_data.emplace(data);
 
     uid camera_id = m_orthographic_cameras.emplace(new_orthographic_camera);
@@ -292,19 +292,19 @@ uid scene_impl::build_material(material& new_material)
     if (!check_creation(data.material_data_buffer.get(), "material data buffer"))
         return invalid_uid;
 
-    data.per_material_data.base_color = new_material.base_color;
-    data.per_material_data.emissive_color = new_material.emissive_color;
-    data.per_material_data.metallic = new_material.metallic;
-    data.per_material_data.roughness = new_material.roughness;
-    data.per_material_data.base_color_texture = new_material.base_color_texture.is_valid();
+    data.per_material_data.base_color                 = new_material.base_color;
+    data.per_material_data.emissive_color             = new_material.emissive_color;
+    data.per_material_data.metallic                   = new_material.metallic;
+    data.per_material_data.roughness                  = new_material.roughness;
+    data.per_material_data.base_color_texture         = new_material.base_color_texture.is_valid();
     data.per_material_data.roughness_metallic_texture = new_material.metallic_roughness_texture.is_valid();
-    data.per_material_data.occlusion_texture = new_material.occlusion_texture.is_valid();
-    data.per_material_data.packed_occlusion = new_material.packed_occlusion;
-    data.per_material_data.normal_texture = new_material.normal_texture.is_valid();
-    data.per_material_data.emissive_color_texture = new_material.emissive_texture.is_valid();
-    data.per_material_data.emissive_intensity = new_material.emissive_intensity;
-    data.per_material_data.alpha_mode = static_cast<uint8>(new_material.alpha_mode);
-    data.per_material_data.alpha_cutoff = new_material.alpha_cutoff;
+    data.per_material_data.occlusion_texture          = new_material.occlusion_texture.is_valid();
+    data.per_material_data.packed_occlusion           = new_material.packed_occlusion;
+    data.per_material_data.normal_texture             = new_material.normal_texture.is_valid();
+    data.per_material_data.emissive_color_texture     = new_material.emissive_texture.is_valid();
+    data.per_material_data.emissive_intensity         = new_material.emissive_intensity;
+    data.per_material_data.alpha_mode                 = static_cast<uint8>(new_material.alpha_mode);
+    data.per_material_data.alpha_cutoff               = new_material.alpha_cutoff;
 
     auto device_context = m_scene_graphics_device->create_graphics_device_context();
     device_context->begin();
@@ -312,7 +312,7 @@ uid scene_impl::build_material(material& new_material)
     device_context->end();
     device_context->submit();
 
-    new_material.changed = false;
+    new_material.changed  = false;
     new_material.gpu_data = m_material_gpu_data.emplace(data);
 
     uid material_id = m_materials.emplace(new_material);
@@ -329,10 +329,7 @@ uid scene_impl::load_texture_from_image(const string& path, bool standard_color_
     tex.standard_color_space = standard_color_space;
     tex.high_dynamic_range   = high_dynamic_range;
 
-    uid texture_id  = uid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
-    tex.instance_id = texture_id;
-
-    // TODO Paul: We probably want more exposed settings here - at least in public_data!
+    // TODO Paul: We probably want more exposed settings here!
     sampler_create_info sampler_info;
     sampler_info.sampler_min_filter      = gfx_sampler_filter::sampler_filter_linear_mipmap_linear;
     sampler_info.sampler_max_filter      = gfx_sampler_filter::sampler_filter_linear;
@@ -349,10 +346,12 @@ uid scene_impl::load_texture_from_image(const string& path, bool standard_color_
 
     auto texture_sampler_pair = create_gfx_texture_and_sampler(path, standard_color_space, high_dynamic_range, sampler_info);
 
-    scene_texture& st   = m_scene_textures.back();
-    st.graphics_texture = texture_sampler_pair.first;
-    st.graphics_sampler = texture_sampler_pair.second;
-    st.public_data      = tex;
+    texture_gpu_data data;
+    data.graphics_texture = texture_sampler_pair.first;
+    data.graphics_sampler = texture_sampler_pair.second;
+    tex.gpu_data          = m_texture_gpu_data.emplace(data);
+
+    uid texture_id = m_textures.emplace(tex);
 
     return texture_id;
 }
@@ -363,14 +362,9 @@ uid scene_impl::load_model_from_gltf(const string& path)
 
     model mod;
     mod.file_path = path;
-
-    uid model_id    = uid::create(m_scene_models.emplace(), scene_structure_type::scene_structure_model);
-    mod.instance_id = model_id;
-
     mod.scenarios = load_model_from_file(path, mod.default_scenario);
 
-    scene_model& md = m_scene_models.back();
-    md.public_data  = mod;
+    uid model_id = m_models.emplace(mod);
 
     return model_id;
 }
@@ -378,11 +372,10 @@ uid scene_impl::load_model_from_gltf(const string& path)
 uid scene_impl::add_skylight_from_hdr(const string& path, uid node_id)
 {
     PROFILE_ZONE;
-    packed_freelist_id node = node_id.id();
 
-    if (!m_scene_nodes.contains(node))
+    if (!m_nodes.contains(node_id))
     {
-        MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add skylight!", node_id.id().get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add skylight!", node_id.get());
         return invalid_uid;
     }
 
@@ -390,101 +383,62 @@ uid scene_impl::add_skylight_from_hdr(const string& path, uid node_id)
     uid texture_id = load_texture_from_image(path, false, true);
 
     // skylight
-    skylight sl;
-    sl.hdr_texture  = texture_id;
-    sl.use_texture  = true;
-    uid skylight_id = add_skylight_structure(sl, node_id);
+    skylight new_skylight;
+    new_skylight.hdr_texture = texture_id;
+    new_skylight.use_texture = true;
 
-    scene_node& nd                                         = m_scene_nodes.at(node);
-    nd.light_ids[static_cast<uint8>(light_type::skylight)] = skylight_id;
-    nd.type |= node_type::light;
+    uid light_id = m_skylights.emplace(new_skylight);
 
-    return node_id;
+    node& nd = m_nodes.at(node_id);
+
+    nd.light_ids[static_cast<uint8>(light_type::skylight)] = light_id;
+    nd.type |= node_type::skylight;
+
+    return light_id;
 }
 
 void scene_impl::add_model_to_scene(uid model_to_add, uid scenario_id, uid node_id)
 {
     PROFILE_ZONE;
-    if (model_to_add == invalid_uid || scenario_id == invalid_uid)
+
+    if (!m_nodes.contains(node_id))
     {
-        if (!m_scene_nodes.contains(node_id.id()))
-        {
-            MANGO_LOG_WARN("Containing node with ID {0} does not exist! Can not add model!", node_id.id().get());
-            return invalid_uid;
-        }
-        return invalid_uid;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add model to scene!", node_id.get());
+        return;
     }
 
-    packed_freelist_id model_id = model_to_add.id();
-    packed_freelist_id scenario = scenario_id.id();
+    node& containing_node = m_nodes.at(node_id);
 
-    if (!m_scene_models.contains(model_id))
+    if (!model_to_add.is_valid() || !scenario_id.is_valid())
     {
-        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not add model to scene!", model_to_add.id().get());
-        return invalid_uid;
-    }
-    if (!m_scene_scenarios.contains(scenario)) // TODO Scenarios.
-    {
-        MANGO_LOG_WARN("Scenario with ID {0} does not exist! Can not add model to scene!", scenario_id.id().get());
-        return invalid_uid;
+        MANGO_LOG_WARN("Model or scenario are not valid! Can not add model to scene!");
+        return;
     }
 
-    scene_model& m       = m_scene_models.at(model_id);
-    scene_scenario& scen = m_scene_scenarios.at(scenario);
-
-    packed_freelist_id node = node_id.id();
-
-    if (!m_scene_nodes.contains(node))
+    if (!m_models.contains(model_to_add))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add model to scene!", model_to_add.id().get());
-        return invalid_uid;
+        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not add model to scene!", model_to_add.get());
+        return;
+    }
+    if (!m_scenarios.contains(scenario_id))
+    {
+        MANGO_LOG_WARN("Scenario with ID {0} does not exist! Can not add model to scene!", scenario_id.get());
+        return;
     }
 
-    scene_node& nd_containing = m_scene_nodes.at(node);
-    nd_containing.type |= node_type::is_parent;
+    model& m       = m_models.at(model_to_add);
+    scenario& scen = m_scenarios.at(scenario_id);
 
-    auto found = std::find(m.public_data.scenarios.begin(), m.public_data.scenarios.end(), scenario_id);
-    if (found == m.public_data.scenarios.end())
+    auto found = std::find(m.scenarios.begin(), m.scenarios.end(), scenario_id);
+    if (found == m.scenarios.end())
     {
-        MANGO_LOG_WARN("Model to add does not contain scenario to add.");
-        return invalid_uid;
+        MANGO_LOG_WARN("Model to add does not contain scenario to add! Can not add model to scene!");
+        return;
     }
 
-    hierarchy_node* containing_entry;
-    if (sg_bfs_node(node_id, containing_entry))
+    for (uid node_id : scen.root_nodes)
     {
-        std::unordered_map<uid, hierarchy_node*, uid_hash> previous_added; // Should make the insertion faster, since, we don't need to bfs each time
-        for (uid node_id : scen.nodes)
-        {
-            packed_freelist_id node_pf = node_id.id();
-            MANGO_ASSERT(m_scene_nodes.contains(node_pf), "Something went wrong while loading the model! Can not add model to scene!");
-
-            scene_node& nd = m_scene_nodes.at(node_pf);
-
-            unique_ptr<hierarchy_node> current = mango::make_unique<hierarchy_node>();
-            current->node_id                   = node_id;
-
-            previous_added.insert({ node_id, current.get() });
-            if (nd.public_data.parent_node.is_valid())
-            {
-                auto parent_hierarchy = previous_added.find(nd.public_data.parent_node);
-                MANGO_ASSERT(parent_hierarchy != previous_added.end(), "Something went wrong while loading the model scenario! Can not add model to scene!");
-                parent_hierarchy->second->children.emplace_back(std::move(current));
-            }
-            else // first
-            {
-                containing_entry->children.emplace_back(std::move(current));
-                nd.public_data.parent_node = node_id; // TODO Paul: This has to be reset or something like that?
-                nd_containing.children++;
-            }
-        }
-
-        return node_id;
-    }
-    else
-    {
-        MANGO_LOG_WARN("Node with ID {0} is not actively in the scene! Can not add model to scene!", node_id.id().get());
-        return invalid_uid;
+        containing_node.children.push_back(node_id);
     }
 }
 
@@ -2310,24 +2264,6 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
         mat.alpha_mode   = material_alpha_mode::mode_blend;
         mat.alpha_cutoff = 1.0f;
     }
-}
-
-uid scene_impl::add_skylight_structure(const skylight& new_skylight, uid node_id)
-{
-    PROFILE_ZONE;
-
-    uid light_id                               = uid::create(m_scene_lights.emplace(), scene_structure_type::scene_structure_skylight);
-    scene_light& l                             = m_scene_lights.back();
-    l.public_data_as_skylight                  = new_skylight;
-    l.public_data_as_skylight->instance_id     = light_id;
-    l.public_data_as_skylight->containing_node = node_id;
-    l.type                                     = light_type::skylight;
-
-    scene_node& nd                                         = m_scene_nodes.at(node_id.id());
-    nd.light_ids[static_cast<uint8>(light_type::skylight)] = light_id;
-    nd.type |= node_type::light;
-
-    return light_id;
 }
 
 // entity scene_impl::create_atmospheric_environment(const vec3& sun_direction, float sun_intensity) // TODO Paul: More settings needed!

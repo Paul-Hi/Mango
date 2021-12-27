@@ -181,11 +181,6 @@ namespace mango
         //! \param[in] m The loaded tinygltf model.
         void load_material(material& mat, const tinygltf::Material& primitive_material, tinygltf::Model& m);
 
-        //! \brief Internal function to abstract the creation of the basic \a skylight structure.
-        //! \param[in] new_skylight The \a skylight to add.
-        //! \param[in] node_id The \a uid of the \a node the \a skylight should be added to.
-        uid add_skylight_structure(const skylight& new_skylight, uid node_id);
-
         //! \brief Mangos internal context for shared usage in all \a scenes.
         shared_ptr<context_impl> m_shared_context;
 
