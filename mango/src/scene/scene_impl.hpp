@@ -160,35 +160,44 @@ namespace mango
         //! \brief Builds a \a node from a tinygltf model node.
         //! \param[in] m The loaded tinygltf model.
         //! \param[in] n The tinygltf model node.
-        //! \param[in] buffer_view_ids The \a uids of all loaded \a scene_buffer_views.
-        //! \param[in,out] scenario_nodes All \a uids of all \a nodes added to the \a scenario.
-        //! \param[in] parent_node_id The \a uid of the parent \a node.
-        //! \param[in] scenario_id The \a uid of the \a scenario.
-        void build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<uid>& buffer_view_ids, std::vector<uid>& scenario_nodes, uid parent_node_id, uid scenario_id);
+        //! \param[in] buffer_view_ids The \a uids of all loaded \a buffer_views.
+        //! \return The \a uid of the created \a node.
+        uid build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<uid>& buffer_view_ids);
 
-        //! \brief Builds a \a scene_camera from a tinygltf model camera.
-        //! \param[in] camera The loaded tinygltf model camera.
-        //! \param[in] node_id The \a uid of the \a node the \a scene_camera should be added to.
-        //! \return The \a uid of the created \a scene_camera.
-        uid build_model_camera(tinygltf::Camera& camera, uid node_id);
+        //! \brief Builds a \a camera from a tinygltf model camera.
+        //! \param[in] t_camera The loaded tinygltf model camera.
+        //! \param[in] node_id The \a uid of the \a node the \a camera should be added to.
+        //! \param[in] target The target vector of the \a camera to build.
+        //! \param[out] out_type The \a camera_type of the imported \a camera.
+        //! \return The \a uid of the created \a camera.
+        uid build_model_camera(tinygltf::Camera& t_camera, uid node_id, const vec3& target, camera_type& out_type);
 
-        //! \brief Builds a \a scene_mesh from a tinygltf model mesh.
+        //! \brief Builds a \a mesh from a tinygltf model mesh.
         //! \param[in] m The loaded tinygltf model.
-        //! \param[in] mesh The loaded tinygltf model mesh.
-        //! \param[in] buffer_view_ids The \a uids of all loaded \a scene_buffer_views.
-        //! \param[in] node_id The \a uid of the \a node the \a scene_mesh should be added to.
-        //! \return The \a uid of the created \a scene_mesh.
-        uid build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const std::vector<uid>& buffer_view_ids, uid node_id);
+        //! \param[in] t_mesh The loaded tinygltf model mesh.
+        //! \param[in] node_id The \a uid of the \a node the \a mesh should be added to.
+        //! \param[in] buffer_view_ids The \a uids of all loaded \a buffer_views.
+        //! \return The \a uid of the created \a mesh.
+        uid build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid node_id, const std::vector<uid>& buffer_view_ids);
 
         //! \brief Builds a \a material from a tinygltf model material.
-        //! \param[out] mat The \a material to load into.
         //! \param[in] primitive_material The loaded tinygltf model material.
         //! \param[in] m The loaded tinygltf model.
-        void load_material(material& mat, const tinygltf::Material& primitive_material, tinygltf::Model& m);
+        //! \return The \a uid of the created \a material.
+        uid load_material(const tinygltf::Material& primitive_material, tinygltf::Model& m);
+
+        //! \brief Returns the \a uid of the default material and creates it if not already done.
+        uid default_material();
 
         //! \brief Removes a \a node even though it is instantiable.
         //! \param[in] node_id The \a uid of the \a node to remove.
         void remove_instantiable_node(uid node_id);
+
+        //! \brief Traverses a \a node and its children in the scene graph and updates the transformation if necessary; also creates render instances.
+        //! \param[in] node_id The \a uid of the node.
+        //! \param[in] parent_id The \a uid of the parent.
+        //! \param[in] force_update Force the update (when the parent had to be updated).
+        void update_scene_graph(uid node_id, uid parent_id, bool force_update);
 
         //! \brief Mangos internal context for shared usage in all \a scenes.
         shared_ptr<context_impl> m_shared_context;
@@ -203,6 +212,8 @@ namespace mango
         packed_freelist<node, 32768> m_nodes;
         //! \brief The \a packed_freelist for all \a transforms in the \a scene.
         packed_freelist<transform, 32768> m_transforms;
+        //! \brief The \a packed_freelist for all world transformations of the \a nodes in the \a scene.
+        packed_freelist<mat4, 32768> m_global_transformation_matrices;
 
         //! \brief The \a packed_freelist for all \a meshes in the \a scene.
         packed_freelist<mesh, 8192> m_meshes;
@@ -244,29 +255,11 @@ namespace mango
         //! \return The list of \a uids of \a nodes that should be removed, after the hierarchy is drawn.
         std::vector<uid> draw_scene_hierarchy_internal(uid current, uid& selected);
 
-        //! \brief Helper function to execute a function for all \a nodes in a breath first manner.
-        //! \param[in] lambda The lambda function to call for each \a node.
-        void sg_bfs_for_each(std::function<bool(node& node)> lambda)
-        {
-            std::queue<uid> stack;
-            stack.push(m_root_node);
-
-            while (!stack.empty())
-            {
-                uid current = stack.front();
-
-                optional<node&> nd = get_node(current);
-                MANGO_ASSERT(nd, "Node in scene graph does not exist!");
-
-                if (!lambda(nd.value()))
-                    break;
-
-                for (auto& c : nd->children)
-                    stack.push(c);
-
-                stack.pop();
-            }
-        }
+        //! \brief Returns a name for a \a node_type and a \a node name.
+        //! \param[in] type The \a node_type of the \a node.
+        //! \param[in] name The name of the \a node.
+        //! \return The name.
+        string get_display_name(node_type type, const string name);
 
         //! \brief The current list if \a render_instances.
         std::vector<render_instance> m_render_instances;
@@ -282,6 +275,9 @@ namespace mango
 
         //! \brief The \a uid of the \a node currently selected.
         uid m_ui_selected_uid;
+
+        //! \brief The \a uid of the default material.
+        uid m_default_material;
     };
 } // namespace mango
 
