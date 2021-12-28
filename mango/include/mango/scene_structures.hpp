@@ -73,6 +73,9 @@ namespace mango
         //! \brief The \a uid of the GPU data of the \a perspective_camera.
         uid gpu_data;
 
+        //! \brief The \a uid of the \a node of the \a perspective_camera.
+        uid node_id;
+
         perspective_camera()
             : aspect(0.0f)
             , vertical_field_of_view(0.0f)
@@ -116,6 +119,9 @@ namespace mango
 
         //! \brief The \a uid of the GPU data of the \a orthographic_camera.
         uid gpu_data;
+
+        //! \brief The \a uid of the \a node of the \a orthographic_camera.
+        uid node_id;
 
         orthographic_camera()
             : x_mag(0.0f)
@@ -287,8 +293,8 @@ namespace mango
         //! \brief The emissive intensity of the \a material in lumen.
         float emissive_intensity;
 
-        //! \brief True if the \a material should be rendered double uided, else false.
-        bool double_uided;
+        //! \brief True if the \a material should be rendered double sided, else false.
+        bool double_sided;
         //! \brief The \a material_alpha_mode of the \a material.
         material_alpha_mode alpha_mode;
         //! \brief The alpha cutoff of the \a material. Value between 0.0 and 1.0.
@@ -303,7 +309,7 @@ namespace mango
             , roughness(1.0f)
             , packed_occlusion(false)
             , emissive_intensity(default_emissive_intensity)
-            , double_uided(false)
+            , double_sided(false)
             , alpha_mode(material_alpha_mode::mode_opaque)
             , alpha_cutoff(1.0f)
 
@@ -363,6 +369,9 @@ namespace mango
         //! \brief The \a uid of the GPU data of the \a mesh.
         uid gpu_data;
 
+        //! \brief The \a uid of the \a node of the \a mesh.
+        uid node_id;
+
         mesh() = default;
         //! \brief \a Mesh is a scene structure.
         DECLARE_SCENE_STRUCTURE(mesh);
@@ -420,6 +429,9 @@ namespace mango
         //! \brief The \a uid of the nodes \a lights if node is one.
         //! \details Ordered by light_type: 0 = directional, 1 = skylight, 2 = atmospheric_light.
         uid light_ids[3]; // Accessed via type.
+
+        //! \brief The \a uid of the nodes cached global transformation matrix.
+        uid global_matrix_id;
 
         node() = default;
 

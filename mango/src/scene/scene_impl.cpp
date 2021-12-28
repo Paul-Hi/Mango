@@ -32,6 +32,7 @@ scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& conte
     , m_light_gpu_data()
     , m_nodes()
     , m_transforms()
+    , m_global_transformation_matrices()
     , m_meshes()
     , m_mesh_gpu_data()
     , m_primitives()
@@ -52,9 +53,10 @@ scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& conte
     MANGO_UNUSED(name);
 
     node root("Root");
-    root.transform_id = m_transforms.emplace();
-    root.type         = node_type::hierarchy;
-    m_root_node       = m_nodes.emplace(root);
+    root.transform_id     = m_transforms.emplace();
+    root.type             = node_type::hierarchy;
+    root.global_matrix_id = m_global_transformation_matrices.emplace(1.0f);
+    m_root_node           = m_nodes.emplace(root);
 }
 
 scene_impl::~scene_impl() {}
@@ -64,10 +66,10 @@ uid scene_impl::add_node(const string& name, uid parent_node)
     PROFILE_ZONE;
 
     node new_node(name);
-    new_node.transform_id = m_transforms.emplace();
-    new_node.type         = node_type::hierarchy;
-
-    uid node_id = m_nodes.emplace(new_node);
+    new_node.transform_id     = m_transforms.emplace();
+    new_node.type             = node_type::hierarchy;
+    new_node.global_matrix_id = m_global_transformation_matrices.emplace(1.0f);
+    uid node_id               = m_nodes.emplace(new_node);
 
     if (!parent_node.is_valid())
     {
@@ -102,7 +104,8 @@ uid scene_impl::add_perspective_camera(perspective_camera& new_perspective_camer
     if (!check_creation(data.camera_data_buffer.get(), "camera data buffer"))
         return invalid_uid;
 
-    const vec3& camera_position = m_transforms.at(nd.transform_id).position;
+    const vec3& camera_position    = m_transforms.at(nd.transform_id).position;
+    new_perspective_camera.node_id = node_id;
 
     mat4 view, projection;
     view_projection_perspective_camera(new_perspective_camera, camera_position, view, projection);
@@ -171,7 +174,8 @@ uid scene_impl::add_orthographic_camera(orthographic_camera& new_orthographic_ca
     if (!check_creation(data.camera_data_buffer.get(), "camera data buffer"))
         return invalid_uid;
 
-    const vec3& camera_position = m_transforms.at(nd.transform_id).position;
+    const vec3& camera_position     = m_transforms.at(nd.transform_id).position;
+    new_orthographic_camera.node_id = node_id;
 
     mat4 view, projection;
     view_projection_orthographic_camera(new_orthographic_camera, camera_position, view, projection);
@@ -462,26 +466,20 @@ void scene_impl::remove_node(uid node_id)
 
     const node& to_remove = m_nodes.at(node_id);
 
-    switch (to_remove.type)
-    {
-    case node_type::instantiable:
+    if ((to_remove.type & node_type::instantiable) != node_type::hierarchy)
         return;
-    case node_type::hierarchy:
-    case node_type::mesh:
+    if ((to_remove.type & node_type::mesh) != node_type::hierarchy)
         remove_mesh(to_remove.mesh_id);
-    case node_type::perspective_camera:
+    if ((to_remove.type & node_type::perspective_camera) != node_type::hierarchy)
         remove_perspective_camera(to_remove.camera_ids[static_cast<uint8>(camera_type::perspective)]);
-    case node_type::orthographic_camera:
+    if ((to_remove.type & node_type::orthographic_camera) != node_type::hierarchy)
         remove_orthographic_camera(to_remove.camera_ids[static_cast<uint8>(camera_type::orthographic)]);
-    case node_type::directional_light:
+    if ((to_remove.type & node_type::directional_light) != node_type::hierarchy)
         remove_directional_light(to_remove.light_ids[static_cast<uint8>(light_type::directional)]);
-    case node_type::skylight:
+    if ((to_remove.type & node_type::skylight) != node_type::hierarchy)
         remove_skylight(to_remove.light_ids[static_cast<uint8>(light_type::skylight)]);
-    case node_type::atmospheric_light:
+    if ((to_remove.type & node_type::atmospheric_light) != node_type::hierarchy)
         remove_atmospheric_light(to_remove.light_ids[static_cast<uint8>(light_type::atmospheric)]);
-    default:
-        break;
-    }
 
     for (uid c : to_remove.children)
     {
@@ -1068,7 +1066,7 @@ void scene_impl::detach(uid child_node, uid parent_node)
     }
 
     const node& child = m_nodes.at(child_node);
-    node& parent = m_nodes.at(parent_node);
+    node& parent      = m_nodes.at(parent_node);
 
     if ((child.type & node_type::instantiable) != node_type::hierarchy)
     {
@@ -1211,7 +1209,7 @@ optional<camera_gpu_data&> scene_impl::get_active_camera_gpu_data()
 
     uid active_camera_uid = get_active_camera_uid();
 
-    if(!active_camera_uid.is_valid())
+    if (!active_camera_uid.is_valid())
     {
         MANGO_LOG_WARN("Active camera id is not valid! Can not retrieve active camera gpu data!");
         return NULL_OPTION;
@@ -1345,283 +1343,252 @@ std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& def
         MANGO_LOG_DEBUG("The gltf model has {0} scenarios. At the moment only the default one is loaded!", m.scenes.size());
     }
 
-    // load buffers
-    std::vector<uid> buffer_ids(m.buffers.size());
-    for (int32 i = 0; i < static_cast<int32>(m.buffers.size()); ++i)
-    {
-        const tinygltf::Buffer& t_buffer = m.buffers[i];
-
-        uid buffer_object_id = uid::create(m_scene_buffers.emplace(), scene_structure_type::scene_structure_internal_buffer);
-        scene_buffer& buf    = m_scene_buffers.back();
-        buf.instance_id      = buffer_object_id;
-        buf.name             = t_buffer.name;
-        buf.data             = t_buffer.data;
-
-        buffer_ids[i] = buffer_object_id;
-    }
-    // load buffer views
+    // load buffer views and data
     std::vector<uid> buffer_view_ids(m.bufferViews.size());
     for (int32 i = 0; i < static_cast<int32>(m.bufferViews.size()); ++i)
     {
-        const tinygltf::BufferView& buffer_view = m.bufferViews[i];
-        if (buffer_view.target == 0)
+        const tinygltf::BufferView& bv = m.bufferViews[i];
+        if (bv.target == 0)
         {
             MANGO_LOG_DEBUG("Buffer view target is zero!"); // We can continue here.
         }
 
-        const tinygltf::Buffer& t_buffer = m.buffers[buffer_view.buffer];
-
-        uid buffer_view_object_id = uid::create(m_scene_buffer_views.emplace(), scene_structure_type::scene_structure_internal_buffer_view);
-        scene_buffer_view& view   = m_scene_buffer_views.back();
-        view.instance_id          = buffer_view_object_id;
-        view.offset               = 0; // buffer_view.byteOffset; -> Is done on upload.
-        view.size                 = static_cast<int32>(buffer_view.byteLength);
-        view.stride               = static_cast<int32>(buffer_view.byteStride);
-        view.buffer               = buffer_ids[buffer_view.buffer];
+        buffer_view view;
+        view.offset = 0; // bv.byteOffset; -> Is done on upload.
+        view.size   = static_cast<int32>(bv.byteLength);
+        view.stride = static_cast<int32>(bv.byteStride);
 
         buffer_create_info buffer_info;
         buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
-        buffer_info.buffer_target = (buffer_view.target == 0 || buffer_view.target == GL_ARRAY_BUFFER) ? gfx_buffer_target::buffer_target_vertex : gfx_buffer_target::buffer_target_index;
-        buffer_info.size          = buffer_view.byteLength;
+        buffer_info.buffer_target = (bv.target == 0 || bv.target == GL_ARRAY_BUFFER) ? gfx_buffer_target::buffer_target_vertex : gfx_buffer_target::buffer_target_index;
+        buffer_info.size          = bv.byteLength;
 
         view.graphics_buffer = graphics_device->create_buffer(buffer_info);
 
         // upload data
-        auto device_context = graphics_device->create_graphics_device_context();
+        const tinygltf::Buffer& buffer = m.buffers[bv.buffer];
+        auto device_context            = graphics_device->create_graphics_device_context();
         device_context->begin();
-        const unsigned char* buffer_start = t_buffer.data.data() + buffer_view.byteOffset;
+        const unsigned char* buffer_start = buffer.data.data() + bv.byteOffset;
         const void* buffer_data           = static_cast<const void*>(buffer_start);
         device_context->set_buffer_data(view.graphics_buffer, 0, view.size, const_cast<void*>(buffer_data));
         device_context->end();
         device_context->submit();
-        // TODO Paul: Are interleaved buffers loaded multiple times?
+        // TODO Paul: Are interleaved buffers loaded multiple times? Could we just preprocess them?
 
-        buffer_view_ids[i] = buffer_view_object_id;
+        buffer_view_ids[i] = m_buffer_views.emplace(view);
     }
 
-    int32 scene_id                 = m.defaultScene > -1 ? m.defaultScene : 0;
-    const tinygltf::Scene& t_scene = m.scenes[scene_id];
+    default_scenario = m.defaultScene > -1 ? m.defaultScene : 0;
 
-    scenario scen;
-    default_scenario = scene_id;
+    std::vector<uid> all_scenarios;
 
-    uid scenario_id  = uid::create(m_scene_scenarios.emplace(), scene_structure_type::scene_structure_scenario);
-    scen.instance_id = scenario_id;
+    buffer_create_info buffer_info;
+    buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
+    buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
+    buffer_info.size          = sizeof(light_data);
 
-    scene_scenario& sc = m_scene_scenarios.back();
-    sc.public_data     = scen;
-
-    /*
-     * We store all nodes in the scenario as well. Since we iterate top down here, we can later add it top down,
-     * to the scene graph without breaking anything regarding the transformations.
-     */
-    for (int32 i = 0; i < static_cast<int32>(t_scene.nodes.size()); ++i)
+    for (const tinygltf::Scene& t_scene : m.scenes)
     {
-        build_model_node(m, m.nodes.at(t_scene.nodes.at(i)), buffer_view_ids, sc.nodes, invalid_uid, scenario_id);
+        scenario scen;
+        light_gpu_data data;
+        data.light_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
+        if (!check_creation(data.light_data_buffer.get(), "light data buffer"))
+            return std::vector<uid>();
+
+        // data.scenario_light_data is filled by the light_stack
+        scen.lights_gpu_data = m_light_gpu_data.emplace(data);
+
+        for (int32 i = 0; i < static_cast<int32>(t_scene.nodes.size()); ++i)
+        {
+            scen.root_nodes.push_back(build_model_node(m, m.nodes.at(t_scene.nodes.at(i)), buffer_view_ids));
+        }
+
+        uid scenario_id = m_scenarios.emplace(scen);
+        all_scenarios.push_back(scenario_id);
     }
 
-    std::vector<uid> result;
-    result.push_back(scenario_id);
-
-    return result;
+    return all_scenarios;
 }
 
-void scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<uid>& buffer_view_ids, std::vector<uid>& scenario_nodes, uid parent_node_id, uid scenario_id)
+uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<uid>& buffer_view_ids)
 {
     PROFILE_ZONE;
 
-    uid node_id                        = uid::create(m_scene_nodes.emplace(), scene_structure_type::scene_structure_node);
-    scene_node& nd                     = m_scene_nodes.back();
-    nd.public_data                     = node(n.name);
-    nd.public_data.instance_id         = node_id;
-    nd.public_data.containing_scenario = scenario_id;
-    nd.public_data.parent_node         = parent_node_id;
+    node model_node(n.name);
+    model_node.transform_id     = m_transforms.emplace();
+    model_node.type             = node_type::hierarchy;
+    model_node.global_matrix_id = m_global_transformation_matrices.emplace(1.0f);
+    uid node_id                 = m_nodes.emplace(model_node);
 
-    // add to scenario
-    scenario_nodes.push_back(node_id);
-
-    uid transform_id    = uid::create(m_scene_transforms.emplace(), scene_structure_type::scene_structure_transform);
-    scene_transform& tr = m_scene_transforms.back();
-
-    nd.node_transform = transform_id;
+    transform& tr = m_transforms.at(model_node.transform_id);
 
     if (n.matrix.size() == 16)
     {
         mat4 input = glm::make_mat4(n.matrix.data());
         vec3 s;
         vec4 p;
-        glm::decompose(input, tr.public_data.scale, tr.public_data.rotation, tr.public_data.position, s, p);
+        glm::decompose(input, tr.scale, tr.rotation, tr.position, s, p);
     }
     else
     {
         if (n.translation.size() == 3)
         {
-            tr.public_data.position = vec3(n.translation[0], n.translation[1], n.translation[2]);
+            tr.position = vec3(n.translation[0], n.translation[1], n.translation[2]);
         }
         else
         {
-            tr.public_data.position = vec3(0.0f);
+            tr.position = vec3(0.0f);
         }
         if (n.rotation.size() == 4)
         {
-            tr.public_data.rotation = quat(static_cast<float>(n.rotation[3]), static_cast<float>(n.rotation[0]), static_cast<float>(n.rotation[1]), static_cast<float>(n.rotation[2]));
+            tr.rotation = quat(static_cast<float>(n.rotation[3]), static_cast<float>(n.rotation[0]), static_cast<float>(n.rotation[1]), static_cast<float>(n.rotation[2]));
         }
         else
         {
-            tr.public_data.rotation = quat(1.0f, 0.0f, 0.0f, 0.0f);
+            tr.rotation = quat(1.0f, 0.0f, 0.0f, 0.0f);
         }
         if (n.scale.size() == 3)
         {
-            tr.public_data.scale = vec3(n.scale[0], n.scale[1], n.scale[2]);
+            tr.scale = vec3(n.scale[0], n.scale[1], n.scale[2]);
         }
         else
         {
-            tr.public_data.scale = vec3(1.0f);
+            tr.scale = vec3(1.0f);
         }
     }
 
-    tr.rotation_hint = glm::degrees(glm::eulerAngles(tr.public_data.rotation));
-
-    tr.public_data.update();
+    tr.rotation_hint = glm::degrees(glm::eulerAngles(tr.rotation));
 
     if (n.mesh > -1)
     {
         MANGO_ASSERT(n.mesh < static_cast<int32>(m.meshes.size()), "Invalid gltf mesh!");
         MANGO_LOG_DEBUG("Node contains a mesh!");
-        nd.mesh_id = build_model_mesh(m, m.meshes.at(n.mesh), buffer_view_ids, node_id);
-        nd.type |= node_type::mesh;
+        model_node.mesh_id = build_model_mesh(m, m.meshes.at(n.mesh), node_id, buffer_view_ids);
+        model_node.type |= node_type::mesh;
     }
 
     if (n.camera > -1)
     {
         MANGO_ASSERT(n.camera < static_cast<int32>(m.cameras.size()), "Invalid gltf camera!");
         MANGO_LOG_DEBUG("Node contains a camera!");
-        nd.camera_id = build_model_camera(m.cameras.at(n.camera), node_id);
-        nd.type |= node_type::camera;
-    }
 
-    nd.children = static_cast<int32>(n.children.size());
-    if (nd.children)
-        nd.type |= node_type::is_parent;
+        camera_type out_type;
+        vec3 target   = tr.rotation * GLOBAL_FORWARD; // TODO Paul: Check that!
+        uid camera_id = build_model_camera(m.cameras.at(n.camera), node_id, target, out_type);
+
+        model_node.camera_ids[static_cast<uint8>(out_type)] = camera_id;
+        model_node.type |= ((out_type == camera_type::perspective) ? node_type::perspective_camera : node_type::orthographic_camera);
+    }
 
     // build child nodes
     for (int32 i = 0; i < static_cast<int32>(n.children.size()); ++i)
     {
         MANGO_ASSERT(n.children[i] < static_cast<int32>(m.nodes.size()), "Invalid gltf node!");
 
-        build_model_node(m, m.nodes.at(n.children.at(i)), buffer_view_ids, scenario_nodes, node_id, scenario_id);
+        uid child_id = build_model_node(m, m.nodes.at(n.children.at(i)), buffer_view_ids);
+        model_node.children.push_back(child_id);
     }
+
+    return node_id;
 }
 
-uid scene_impl::build_model_camera(tinygltf::Camera& camera, uid node_id)
+uid scene_impl::build_model_camera(tinygltf::Camera& t_camera, uid node_id, const vec3& target, camera_type& out_type)
 {
     PROFILE_ZONE;
-    uid camera_id;
 
-    if (camera.type == "perspective")
+    if (t_camera.type == "perspective")
     {
-        camera_id         = uid::create(m_scene_cameras.emplace(), scene_structure_type::scene_structure_perspective_camera);
-        scene_camera& cam = m_scene_cameras.back();
-        cam.type          = camera_type::perspective;
-        perspective_camera cam_data;
-        cam_data.z_near                 = static_cast<float>(camera.perspective.znear);
-        cam_data.z_far                  = camera.perspective.zfar > 0.0 ? static_cast<float>(camera.perspective.zfar) : 10000.0f; // Infinite?
-        cam_data.vertical_field_of_view = static_cast<float>(camera.perspective.yfov);
-        cam_data.aspect                 = camera.perspective.aspectRatio > 0.0 ? static_cast<float>(camera.perspective.aspectRatio) : 16.0f / 9.0f;
+        out_type = camera_type::perspective;
+        perspective_camera cam;
+        cam.z_near                 = static_cast<float>(t_camera.perspective.znear);
+        cam.z_far                  = t_camera.perspective.zfar > 0.0 ? static_cast<float>(t_camera.perspective.zfar) : 10000.0f; // Infinite?
+        cam.vertical_field_of_view = static_cast<float>(t_camera.perspective.yfov);
+        cam.aspect                 = t_camera.perspective.aspectRatio > 0.0 ? static_cast<float>(t_camera.perspective.aspectRatio) : 16.0f / 9.0f;
 
-        cam_data.physical.aperture      = default_camera_aperture;
-        cam_data.physical.shutter_speed = default_camera_shutter_speed;
-        cam_data.physical.iso           = default_camera_iso;
+        cam.physical.aperture      = default_camera_aperture;
+        cam.physical.shutter_speed = default_camera_shutter_speed;
+        cam.physical.iso           = default_camera_iso;
 
-        cam.public_data_as_perspective                  = cam_data;
-        cam.public_data_as_perspective->instance_id     = camera_id;
-        cam.public_data_as_perspective->containing_node = node_id;
+        cam.target = target;
+
+        return add_perspective_camera(cam, node_id);
     }
-    else // orthographic
+    if (t_camera.type == "orthographic")
     {
-        camera_id         = uid::create(m_scene_cameras.emplace(), scene_structure_type::scene_structure_orthographic_camera);
-        scene_camera& cam = m_scene_cameras.back();
-        cam.type          = camera_type::orthographic;
-        orthographic_camera cam_data;
+        out_type = camera_type::orthographic;
+        orthographic_camera cam;
+        cam.z_near = static_cast<float>(t_camera.orthographic.znear);
+        cam.z_far  = t_camera.perspective.zfar > 0.0 ? static_cast<float>(t_camera.perspective.zfar) : 10000.0f; // Infinite?
+        cam.x_mag  = static_cast<float>(t_camera.orthographic.xmag);
+        cam.y_mag  = static_cast<float>(t_camera.orthographic.ymag);
 
-        cam_data.z_near = static_cast<float>(camera.orthographic.znear);
-        cam_data.z_far  = camera.perspective.zfar > 0.0 ? static_cast<float>(camera.perspective.zfar) : 10000.0f; // Infinite?
-        cam_data.x_mag  = static_cast<float>(camera.orthographic.xmag);
-        cam_data.y_mag  = static_cast<float>(camera.orthographic.ymag);
+        cam.physical.aperture      = default_camera_aperture;
+        cam.physical.shutter_speed = default_camera_shutter_speed;
+        cam.physical.iso           = default_camera_iso;
 
-        cam_data.physical.aperture      = default_camera_aperture;
-        cam_data.physical.shutter_speed = default_camera_shutter_speed;
-        cam_data.physical.iso           = default_camera_iso;
+        cam.target = target;
 
-        cam.public_data_as_orthographic                  = cam_data;
-        cam.public_data_as_orthographic->instance_id     = camera_id;
-        cam.public_data_as_orthographic->containing_node = node_id;
+        return add_orthographic_camera(cam, node_id);
     }
 
-    return camera_id;
+    return invalid_uid;
 }
 
-uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const std::vector<uid>& buffer_view_ids, uid node_id)
+uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid node_id, const std::vector<uid>& buffer_view_ids)
 {
     PROFILE_ZONE;
-    uid mesh_id                     = uid::create(m_scene_meshes.emplace(), scene_structure_type::scene_structure_mesh);
-    scene_mesh& msh                 = m_scene_meshes.back();
-    msh.public_data.instance_id     = mesh_id;
-    msh.public_data.containing_node = node_id;
-    msh.public_data.name            = mesh.name.empty() ? "Unnamed" : mesh.name;
+    mesh mesh;
+    mesh.name    = t_mesh.name;
+    mesh.node_id = node_id;
+    mesh_gpu_data data;
+    data.per_mesh_data.has_normals  = true;
+    data.per_mesh_data.has_tangents = true;
 
-    for (int32 i = 0; i < static_cast<int32>(mesh.primitives.size()); ++i)
+    for (int32 i = 0; i < static_cast<int32>(t_mesh.primitives.size()); ++i)
     {
-        const tinygltf::Primitive& primitive = mesh.primitives[i];
+        const tinygltf::Primitive& t_primitive = t_mesh.primitives[i];
 
-        uid primitive_id           = uid::create(m_scene_primitives.emplace(), scene_structure_type::scene_structure_primitive);
-        scene_primitive& sp        = m_scene_primitives.back();
-        sp.public_data.instance_id = primitive_id;
-        sp.public_data.type        = primitive_type::custom;
+        primitive prim;
+        primitive_gpu_data prim_gpu_data;
 
-        sp.draw_call_desc.vertex_count   = 0;
-        sp.draw_call_desc.instance_count = 1;
-        sp.draw_call_desc.base_instance  = 0;
-        sp.draw_call_desc.base_vertex    = 0;
-        sp.draw_call_desc.index_offset   = 0;
+        prim_gpu_data.draw_call_desc.vertex_count   = 0;
+        prim_gpu_data.draw_call_desc.instance_count = 1;
+        prim_gpu_data.draw_call_desc.base_instance  = 0;
+        prim_gpu_data.draw_call_desc.base_vertex    = 0;
+        prim_gpu_data.draw_call_desc.index_offset   = 0;
 
-        sp.input_assembly.topology = static_cast<gfx_primitive_topology>(primitive.mode + 1); // cast should be okay
+        prim_gpu_data.input_assembly.topology = static_cast<gfx_primitive_topology>(t_primitive.mode + 1); // cast should be okay
 
-        if (primitive.indices >= 0)
+        if (t_primitive.indices >= 0)
         {
-            const tinygltf::Accessor& index_accessor = m.accessors[primitive.indices];
+            const tinygltf::Accessor& index_accessor = m.accessors[t_primitive.indices];
 
-            packed_freelist_id view_id     = buffer_view_ids[index_accessor.bufferView].id(); // TODO Paul: Do we need to check the index?
-            sp.index_buffer_view           = m_scene_buffer_views.at(view_id);
-            sp.index_type                  = static_cast<gfx_format>(index_accessor.componentType); // cast should be okay
-            sp.draw_call_desc.index_count  = static_cast<int32>(index_accessor.count);
-            sp.draw_call_desc.index_offset = static_cast<int32>(index_accessor.byteOffset);
+            uid view_id                               = buffer_view_ids[index_accessor.bufferView];
+            prim_gpu_data.index_buffer_view           = m_buffer_views.at(view_id);
+            prim_gpu_data.index_type                  = static_cast<gfx_format>(index_accessor.componentType); // cast should be okay
+            prim_gpu_data.draw_call_desc.index_count  = static_cast<int32>(index_accessor.count);
+            prim_gpu_data.draw_call_desc.index_offset = static_cast<int32>(index_accessor.byteOffset);
         }
         else
         {
-            sp.draw_call_desc.index_count = 0; // Has to be set!!!
-            sp.index_type                 = gfx_format::invalid;
+            prim_gpu_data.draw_call_desc.index_count = 0; // Has to be set!!!
+            prim_gpu_data.index_type                 = gfx_format::invalid;
             // vertex_count has to be set later.
         }
 
-        uid material_id     = uid::create(m_scene_materials.emplace(), scene_structure_type::scene_structure_material);
-        scene_material& mat = m_scene_materials.back();
+        uid material_id;
+        if (t_primitive.material >= 0)
+            material_id = load_material(m.materials[t_primitive.material], m);
+        else
+            material_id = default_material();
 
-        // Some defaults
-        mat.public_data.instance_id = material_id;
-        mat.public_data.base_color  = vec4(vec3(0.9f), 1.0f);
-        mat.public_data.metallic    = 0.0f;
-        mat.public_data.roughness   = 1.0f;
-
-        if (primitive.material >= 0)
-            load_material(mat.public_data, m.materials[primitive.material], m);
-
-        sp.public_data.material = material_id;
+        prim.material = material_id;
 
         int32 vertex_buffer_binding = 0;
         int32 description_index     = 0;
 
-        for (auto& attrib : primitive.attributes)
+        for (auto& attrib : t_primitive.attributes)
         {
             vertex_input_binding_description binding_desc;
             vertex_input_attribute_description attrib_desc;
@@ -1638,23 +1605,23 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const
                 attrib_location = 0;
             else if (attrib.first.compare("NORMAL") == 0)
             {
-                attrib_location            = 1;
-                sp.public_data.has_normals = true;
+                attrib_location  = 1;
+                prim.has_normals = true;
             }
             else if (attrib.first.compare("TEXCOORD_0") == 0)
                 attrib_location = 2;
             else if (attrib.first.compare("TANGENT") == 0)
             {
-                attrib_location             = 3;
-                sp.public_data.has_tangents = true;
+                attrib_location   = 3;
+                prim.has_tangents = true;
             }
 
             if (attrib_location > -1)
             {
-                packed_freelist_id view_id = buffer_view_ids[accessor.bufferView].id(); // TODO Paul: Do we need to check the index?
-                auto buffer_v              = m_scene_buffer_views.at(view_id);
+                uid view_id   = buffer_view_ids[accessor.bufferView];
+                auto buffer_v = m_buffer_views.at(view_id);
                 buffer_v.offset += static_cast<int32>(accessor.byteOffset);
-                sp.vertex_buffer_views.emplace_back(buffer_v);
+                prim_gpu_data.vertex_buffer_views.emplace_back(buffer_v);
 
                 binding_desc.binding    = vertex_buffer_binding;
                 binding_desc.stride     = accessor.ByteStride(m.bufferViews[accessor.bufferView]);
@@ -1667,20 +1634,20 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const
                     graphics::get_attribute_format_for_component_info(static_cast<gfx_format>(accessor.componentType), get_attrib_component_count_from_tinygltf_types(accessor.type));
                 attrib_desc.location = attrib_location;
 
-                if (attrib_location == 0 && sp.index_type == gfx_format::invalid)
+                if (attrib_location == 0 && prim_gpu_data.index_type == gfx_format::invalid)
                 {
-                    sp.draw_call_desc.vertex_count = static_cast<int32>(accessor.count);
+                    prim_gpu_data.draw_call_desc.vertex_count = static_cast<int32>(accessor.count);
                 }
 
                 vertex_buffer_binding++;
-                sp.vertex_layout.binding_descriptions[description_index]   = binding_desc;
-                sp.vertex_layout.attribute_descriptions[description_index] = attrib_desc;
+                prim_gpu_data.vertex_layout.binding_descriptions[description_index]   = binding_desc;
+                prim_gpu_data.vertex_layout.attribute_descriptions[description_index] = attrib_desc;
                 description_index++;
 
                 // AABB
                 if (attrib_location == 0)
                 {
-                    sp.bounding_box = axis_aligned_bounding_box::from_min_max(vec3(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]),
+                    prim_gpu_data.bounding_box = axis_aligned_bounding_box::from_min_max(vec3(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]),
                                                                               vec3(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]));
                 }
             }
@@ -1690,15 +1657,35 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& mesh, const
                 continue;
             }
         }
-        sp.vertex_layout.binding_description_count   = description_index;
-        sp.vertex_layout.attribute_description_count = description_index;
-        msh.scene_primitives.push_back(sp);
+        prim_gpu_data.vertex_layout.binding_description_count   = description_index;
+        prim_gpu_data.vertex_layout.attribute_description_count = description_index;
+
+        uid prim_gpu_data_id = m_primitive_gpu_data.emplace(prim_gpu_data);
+        prim.gpu_data        = prim_gpu_data_id;
+        uid prim_id          = m_primitives.emplace(prim);
+        mesh.primitives.push_back(prim_id);
+
+        data.per_mesh_data.has_normals &= prim.has_normals;
+        data.per_mesh_data.has_tangents &= prim.has_tangents;
     }
 
-    return mesh_id;
+    buffer_create_info buffer_info;
+    buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
+    buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
+    buffer_info.size          = sizeof(model_data);
+    data.model_data_buffer    = m_scene_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(data.model_data_buffer.get(), "model data buffer"))
+        return invalid_uid;
+
+    // data.per_mesh_data.model_matrix is updated in update()
+    // data.per_mesh_data.normal_matrix is updated in update()
+
+    mesh.gpu_data = m_mesh_gpu_data.emplace(data);
+
+    return m_meshes.emplace(mesh);
 }
 
-void scene_impl::load_material(material& mat, const tinygltf::Material& primitive_material, tinygltf::Model& m)
+uid scene_impl::load_material(const tinygltf::Material& primitive_material, tinygltf::Model& m)
 {
     PROFILE_ZONE;
 
@@ -1707,8 +1694,9 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
         MANGO_LOG_DEBUG("Loading material: {0}", primitive_material.name.c_str());
     }
 
-    mat.name         = primitive_material.name.empty() ? "Unnamed" : primitive_material.name;
-    mat.double_uided = primitive_material.doubleuided;
+    material new_material;
+    new_material.name         = primitive_material.name.empty() ? "Unnamed" : primitive_material.name;
+    new_material.double_sided = primitive_material.doubleSided;
 
     auto& pbr = primitive_material.pbrMetallicRoughness;
 
@@ -1735,8 +1723,8 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
 
     if (pbr.baseColorTexture.index < 0)
     {
-        auto col       = pbr.baseColorFactor;
-        mat.base_color = color_rgba((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
+        auto col                = pbr.baseColorFactor;
+        new_material.base_color = color_rgba((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
     }
     else
     {
@@ -1773,8 +1761,10 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
 
         bool standard_color_space = true;
 
-        uid texture_id  = uid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
-        tex.instance_id = texture_id;
+        texture tex;
+        tex.file_path            = image.uri;
+        tex.standard_color_space = standard_color_space;
+        tex.high_dynamic_range   = high_dynamic_range;
 
         image_resource img;
         img.data                                = const_cast<void*>(static_cast<const void*>(image.image.data()));
@@ -1784,23 +1774,23 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
         img.number_components                   = image.component;
         img.description.is_standard_color_space = standard_color_space;
         img.description.is_hdr                  = high_dynamic_range;
-        img.description.path                    = "from_gltf";
+        img.description.path                    = image.uri.c_str();
 
         auto texture_sampler_pair = create_gfx_texture_and_sampler(img, standard_color_space, high_dynamic_range, sampler_info);
 
-        scene_texture& st   = m_scene_textures.back();
-        st.graphics_texture = texture_sampler_pair.first;
-        st.graphics_sampler = texture_sampler_pair.second;
-        st.public_data      = tex;
+        texture_gpu_data data;
+        data.graphics_texture = texture_sampler_pair.first;
+        data.graphics_sampler = texture_sampler_pair.second;
+        tex.gpu_data          = m_texture_gpu_data.emplace(data);
 
-        mat.base_color_texture = texture_id;
+        new_material.base_color_texture = m_textures.emplace(tex);
     }
 
     // metallic / roughness
     if (pbr.metallicRoughnessTexture.index < 0)
     {
-        mat.metallic  = static_cast<float>(pbr.metallicFactor);
-        mat.roughness = static_cast<float>(pbr.roughnessFactor);
+        new_material.metallic  = static_cast<float>(pbr.metallicFactor);
+        new_material.roughness = static_cast<float>(pbr.roughnessFactor);
     }
     else
     {
@@ -1836,8 +1826,10 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
 
         bool standard_color_space = false;
 
-        uid texture_id  = uid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
-        tex.instance_id = texture_id;
+        texture tex;
+        tex.file_path            = image.uri;
+        tex.standard_color_space = standard_color_space;
+        tex.high_dynamic_range   = high_dynamic_range;
 
         image_resource img;
         img.data                                = const_cast<void*>(static_cast<const void*>(image.image.data()));
@@ -1847,16 +1839,16 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
         img.number_components                   = image.component;
         img.description.is_standard_color_space = standard_color_space;
         img.description.is_hdr                  = high_dynamic_range;
-        img.description.path                    = "from_gltf";
+        img.description.path                    = image.uri.c_str();
 
         auto texture_sampler_pair = create_gfx_texture_and_sampler(img, standard_color_space, high_dynamic_range, sampler_info);
 
-        scene_texture& st   = m_scene_textures.back();
-        st.graphics_texture = texture_sampler_pair.first;
-        st.graphics_sampler = texture_sampler_pair.second;
-        st.public_data      = tex;
+        texture_gpu_data data;
+        data.graphics_texture = texture_sampler_pair.first;
+        data.graphics_sampler = texture_sampler_pair.second;
+        tex.gpu_data          = m_texture_gpu_data.emplace(data);
 
-        mat.metallic_roughness_texture = texture_id;
+        new_material.metallic_roughness_texture = m_textures.emplace(tex);
     }
 
     // occlusion
@@ -1865,11 +1857,11 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
         if (pbr.metallicRoughnessTexture.index == primitive_material.occlusionTexture.index)
         {
             // occlusion packed into r channel of the roughness and metallic texture.
-            mat.packed_occlusion = true;
+            new_material.packed_occlusion = true;
         }
         else
         {
-            mat.packed_occlusion = false;
+            new_material.packed_occlusion = false;
 
             const tinygltf::Texture& occ = m.textures.at(primitive_material.occlusionTexture.index);
             if (occ.source < 0)
@@ -1902,8 +1894,10 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
 
             bool standard_color_space = false;
 
-            uid texture_id  = uid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
-            tex.instance_id = texture_id;
+            texture tex;
+            tex.file_path            = image.uri;
+            tex.standard_color_space = standard_color_space;
+            tex.high_dynamic_range   = high_dynamic_range;
 
             image_resource img;
             img.data                                = const_cast<void*>(static_cast<const void*>(image.image.data()));
@@ -1913,16 +1907,16 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
             img.number_components                   = image.component;
             img.description.is_standard_color_space = standard_color_space;
             img.description.is_hdr                  = high_dynamic_range;
-            img.description.path                    = "from_gltf";
+            img.description.path                    = image.uri.c_str();
 
             auto texture_sampler_pair = create_gfx_texture_and_sampler(img, standard_color_space, high_dynamic_range, sampler_info);
 
-            scene_texture& st   = m_scene_textures.back();
-            st.graphics_texture = texture_sampler_pair.first;
-            st.graphics_sampler = texture_sampler_pair.second;
-            st.public_data      = tex;
+            texture_gpu_data data;
+            data.graphics_texture = texture_sampler_pair.first;
+            data.graphics_sampler = texture_sampler_pair.second;
+            tex.gpu_data          = m_texture_gpu_data.emplace(data);
 
-            mat.occlusion_texture = texture_id;
+            new_material.occlusion_texture = m_textures.emplace(tex);
         }
     }
 
@@ -1961,8 +1955,10 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
 
         bool standard_color_space = false;
 
-        uid texture_id  = uid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
-        tex.instance_id = texture_id;
+        texture tex;
+        tex.file_path            = image.uri;
+        tex.standard_color_space = standard_color_space;
+        tex.high_dynamic_range   = high_dynamic_range;
 
         image_resource img;
         img.data                                = const_cast<void*>(static_cast<const void*>(image.image.data()));
@@ -1972,23 +1968,23 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
         img.number_components                   = image.component;
         img.description.is_standard_color_space = standard_color_space;
         img.description.is_hdr                  = high_dynamic_range;
-        img.description.path                    = "from_gltf";
+        img.description.path                    = image.uri.c_str();
 
         auto texture_sampler_pair = create_gfx_texture_and_sampler(img, standard_color_space, high_dynamic_range, sampler_info);
 
-        scene_texture& st   = m_scene_textures.back();
-        st.graphics_texture = texture_sampler_pair.first;
-        st.graphics_sampler = texture_sampler_pair.second;
-        st.public_data      = tex;
+        texture_gpu_data data;
+        data.graphics_texture = texture_sampler_pair.first;
+        data.graphics_sampler = texture_sampler_pair.second;
+        tex.gpu_data          = m_texture_gpu_data.emplace(data);
 
-        mat.normal_texture = texture_id;
+        new_material.normal_texture = m_textures.emplace(tex);
     }
 
     // emissive
     if (primitive_material.emissiveTexture.index < 0)
     {
-        auto col           = primitive_material.emissiveFactor;
-        mat.emissive_color = color_rgb((float)col[0], (float)col[1], (float)col[2]);
+        auto col                    = primitive_material.emissiveFactor;
+        new_material.emissive_color = color_rgb((float)col[0], (float)col[1], (float)col[2]);
     }
     else
     {
@@ -2024,8 +2020,10 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
 
         bool standard_color_space = true;
 
-        uid texture_id  = uid::create(m_scene_textures.emplace(), scene_structure_type::scene_structure_texture);
-        tex.instance_id = texture_id;
+        texture tex;
+        tex.file_path            = image.uri;
+        tex.standard_color_space = standard_color_space;
+        tex.high_dynamic_range   = high_dynamic_range;
 
         image_resource img;
         img.data                                = const_cast<void*>(static_cast<const void*>(image.image.data()));
@@ -2035,34 +2033,55 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
         img.number_components                   = image.component;
         img.description.is_standard_color_space = standard_color_space;
         img.description.is_hdr                  = high_dynamic_range;
-        img.description.path                    = "from_gltf";
+        img.description.path                    = image.uri.c_str();
 
         auto texture_sampler_pair = create_gfx_texture_and_sampler(img, standard_color_space, high_dynamic_range, sampler_info);
 
-        scene_texture& st   = m_scene_textures.back();
-        st.graphics_texture = texture_sampler_pair.first;
-        st.graphics_sampler = texture_sampler_pair.second;
-        st.public_data      = tex;
+        texture_gpu_data data;
+        data.graphics_texture = texture_sampler_pair.first;
+        data.graphics_sampler = texture_sampler_pair.second;
+        tex.gpu_data          = m_texture_gpu_data.emplace(data);
 
-        mat.emissive_texture = texture_id;
+        new_material.emissive_texture = m_textures.emplace(tex);
     }
+
+    new_material.emissive_intensity = default_emissive_intensity;
 
     // transparency
     if (primitive_material.alphaMode.compare("OPAQUE") == 0)
     {
-        mat.alpha_mode   = material_alpha_mode::mode_opaque;
-        mat.alpha_cutoff = 1.0f;
+        new_material.alpha_mode   = material_alpha_mode::mode_opaque;
+        new_material.alpha_cutoff = 1.0f;
     }
     else if (primitive_material.alphaMode.compare("MASK") == 0)
     {
-        mat.alpha_mode   = material_alpha_mode::mode_mask;
-        mat.alpha_cutoff = static_cast<float>(primitive_material.alphaCutoff);
+        new_material.alpha_mode   = material_alpha_mode::mode_mask;
+        new_material.alpha_cutoff = static_cast<float>(primitive_material.alphaCutoff);
     }
     else if (primitive_material.alphaMode.compare("BLEND") == 0)
     {
-        mat.alpha_mode   = material_alpha_mode::mode_blend;
-        mat.alpha_cutoff = 1.0f;
+        new_material.alpha_mode   = material_alpha_mode::mode_blend;
+        new_material.alpha_cutoff = 1.0f;
     }
+
+    return build_material(new_material);
+}
+
+uid scene_impl::default_material()
+{
+    if (m_default_material.is_valid())
+        return m_default_material;
+
+    material default_material;
+    default_material.name = "Default";
+    // Some defaults
+    default_material.base_color = vec4(vec3(0.9f), 1.0f);
+    default_material.metallic   = 0.0f;
+    default_material.roughness  = 1.0f;
+
+    m_default_material = build_material(default_material);
+
+    return m_default_material;
 }
 
 // entity scene_impl::create_atmospheric_environment(const vec3& sun_direction, float sun_intensity) // TODO Paul: More settings needed!
@@ -2090,6 +2109,72 @@ void scene_impl::load_material(material& mat, const tinygltf::Material& primitiv
 //     return environment_entity;
 // }
 
+void scene_impl::update_scene_graph(uid node_id, uid parent_id, bool force_update)
+{
+    node& node    = m_nodes.at(node_id);
+    transform& tr = m_transforms.at(node.transform_id);
+
+    if (tr.changed || force_update)
+    {
+        // recalculate node matrices
+        mat4 local_transformation_matrix = glm::translate(mat4(1.0), tr.position);
+        local_transformation_matrix      = local_transformation_matrix * glm::mat4_cast(tr.rotation);
+        local_transformation_matrix      = glm::scale(local_transformation_matrix, tr.scale);
+
+        const mat4& parent_transformation_matrix = parent_id.is_valid() ? m_global_transformation_matrices.at(parent_id) : mat4(1.0f);
+        mat4& global_transformation_matrix       = m_global_transformation_matrices.at(node_id);
+
+        global_transformation_matrix = parent_transformation_matrix * local_transformation_matrix;
+
+        // Set changed flags
+        if ((node.type & node_type::mesh) != node_type::hierarchy)
+        {
+            mesh& m   = m_meshes.at(node.mesh_id);
+            m.changed = true;
+        }
+        if ((node.type & node_type::perspective_camera) != node_type::hierarchy)
+        {
+            uid camera_id           = node.camera_ids[static_cast<uint8>(camera_type::perspective)];
+            perspective_camera& cam = m_perspective_cameras.at(camera_id);
+            cam.changed             = true;
+        }
+        if ((node.type & node_type::orthographic_camera) != node_type::hierarchy)
+        {
+            uid camera_id            = node.camera_ids[static_cast<uint8>(camera_type::orthographic)];
+            orthographic_camera& cam = m_orthographic_cameras.at(camera_id);
+            cam.changed              = true;
+        }
+        if ((node.type & node_type::directional_light) != node_type::hierarchy)
+        {
+            uid light_id         = node.light_ids[static_cast<uint8>(light_type::directional)];
+            directional_light& l = m_directional_lights.at(light_id);
+            l.changed            = true;
+        }
+        if ((node.type & node_type::skylight) != node_type::hierarchy)
+        {
+            uid light_id = node.light_ids[static_cast<uint8>(light_type::skylight)];
+            skylight& l  = m_skylights.at(light_id);
+            l.changed    = true;
+        }
+        if ((node.type & node_type::atmospheric_light) != node_type::hierarchy)
+        {
+            uid light_id         = node.light_ids[static_cast<uint8>(light_type::atmospheric)];
+            atmospheric_light& l = m_atmospheric_lights.at(light_id);
+            l.changed            = true;
+        }
+
+        tr.changed = false;
+    }
+
+    // add to render instances
+    m_render_instances.push_back(render_instance(node_id));
+
+    for (auto c : node.children)
+    {
+        update_scene_graph(c, node_id, tr.changed || force_update);
+    }
+}
+
 void scene_impl::update(float dt)
 {
     PROFILE_ZONE;
@@ -2097,68 +2182,161 @@ void scene_impl::update(float dt)
 
     m_render_instances.clear();
 
-    sg_bfs_for_each(
-        [this](hierarchy_node& hn)
-        {
-            packed_freelist_id node_id      = hn.node_id.id();
-            scene_node& nd                  = m_scene_nodes.at(node_id);
-            packed_freelist_id transform_id = nd.node_transform.id();
-            scene_transform& tr             = m_scene_transforms.at(transform_id);
+    update_scene_graph(m_root_node, invalid_uid, false);
 
-            if (tr.public_data.dirty())
-            {
-                // recalculate node matrices
-                nd.local_transformation_matrix = glm::translate(mat4(1.0), tr.public_data.position);
-                nd.local_transformation_matrix = nd.local_transformation_matrix * glm::mat4_cast(tr.public_data.rotation);
-                nd.local_transformation_matrix = glm::scale(nd.local_transformation_matrix, tr.public_data.scale);
-
-                nd.global_transformation_matrix = nd.local_transformation_matrix;
-
-                tr.changes_handled();
-            }
-
-            if (nd.public_data.parent_node.is_valid())
-            {
-                packed_freelist_id parent_id    = nd.public_data.parent_node.id();
-                auto& parent_transformation     = m_scene_nodes.at(parent_id).global_transformation_matrix;
-                nd.global_transformation_matrix = parent_transformation * nd.local_transformation_matrix;
-            }
-
-            if ((nd.type & node_type::camera) != node_type::empty_leaf)
-            {
-                // update camera targets - matrices should be calculated by the renderer on demand
-                packed_freelist_id camera_id = nd.camera_id.id();
-                scene_camera& cam            = m_scene_cameras.at(camera_id);
-
-                vec3& target = (cam.type == camera_type::perspective) ? cam.public_data_as_perspective->target : cam.public_data_as_orthographic->target;
-
-                vec3 front = target - vec3(nd.global_transformation_matrix[3]);
-
-                if (glm::length(front) > 1e-5)
-                    front = glm::normalize(front);
-                else
-                {
-                    front = GLOBAL_FORWARD;
-                }
-            }
-
-            // add to render instances
-            m_render_instances.push_back(scene_render_instance(hn.node_id));
-
-            return true;
-        });
-
-    for (const packed_freelist_id& id : m_scene_textures)
+    // Everything else can be updated in ecs style for changed stuff
+    // TODO Paul: This could probably be done in parallel...
+    for (auto id : m_meshes)
     {
-        scene_texture& tex = m_scene_textures.at(id);
-        if (tex.public_data.dirty())
+        mesh& m = m_meshes.at(id);
+        if (m.changed)
+        {
+            mesh_gpu_data& data = m_mesh_gpu_data.at(m.gpu_data);
+            const node& nd      = m_nodes.at(m.node_id);
+            const mat4& trafo   = m_global_transformation_matrices.at(nd.global_matrix_id);
+
+            data.per_mesh_data.model_matrix  = trafo;
+            data.per_mesh_data.normal_matrix = glm::inverse(trafo);
+
+            auto device_context = m_scene_graphics_device->create_graphics_device_context();
+            device_context->begin();
+            device_context->set_buffer_data(data.model_data_buffer, 0, sizeof(model_data), const_cast<void*>((void*)(&(data.per_mesh_data))));
+            device_context->end();
+            device_context->submit();
+
+            m.changed = false;
+        }
+    }
+    for (auto id : m_perspective_cameras)
+    {
+        perspective_camera& cam = m_perspective_cameras.at(id);
+        if (cam.changed)
+        {
+            camera_gpu_data& data = m_camera_gpu_data.at(cam.gpu_data);
+            const node& nd        = m_nodes.at(cam.node_id);
+            const mat4& trafo     = m_global_transformation_matrices.at(nd.global_matrix_id);
+            vec3 camera_position  = vec3(trafo[3]);
+
+            mat4 view, projection;
+            view_projection_perspective_camera(cam, camera_position, view, projection);
+            const mat4 view_projection = projection * view;
+
+            data.per_camera_data.view_matrix             = view;
+            data.per_camera_data.projection_matrix       = projection;
+            data.per_camera_data.view_projection_matrix  = view_projection;
+            data.per_camera_data.inverse_view_projection = glm::inverse(view_projection);
+            data.per_camera_data.camera_position         = camera_position;
+            data.per_camera_data.camera_near             = cam.z_near;
+            data.per_camera_data.camera_far              = cam.z_far;
+
+            if (cam.adaptive_exposure) // Has to be calculated each frame if enabled.
+                data.per_camera_data.camera_exposure = 1.0f;
+            else
+            {
+                float ape = cam.physical.aperture;
+                float shu = cam.physical.shutter_speed;
+                float iso = cam.physical.iso;
+
+                float e                              = ((ape * ape) * 100.0f) / (shu * iso);
+                data.per_camera_data.camera_exposure = 1.0f / (1.2f * e);
+            }
+
+            auto device_context = m_scene_graphics_device->create_graphics_device_context();
+            device_context->begin();
+            device_context->set_buffer_data(data.camera_data_buffer, 0, sizeof(camera_data), const_cast<void*>((void*)(&(data.per_camera_data))));
+            device_context->end();
+            device_context->submit();
+
+            cam.changed = false;
+        }
+    }
+    for (auto id : m_orthographic_cameras)
+    {
+        orthographic_camera& cam = m_orthographic_cameras.at(id);
+        if (cam.changed)
+        {
+            camera_gpu_data& data = m_camera_gpu_data.at(cam.gpu_data);
+            const node& nd        = m_nodes.at(cam.node_id);
+            const mat4& trafo     = m_global_transformation_matrices.at(nd.global_matrix_id);
+            vec3 camera_position  = vec3(trafo[3]);
+
+            mat4 view, projection;
+            view_projection_orthographic_camera(cam, camera_position, view, projection);
+            const mat4 view_projection = projection * view;
+
+            data.per_camera_data.view_matrix             = view;
+            data.per_camera_data.projection_matrix       = projection;
+            data.per_camera_data.view_projection_matrix  = view_projection;
+            data.per_camera_data.inverse_view_projection = glm::inverse(view_projection);
+            data.per_camera_data.camera_position         = camera_position;
+            data.per_camera_data.camera_near             = cam.z_near;
+            data.per_camera_data.camera_far              = cam.z_far;
+
+            if (cam.adaptive_exposure) // Has to be calculated each frame if enabled.
+                data.per_camera_data.camera_exposure = 1.0f;
+            else
+            {
+                float ape = cam.physical.aperture;
+                float shu = cam.physical.shutter_speed;
+                float iso = cam.physical.iso;
+
+                float e                              = ((ape * ape) * 100.0f) / (shu * iso);
+                data.per_camera_data.camera_exposure = 1.0f / (1.2f * e);
+            }
+
+            auto device_context = m_scene_graphics_device->create_graphics_device_context();
+            device_context->begin();
+            device_context->set_buffer_data(data.camera_data_buffer, 0, sizeof(camera_data), const_cast<void*>((void*)(&(data.per_camera_data))));
+            device_context->end();
+            device_context->submit();
+
+            cam.changed = false;
+        }
+    }
+
+    // TODO Paul: Do the light stack update here!
+
+    for (auto id : m_materials)
+    {
+        material& mat = m_materials.at(id);
+        if (mat.changed)
+        {
+            material_gpu_data& data = m_material_gpu_data.at(mat.gpu_data);
+
+            data.per_material_data.base_color                 = mat.base_color;
+            data.per_material_data.emissive_color             = mat.emissive_color;
+            data.per_material_data.metallic                   = mat.metallic;
+            data.per_material_data.roughness                  = mat.roughness;
+            data.per_material_data.base_color_texture         = mat.base_color_texture.is_valid();
+            data.per_material_data.roughness_metallic_texture = mat.metallic_roughness_texture.is_valid();
+            data.per_material_data.occlusion_texture          = mat.occlusion_texture.is_valid();
+            data.per_material_data.packed_occlusion           = mat.packed_occlusion;
+            data.per_material_data.normal_texture             = mat.normal_texture.is_valid();
+            data.per_material_data.emissive_color_texture     = mat.emissive_texture.is_valid();
+            data.per_material_data.emissive_intensity         = mat.emissive_intensity;
+            data.per_material_data.alpha_mode                 = static_cast<uint8>(mat.alpha_mode);
+            data.per_material_data.alpha_cutoff               = mat.alpha_cutoff;
+
+            auto device_context = m_scene_graphics_device->create_graphics_device_context();
+            device_context->begin();
+            device_context->set_buffer_data(data.material_data_buffer, 0, sizeof(material_data), const_cast<void*>((void*)(&(data.per_material_data))));
+            device_context->end();
+            device_context->submit();
+
+            mat.changed = false;
+        }
+    }
+
+    for (auto id : m_textures)
+    {
+        texture& tex = m_textures.at(id);
+        if (tex.changed)
         {
             // TODO Paul: This does crash when we do this for textures from a model -.-...
-            if (tex.public_data.file_path == "from_gltf")
-                continue;
+
             // just replacing the texture should work, but is not the fancy way. Also we reload the file even though it is not required.
 
-            // TODO Paul: We probably want more exposed settings here - at least in public_data!
+            // TODO Paul: We probably want more exposed settings here!
             sampler_create_info sampler_info;
             sampler_info.sampler_min_filter      = gfx_sampler_filter::sampler_filter_linear_mipmap_linear;
             sampler_info.sampler_max_filter      = gfx_sampler_filter::sampler_filter_linear;
@@ -2173,36 +2351,38 @@ void scene_impl::update(float dt)
             sampler_info.border_color[3]         = 0;
             sampler_info.enable_seamless_cubemap = false;
 
-            auto texture_sampler_pair = create_gfx_texture_and_sampler(tex.public_data.file_path, tex.public_data.standard_color_space, tex.public_data.high_dynamic_range, sampler_info);
+            auto texture_sampler_pair = create_gfx_texture_and_sampler(tex.file_path, tex.standard_color_space, tex.high_dynamic_range, sampler_info);
 
-            tex.graphics_texture = texture_sampler_pair.first;
-            tex.graphics_sampler = texture_sampler_pair.second;
+            texture_gpu_data data = m_texture_gpu_data.at(tex.gpu_data);
 
-            tex.changes_handled();
+            data.graphics_texture = texture_sampler_pair.first;
+            data.graphics_sampler = texture_sampler_pair.second;
+
+            tex.changed = false;
         }
     }
 }
 
 void scene_impl::draw_scene_hierarchy(uid& selected)
 {
-    std::vector<uid> to_remove = draw_scene_hierarchy_internal(m_scene_graph_root.get(), selected);
+    std::vector<uid> to_remove = draw_scene_hierarchy_internal(m_root_node, selected);
     for (auto n : to_remove)
         remove_node(n);
 }
 
-std::vector<uid> scene_impl::draw_scene_hierarchy_internal(hierarchy_node* current, uid& selected)
+std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid& selected)
 {
-    optional<scene_node&> sc_node = get_scene_node(current->node_id);
-    MANGO_ASSERT(sc_node, "Something is broken - Can not draw hierarchy for a non existing node!");
+    optional<node&> opt_node = get_node(current);
+    MANGO_ASSERT(opt_node, "Something is broken - Can not draw hierarchy for a non existing node!");
+    node nd = opt_node.value();
 
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 5));
     const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_FramePadding |
-                                     ImGuiTreeNodeFlags_AllowItemOverlap | ((m_ui_selected_uid == current->node_id) ? ImGuiTreeNodeFlags_Selected : 0) |
-                                     ((current->children.empty()) ? ImGuiTreeNodeFlags_Leaf : 0);
+                                     ImGuiTreeNodeFlags_AllowItemOverlap | ((m_ui_selected_uid == current) ? ImGuiTreeNodeFlags_Selected : 0) | ((nd.children.empty()) ? ImGuiTreeNodeFlags_Leaf : 0);
 
-    ImGui::PushID(current->node_id.id().get());
+    ImGui::PushID(current.get());
 
-    string display_name = get_display_name(current->node_id);
+    string display_name = get_display_name(nd.type, nd.name);
     bool open           = ImGui::TreeNodeEx(display_name.c_str(), flags, "%s", display_name.c_str());
     bool removed        = false;
     ImGui::PopStyleVar();
@@ -2210,25 +2390,23 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(hierarchy_node* curre
     {
         m_ui_selected_uid = current->node_id;
     }
-    if (ImGui::IsItemClicked(1) && !ImGui::IsPopupOpen(("##object_menu" + std::to_string(current->node_id.id().get())).c_str()))
+    if (ImGui::IsItemClicked(1) && !ImGui::IsPopupOpen(("##object_menu" + std::to_string(current.get())).c_str()))
     {
-        m_ui_selected_uid = current->node_id;
-        ImGui::OpenPopup(("##object_menu" + std::to_string(current->node_id.id().get())).c_str());
+        m_ui_selected_uid = current;
+        ImGui::OpenPopup(("##object_menu" + std::to_string(current.get())).c_str());
     }
 
     std::vector<uid> to_remove;
-    if (ImGui::BeginPopup(("##object_menu" + std::to_string(current->node_id.id().get())).c_str()))
+    if (ImGui::BeginPopup(("##object_menu" + std::to_string(current.get())).c_str()))
     {
-        if (ImGui::Selectable(("Add Scene Object##object_menu" + std::to_string(current->node_id.id().get())).c_str()))
+        if (ImGui::Selectable(("Add Node##object_menu" + std::to_string(current.get())).c_str()))
         {
-            node nd;
-            nd.parent_node    = current->node_id;
-            m_ui_selected_uid = add_node(nd);
+            m_ui_selected_uid = add_node("Node", current);
         }
-        if (!(m_root_node == current->node_id) && ImGui::Selectable(("Remove Scene Object##object_menu" + std::to_string(current->node_id.id().get())).c_str()))
+        if (!(m_root_node == current) && ImGui::Selectable(("Remove Node##object_menu" + std::to_string(current.get())).c_str()))
         {
             m_ui_selected_uid = invalid_uid;
-            to_remove.push_back(current->node_id);
+            to_remove.push_back(current);
             removed = true;
         }
 
@@ -2236,16 +2414,16 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(hierarchy_node* curre
     }
     if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
     {
-        ImGui::SetDragDropPayload("DRAG_DROP_NODE", current, sizeof(hierarchy_node));
+        ImGui::SetDragDropPayload("DRAG_DROP_NODE", (void*)&current, sizeof(uid));
         ImGui::EndDragDropSource();
     }
     if (ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DRAG_DROP_NODE"))
         {
-            IM_ASSERT(payload->DataSize == sizeof(hierarchy_node));
-            auto dropped = (const hierarchy_node*)payload->Data;
-            attach(dropped->node_id, current->node_id);
+            IM_ASSERT(payload->DataSize == sizeof(uid));
+            auto dropped = (const uid*)payload->Data;
+            attach(*dropped, current);
         }
         ImGui::EndDragDropTarget();
     }
@@ -2253,10 +2431,10 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(hierarchy_node* curre
     {
         if (!removed)
         {
-            for (auto it = current->children.begin(); it != current->children.end(); it++)
+            for (auto it = nd.children.begin(); it != nd.children.end(); it++)
             {
                 auto& child           = *it;
-                auto removed_children = draw_scene_hierarchy_internal(child.get(), selected);
+                auto removed_children = draw_scene_hierarchy_internal(child, selected);
                 to_remove.insert(to_remove.end(), removed_children.begin(), removed_children.end());
             }
         }
@@ -2268,90 +2446,38 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(hierarchy_node* curre
     return to_remove;
 }
 
-string scene_impl::get_display_name(uid object) // TODO Paul: Make that better!
+string scene_impl::get_display_name(node_type type, const string name) // TODO Paul: Make that better!
 {
-    switch (object.structure_type())
+    string postfix = "";
+    if ((type & node_type::instantiable) != node_type::hierarchy)
     {
-    case scene_structure_type::scene_structure_node:
+        postfix = " (Instance)";
+    }
+    if ((type & node_type::mesh) != node_type::hierarchy)
     {
-        optional<scene_node&> node = get_scene_node(object);
-        MANGO_ASSERT(node, "Can not get name of non existing node!");
-        if ((node->type & node_type::light) != node_type::empty_leaf)
-        {
-            return node->public_data.name.empty() ? string(ICON_FA_LIGHTBULB) + "Unnamed Light" : string(ICON_FA_LIGHTBULB) + " " + node->public_data.name;
-        }
-        if ((node->type & node_type::mesh) != node_type::empty_leaf)
-        {
-            return node->public_data.name.empty() ? get_display_name(node->mesh_id) : string(ICON_FA_DICE_D6) + " " + node->public_data.name;
-        }
-        if ((node->type & node_type::camera) != node_type::empty_leaf)
-        {
-            return node->public_data.name.empty() ? get_display_name(node->camera_id) : string(ICON_FA_VIDEO) + " " + node->public_data.name;
-        }
-        return node->public_data.name.empty() ? get_display_name(node->node_transform) : string(ICON_FA_VECTOR_SQUARE) + " " + node->public_data.name;
+        return name.empty() ? string(ICON_FA_DICE_D6) + "Unnamed" : string(ICON_FA_DICE_D6) + " " + name + postfix;
     }
-    case scene_structure_type::scene_structure_transform:
+    if ((type & node_type::perspective_camera) != node_type::hierarchy)
     {
-        return string(ICON_FA_VECTOR_SQUARE) + " Transform";
+        return name.empty() ? string(ICON_FA_VIDEO) + "Unnamed" : string(ICON_FA_VIDEO) + " " + name + postfix;
     }
-    case scene_structure_type::scene_structure_model:
+    if ((type & node_type::orthographic_camera) != node_type::hierarchy)
     {
-        optional<model&> m = get_model(object);
-        MANGO_ASSERT(m, "Can not get name of non existing model!");
-        return string(ICON_FA_SITEMAP) + " " + m->file_path;
+        return name.empty() ? string(ICON_FA_VIDEO) + "Unnamed" : string(ICON_FA_VIDEO) + " " + name + postfix;
     }
-    case scene_structure_type::scene_structure_mesh:
+    if ((type & node_type::directional_light) != node_type::hierarchy)
     {
-        optional<scene_mesh&> m = get_scene_mesh(object);
-        MANGO_ASSERT(m, "Can not get name of non existing mesh!");
-        return string(ICON_FA_DICE_D6) + " " + m->public_data.name;
+        return name.empty() ? string(ICON_FA_LIGHTBULB) + "Unnamed" : string(ICON_FA_LIGHTBULB) + " " + name + postfix;
     }
-    case scene_structure_type::scene_structure_primitive:
+    if ((type & node_type::skylight) != node_type::hierarchy)
     {
-        optional<scene_primitive&> p = get_scene_primitive(object);
-        MANGO_ASSERT(p, "Can not get name of non existing primitive!");
-        optional<scene_material&> mat = get_scene_material(p->public_data.material);
-        MANGO_ASSERT(mat, "Can not get name of non existing material!");
-        return string(ICON_FA_DICE_D6) + " " + mat->public_data.name;
+        return name.empty() ? string(ICON_FA_LIGHTBULB) + "Unnamed" : string(ICON_FA_LIGHTBULB) + " " + name + postfix;
     }
-    case scene_structure_type::scene_structure_material:
+    if ((type & node_type::atmospheric_light) != node_type::hierarchy)
     {
-        optional<scene_material&> mat = get_scene_material(object);
-        MANGO_ASSERT(mat, "Can not get name of non existing material!");
-        return string(ICON_FA_DICE_D6) + " " + mat->public_data.name;
+        return name.empty() ? string(ICON_FA_LIGHTBULB) + "Unnamed" : string(ICON_FA_LIGHTBULB) + " " + name + postfix;
     }
-    case scene_structure_type::scene_structure_directional_light:
-    {
-        optional<scene_light&> l = get_scene_light(object);
-        MANGO_ASSERT(l, "Can not get name of non existing light!");
-        return string(ICON_FA_LIGHTBULB) + " " + "Directional Light";
-    }
-    case scene_structure_type::scene_structure_skylight:
-    {
-        optional<scene_light&> l = get_scene_light(object);
-        MANGO_ASSERT(l, "Can not get name of non existing light!");
-        return string(ICON_FA_LIGHTBULB) + " " + "Skylight";
-    }
-    case scene_structure_type::scene_structure_atmospheric_light:
-    {
-        optional<scene_light&> l = get_scene_light(object);
-        MANGO_ASSERT(l, "Can not get name of non existing light!");
-        return string(ICON_FA_LIGHTBULB) + " " + "Atmospheric Light";
-    }
-    case scene_structure_type::scene_structure_perspective_camera:
-    {
-        optional<scene_camera&> cam = get_scene_camera(object);
-        MANGO_ASSERT(cam, "Can not get name of non existing camera!");
-        return string(ICON_FA_VIDEO) + " " + "Perspective Camera";
-    }
-    case scene_structure_type::scene_structure_orthographic_camera:
-    {
-        optional<scene_camera&> cam = get_scene_camera(object);
-        MANGO_ASSERT(cam, "Can not get name of non existing camera!");
-        return string(ICON_FA_VIDEO) + " " + "Orthographic Camera";
-    }
-    }
-    return "";
+    return name.empty() ? string(ICON_FA_VECTOR_SQUARE) + "Unnamed" : string(ICON_FA_VECTOR_SQUARE) + " " + name + postfix;
 }
 
 static int32 get_attrib_component_count_from_tinygltf_types(int32 type)
