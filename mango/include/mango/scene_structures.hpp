@@ -9,6 +9,7 @@
 
 #include <mango/packed_freelist.hpp>
 #include <mango/types.hpp>
+#include <util/intersect.hpp>
 
 namespace mango
 {
@@ -272,24 +273,34 @@ namespace mango
         color_rgba base_color;
         //! \brief The \a uid of the base color texture of the \a material. \a Texture should be in standard color space.
         uid base_color_texture;
+        //! \brief The \a uid of the base color texture gpu data.
+        uid base_color_texture_gpu_data;
         //! \brief The metallic property of the \a material. Value between 0.0 and 1.0.
         normalized_float metallic;
         //! \brief The roughness property of the \a material. Value between 0.0 and 1.0.
         normalized_float roughness;
         //! \brief The \a uid of the metallic and roughness texture of the \a material. \a Texture could also include an occlusion value in the blue component.
         uid metallic_roughness_texture;
+        //! \brief The \a uid of the metallic and roughness texture gpu data.
+        uid metallic_roughness_texture_gpu_data;
         //! \brief True if the metallic roughness texture of the \a material includes an occlusion value in the blue component, else false.
         bool packed_occlusion;
 
         //! \brief The \a uid of the normal texture of the \a material.
         uid normal_texture;
+        //! \brief The \a uid of the normal texture gpu data.
+        uid normal_texture_gpu_data;
         //! \brief The \a uid of the occlusion texture of the \a material.
         uid occlusion_texture;
+        //! \brief The \a uid of the occlusion texture gpu data.
+        uid occlusion_texture_gpu_data;
 
         //! \brief The emissive color of the \a material. Values between 0.0 and 1.0.
         color_rgb emissive_color;
         //! \brief The \a uid of the emissive color texture of the \a material. \a Texture should be in standard color space.
         uid emissive_texture;
+        //! \brief The \a uid of the emissive texture gpu data.
+        uid emissive_texture_gpu_data;
         //! \brief The emissive intensity of the \a material in lumen.
         float emissive_intensity;
 
@@ -345,6 +356,9 @@ namespace mango
 
         //! \brief The \a uid of the GPU data of the \a primitive.
         uid gpu_data;
+
+        //! \brief The \a axis_aligned_bounding_box of this \a primitive.
+        axis_aligned_bounding_box bounding_box;
 
         primitive()
             : type(primitive_type::custom)

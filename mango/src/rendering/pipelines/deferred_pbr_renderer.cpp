@@ -42,9 +42,6 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
         return;
     }
 
-    // create light stack
-    m_light_stack.init(m_shared_context);
-
     m_renderer_data.shadow_step_enabled         = false;
     m_renderer_data.debug_view_enabled          = false;
     m_renderer_data.position_debug_view         = false;
@@ -299,16 +296,6 @@ bool deferred_pbr_renderer::create_buffers()
     buffer_info.size       = sizeof(renderer_data);
     m_renderer_data_buffer = m_graphics_device->create_buffer(buffer_info);
     if (!check_creation(m_renderer_data_buffer.get(), "renderer data buffer"))
-        return false;
-
-    buffer_info.size    = sizeof(model_data);
-    m_model_data_buffer = m_graphics_device->create_buffer(buffer_info);
-    if (!check_creation(m_model_data_buffer.get(), "model data buffer"))
-        return false;
-
-    buffer_info.size    = sizeof(light_data);
-    m_light_data_buffer = m_graphics_device->create_buffer(buffer_info);
-    if (!check_creation(m_light_data_buffer.get(), "light data buffer"))
         return false;
 
     buffer_info.buffer_target = gfx_buffer_target::buffer_target_shader_storage;
@@ -961,9 +948,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
     struct draw_key
     {
-        sid primitive_id;
-        sid node_id;
-        sid material_id;
+        uid primitive_gpu_data_id;
+        uid mesh_gpu_data_id;
+        uid material_id;
         float view_depth;
         bool transparent;
         axis_aligned_bounding_box bounding_box; // Does not contribute to order.
@@ -985,91 +972,17 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             if (other.material_id < material_id)
                 return false;
 
-            if (primitive_id < other.primitive_id)
+            if (primitive_gpu_data_id < other.primitive_gpu_data_id)
                 return true;
-            if (other.primitive_id < primitive_id)
+            if (other.primitive_gpu_data_id < primitive_gpu_data_id)
                 return false;
 
             return false;
         }
     };
 
-    vec3 camera_position;
-
-    auto active_camera = scene->get_active_scene_camera(camera_position);
-    MANGO_ASSERT(active_camera, "Non existing active camera!");
-
-    bool auto_exposure = true;
-    if (active_camera->type == camera_type::perspective)
-    {
-        vec3 front = active_camera->public_data_as_perspective->target - camera_position;
-        if (glm::length(front) > 1e-5)
-        {
-            front = glm::normalize(front);
-        }
-        else
-        {
-            front = GLOBAL_FORWARD;
-        }
-        auto right = glm::normalize(glm::cross(GLOBAL_UP, front));
-        auto up    = glm::normalize(glm::cross(front, right));
-
-        const float& cam_near = active_camera->public_data_as_perspective->z_near;
-        const float& cam_far  = active_camera->public_data_as_perspective->z_far;
-
-        const mat4 view      = glm::lookAt(camera_position, active_camera->public_data_as_perspective->target, up);
-        const mat4 proj      = glm::perspective(active_camera->public_data_as_perspective->vertical_field_of_view, active_camera->public_data_as_perspective->aspect, cam_near, cam_far);
-        const mat4 view_proj = proj * view;
-
-        m_camera_data.camera_near             = cam_near;
-        m_camera_data.camera_far              = cam_far;
-        m_camera_data.view_matrix             = view;
-        m_camera_data.projection_matrix       = proj;
-        m_camera_data.view_projection_matrix  = view_proj;
-        m_camera_data.inverse_view_projection = glm::inverse(view_proj);
-
-        auto_exposure = active_camera->public_data_as_perspective->adaptive_exposure;
-    }
-    else
-    {
-        vec3 front = active_camera->public_data_as_orthographic->target - camera_position;
-        if (glm::length(front) > 1e-5)
-        {
-            front = glm::normalize(front);
-        }
-        else
-        {
-            front = GLOBAL_FORWARD;
-        }
-        auto right = glm::normalize(glm::cross(GLOBAL_UP, front));
-        auto up    = glm::normalize(glm::cross(front, right));
-
-        const float& cam_near   = active_camera->public_data_as_orthographic->z_near;
-        const float& cam_far    = active_camera->public_data_as_orthographic->z_far;
-        const float& distance_x = active_camera->public_data_as_orthographic->x_mag;
-        const float& distance_y = active_camera->public_data_as_orthographic->y_mag;
-
-        const mat4 view      = glm::lookAt(camera_position, active_camera->public_data_as_orthographic->target, up);
-        const mat4 proj      = glm::ortho(-distance_x * 0.5f, distance_x * 0.5f, -distance_y * 0.5f, distance_y * 0.5f, cam_near, cam_far);
-        const mat4 view_proj = proj * view;
-
-        m_camera_data.camera_near             = cam_near;
-        m_camera_data.camera_far              = cam_far;
-        m_camera_data.view_matrix             = view;
-        m_camera_data.projection_matrix       = proj;
-        m_camera_data.view_projection_matrix  = view_proj;
-        m_camera_data.inverse_view_projection = glm::inverse(view_proj);
-
-        auto_exposure = active_camera->public_data_as_orthographic->adaptive_exposure;
-    }
-    m_camera_data.camera_position = camera_position;
-
-    static float camera_exposure = 1.0f;                                                 // TODO Paul: Does the static variable here make sense?
-    camera_exposure              = apply_exposure(active_camera.value(), auto_exposure); // with last frames data.
-
-    m_camera_data.camera_exposure = camera_exposure;
-
-    m_frame_context->set_buffer_data(m_camera_data_buffer, 0, sizeof(m_camera_data), &m_camera_data);
+    auto active_camera_data = scene->get_active_camera_gpu_data();
+    MANGO_ASSERT(active_camera_data, "Non existing active camera!");
 
     std::vector<draw_key> draws;
     int32 opaque_count = 0;
@@ -1079,10 +992,10 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     bounding_frustum camera_frustum;
     if (m_frustum_culling)
     {
-        camera_frustum = bounding_frustum(mat4(m_camera_data.view_matrix), mat4(m_camera_data.projection_matrix));
+        camera_frustum = bounding_frustum(mat4(active_camera_data->per_camera_data.view_matrix), mat4(active_camera_data->per_camera_data.projection_matrix));
         if (m_debug_bounds)
         {
-            auto corners = bounding_frustum::get_corners(mat4(m_camera_data.view_projection_matrix));
+            auto corners = bounding_frustum::get_corners(mat4(active_camera_data->per_camera_data.view_projection_matrix));
             m_debug_drawer.set_color(color_rgb(0.0f, 1.0f, 0.0f));
             m_debug_drawer.add(corners[0], corners[1]);
             m_debug_drawer.add(corners[1], corners[3]);
@@ -1104,66 +1017,63 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
     for (auto instance : instances)
     {
-        optional<scene_node&> node = scene->get_scene_node(instance.node_id);
+        optional<node&> node = scene->get_node(instance.node_id);
         MANGO_ASSERT(node, "Non existing node in instances!");
+        optional<mat4&> global_transformation_matrix = scene->get_global_transformation_matrix(node->global_matrix_id);
+        MANGO_ASSERT(global_transformation_matrix, "Non existing transformation matrix in instances!");
 
-        if ((node->type & node_type::light) != node_type::empty_leaf)
-        {
-        }
-        if ((node->type & node_type::mesh) != node_type::empty_leaf)
+        if ((node->type & node_type::mesh) != node_type::hierarchy)
         {
             draw_key a_draw;
-            a_draw.node_id = node->public_data.instance_id;
 
-            optional<scene_mesh&> mesh = scene->get_scene_mesh(node->mesh_id);
+            optional<mesh&> mesh = scene->get_mesh(node->mesh_id);
             MANGO_ASSERT(mesh, "Non existing mesh in instances!");
+            a_draw.mesh_gpu_data_id = mesh->gpu_data;
 
             m_renderer_info.last_frame.meshes++;
 
-            for (int32 i = 0; i < static_cast<int32>(mesh->scene_primitives.size()); ++i)
+            for (auto p : mesh->primitives)
             {
-                scene_primitive p = mesh->scene_primitives[i];
-
-                a_draw.primitive_id = p.public_data.instance_id;
-                a_draw.material_id  = p.public_data.material;
-
-                optional<scene_material&> mat = scene->get_scene_material(p.public_data.material);
+                optional<primitive&> prim = scene->get_primitive(p);
+                MANGO_ASSERT(prim, "Non existing primitive in instances!");
+                optional<material&> mat = scene->get_material(prim->material);
                 MANGO_ASSERT(mat, "Non existing material in instances!");
 
-                a_draw.transparent = mat->public_data.alpha_mode > material_alpha_mode::mode_mask;
+                a_draw.primitive_gpu_data_id = prim->gpu_data;
+                a_draw.material_id           = prim->material;
+
+                a_draw.transparent = mat->alpha_mode > material_alpha_mode::mode_mask;
                 opaque_count += a_draw.transparent ? 0 : 1;
 
-                a_draw.view_depth = (mat4(m_camera_data.view_projection_matrix) * node->global_transformation_matrix * vec4(0, 0, 0, 1)).z;
+                a_draw.view_depth = (mat4(active_camera_data->per_camera_data.view_projection_matrix) * global_transformation_matrix.value() * vec4(0, 0, 0, 1)).z;
 
-                a_draw.bounding_box = p.bounding_box.get_transformed(node->global_transformation_matrix);
+                a_draw.bounding_box = prim->bounding_box.get_transformed(global_transformation_matrix.value());
 
                 draws.push_back(a_draw);
             }
         }
-        if ((node->type & node_type::camera) != node_type::empty_leaf)
-        {
-            // TODO First is active one at the moment.
-        }
     }
-
-    m_frame_context->set_buffer_data(m_light_data_buffer, 0, sizeof(light_data), &(m_light_stack.get_light_data()));
 
     std::sort(begin(draws), end(draws));
 
     auto warn_missing_draw = [](string what) { MANGO_LOG_WARN("{0} missing for draw. Skipping DrawCall!", what); };
+
+    const light_stack& ls = scene->get_light_stack();
+    auto light_data       = scene->get_light_gpu_data();
 
     // shadow pass
     // draw objects
     {
         GL_NAMED_PROFILE_ZONE("Shadow Pass");
         NAMED_PROFILE_ZONE("Shadow Pass");
-        auto shadow_casters = m_light_stack.get_shadow_casters(); // currently only directional.
+        auto shadow_casters = ls.get_shadow_casters(); // currently only directional.
 
         if (shadow_pass && !m_renderer_data.debug_view_enabled && !shadow_casters.empty())
         {
             for (auto sc : shadow_casters)
             {
-                shadow_pass->update_cascades(dt, m_camera_data.camera_near, m_camera_data.camera_far, m_camera_data.view_projection_matrix, sc.direction);
+                shadow_pass->update_cascades(dt, active_camera_data->per_camera_data.camera_near, active_camera_data->per_camera_data.camera_far,
+                                             active_camera_data->per_camera_data.view_projection_matrix, sc.direction);
                 auto& shadow_data_buffer = shadow_pass->get_shadow_data_buffer();
                 m_frame_context->set_render_targets(0, nullptr, shadow_pass->get_shadow_maps_texture());
                 for (int32 casc = 0; casc < shadow_pass->get_shadow_data().cascade_count; ++casc)
@@ -1205,26 +1115,27 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                                 continue;
                         }
 
-                        optional<scene_primitive&> prim = scene->get_scene_primitive(dc.primitive_id);
-                        if (!prim)
+                        optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(dc.primitive_gpu_data_id);
+                        if (!prim_gpu_data)
                         {
-                            warn_missing_draw("Primitive");
+                            warn_missing_draw("Primitive gpu data");
                             continue;
                         }
-                        optional<scene_node&> node = scene->get_scene_node(dc.node_id);
-                        if (!node)
+                        optional<mesh_gpu_data&> m_gpu_data = scene->get_mesh_gpu_data(dc.mesh_gpu_data_id);
+                        if (!m_gpu_data)
                         {
-                            warn_missing_draw("Node");
+                            warn_missing_draw("Mesh gpu data");
                             continue;
                         }
-                        optional<scene_material&> mat = scene->get_scene_material(dc.material_id);
-                        if (!mat)
+                        optional<material&> mat                   = scene->get_material(dc.material_id);
+                        optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
+                        if (!mat || !mat_gpu_data)
                         {
                             warn_missing_draw("Material");
                             continue;
                         }
 
-                        gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_shadow(prim->vertex_layout, prim->input_assembly, mat->public_data.double_sided);
+                        gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_shadow(prim_gpu_data->vertex_layout, prim_gpu_data->input_assembly, mat->double_sided);
 
                         m_frame_context->bind_pipeline(dc_pipeline);
                         gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(shadow_pass->resolution()), static_cast<float>(shadow_pass->resolution()) };
@@ -1233,31 +1144,16 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                         m_frame_context->set_buffer_data(shadow_data_buffer, 0, sizeof(shadow_map_step::shadow_data), &(data));
                         dc_pipeline->get_resource_mapping()->set("shadow_data", shadow_data_buffer);
 
-                        m_model_data.model_matrix  = node->global_transformation_matrix;
-                        m_model_data.normal_matrix = std140_mat3(mat3(glm::transpose(glm::inverse(node->global_transformation_matrix))));
-                        m_model_data.has_normals   = prim->public_data.has_normals;
-                        m_model_data.has_tangents  = prim->public_data.has_tangents;
+                        dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);
 
-                        m_frame_context->set_buffer_data(m_model_data_buffer, 0, sizeof(m_model_data), &m_model_data);
-
-                        dc_pipeline->get_resource_mapping()->set("model_data", m_model_data_buffer);
-
-                        m_material_data.base_color   = mat->public_data.base_color;
-                        m_material_data.alpha_mode   = static_cast<uint8>(mat->public_data.alpha_mode);
-                        m_material_data.alpha_cutoff = mat->public_data.alpha_cutoff;
-
-                        if (m_material_data.alpha_mode > 1)
+                        if (mat_gpu_data->per_material_data.alpha_mode > 1)
                             continue; // TODO Paul: Transparent shadows?!
 
-                        m_material_data.base_color_texture = mat->public_data.base_color_texture.is_valid();
+                        dc_pipeline->get_resource_mapping()->set("material_data", mat_gpu_data->material_data_buffer);
 
-                        m_frame_context->set_buffer_data(m_material_data_buffer, 0, sizeof(m_material_data), &m_material_data);
-
-                        dc_pipeline->get_resource_mapping()->set("material_data", m_material_data_buffer);
-
-                        if (m_material_data.base_color_texture)
+                        if (mat_gpu_data->per_material_data.base_color_texture)
                         {
-                            optional<scene_texture&> tex = scene->get_scene_texture(mat->public_data.base_color_texture);
+                            optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
                             if (!tex)
                             {
                                 warn_missing_draw("Base Color Texture");
@@ -1273,29 +1169,29 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
                         m_frame_context->submit_pipeline_state_resources();
 
-                        m_frame_context->set_index_buffer(prim->index_buffer_view.graphics_buffer, prim->index_type);
+                        m_frame_context->set_index_buffer(prim_gpu_data->index_buffer_view.graphics_buffer, prim_gpu_data->index_type);
 
                         std::vector<gfx_handle<const gfx_buffer>> vbs;
-                        vbs.reserve(prim->vertex_buffer_views.size());
+                        vbs.reserve(prim_gpu_data->vertex_buffer_views.size());
                         std::vector<int32> bindings;
-                        bindings.reserve(prim->vertex_buffer_views.size());
+                        bindings.reserve(prim_gpu_data->vertex_buffer_views.size());
                         std::vector<int32> offsets;
-                        offsets.reserve(prim->vertex_buffer_views.size());
+                        offsets.reserve(prim_gpu_data->vertex_buffer_views.size());
                         int32 idx = 0;
-                        for (auto vbv : prim->vertex_buffer_views)
+                        for (auto vbv : prim_gpu_data->vertex_buffer_views)
                         {
                             vbs.push_back(vbv.graphics_buffer);
                             bindings.push_back(idx++);
                             offsets.push_back(vbv.offset);
                         }
 
-                        m_frame_context->set_vertex_buffers(static_cast<int32>(prim->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
+                        m_frame_context->set_vertex_buffers(static_cast<int32>(prim_gpu_data->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
 
                         m_renderer_info.last_frame.draw_calls++;
                         m_renderer_info.last_frame.primitives++;
-                        m_renderer_info.last_frame.vertices += std::max(prim->draw_call_desc.vertex_count, prim->draw_call_desc.index_count);
-                        m_frame_context->draw(prim->draw_call_desc.vertex_count, prim->draw_call_desc.index_count, prim->draw_call_desc.instance_count, prim->draw_call_desc.base_vertex,
-                                              prim->draw_call_desc.base_instance, prim->draw_call_desc.index_offset);
+                        m_renderer_info.last_frame.vertices += std::max(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count);
+                        m_frame_context->draw(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count, prim_gpu_data->draw_call_desc.instance_count,
+                                              prim_gpu_data->draw_call_desc.base_vertex, prim_gpu_data->draw_call_desc.base_instance, prim_gpu_data->draw_call_desc.index_offset);
                     }
                 }
             }
@@ -1340,64 +1236,39 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 m_debug_drawer.add(corners[5], corners[7]);
             }
 
-            optional<scene_primitive&> prim = scene->get_scene_primitive(dc.primitive_id);
-            if (!prim)
+            optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(dc.primitive_gpu_data_id);
+            if (!prim_gpu_data)
             {
-                warn_missing_draw("Primitive");
+                warn_missing_draw("Primitive gpu data");
                 continue;
             }
-            optional<scene_node&> node = scene->get_scene_node(dc.node_id);
-            if (!node)
+            optional<mesh_gpu_data&> m_gpu_data = scene->get_mesh_gpu_data(dc.mesh_gpu_data_id);
+            if (!m_gpu_data)
             {
-                warn_missing_draw("Node");
+                warn_missing_draw("Mesh gpu data");
                 continue;
             }
-            optional<scene_material&> mat = scene->get_scene_material(dc.material_id);
-            if (!mat)
+            optional<material&> mat                   = scene->get_material(dc.material_id);
+            optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
+            if (!mat || !mat_gpu_data)
             {
                 warn_missing_draw("Material");
                 continue;
             }
 
-            gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_opaque(prim->vertex_layout, prim->input_assembly, m_wireframe, mat->public_data.double_sided);
+            gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_opaque(prim_gpu_data->vertex_layout, prim_gpu_data->input_assembly, m_wireframe, mat->double_sided);
 
             m_frame_context->bind_pipeline(dc_pipeline);
-            gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
-                                          static_cast<float>(m_renderer_info.canvas.height) };
-            m_frame_context->set_viewport(0, 1, &window_viewport);
+            gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(shadow_pass->resolution()), static_cast<float>(shadow_pass->resolution()) };
+            m_frame_context->set_viewport(0, 1, &shadow_viewport);
 
-            dc_pipeline->get_resource_mapping()->set("camera_data", m_camera_data_buffer);
+            dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);
 
-            m_model_data.model_matrix  = node->global_transformation_matrix;
-            m_model_data.normal_matrix = std140_mat3(mat3(glm::transpose(glm::inverse(node->global_transformation_matrix))));
-            m_model_data.has_normals   = prim->public_data.has_normals;
-            m_model_data.has_tangents  = prim->public_data.has_tangents;
+            dc_pipeline->get_resource_mapping()->set("material_data", mat_gpu_data->material_data_buffer);
 
-            m_frame_context->set_buffer_data(m_model_data_buffer, 0, sizeof(m_model_data), &m_model_data);
-
-            dc_pipeline->get_resource_mapping()->set("model_data", m_model_data_buffer);
-
-            m_material_data.base_color                 = mat->public_data.base_color;
-            m_material_data.emissive_color             = mat->public_data.emissive_color;
-            m_material_data.metallic                   = mat->public_data.metallic;
-            m_material_data.roughness                  = mat->public_data.roughness;
-            m_material_data.base_color_texture         = mat->public_data.base_color_texture.is_valid();
-            m_material_data.roughness_metallic_texture = mat->public_data.metallic_roughness_texture.is_valid();
-            m_material_data.occlusion_texture          = mat->public_data.occlusion_texture.is_valid();
-            m_material_data.packed_occlusion           = mat->public_data.packed_occlusion;
-            m_material_data.normal_texture             = mat->public_data.normal_texture.is_valid();
-            m_material_data.emissive_color_texture     = mat->public_data.emissive_texture.is_valid();
-            m_material_data.emissive_intensity         = mat->public_data.emissive_intensity;
-            m_material_data.alpha_mode                 = static_cast<uint8>(mat->public_data.alpha_mode);
-            m_material_data.alpha_cutoff               = mat->public_data.alpha_cutoff;
-
-            m_frame_context->set_buffer_data(m_material_data_buffer, 0, sizeof(m_material_data), &m_material_data);
-
-            dc_pipeline->get_resource_mapping()->set("material_data", m_material_data_buffer);
-
-            if (m_material_data.base_color_texture)
+            if (mat_gpu_data->per_material_data.base_color_texture)
             {
-                optional<scene_texture&> tex = scene->get_scene_texture(mat->public_data.base_color_texture);
+                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
                 if (!tex)
                 {
                     warn_missing_draw("Base Color Texture");
@@ -1410,9 +1281,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             {
                 dc_pipeline->get_resource_mapping()->set("texture_base_color", default_texture_2D);
             }
-            if (m_material_data.roughness_metallic_texture)
+            if (mat_gpu_data->per_material_data.roughness_metallic_texture)
             {
-                optional<scene_texture&> tex = scene->get_scene_texture(mat->public_data.metallic_roughness_texture);
+                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->metallic_roughness_texture_gpu_data);
                 if (!tex)
                 {
                     warn_missing_draw("Roughness Metallic Texture");
@@ -1425,9 +1296,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             {
                 dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", default_texture_2D);
             }
-            if (m_material_data.occlusion_texture)
+            if (mat_gpu_data->per_material_data.occlusion_texture)
             {
-                optional<scene_texture&> tex = scene->get_scene_texture(mat->public_data.occlusion_texture);
+                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->occlusion_texture_gpu_data);
                 if (!tex)
                 {
                     warn_missing_draw("Occlusion Texture");
@@ -1440,9 +1311,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             {
                 dc_pipeline->get_resource_mapping()->set("texture_occlusion", default_texture_2D);
             }
-            if (m_material_data.normal_texture)
+            if (mat_gpu_data->per_material_data.normal_texture)
             {
-                optional<scene_texture&> tex = scene->get_scene_texture(mat->public_data.normal_texture);
+                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->normal_texture_gpu_data);
                 if (!tex)
                 {
                     warn_missing_draw("Normal Texture");
@@ -1455,9 +1326,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             {
                 dc_pipeline->get_resource_mapping()->set("texture_normal", default_texture_2D);
             }
-            if (m_material_data.emissive_color_texture)
+            if (mat_gpu_data->per_material_data.emissive_color_texture)
             {
-                optional<scene_texture&> tex = scene->get_scene_texture(mat->public_data.emissive_texture);
+                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->emissive_texture_gpu_data);
                 if (!tex)
                 {
                     warn_missing_draw("Emissive Color Texture");
@@ -1473,36 +1344,36 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
             m_frame_context->submit_pipeline_state_resources();
 
-            m_frame_context->set_index_buffer(prim->index_buffer_view.graphics_buffer, prim->index_type);
+            m_frame_context->set_index_buffer(prim_gpu_data->index_buffer_view.graphics_buffer, prim_gpu_data->index_type);
 
             std::vector<gfx_handle<const gfx_buffer>> vbs;
-            vbs.reserve(prim->vertex_buffer_views.size());
+            vbs.reserve(prim_gpu_data->vertex_buffer_views.size());
             std::vector<int32> bindings;
-            bindings.reserve(prim->vertex_buffer_views.size());
+            bindings.reserve(prim_gpu_data->vertex_buffer_views.size());
             std::vector<int32> offsets;
-            offsets.reserve(prim->vertex_buffer_views.size());
+            offsets.reserve(prim_gpu_data->vertex_buffer_views.size());
             int32 idx = 0;
-            for (auto vbv : prim->vertex_buffer_views)
+            for (auto vbv : prim_gpu_data->vertex_buffer_views)
             {
                 vbs.push_back(vbv.graphics_buffer);
                 bindings.push_back(idx++);
                 offsets.push_back(vbv.offset);
             }
 
-            m_frame_context->set_vertex_buffers(static_cast<int32>(prim->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
+            m_frame_context->set_vertex_buffers(static_cast<int32>(prim_gpu_data->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
 
             // m_frame_context->set_render_targets(m_gbuffer_render_targets.size() - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
 
             m_renderer_info.last_frame.draw_calls++;
             m_renderer_info.last_frame.primitives++;
-            m_renderer_info.last_frame.vertices += std::max(prim->draw_call_desc.vertex_count, prim->draw_call_desc.index_count);
-            m_frame_context->draw(prim->draw_call_desc.vertex_count, prim->draw_call_desc.index_count, prim->draw_call_desc.instance_count, prim->draw_call_desc.base_vertex,
-                                  prim->draw_call_desc.base_instance, prim->draw_call_desc.index_offset);
+            m_renderer_info.last_frame.vertices += std::max(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count);
+            m_frame_context->draw(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count, prim_gpu_data->draw_call_desc.instance_count,
+                                  prim_gpu_data->draw_call_desc.base_vertex, prim_gpu_data->draw_call_desc.base_instance, prim_gpu_data->draw_call_desc.index_offset);
         }
     }
 
-    auto irradiance = m_light_stack.get_skylight_irradiance_map();
-    auto specular   = m_light_stack.get_skylight_specular_prefilter_map();
+    auto irradiance = ls.get_skylight_irradiance_map();
+    auto specular   = ls.get_skylight_specular_prefilter_map();
     // lighting pass
     {
         GL_NAMED_PROFILE_ZONE("Deferred Lighting Pass");
@@ -1515,9 +1386,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
         m_frame_context->set_render_targets(static_cast<int32>(m_hdr_buffer_render_targets.size()) - 1, m_hdr_buffer_render_targets.data(), m_hdr_buffer_render_targets.back());
 
-        m_lighting_pass_pipeline->get_resource_mapping()->set("camera_data", m_camera_data_buffer);
+        m_lighting_pass_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
         m_lighting_pass_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer); // TODO Paul: Refill (Atm only filled on construction).
-        m_lighting_pass_pipeline->get_resource_mapping()->set("light_data", m_light_data_buffer);
+        m_lighting_pass_pipeline->get_resource_mapping()->set("light_data", light_data.light_data_buffer);
         // m_lighting_pass_pipeline->get_resource_mapping()->set("shadow_data", ); // TODO Paul: Should be filled in the shadow step. Nothing here yet.
 
         m_lighting_pass_pipeline->get_resource_mapping()->set("texture_gbuffer_c0", m_gbuffer_render_targets[0]);
@@ -1537,7 +1408,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_irradiance_map", m_mipmapped_linear_sampler);
             m_lighting_pass_pipeline->get_resource_mapping()->set("texture_radiance_map", specular);
             m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_radiance_map", m_mipmapped_linear_sampler);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", m_light_stack.get_skylight_brdf_lookup());
+            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", ls.get_skylight_brdf_lookup());
             m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_brdf_integration_lut", m_linear_sampler);
         }
         else
@@ -1620,65 +1491,40 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 m_debug_drawer.add(corners[1], corners[5]);
                 m_debug_drawer.add(corners[5], corners[7]);
             }
-            optional<scene_primitive&> prim = scene->get_scene_primitive(dc.primitive_id);
-            if (!prim)
+
+            optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(dc.primitive_gpu_data_id);
+            if (!prim_gpu_data)
             {
-                warn_missing_draw("Primitive");
+                warn_missing_draw("Primitive gpu data");
                 continue;
             }
-            optional<scene_node&> node = scene->get_scene_node(dc.node_id);
-            if (!node)
+            optional<mesh_gpu_data&> m_gpu_data = scene->get_mesh_gpu_data(dc.mesh_gpu_data_id);
+            if (!m_gpu_data)
             {
-                warn_missing_draw("Node");
+                warn_missing_draw("Mesh gpu data");
                 continue;
             }
-            optional<scene_material&> mat = scene->get_scene_material(dc.material_id);
-            if (!mat)
+            optional<material&> mat                   = scene->get_material(dc.material_id);
+            optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
+            if (!mat || !mat_gpu_data)
             {
                 warn_missing_draw("Material");
                 continue;
             }
 
-            gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_transparent(prim->vertex_layout, prim->input_assembly, m_wireframe, mat->public_data.double_sided);
+            gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_transparent(prim_gpu_data->vertex_layout, prim_gpu_data->input_assembly, m_wireframe, mat->double_sided);
 
             m_frame_context->bind_pipeline(dc_pipeline);
+            gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(shadow_pass->resolution()), static_cast<float>(shadow_pass->resolution()) };
+            m_frame_context->set_viewport(0, 1, &shadow_viewport);
 
-            gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
-                                          static_cast<float>(m_renderer_info.canvas.height) };
-            m_frame_context->set_viewport(0, 1, &window_viewport);
+            dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);
 
-            dc_pipeline->get_resource_mapping()->set("camera_data", m_camera_data_buffer);
+            dc_pipeline->get_resource_mapping()->set("material_data", mat_gpu_data->material_data_buffer);
 
-            m_model_data.model_matrix  = node->global_transformation_matrix;
-            m_model_data.normal_matrix = std140_mat3(mat3(glm::transpose(glm::inverse(node->global_transformation_matrix))));
-            m_model_data.has_normals   = prim->public_data.has_normals;
-            m_model_data.has_tangents  = prim->public_data.has_tangents;
-
-            m_frame_context->set_buffer_data(m_model_data_buffer, 0, sizeof(m_model_data), &m_model_data);
-
-            dc_pipeline->get_resource_mapping()->set("model_data", m_model_data_buffer);
-
-            m_material_data.base_color                 = mat->public_data.base_color;
-            m_material_data.emissive_color             = mat->public_data.emissive_color;
-            m_material_data.metallic                   = mat->public_data.metallic;
-            m_material_data.roughness                  = mat->public_data.roughness;
-            m_material_data.base_color_texture         = mat->public_data.base_color_texture.is_valid();
-            m_material_data.roughness_metallic_texture = mat->public_data.metallic_roughness_texture.is_valid();
-            m_material_data.occlusion_texture          = mat->public_data.occlusion_texture.is_valid();
-            m_material_data.packed_occlusion           = mat->public_data.packed_occlusion;
-            m_material_data.normal_texture             = mat->public_data.normal_texture.is_valid();
-            m_material_data.emissive_color_texture     = mat->public_data.emissive_texture.is_valid();
-            m_material_data.emissive_intensity         = mat->public_data.emissive_intensity;
-            m_material_data.alpha_mode                 = static_cast<uint8>(mat->public_data.alpha_mode);
-            m_material_data.alpha_cutoff               = mat->public_data.alpha_cutoff;
-
-            m_frame_context->set_buffer_data(m_material_data_buffer, 0, sizeof(m_material_data), &m_material_data);
-
-            dc_pipeline->get_resource_mapping()->set("material_data", m_material_data_buffer);
-
-            if (m_material_data.base_color_texture)
+            if (mat_gpu_data->per_material_data.base_color_texture)
             {
-                optional<scene_texture&> tex = scene->get_scene_texture(mat->public_data.base_color_texture);
+                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
                 if (!tex)
                 {
                     warn_missing_draw("Base Color Texture");
@@ -1691,9 +1537,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             {
                 dc_pipeline->get_resource_mapping()->set("texture_base_color", default_texture_2D);
             }
-            if (m_material_data.roughness_metallic_texture)
+            if (mat_gpu_data->per_material_data.roughness_metallic_texture)
             {
-                optional<scene_texture&> tex = scene->get_scene_texture(mat->public_data.metallic_roughness_texture);
+                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->metallic_roughness_texture_gpu_data);
                 if (!tex)
                 {
                     warn_missing_draw("Roughness Metallic Texture");
@@ -1706,9 +1552,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             {
                 dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", default_texture_2D);
             }
-            if (m_material_data.occlusion_texture)
+            if (mat_gpu_data->per_material_data.occlusion_texture)
             {
-                optional<scene_texture&> tex = scene->get_scene_texture(mat->public_data.occlusion_texture);
+                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->occlusion_texture_gpu_data);
                 if (!tex)
                 {
                     warn_missing_draw("Occlusion Texture");
@@ -1721,9 +1567,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             {
                 dc_pipeline->get_resource_mapping()->set("texture_occlusion", default_texture_2D);
             }
-            if (m_material_data.normal_texture)
+            if (mat_gpu_data->per_material_data.normal_texture)
             {
-                optional<scene_texture&> tex = scene->get_scene_texture(mat->public_data.normal_texture);
+                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->normal_texture_gpu_data);
                 if (!tex)
                 {
                     warn_missing_draw("Normal Texture");
@@ -1736,9 +1582,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             {
                 dc_pipeline->get_resource_mapping()->set("texture_normal", default_texture_2D);
             }
-            if (m_material_data.emissive_color_texture)
+            if (mat_gpu_data->per_material_data.emissive_color_texture)
             {
-                optional<scene_texture&> tex = scene->get_scene_texture(mat->public_data.emissive_texture);
+                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->emissive_texture_gpu_data);
                 if (!tex)
                 {
                     warn_missing_draw("Emissive Color Texture");
@@ -1754,26 +1600,26 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
             if (irradiance && specular) // If this exists the rest has to exist too
             {
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_irradiance_map", irradiance);
-                m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_irradiance_map", m_mipmapped_linear_sampler);
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_radiance_map", specular);
-                m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_radiance_map", m_mipmapped_linear_sampler);
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", m_light_stack.get_skylight_brdf_lookup());
-                m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_brdf_integration_lut", m_linear_sampler);
+                dc_pipeline->get_resource_mapping()->set("texture_irradiance_map", irradiance);
+                dc_pipeline->get_resource_mapping()->set("sampler_irradiance_map", m_mipmapped_linear_sampler);
+                dc_pipeline->get_resource_mapping()->set("texture_radiance_map", specular);
+                dc_pipeline->get_resource_mapping()->set("sampler_radiance_map", m_mipmapped_linear_sampler);
+                dc_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", ls.get_skylight_brdf_lookup());
+                dc_pipeline->get_resource_mapping()->set("sampler_brdf_integration_lut", m_linear_sampler);
             }
             else
             {
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_irradiance_map", default_texture_cube);
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_radiance_map", default_texture_cube);
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", default_texture_2D);
+                dc_pipeline->get_resource_mapping()->set("texture_irradiance_map", default_texture_cube);
+                dc_pipeline->get_resource_mapping()->set("texture_radiance_map", default_texture_cube);
+                dc_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", default_texture_2D);
             }
 
             if (shadow_pass)
             {
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", shadow_pass->get_shadow_maps_texture());
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map", shadow_pass->get_shadow_maps_texture());
-                m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_shadow_shadow_map", shadow_pass->get_shadow_maps_shadow_sampler());
-                m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_shadow_map", shadow_pass->get_shadow_maps_sampler());
+                dc_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", shadow_pass->get_shadow_maps_texture());
+                dc_pipeline->get_resource_mapping()->set("texture_shadow_map", shadow_pass->get_shadow_maps_texture());
+                dc_pipeline->get_resource_mapping()->set("sampler_shadow_shadow_map", shadow_pass->get_shadow_maps_shadow_sampler());
+                dc_pipeline->get_resource_mapping()->set("sampler_shadow_map", shadow_pass->get_shadow_maps_sampler());
             }
             else
             {
@@ -1783,36 +1629,38 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
             m_frame_context->submit_pipeline_state_resources();
 
-            m_frame_context->set_index_buffer(prim->index_buffer_view.graphics_buffer, prim->index_type);
+            m_frame_context->set_index_buffer(prim_gpu_data->index_buffer_view.graphics_buffer, prim_gpu_data->index_type);
 
             std::vector<gfx_handle<const gfx_buffer>> vbs;
-            vbs.reserve(prim->vertex_buffer_views.size());
+            vbs.reserve(prim_gpu_data->vertex_buffer_views.size());
             std::vector<int32> bindings;
-            bindings.reserve(prim->vertex_buffer_views.size());
+            bindings.reserve(prim_gpu_data->vertex_buffer_views.size());
             std::vector<int32> offsets;
-            offsets.reserve(prim->vertex_buffer_views.size());
+            offsets.reserve(prim_gpu_data->vertex_buffer_views.size());
             int32 idx = 0;
-            for (auto vbv : prim->vertex_buffer_views)
+            for (auto vbv : prim_gpu_data->vertex_buffer_views)
             {
                 vbs.push_back(vbv.graphics_buffer);
                 bindings.push_back(idx++);
                 offsets.push_back(vbv.offset);
             }
 
-            m_frame_context->set_vertex_buffers(static_cast<int32>(prim->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
+            m_frame_context->set_vertex_buffers(static_cast<int32>(prim_gpu_data->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
+
+            // m_frame_context->set_render_targets(m_gbuffer_render_targets.size() - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
 
             m_renderer_info.last_frame.draw_calls++;
             m_renderer_info.last_frame.primitives++;
-            m_renderer_info.last_frame.vertices += std::max(prim->draw_call_desc.vertex_count, prim->draw_call_desc.index_count);
-            m_frame_context->draw(prim->draw_call_desc.vertex_count, prim->draw_call_desc.index_count, prim->draw_call_desc.instance_count, prim->draw_call_desc.base_vertex,
-                                  prim->draw_call_desc.base_instance, prim->draw_call_desc.index_offset);
+            m_renderer_info.last_frame.vertices += std::max(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count);
+            m_frame_context->draw(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count, prim_gpu_data->draw_call_desc.instance_count,
+                                  prim_gpu_data->draw_call_desc.base_vertex, prim_gpu_data->draw_call_desc.base_instance, prim_gpu_data->draw_call_desc.index_offset);
         }
     }
 
     m_debug_drawer.update_buffer();
 
     // auto exposure
-    if (auto_exposure)
+    if (scene->calculate_auto_exposure())
     {
         GL_NAMED_PROFILE_ZONE("Auto Exposure Calculation");
         NAMED_PROFILE_ZONE("Auto Exposure Calculation");
@@ -1880,7 +1728,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         else
             m_frame_context->set_render_targets(1, &m_output_target, m_ouput_depth_target);
 
-        m_composing_pass_pipeline->get_resource_mapping()->set("camera_data", m_camera_data_buffer);
+        m_composing_pass_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
         m_composing_pass_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer);
         m_composing_pass_pipeline->get_resource_mapping()->set("texture_hdr_input", m_hdr_buffer_render_targets[0]);
         m_composing_pass_pipeline->get_resource_mapping()->set("sampler_hdr_input", m_nearest_sampler);
@@ -2084,68 +1932,12 @@ void deferred_pbr_renderer::on_ui_widget()
     ImGui::PopID();
 }
 
-float deferred_pbr_renderer::apply_exposure(scene_camera& camera, bool adaptive)
+float deferred_pbr_renderer::get_average_luminance() const
 {
-    PROFILE_ZONE;
-    float ape = default_camera_aperture;
-    float shu = default_camera_shutter_speed;
-    float iso = default_camera_iso;
-    if (adaptive)
-    {
-        m_frame_context->client_wait(m_luminance_semaphore);
-        float avg_luminance = m_luminance_data_mapping->luminance;
-
-        // K is a light meter calibration constant
-        static const float K = 12.5f;
-        static const float S = 100.0f;
-        float target_ev      = glm::log2(avg_luminance * S / K);
-
-        // Compute the resulting ISO if we left both shutter and aperture here
-        iso                 = glm::clamp(((ape * ape) * 100.0f) / (shu * glm::exp2(target_ev)), min_camera_iso, max_camera_iso);
-        float unclamped_iso = (shu * glm::exp2(target_ev));
-        MANGO_UNUSED(unclamped_iso);
-
-        // Apply half the difference in EV to the aperture
-        float ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
-        ape           = glm::clamp(ape * glm::pow(glm::sqrt(2.0f), ev_diff * 0.5f), min_camera_aperture, max_camera_aperture);
-
-        // Apply the remaining difference to the shutter speed
-        ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
-        shu     = glm::clamp(shu * glm::pow(2.0f, -ev_diff), min_camera_shutter_speed, max_camera_shutter_speed);
-    }
-    else
-    {
-        if (camera.type == camera_type::perspective)
-        {
-            ape = camera.public_data_as_perspective->physical.aperture;
-            shu = camera.public_data_as_perspective->physical.shutter_speed;
-            iso = camera.public_data_as_perspective->physical.iso;
-        }
-        else
-        {
-            ape = camera.public_data_as_orthographic->physical.aperture;
-            shu = camera.public_data_as_orthographic->physical.shutter_speed;
-            iso = camera.public_data_as_orthographic->physical.iso;
-        }
-    }
-
-    // Adapt camera settings.
-    if (camera.type == camera_type::perspective)
-    {
-        camera.public_data_as_perspective->physical.aperture      = glm::clamp(ape, min_camera_aperture, max_camera_aperture);
-        camera.public_data_as_perspective->physical.shutter_speed = glm::clamp(shu, min_camera_shutter_speed, max_camera_shutter_speed);
-        camera.public_data_as_perspective->physical.iso           = glm::clamp(iso, min_camera_iso, max_camera_iso);
-    }
-    else
-    {
-        camera.public_data_as_orthographic->physical.aperture      = glm::clamp(ape, min_camera_aperture, max_camera_aperture);
-        camera.public_data_as_orthographic->physical.shutter_speed = glm::clamp(shu, min_camera_shutter_speed, max_camera_shutter_speed);
-        camera.public_data_as_orthographic->physical.iso           = glm::clamp(iso, min_camera_iso, max_camera_iso);
-    }
-
-    // Calculate the exposure from the physical camera parameters.
-    float e               = ((ape * ape) * 100.0f) / (shu * iso);
-    float camera_exposure = 1.0f / (1.2f * e);
-
-    return camera_exposure;
+    auto device_context = m_graphics_device->create_graphics_device_context();
+    device_context->begin();
+    device_context->client_wait(m_luminance_semaphore);
+    device_context->end();
+    device_context->submit();
+    return m_luminance_data_mapping->luminance;
 }

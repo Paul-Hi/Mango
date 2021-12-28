@@ -146,11 +146,7 @@ namespace mango
         //! \brief The \a gfx_semaphore used to synchronize \a renderer frames.
         gfx_handle<const gfx_semaphore> m_frame_semaphore;
 
-        //! \brief Calculates exposure and adapts physical camera parameters.
-        //! \param[in,out] camera The current \a scene_camera.
-        //! \param[in] adaptive True if the exposure should be adaptive, else false.
-        //! \return Returns the calculated camera exposure.
-        float apply_exposure(scene_camera& camera, bool adaptive);
+        float get_average_luminance() const override;
     };
 
 } // namespace mango

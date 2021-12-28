@@ -249,6 +249,10 @@ namespace mango
             return m_vsync;
         }
 
+        //! \brief Returns the average luminance of the last frame.
+        //! \return The average luminance.
+        virtual float get_average_luminance() const;
+
       protected:
         //! \brief Mangos internal context for shared usage in all \a renderers.
         shared_ptr<context_impl> m_shared_context;
