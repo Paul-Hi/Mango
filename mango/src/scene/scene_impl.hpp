@@ -12,6 +12,7 @@
 #include <mango/scene.hpp>
 #include <map>
 #include <queue>
+#include <rendering/light_stack.hpp>
 #include <scene/scene_structures_internal.hpp>
 #include <util/helpers.hpp>
 
@@ -232,7 +233,6 @@ namespace mango
 
         //! \brief Mangos internal context for shared usage in all \a scenes.
         shared_ptr<context_impl> m_shared_context;
-
 
         //! \brief The light stack managing all lights.
         light_stack m_light_stack;

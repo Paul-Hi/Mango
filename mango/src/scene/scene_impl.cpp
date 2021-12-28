@@ -736,10 +736,6 @@ void scene_impl::unload_gltf_model(uid model_id)
             remove_instantiable_node(node);
         }
 
-        uid lights_gpu_data = scen.lights_gpu_data;
-        MANGO_ASSERT(m_light_gpu_data.contains(lights_gpu_data), "Light gpu data for scenario does not exist!");
-
-        m_light_gpu_data.erase(lights_gpu_data);
         m_scenarios.erase(sc);
     }
 
@@ -795,7 +791,7 @@ optional<perspective_camera&> scene_impl::get_perspective_camera(uid node_id)
     if ((nd.type & node_type::perspective_camera) == node_type::hierarchy)
     {
         MANGO_LOG_WARN("Node with ID {0} does not contain a perspective camera! Can not retrieve perspective camera!", node_id.get());
-        return;
+        return NULL_OPTION;
     }
 
     uid camera_id = nd.camera_ids[static_cast<uint8>(camera_type::perspective)];
@@ -824,7 +820,7 @@ optional<orthographic_camera&> scene_impl::get_orthographic_camera(uid node_id)
     if ((nd.type & node_type::orthographic_camera) == node_type::hierarchy)
     {
         MANGO_LOG_WARN("Node with ID {0} does not contain a orthographic camera! Can not retrieve orthographic camera!", node_id.get());
-        return;
+        return NULL_OPTION;
     }
 
     uid camera_id = nd.camera_ids[static_cast<uint8>(camera_type::orthographic)];
@@ -853,7 +849,7 @@ optional<directional_light&> scene_impl::get_directional_light(uid node_id)
     if ((nd.type & node_type::directional_light) == node_type::hierarchy)
     {
         MANGO_LOG_WARN("Node with ID {0} does not contain a directional light! Can not retrieve directional light!", node_id.get());
-        return;
+        return NULL_OPTION;
     }
 
     uid light_id = nd.light_ids[static_cast<uint8>(light_type::directional)];
@@ -882,7 +878,7 @@ optional<skylight&> scene_impl::get_skylight(uid node_id)
     if ((nd.type & node_type::skylight) == node_type::hierarchy)
     {
         MANGO_LOG_WARN("Node with ID {0} does not contain a skylight! Can not retrieve skylight!", node_id.get());
-        return;
+        return NULL_OPTION;
     }
 
     uid light_id = nd.light_ids[static_cast<uint8>(light_type::skylight)];
@@ -911,7 +907,7 @@ optional<atmospheric_light&> scene_impl::get_atmospheric_light(uid node_id)
     if ((nd.type & node_type::atmospheric_light) == node_type::hierarchy)
     {
         MANGO_LOG_WARN("Node with ID {0} does not contain a atmospheric light! Can not retrieve atmospheric light!", node_id.get());
-        return;
+        return NULL_OPTION;
     }
 
     uid light_id = nd.light_ids[static_cast<uint8>(light_type::atmospheric)];
@@ -2014,7 +2010,7 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         const tinygltf::Texture& emissive = m.textures.at(primitive_material.emissiveTexture.index);
 
         if (emissive.source < 0)
-            return;
+            return invalid_uid;
 
         const tinygltf::Image& image = m.images[emissive.source];
 
@@ -2379,7 +2375,7 @@ void scene_impl::update(float dt)
     }
 
     m_light_stack.update(this);
-    m_light_gpu_data = m_light_stack.get_light_data();
+    m_light_gpu_data.scene_light_data = m_light_stack.get_light_data();
 
     auto device_context = m_scene_graphics_device->create_graphics_device_context();
     device_context->begin();
@@ -2479,7 +2475,7 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid& sel
     ImGui::PopStyleVar();
     if (ImGui::IsItemClicked(0))
     {
-        m_ui_selected_uid = current->node_id;
+        m_ui_selected_uid = current;
     }
     if (ImGui::IsItemClicked(1) && !ImGui::IsPopupOpen(("##object_menu" + std::to_string(current.get())).c_str()))
     {
