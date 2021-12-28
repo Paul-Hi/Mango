@@ -202,12 +202,15 @@ namespace mango
         //! \brief Mangos internal context for shared usage in all \a scenes.
         shared_ptr<context_impl> m_shared_context;
 
+
+        //! \brief The light stack managing all lights.
+        light_stack m_light_stack;
+        //! \brief The \a light_gpu_data in the \a scene.
+        light_gpu_data m_light_gpu_data;
         //! \brief The \a packed_freelist for all \a models in the \a scene.
         packed_freelist<model, 16> m_models;
         //! \brief The \a packed_freelist for all \a scenarios in the \a scene.
         packed_freelist<scenario, 32> m_scenarios;
-        //! \brief The \a packed_freelist for all \a light_gpu_data in the \a scene. (per scenario)
-        packed_freelist<light_gpu_data, 32> m_light_gpu_data;
         //! \brief The \a packed_freelist for all \a nodes in the \a scene.
         packed_freelist<node, 32768> m_nodes;
         //! \brief The \a packed_freelist for all \a transforms in the \a scene.

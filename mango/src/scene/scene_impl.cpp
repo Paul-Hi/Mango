@@ -27,9 +27,10 @@ static gfx_sampler_edge_wrap get_texture_wrap_from_tinygltf(int32 wrap);
 
 scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& context)
     : m_shared_context(context)
+    , m_light_stack()
+    , m_light_gpu_data()
     , m_models()
     , m_scenarios()
-    , m_light_gpu_data()
     , m_nodes()
     , m_transforms()
     , m_global_transformation_matrices()
@@ -1387,17 +1388,14 @@ std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& def
     buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
     buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
     buffer_info.size          = sizeof(light_data);
+    // light_data is filled by the light_stack
+    m_light_gpu_data.light_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(m_light_gpu_data.light_data_buffer.get(), "light data buffer"))
+        return std::vector<uid>();
 
     for (const tinygltf::Scene& t_scene : m.scenes)
     {
         scenario scen;
-        light_gpu_data data;
-        data.light_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
-        if (!check_creation(data.light_data_buffer.get(), "light data buffer"))
-            return std::vector<uid>();
-
-        // data.scenario_light_data is filled by the light_stack
-        scen.lights_gpu_data = m_light_gpu_data.emplace(data);
 
         for (int32 i = 0; i < static_cast<int32>(t_scene.nodes.size()); ++i)
         {
@@ -1648,7 +1646,7 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
                 if (attrib_location == 0)
                 {
                     prim_gpu_data.bounding_box = axis_aligned_bounding_box::from_min_max(vec3(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]),
-                                                                              vec3(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]));
+                                                                                         vec3(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]));
                 }
             }
             else
@@ -1732,7 +1730,7 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         const tinygltf::Texture& base_col = m.textures.at(pbr.baseColorTexture.index);
 
         if (base_col.source < 0)
-            return;
+            return invalid_uid;
 
         const tinygltf::Image& image = m.images[base_col.source];
 
@@ -1797,7 +1795,7 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         const tinygltf::Texture& o_r_m_t = m.textures.at(pbr.metallicRoughnessTexture.index);
 
         if (o_r_m_t.source < 0)
-            return;
+            return invalid_uid;
 
         const tinygltf::Image& image = m.images[o_r_m_t.source];
 
@@ -1865,7 +1863,7 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
 
             const tinygltf::Texture& occ = m.textures.at(primitive_material.occlusionTexture.index);
             if (occ.source < 0)
-                return;
+                return invalid_uid;
 
             const tinygltf::Image& image = m.images[occ.source];
 
@@ -1926,7 +1924,7 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         const tinygltf::Texture& norm = m.textures.at(primitive_material.normalTexture.index);
 
         if (norm.source < 0)
-            return;
+            return invalid_uid;
 
         const tinygltf::Image& image = m.images[norm.source];
 
@@ -2148,19 +2146,22 @@ void scene_impl::update_scene_graph(uid node_id, uid parent_id, bool force_updat
         {
             uid light_id         = node.light_ids[static_cast<uint8>(light_type::directional)];
             directional_light& l = m_directional_lights.at(light_id);
-            l.changed            = true;
+            m_light_stack.push(l);
+            l.changed = true;
         }
         if ((node.type & node_type::skylight) != node_type::hierarchy)
         {
             uid light_id = node.light_ids[static_cast<uint8>(light_type::skylight)];
             skylight& l  = m_skylights.at(light_id);
-            l.changed    = true;
+            m_light_stack.push(l);
+            l.changed = true;
         }
         if ((node.type & node_type::atmospheric_light) != node_type::hierarchy)
         {
             uid light_id         = node.light_ids[static_cast<uint8>(light_type::atmospheric)];
             atmospheric_light& l = m_atmospheric_lights.at(light_id);
-            l.changed            = true;
+            m_light_stack.push(l);
+            l.changed = true;
         }
 
         tr.changed = false;
@@ -2294,7 +2295,8 @@ void scene_impl::update(float dt)
         }
     }
 
-    // TODO Paul: Do the light stack update here!
+    m_light_stack.update(this);
+    m_light_gpu_data = m_light_stack.get_light_data();
 
     for (auto id : m_materials)
     {

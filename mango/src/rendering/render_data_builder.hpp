@@ -8,7 +8,7 @@
 #define MANGO_RENDER_DATA_BUILDER_HPP
 
 #include <rendering/renderer_impl.hpp>
-#include <scene/scene_internals.hpp>
+#include <scene/scene_structures_internal.hpp>
 
 namespace mango
 {

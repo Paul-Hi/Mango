@@ -39,23 +39,19 @@ bool light_stack::init(const shared_ptr<context_impl>& context)
     return true;
 }
 
-void light_stack::push(const scene_light& light)
+void light_stack::push(const directional_light& light)
 {
-    // push to correct stack
-    switch (light.type)
-    {
-    case light_type::directional:
-        m_directional_stack.emplace_back(light.public_data_as_directional_light.value());
-        break;
-    case light_type::atmospheric:
-        m_atmosphere_stack.emplace_back(light.public_data_as_atmospheric_light.value());
-        break;
-    case light_type::skylight:
-        m_skylight_stack.emplace_back(light.public_data_as_skylight.value());
-        break;
-    default:
-        break;
-    }
+    m_directional_stack.emplace_back(light);
+}
+
+void light_stack::push(const skylight& light)
+{
+    m_skylight_stack.emplace_back(light);
+}
+
+void light_stack::push(const atmospheric_light& light)
+{
+    m_atmosphere_stack.emplace_back(light);
 }
 
 void light_stack::update(scene_impl* scene)
@@ -66,7 +62,7 @@ void light_stack::update(scene_impl* scene)
         c.second.expired = true;
 
     m_current_shadow_casters.clear();
-    m_last_skylight = m_global_skylight;
+    m_last_skylight   = m_global_skylight;
     m_global_skylight = 0;
 
     // order is important!
@@ -205,12 +201,12 @@ void light_stack::update_skylights(scene_impl* scene)
     for (auto& s : m_skylight_stack)
     {
         int64 checksum = calculate_checksum(reinterpret_cast<uint8*>(&s.dynamic), sizeof(bool));
-        checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.hdr_texture), sizeof(sid));
+        checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.hdr_texture), sizeof(uid));
         checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.intensity), sizeof(float));
         checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.local), sizeof(bool));
         checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.use_texture), sizeof(bool));
 
-        if(m_global_skylight == 0)
+        if (m_global_skylight == 0)
             m_global_skylight = checksum;
 
         // find in light cache

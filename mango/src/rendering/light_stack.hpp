@@ -28,9 +28,17 @@ namespace mango
         //! \return True on success, else false.
         bool init(const shared_ptr<context_impl>& context);
 
-        //! \brief Pushes a light on the stack.
-        //! \param[in] light A reference to the \a scene_light to push.
-        void push(const scene_light& light);
+        //! \brief Pushes a \a directional_light on the stack.
+        //! \param[in] light A reference to the \a directional_light to push.
+        void push(const directional_light& light);
+
+        //! \brief Pushes a \a skylight on the stack.
+        //! \param[in] light A reference to the \a skylight to push.
+        void push(const skylight& light);
+
+        //! \brief Pushes a \a atmospheric_light on the stack.
+        //! \param[in] light A reference to the \a atmospheric_light to push.
+        void push(const atmospheric_light& light);
 
         //! \brief Updates the stack.
         //! \param[in] scene A pointer to the current scene.

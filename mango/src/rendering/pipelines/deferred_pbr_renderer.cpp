@@ -28,7 +28,6 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
     : renderer_impl(configuration, context)
     , m_pipeline_cache(context)
     , m_frame_context(nullptr)
-    , m_light_stack()
     , m_debug_drawer(context)
     , m_debug_bounds(false)
     , m_graphics_device(m_shared_context->get_graphics_device())
@@ -1110,15 +1109,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
         if ((node->type & node_type::light) != node_type::empty_leaf)
         {
-            for (int32 i = 0; i < 3; ++i)
-            {
-                if (node->light_ids[i] == invalid_sid)
-                    continue;
-
-                optional<scene_light&> light = scene->get_scene_light(node->light_ids[i]);
-                MANGO_ASSERT(light, "Non existing light in instances!");
-                m_light_stack.push(light.value());
-            }
         }
         if ((node->type & node_type::mesh) != node_type::empty_leaf)
         {
@@ -1155,8 +1145,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             // TODO First is active one at the moment.
         }
     }
-
-    m_light_stack.update(scene);
 
     m_frame_context->set_buffer_data(m_light_data_buffer, 0, sizeof(light_data), &(m_light_stack.get_light_data()));
 
