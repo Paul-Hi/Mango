@@ -70,7 +70,7 @@ namespace mango
 
         //! \brief Returns a handle to the skylight brdf lookup.
         //! \return A \a gfx_handle of the skylight brdf lookup texture.
-        inline gfx_handle<const gfx_texture> get_skylight_brdf_lookup()
+        inline gfx_handle<const gfx_texture> get_skylight_brdf_lookup() const
         {
             return m_brdf_integration_lut;
         }

@@ -53,14 +53,14 @@ namespace mango
 
         //! \brief Retrieves all lights casting shadows (atm only directional lights).
         //! \return A vector of lights that cast shadows.
-        inline std::vector<directional_light> get_shadow_casters()
+        inline std::vector<directional_light> get_shadow_casters() const
         {
             return m_current_shadow_casters;
         }
 
         //! \brief Returns a handle to the active skylight irradiance map.
         //! \return A \a gfx_handle of the skylight irradiance map.
-        inline gfx_handle<const gfx_texture> get_skylight_irradiance_map()
+        inline gfx_handle<const gfx_texture> get_skylight_irradiance_map() const
         {
             auto entry = m_light_cache.find(m_global_skylight);
             if (entry != m_light_cache.end())
@@ -72,7 +72,7 @@ namespace mango
 
         //! \brief Returns a handle to the active skylight radiance map.
         //! \return A \a gfx_handle of the skylight radiance map.
-        inline gfx_handle<const gfx_texture> get_skylight_specular_prefilter_map()
+        inline gfx_handle<const gfx_texture> get_skylight_specular_prefilter_map() const
         {
             auto entry = m_light_cache.find(m_global_skylight);
             if (entry != m_light_cache.end())
@@ -84,7 +84,7 @@ namespace mango
 
         //! \brief Returns a handle to the skylight brdf lookup.
         //! \return A \a gfx_handle of the skylight brdf lookup texture.
-        inline gfx_handle<const gfx_texture> get_skylight_brdf_lookup()
+        inline gfx_handle<const gfx_texture> get_skylight_brdf_lookup() const
         {
             return m_skylight_builder.get_skylight_brdf_lookup();
         }

@@ -53,6 +53,9 @@ scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& conte
     PROFILE_ZONE;
     MANGO_UNUSED(name);
 
+    // create light stack
+    m_light_stack.init(m_shared_context);
+
     node root("Root");
     root.transform_id     = m_transforms.emplace();
     root.type             = node_type::hierarchy;
@@ -1113,6 +1116,32 @@ void scene_impl::remove_texture_gpu_data(uid texture_id)
     m_texture_gpu_data.erase(tex.gpu_data);
 }
 
+optional<primitive&> scene_impl::get_primitive(uid instance_id)
+{
+    PROFILE_ZONE;
+
+    if (!m_primitives.contains(instance_id))
+    {
+        MANGO_LOG_WARN("Primitive with ID {0} does not exist! Can not retrieve primitive!", instance_id.get());
+        return NULL_OPTION;
+    }
+
+    return m_primitives.at(instance_id);
+}
+
+optional<mat4&> scene_impl::get_global_transformation_matrix(uid instance_id)
+{
+    PROFILE_ZONE;
+
+    if (!m_global_transformation_matrices.contains(instance_id))
+    {
+        MANGO_LOG_WARN("Global transformation matrix with ID {0} does not exist! Can not retrieve global transformation matrix!", instance_id.get());
+        return NULL_OPTION;
+    }
+
+    return m_global_transformation_matrices.at(instance_id);
+}
+
 optional<texture_gpu_data&> scene_impl::get_texture_gpu_data(uid instance_id)
 {
     PROFILE_ZONE;
@@ -1178,17 +1207,9 @@ optional<camera_gpu_data&> scene_impl::get_camera_gpu_data(uid instance_id)
     return m_camera_gpu_data.at(instance_id);
 }
 
-optional<light_gpu_data&> scene_impl::get_light_gpu_data(uid instance_id)
+const light_gpu_data& scene_impl::get_light_gpu_data()
 {
-    PROFILE_ZONE;
-
-    if (!m_light_gpu_data.contains(instance_id))
-    {
-        MANGO_LOG_WARN("Light gpu data with ID {0} does not exist! Can not retrieve light gpu data!", instance_id.get());
-        return NULL_OPTION;
-    }
-
-    return m_light_gpu_data.at(instance_id);
+    return m_light_gpu_data;
 }
 
 optional<buffer_view&> scene_impl::get_buffer_view(uid instance_id)
@@ -1645,8 +1666,8 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
                 // AABB
                 if (attrib_location == 0)
                 {
-                    prim_gpu_data.bounding_box = axis_aligned_bounding_box::from_min_max(vec3(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]),
-                                                                                         vec3(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]));
+                    prim.bounding_box = axis_aligned_bounding_box::from_min_max(vec3(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]),
+                                                                                vec3(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]));
                 }
             }
             else
@@ -1781,7 +1802,8 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         data.graphics_sampler = texture_sampler_pair.second;
         tex.gpu_data          = m_texture_gpu_data.emplace(data);
 
-        new_material.base_color_texture = m_textures.emplace(tex);
+        new_material.base_color_texture          = m_textures.emplace(tex);
+        new_material.base_color_texture_gpu_data = tex.gpu_data;
     }
 
     // metallic / roughness
@@ -1846,7 +1868,8 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         data.graphics_sampler = texture_sampler_pair.second;
         tex.gpu_data          = m_texture_gpu_data.emplace(data);
 
-        new_material.metallic_roughness_texture = m_textures.emplace(tex);
+        new_material.metallic_roughness_texture          = m_textures.emplace(tex);
+        new_material.metallic_roughness_texture_gpu_data = tex.gpu_data;
     }
 
     // occlusion
@@ -1914,7 +1937,8 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
             data.graphics_sampler = texture_sampler_pair.second;
             tex.gpu_data          = m_texture_gpu_data.emplace(data);
 
-            new_material.occlusion_texture = m_textures.emplace(tex);
+            new_material.occlusion_texture          = m_textures.emplace(tex);
+            new_material.occlusion_texture_gpu_data = tex.gpu_data;
         }
     }
 
@@ -1975,7 +1999,8 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         data.graphics_sampler = texture_sampler_pair.second;
         tex.gpu_data          = m_texture_gpu_data.emplace(data);
 
-        new_material.normal_texture = m_textures.emplace(tex);
+        new_material.normal_texture          = m_textures.emplace(tex);
+        new_material.normal_texture_gpu_data = tex.gpu_data;
     }
 
     // emissive
@@ -2040,7 +2065,8 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         data.graphics_sampler = texture_sampler_pair.second;
         tex.gpu_data          = m_texture_gpu_data.emplace(data);
 
-        new_material.emissive_texture = m_textures.emplace(tex);
+        new_material.emissive_texture          = m_textures.emplace(tex);
+        new_material.emissive_texture_gpu_data = tex.gpu_data;
     }
 
     new_material.emissive_intensity = default_emissive_intensity;
@@ -2208,9 +2234,11 @@ void scene_impl::update(float dt)
             m.changed = false;
         }
     }
+    m_requires_auto_exposure = false;
     for (auto id : m_perspective_cameras)
     {
         perspective_camera& cam = m_perspective_cameras.at(id);
+        m_requires_auto_exposure &= cam.adaptive_exposure;
         if (cam.changed)
         {
             camera_gpu_data& data = m_camera_gpu_data.at(cam.gpu_data);
@@ -2230,17 +2258,44 @@ void scene_impl::update(float dt)
             data.per_camera_data.camera_near             = cam.z_near;
             data.per_camera_data.camera_far              = cam.z_far;
 
+            float ape;
+            float shu;
+            float iso;
             if (cam.adaptive_exposure) // Has to be calculated each frame if enabled.
-                data.per_camera_data.camera_exposure = 1.0f;
+            {
+                ape = default_camera_aperture;
+                shu = default_camera_shutter_speed;
+                iso = default_camera_iso;
+
+                // K is a light meter calibration constant
+                static const float K = 12.5f;
+                static const float S = 100.0f;
+                float target_ev      = glm::log2(m_average_luminance * S / K);
+
+                // Compute the resulting ISO if we left both shutter and aperture here
+                iso                 = glm::clamp(((ape * ape) * 100.0f) / (shu * glm::exp2(target_ev)), min_camera_iso, max_camera_iso);
+                float unclamped_iso = (shu * glm::exp2(target_ev));
+                MANGO_UNUSED(unclamped_iso);
+
+                // Apply half the difference in EV to the aperture
+                float ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
+                ape           = glm::clamp(ape * glm::pow(glm::sqrt(2.0f), ev_diff * 0.5f), min_camera_aperture, max_camera_aperture);
+
+                // Apply the remaining difference to the shutter speed
+                ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
+                shu     = glm::clamp(shu * glm::pow(2.0f, -ev_diff), min_camera_shutter_speed, max_camera_shutter_speed);
+            }
             else
             {
-                float ape = cam.physical.aperture;
-                float shu = cam.physical.shutter_speed;
-                float iso = cam.physical.iso;
-
-                float e                              = ((ape * ape) * 100.0f) / (shu * iso);
-                data.per_camera_data.camera_exposure = 1.0f / (1.2f * e);
+                ape = cam.physical.aperture;
+                shu = cam.physical.shutter_speed;
+                iso = cam.physical.iso;
             }
+            cam.physical.aperture                = glm::clamp(ape, min_camera_aperture, max_camera_aperture);
+            cam.physical.shutter_speed           = glm::clamp(shu, min_camera_shutter_speed, max_camera_shutter_speed);
+            cam.physical.iso                     = glm::clamp(iso, min_camera_iso, max_camera_iso);
+            float e                              = ((ape * ape) * 100.0f) / (shu * iso);
+            data.per_camera_data.camera_exposure = 1.0f / (1.2f * e);
 
             auto device_context = m_scene_graphics_device->create_graphics_device_context();
             device_context->begin();
@@ -2254,6 +2309,7 @@ void scene_impl::update(float dt)
     for (auto id : m_orthographic_cameras)
     {
         orthographic_camera& cam = m_orthographic_cameras.at(id);
+        m_requires_auto_exposure &= cam.adaptive_exposure;
         if (cam.changed)
         {
             camera_gpu_data& data = m_camera_gpu_data.at(cam.gpu_data);
@@ -2273,17 +2329,44 @@ void scene_impl::update(float dt)
             data.per_camera_data.camera_near             = cam.z_near;
             data.per_camera_data.camera_far              = cam.z_far;
 
+            float ape;
+            float shu;
+            float iso;
             if (cam.adaptive_exposure) // Has to be calculated each frame if enabled.
-                data.per_camera_data.camera_exposure = 1.0f;
+            {
+                ape = default_camera_aperture;
+                shu = default_camera_shutter_speed;
+                iso = default_camera_iso;
+
+                // K is a light meter calibration constant
+                static const float K = 12.5f;
+                static const float S = 100.0f;
+                float target_ev      = glm::log2(m_average_luminance * S / K);
+
+                // Compute the resulting ISO if we left both shutter and aperture here
+                iso                 = glm::clamp(((ape * ape) * 100.0f) / (shu * glm::exp2(target_ev)), min_camera_iso, max_camera_iso);
+                float unclamped_iso = (shu * glm::exp2(target_ev));
+                MANGO_UNUSED(unclamped_iso);
+
+                // Apply half the difference in EV to the aperture
+                float ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
+                ape           = glm::clamp(ape * glm::pow(glm::sqrt(2.0f), ev_diff * 0.5f), min_camera_aperture, max_camera_aperture);
+
+                // Apply the remaining difference to the shutter speed
+                ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
+                shu     = glm::clamp(shu * glm::pow(2.0f, -ev_diff), min_camera_shutter_speed, max_camera_shutter_speed);
+            }
             else
             {
-                float ape = cam.physical.aperture;
-                float shu = cam.physical.shutter_speed;
-                float iso = cam.physical.iso;
-
-                float e                              = ((ape * ape) * 100.0f) / (shu * iso);
-                data.per_camera_data.camera_exposure = 1.0f / (1.2f * e);
+                ape = cam.physical.aperture;
+                shu = cam.physical.shutter_speed;
+                iso = cam.physical.iso;
             }
+            cam.physical.aperture                = glm::clamp(ape, min_camera_aperture, max_camera_aperture);
+            cam.physical.shutter_speed           = glm::clamp(shu, min_camera_shutter_speed, max_camera_shutter_speed);
+            cam.physical.iso                     = glm::clamp(iso, min_camera_iso, max_camera_iso);
+            float e                              = ((ape * ape) * 100.0f) / (shu * iso);
+            data.per_camera_data.camera_exposure = 1.0f / (1.2f * e);
 
             auto device_context = m_scene_graphics_device->create_graphics_device_context();
             device_context->begin();
@@ -2297,6 +2380,12 @@ void scene_impl::update(float dt)
 
     m_light_stack.update(this);
     m_light_gpu_data = m_light_stack.get_light_data();
+
+    auto device_context = m_scene_graphics_device->create_graphics_device_context();
+    device_context->begin();
+    device_context->set_buffer_data(m_light_gpu_data.light_data_buffer, 0, sizeof(light_data), const_cast<void*>((void*)(&(m_light_gpu_data.scene_light_data))));
+    device_context->end();
+    device_context->submit();
 
     for (auto id : m_materials)
     {

@@ -9,7 +9,6 @@
 
 #include <graphics/graphics_resources.hpp>
 #include <mango/scene_structures.hpp>
-#include <util/intersect.hpp>
 #include <rendering/renderer_impl.hpp>
 
 namespace mango
@@ -95,9 +94,6 @@ namespace mango
         //! \brief The \a draw_call_description providing information to schedule a draw call for this \a primitive_gpu_data.
         draw_call_description draw_call_desc;
 
-        //! \brief The \a axis_aligned_bounding_box of this \a primitive_gpu_data.
-        axis_aligned_bounding_box bounding_box;
-
         primitive_gpu_data()
             : index_type(gfx_format::t_unsigned_byte)
         {
@@ -135,8 +131,8 @@ namespace mango
     //! \brief The \a light gpu_data.
     struct light_gpu_data
     {
-        //! \brief The gpu data for all lights (currently one for each scenario).
-        light_data scenario_light_data;
+        //! \brief The gpu data for all lights.
+        light_data scene_light_data;
         //! \brief The graphics uniform buffer for uploading \a light_data. Filled with data provided by the \a light_stack.
         gfx_handle<const gfx_buffer> light_data_buffer;
 

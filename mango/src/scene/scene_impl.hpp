@@ -77,6 +77,16 @@ namespace mango
         //! \param[in] instance_id The \a uid of the \a texture to remove for from the \a scene.
         void remove_texture_gpu_data(uid texture_id);
 
+        //! \brief Retrieves a \a primitive from the \a scene.
+        //! \param[in] instance_id The \a uid of the \a primitive to retrieve from the \a scene.
+        //! \return An optional \a primitive reference.
+        optional<primitive&> get_primitive(uid instance_id);
+
+        //! \brief Retrieves a global transformation matrix from the \a scene.
+        //! \param[in] instance_id The \a uid of the matrix to retrieve from the \a scene.
+        //! \return An optional matrix reference.
+        optional<mat4&> get_global_transformation_matrix(uid instance_id);
+
         //! \brief Retrieves a \a texture_gpu_data from the \a scene.
         //! \param[in] instance_id The \a uid of the \a texture_gpu_data to retrieve from the \a scene.
         //! \return An optional \a texture_gpu_data reference.
@@ -102,10 +112,9 @@ namespace mango
         //! \return An optional \a camera_gpu_data reference.
         optional<camera_gpu_data&> get_camera_gpu_data(uid instance_id);
 
-        //! \brief Retrieves a \a light_gpu_data from the \a scene.
-        //! \param[in] instance_id The \a uid of the \a light_gpu_data to retrieve from the \a scene.
-        //! \return An optional \a light_gpu_data reference.
-        optional<light_gpu_data&> get_light_gpu_data(uid instance_id);
+        //! \brief Retrieves the \a light_gpu_data from the \a scene.
+        //! \return The constant \a light_gpu_data reference.
+        const light_gpu_data& get_light_gpu_data();
 
         //! \brief Retrieves a \a buffer_view from the \a scene.
         //! \param[in] instance_id The \a uid of the \a buffer_view to retrieve from the \a scene.
@@ -131,6 +140,28 @@ namespace mango
         //! \brief Draws the hierarchy of \a nodes in a ui widget.
         //! \details Does not create an ImGui window, only draws contents.
         void draw_scene_hierarchy(uid& selected);
+
+        //! \brief Sets the average luminance for camera auto exposure calculations.
+        //! \param[in] avg_luminance The average luminance to use.
+        inline void set_average_luminance(float avg_luminance)
+        {
+            m_average_luminance = avg_luminance;
+        }
+
+        //! \brief Retrieves the \a light_stack of the \a scene.
+        //! \return The \a light_stack.
+        inline const light_stack get_light_stack()
+        {
+            return m_light_stack;
+        }
+
+        //! \brief Returns if a camera in the \a scene requires auto exposure calculations.
+        //! \return True if a camera in the \a scene requires auto exposure calculations, else false.
+        inline bool calculate_auto_exposure()
+        {
+            return m_requires_auto_exposure;
+        }
+
       private:
         //! \brief Loads an image from a path and creates and returns a \a gfx_texture and \a gfx_sampler for the image.
         //! \param[in] path The full path to the image to load.
@@ -281,6 +312,12 @@ namespace mango
 
         //! \brief The \a uid of the default material.
         uid m_default_material;
+
+        //! \brief The average luminance (which can be set)
+        float m_average_luminance = 1.0f;
+
+        //! \brief True if a camera in the \a scene requires auto exposure calculations, else false.
+        bool m_requires_auto_exposure = false;
     };
 } // namespace mango
 

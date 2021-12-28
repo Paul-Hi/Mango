@@ -227,8 +227,14 @@ void context_impl::update(float dt)
         m_renderer->set_viewport(0, 0, size.x, size.y);
     }
 
+    float avg_luminance = 1.0f;
+    if (m_renderer)
+        avg_luminance = m_renderer->get_average_luminance();
     if (m_current_scene)
+    {
+        m_current_scene->set_average_luminance(avg_luminance);
         m_current_scene->update(dt);
+    }
     if (m_renderer)
         m_renderer->update(dt);
 }
