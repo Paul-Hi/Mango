@@ -119,9 +119,6 @@ namespace mango
         //! \return True on success, else false.
         bool create_pipeline_resources();
 
-        //! \brief The light stack managing all lights.
-        light_stack m_light_stack;
-
         //! \brief The \a debug_drawer to debug draw.
         debug_drawer m_debug_drawer;
 

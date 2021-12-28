@@ -453,9 +453,6 @@ namespace mango
         //! \brief List if \a uids referencing all root nodes in the \a scenario.
         std::vector<uid> root_nodes;
 
-        //! \brief The \a uid of the GPU data for all lights in the \a sceario.
-        uid lights_gpu_data;
-
         //! \brief \a Scenario is a scene structure.
         DECLARE_SCENE_STRUCTURE(scenario);
     };
