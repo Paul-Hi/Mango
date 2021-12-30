@@ -6,7 +6,7 @@
 
 #include "mock_classes.hpp"
 #include <gtest/gtest.h>
-#include <util/intersect.hpp>
+#include <mango/intersect.hpp>
 
 //! \cond NO_DOC
 

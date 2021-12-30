@@ -251,7 +251,7 @@ namespace mango
 
         //! \brief Returns the average luminance of the last frame.
         //! \return The average luminance.
-        virtual float get_average_luminance() const;
+        virtual float get_average_luminance() const = 0;
 
       protected:
         //! \brief Mangos internal context for shared usage in all \a renderers.

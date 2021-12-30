@@ -4,7 +4,7 @@
 //! \date      2021
 //! \copyright Apache License 2.0
 
-#include <util/intersect.hpp>
+#include <mango/intersect.hpp>
 
 using namespace mango;
 

@@ -265,12 +265,12 @@ void ui_impl::update(float)
     // Inspectors
 
     // Scene Inspector
-    static sid selected = invalid_sid;
+    static uid selected = invalid_uid;
     if (available_widgets[ui_widget::scene_inspector] && m_enabled_ui_widgets[scene_inspector] && !m_cinema_view)
         scene_inspector_widget(m_shared_context->get_internal_scene(), m_enabled_ui_widgets[scene_inspector], selected);
 
     // ECS Inspector
-    static sid selected_primitive = invalid_sid;
+    static uid selected_primitive = invalid_uid;
     if (available_widgets[ui_widget::scene_object_component_inspector] && m_enabled_ui_widgets[scene_object_component_inspector] && !m_cinema_view)
         scene_object_component_inspector_widget(m_shared_context, m_enabled_ui_widgets[scene_object_component_inspector], selected, viewport_size, selected_primitive);
 

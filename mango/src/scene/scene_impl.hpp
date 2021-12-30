@@ -29,7 +29,7 @@ namespace mango
         scene_impl(const string& name, const shared_ptr<context_impl>& context);
         ~scene_impl();
 
-        uid add_node(const string& name, uid parent_node) override;
+        uid add_node(const string& name, uid parent_node = invalid_uid) override;
         uid add_perspective_camera(perspective_camera& new_perspective_camera, uid node_id) override;
         uid add_orthographic_camera(orthographic_camera& new_orthographic_camera, uid node_id) override;
         uid add_directional_light(directional_light& new_directional_light, uid node_id) override;
@@ -74,9 +74,9 @@ namespace mango
         void attach(uid child_node, uid parent_node) override;
         void detach(uid child_node, uid parent_node) override;
 
-        //! \brief Removes \a texture_gpu_data for a given \a uid.
+        //! \brief Removes a \a texture for a given \a uid.
         //! \param[in] instance_id The \a uid of the \a texture to remove for from the \a scene.
-        void remove_texture_gpu_data(uid texture_id);
+        void remove_texture(uid texture_id);
 
         //! \brief Retrieves a \a primitive from the \a scene.
         //! \param[in] instance_id The \a uid of the \a primitive to retrieve from the \a scene.
@@ -139,6 +139,7 @@ namespace mango
         }
 
         //! \brief Draws the hierarchy of \a nodes in a ui widget.
+        //! \param[in,out] selected The \a uid of the selected node.
         //! \details Does not create an ImGui window, only draws contents.
         void draw_scene_hierarchy(uid& selected);
 
@@ -151,7 +152,7 @@ namespace mango
 
         //! \brief Retrieves the \a light_stack of the \a scene.
         //! \return The \a light_stack.
-        inline const light_stack get_light_stack()
+        inline const light_stack& get_light_stack()
         {
             return m_light_stack;
         }
@@ -295,11 +296,11 @@ namespace mango
         //! \return The name.
         string get_display_name(node_type type, const string name);
 
+        //! \brief The \a graphics_device of the \a scene.
+        const graphics_device_handle& m_scene_graphics_device;
+
         //! \brief The current list if \a render_instances.
         std::vector<render_instance> m_render_instances;
-
-        //! \brief The \a graphics_device of the \a scene.
-        graphics_device_handle m_scene_graphics_device;
 
         //! \brief The \a uid of the root \a node.
         uid m_root_node;

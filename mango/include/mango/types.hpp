@@ -251,6 +251,17 @@ namespace mango
         {
             return &value;
         }
+        normalized_float(const normalized_float& other)
+        {
+            MANGO_ASSERT(other.value >= 0.0f && other.value <= 1.0f, "Value is not normalized (between 0.0f and 1.0f)!");
+            value = other.value;
+        }
+        normalized_float(normalized_float&& other)
+        {
+            MANGO_ASSERT(other.value >= 0.0f && other.value <= 1.0f, "Value is not normalized (between 0.0f and 1.0f)!");
+            value = other.value;
+        }
+
         normalized_float& operator=(const normalized_float& other)
         {
             MANGO_ASSERT(other.value >= 0.0f && other.value <= 1.0f, "Value is not normalized (between 0.0f and 1.0f)!");

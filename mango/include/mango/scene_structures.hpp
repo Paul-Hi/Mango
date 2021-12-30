@@ -7,9 +7,9 @@
 #ifndef MANGO_SCENE_STRUCTURES
 #define MANGO_SCENE_STRUCTURES
 
+#include <mango/intersect.hpp>
 #include <mango/packed_freelist.hpp>
 #include <mango/types.hpp>
-#include <util/intersect.hpp>
 
 namespace mango
 {
