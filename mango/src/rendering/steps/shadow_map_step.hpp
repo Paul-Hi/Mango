@@ -10,7 +10,7 @@
 #include <core/context_impl.hpp>
 #include <graphics/graphics.hpp>
 #include <rendering/steps/render_step.hpp>
-#include <util/intersect.hpp>
+#include <mango/intersect.hpp>
 
 namespace mango
 {

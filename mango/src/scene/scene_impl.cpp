@@ -49,6 +49,7 @@ scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& conte
     , m_skylights()
     , m_atmospheric_lights()
     , m_buffer_views()
+    , m_scene_graphics_device(m_shared_context->get_graphics_device())
 {
     PROFILE_ZONE;
     MANGO_UNUSED(name);
@@ -450,7 +451,9 @@ void scene_impl::add_model_to_scene(uid model_to_add, uid scenario_id, uid node_
         return;
     }
 
-    containing_node.children.push_back(scenario_id);
+    scenario sc = m_scenarios.at(scenario_id);
+    for (auto nd : sc.root_nodes)
+        containing_node.children.push_back(nd);
 }
 
 void scene_impl::remove_node(uid node_id)
@@ -669,7 +672,7 @@ void scene_impl::remove_skylight(uid node_id)
 
     if (to_remove.hdr_texture.is_valid())
     {
-        remove_texture_gpu_data(to_remove.hdr_texture);
+        remove_texture(to_remove.hdr_texture);
     }
 
     node.type &= ~node_type::skylight;
@@ -713,6 +716,7 @@ void scene_impl::remove_atmospheric_light(uid node_id)
 void scene_impl::unload_gltf_model(uid model_id)
 {
     PROFILE_ZONE;
+    MANGO_ASSERT(false, "Currently not supported!");
 
     if (!m_models.contains(model_id))
     {
@@ -740,6 +744,12 @@ void scene_impl::unload_gltf_model(uid model_id)
     }
 
     m_models.erase(model_id);
+}
+
+void scene_impl::remove_instantiable_node(uid node_id)
+{
+    MANGO_UNUSED(node_id);
+    MANGO_ASSERT(false, "Not implemented!");
 }
 
 optional<node&> scene_impl::get_node(uid node_id)
@@ -992,11 +1002,11 @@ uid scene_impl::get_active_camera_uid()
 
     if ((nd.type & node_type::perspective_camera) != node_type::hierarchy)
     {
-        return nd.camera_ids[static_cast<uint8>(camera_type::perspective)];
+        return m_main_camera_node;
     }
     if ((nd.type & node_type::orthographic_camera) != node_type::hierarchy)
     {
-        return nd.camera_ids[static_cast<uint8>(camera_type::orthographic)];
+        return m_main_camera_node;
     }
 
     MANGO_LOG_WARN("Active camera node with ID {0} does not contain any camera! Can not retrieve active camera data!", m_main_camera_node.get());
@@ -1016,10 +1026,12 @@ void scene_impl::set_main_camera(uid node_id)
     if ((nd.type & node_type::perspective_camera) != node_type::hierarchy)
     {
         m_main_camera_node = node_id;
+        return;
     }
     if ((nd.type & node_type::orthographic_camera) != node_type::hierarchy)
     {
         m_main_camera_node = node_id;
+        return;
     }
 
     MANGO_LOG_WARN("Node with ID {0} does not contain any camera! Can not set as active camera!", node_id.get());
@@ -1091,7 +1103,7 @@ void scene_impl::detach(uid child_node, uid parent_node)
     root.children.push_back(child_node);
 }
 
-void scene_impl::remove_texture_gpu_data(uid texture_id)
+void scene_impl::remove_texture(uid texture_id)
 {
     PROFILE_ZONE;
 
@@ -1109,6 +1121,7 @@ void scene_impl::remove_texture_gpu_data(uid texture_id)
         return;
     }
 
+    m_textures.erase(texture_id);
     m_texture_gpu_data.erase(tex.gpu_data);
 }
 
@@ -1225,21 +1238,48 @@ optional<camera_gpu_data&> scene_impl::get_active_camera_gpu_data()
 {
     PROFILE_ZONE;
 
-    uid active_camera_uid = get_active_camera_uid();
-
-    if (!active_camera_uid.is_valid())
+    if (!m_nodes.contains(m_main_camera_node))
     {
-        MANGO_LOG_WARN("Active camera id is not valid! Can not retrieve active camera gpu data!");
+        MANGO_LOG_WARN("Active camera node with ID {0} does not exist! Can not retrieve active camera gpu data!", m_main_camera_node.get());
         return NULL_OPTION;
     }
 
-    if (!m_camera_gpu_data.contains(active_camera_uid))
+    const node& nd = m_nodes.at(m_main_camera_node);
+
+    uid camera_data_id = invalid_uid;
+
+    if ((nd.type & node_type::perspective_camera) != node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Camera gpu data with ID {0} does not exist! Can not retrieve camera gpu data!", active_camera_uid.get());
+        uid camera_id = nd.camera_ids[static_cast<uint8>(camera_type::perspective)];
+
+        if (!m_perspective_cameras.contains(camera_id))
+        {
+            MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not retrieve camera gpu data!", camera_id.get());
+            return NULL_OPTION;
+        }
+        const perspective_camera& cam = m_perspective_cameras.at(camera_id);
+        camera_data_id                = cam.gpu_data;
+    }
+    if ((nd.type & node_type::orthographic_camera) != node_type::hierarchy)
+    {
+        uid camera_id = nd.camera_ids[static_cast<uint8>(camera_type::orthographic)];
+
+        if (!m_orthographic_cameras.contains(camera_id))
+        {
+            MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not retrieve camera gpu data!", camera_id.get());
+            return NULL_OPTION;
+        }
+        const orthographic_camera& cam = m_orthographic_cameras.at(camera_id);
+        camera_data_id                 = cam.gpu_data;
+    }
+
+    if (!camera_data_id.is_valid() || !m_camera_gpu_data.contains(camera_data_id))
+    {
+        MANGO_LOG_WARN("Camera gpu data with ID {0} does not exist! Can not retrieve camera gpu data!", camera_data_id.get());
         return NULL_OPTION;
     }
 
-    return m_camera_gpu_data.at(active_camera_uid);
+    return m_camera_gpu_data.at(camera_data_id);
 }
 
 std::pair<gfx_handle<const gfx_texture>, gfx_handle<const gfx_sampler>> scene_impl::create_gfx_texture_and_sampler(const string& path, bool standard_color_space, bool high_dynamic_range,
@@ -1358,7 +1398,7 @@ std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& def
     }
     else
     {
-        MANGO_LOG_DEBUG("The gltf model has {0} scenarios. At the moment only the default one is loaded!", m.scenes.size());
+        MANGO_LOG_DEBUG("The gltf model has {0} scenarios.", m.scenes.size());
     }
 
     // load buffer views and data
@@ -1435,6 +1475,7 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
     model_node.type             = node_type::hierarchy;
     model_node.global_matrix_id = m_global_transformation_matrices.emplace(1.0f);
     uid node_id                 = m_nodes.emplace(model_node);
+    node& node_ref              = m_nodes.back();
 
     transform& tr = m_transforms.at(model_node.transform_id);
 
@@ -1479,8 +1520,8 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
     {
         MANGO_ASSERT(n.mesh < static_cast<int32>(m.meshes.size()), "Invalid gltf mesh!");
         MANGO_LOG_DEBUG("Node contains a mesh!");
-        model_node.mesh_id = build_model_mesh(m, m.meshes.at(n.mesh), node_id, buffer_view_ids);
-        model_node.type |= node_type::mesh;
+        node_ref.mesh_id = build_model_mesh(m, m.meshes.at(n.mesh), node_id, buffer_view_ids);
+        node_ref.type |= node_type::mesh;
     }
 
     if (n.camera > -1)
@@ -1492,8 +1533,8 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
         vec3 target   = tr.rotation * GLOBAL_FORWARD; // TODO Paul: Check that!
         uid camera_id = build_model_camera(m.cameras.at(n.camera), node_id, target, out_type);
 
-        model_node.camera_ids[static_cast<uint8>(out_type)] = camera_id;
-        model_node.type |= ((out_type == camera_type::perspective) ? node_type::perspective_camera : node_type::orthographic_camera);
+        node_ref.camera_ids[static_cast<uint8>(out_type)] = camera_id;
+        node_ref.type |= ((out_type == camera_type::perspective) ? node_type::perspective_camera : node_type::orthographic_camera);
     }
 
     // build child nodes
@@ -1502,7 +1543,7 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
         MANGO_ASSERT(n.children[i] < static_cast<int32>(m.nodes.size()), "Invalid gltf node!");
 
         uid child_id = build_model_node(m, m.nodes.at(n.children.at(i)), buffer_view_ids);
-        model_node.children.push_back(child_id);
+        node_ref.children.push_back(child_id);
     }
 
     return node_id;
@@ -2164,29 +2205,27 @@ void scene_impl::update_scene_graph(uid node_id, uid parent_id, bool force_updat
             orthographic_camera& cam = m_orthographic_cameras.at(camera_id);
             cam.changed              = true;
         }
-        if ((node.type & node_type::directional_light) != node_type::hierarchy)
-        {
-            uid light_id         = node.light_ids[static_cast<uint8>(light_type::directional)];
-            directional_light& l = m_directional_lights.at(light_id);
-            m_light_stack.push(l);
-            l.changed = true;
-        }
-        if ((node.type & node_type::skylight) != node_type::hierarchy)
-        {
-            uid light_id = node.light_ids[static_cast<uint8>(light_type::skylight)];
-            skylight& l  = m_skylights.at(light_id);
-            m_light_stack.push(l);
-            l.changed = true;
-        }
-        if ((node.type & node_type::atmospheric_light) != node_type::hierarchy)
-        {
-            uid light_id         = node.light_ids[static_cast<uint8>(light_type::atmospheric)];
-            atmospheric_light& l = m_atmospheric_lights.at(light_id);
-            m_light_stack.push(l);
-            l.changed = true;
-        }
 
         tr.changed = false;
+    }
+    // light changes are handled by the light stack
+    if ((node.type & node_type::directional_light) != node_type::hierarchy)
+    {
+        uid light_id         = node.light_ids[static_cast<uint8>(light_type::directional)];
+        directional_light& l = m_directional_lights.at(light_id);
+        m_light_stack.push(l);
+    }
+    if ((node.type & node_type::skylight) != node_type::hierarchy)
+    {
+        uid light_id = node.light_ids[static_cast<uint8>(light_type::skylight)];
+        skylight& l  = m_skylights.at(light_id);
+        m_light_stack.push(l);
+    }
+    if ((node.type & node_type::atmospheric_light) != node_type::hierarchy)
+    {
+        uid light_id         = node.light_ids[static_cast<uint8>(light_type::atmospheric)];
+        atmospheric_light& l = m_atmospheric_lights.at(light_id);
+        m_light_stack.push(l);
     }
 
     // add to render instances
@@ -2234,7 +2273,7 @@ void scene_impl::update(float dt)
     for (auto id : m_perspective_cameras)
     {
         perspective_camera& cam = m_perspective_cameras.at(id);
-        m_requires_auto_exposure &= cam.adaptive_exposure;
+        m_requires_auto_exposure |= cam.adaptive_exposure;
         if (cam.changed)
         {
             camera_gpu_data& data = m_camera_gpu_data.at(cam.gpu_data);
@@ -2305,7 +2344,7 @@ void scene_impl::update(float dt)
     for (auto id : m_orthographic_cameras)
     {
         orthographic_camera& cam = m_orthographic_cameras.at(id);
-        m_requires_auto_exposure &= cam.adaptive_exposure;
+        m_requires_auto_exposure |= cam.adaptive_exposure;
         if (cam.changed)
         {
             camera_gpu_data& data = m_camera_gpu_data.at(cam.gpu_data);

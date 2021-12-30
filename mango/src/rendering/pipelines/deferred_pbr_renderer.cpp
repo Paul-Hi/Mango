@@ -1259,11 +1259,12 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_opaque(prim_gpu_data->vertex_layout, prim_gpu_data->input_assembly, m_wireframe, mat->double_sided);
 
             m_frame_context->bind_pipeline(dc_pipeline);
-            gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(shadow_pass->resolution()), static_cast<float>(shadow_pass->resolution()) };
-            m_frame_context->set_viewport(0, 1, &shadow_viewport);
+            gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
+                                          static_cast<float>(m_renderer_info.canvas.height) };
+            m_frame_context->set_viewport(0, 1, &window_viewport);
 
             dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);
-
+            dc_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
             dc_pipeline->get_resource_mapping()->set("material_data", mat_gpu_data->material_data_buffer);
 
             if (mat_gpu_data->per_material_data.base_color_texture)
@@ -1515,11 +1516,14 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_transparent(prim_gpu_data->vertex_layout, prim_gpu_data->input_assembly, m_wireframe, mat->double_sided);
 
             m_frame_context->bind_pipeline(dc_pipeline);
-            gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(shadow_pass->resolution()), static_cast<float>(shadow_pass->resolution()) };
-            m_frame_context->set_viewport(0, 1, &shadow_viewport);
+            gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
+                                          static_cast<float>(m_renderer_info.canvas.height) };
+            m_frame_context->set_viewport(0, 1, &window_viewport);
 
+            dc_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
+            dc_pipeline->get_resource_mapping()->set("light_data", light_data.light_data_buffer);
+            dc_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer);
             dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);
-
             dc_pipeline->get_resource_mapping()->set("material_data", mat_gpu_data->material_data_buffer);
 
             if (mat_gpu_data->per_material_data.base_color_texture)

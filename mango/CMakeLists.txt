@@ -29,6 +29,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/renderer.hpp
     # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/packed_freelist.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/intersect.hpp
 )
 
 set(PRIVATE_HEADERS
@@ -45,7 +46,6 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/hashing.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/helpers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/signal.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/util/intersect.hpp
     # Display
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/display_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/display_event_handler_impl.hpp

@@ -195,8 +195,8 @@ namespace mango
         //! \param[in] high_dynamic_range True if texture image is hdr, else false.
         //! \param[in] filter A list of file extensions to filter them.
         //! \param[in] num_filters The number of elements in filter.
-        //! \return The texture_ptr to the created \a texture
-        sid load_texture_dialog(const unique_ptr<scene_impl>& application_scene, bool standard_color_space, bool high_dynamic_range, const char* const* filter, int32 num_filters)
+        //! \return The \a uid referencing the created \a texture.
+        uid load_texture_dialog(const unique_ptr<scene_impl>& application_scene, bool standard_color_space, bool high_dynamic_range, const char* const* filter, int32 num_filters)
         {
             char* query_path = tinyfd_openFileDialog("", "res/", num_filters, filter, NULL, 0);
             if (query_path)
@@ -205,22 +205,23 @@ namespace mango
 
                 return application_scene->load_texture_from_image(queried, standard_color_space, high_dynamic_range);
             }
-            return invalid_sid;
+            return invalid_uid;
         }
 
-        //! \brief Draws ui for a given \a scene_node.
-        //! \param[in] node The \a scene_node to draw ui for.
+        //! \brief Draws ui for a given \a node.
+        //! \param[in] node_id The \a uid of the \a node.
+        //! \param[in] node The \a node to draw ui for.
         //! \param[in] application_scene The current \a scene of the \a application.
-        void inspect_node(scene_node& node, const unique_ptr<scene_impl>& application_scene)
+        void inspect_node(uid node_id, node& node, const unique_ptr<scene_impl>& application_scene)
         {
             std::array<char, 32> tmp_string; // TODO Paul: Max length? 32 enough for now?
             auto icon = string(ICON_FA_DOT_CIRCLE);
             ImGui::AlignTextToFramePadding();
             ImGui::Text(icon.c_str());
             ImGui::SameLine();
-            strcpy(tmp_string.data(), node.public_data.name.c_str()); // TODO Paul: Kind of fishy.
+            strcpy(tmp_string.data(), node.name.c_str()); // TODO Paul: Kind of fishy.
             ImGui::InputTextWithHint("##tag", "Enter Node Name", tmp_string.data(), 32);
-            node.public_data.name = tmp_string.data();
+            node.name = tmp_string.data();
             ImGui::SameLine();
             if (ImGui::Button(ICON_FA_PLUS_CIRCLE, ImVec2(-1, 0)))
             {
@@ -228,404 +229,439 @@ namespace mango
             }
 
             ImGui::Spacing();
-            bool has_camera              = node.camera_id != invalid_sid;
-            bool has_orthographic_camera = has_camera;
-            bool has_perspective_camera  = has_camera;
-            bool has_directional_light   = node.light_ids[static_cast<uint8>(light_type::directional)] != invalid_sid;
-            bool has_skylight            = node.light_ids[static_cast<uint8>(light_type::skylight)] != invalid_sid;
-            bool has_atmospheric_light   = node.light_ids[static_cast<uint8>(light_type::atmospheric)] != invalid_sid;
+            bool has_perspective_camera  = node.camera_ids[static_cast<uint8>(camera_type::perspective)] != invalid_uid;
+            bool has_orthographic_camera = node.camera_ids[static_cast<uint8>(camera_type::orthographic)] != invalid_uid;
+            bool has_directional_light   = node.light_ids[static_cast<uint8>(light_type::directional)] != invalid_uid;
+            bool has_skylight            = node.light_ids[static_cast<uint8>(light_type::skylight)] != invalid_uid;
+            bool has_atmospheric_light   = node.light_ids[static_cast<uint8>(light_type::atmospheric)] != invalid_uid;
 
             if (ImGui::BeginPopup("##component_addition_popup"))
             {
                 if (!has_perspective_camera && ImGui::Selectable("Add Perspective Camera"))
                 {
                     auto pc = perspective_camera();
-                    application_scene->add_perspective_camera(pc, node.public_data.instance_id);
+                    application_scene->add_perspective_camera(pc, node_id);
                 }
                 if (!has_orthographic_camera && ImGui::Selectable("Add Orthographic Camera"))
                 {
                     auto oc = orthographic_camera();
-                    application_scene->add_orthographic_camera(oc, node.public_data.instance_id);
+                    application_scene->add_orthographic_camera(oc, node_id);
                 }
                 if (!has_directional_light && ImGui::Selectable("Add Directional Light"))
                 {
                     auto dl = directional_light();
-                    application_scene->add_directional_light(dl, node.public_data.instance_id);
+                    application_scene->add_directional_light(dl, node_id);
                 }
                 if (!has_skylight && ImGui::Selectable("Add Skylight"))
                 {
                     auto sl = skylight();
-                    application_scene->add_skylight(sl, node.public_data.instance_id);
+                    application_scene->add_skylight(sl, node_id);
                 }
                 if (!has_atmospheric_light && ImGui::Selectable("Add Atmospheric Light"))
                 {
                     auto al = atmospheric_light();
-                    application_scene->add_atmospheric_light(al, node.public_data.instance_id);
+                    application_scene->add_atmospheric_light(al, node_id);
                 }
 
                 ImGui::EndPopup();
             }
         }
 
-        //! \brief Draws ui for a given \a scene_light.
-        //! \param[in] object The \a sid of the \a scene_light to draw ui for.
+        //! \brief Draws ui for a given \a directional_light.
+        //! \param[in] node_id The \a uid of the \a node the \a directional_light is in.
         //! \param[in] application_scene The current \a scene of the \a application.
-        void inspect_light(sid object, const unique_ptr<scene_impl>& application_scene)
+        void inspect_directional_light(uid node_id, const unique_ptr<scene_impl>& application_scene)
         {
-            optional<scene_light&> l = application_scene->get_scene_light(object);
-            MANGO_ASSERT(l, "Light to inspect does not exist!");
+            optional<directional_light&> l = application_scene->get_directional_light(node_id);
+            MANGO_ASSERT(l, "Directional light to inspect does not exist!");
             details::draw_component(
-                "Light",
-                [object, &application_scene, &l]()
+                "Directional Light",
+                [&application_scene, &l]()
                 {
-                    bool type_changed    = false;
-                    const char* types[3] = { "Directional", "Skylight", "Atmospheric" };
-                    int32 idx            = static_cast<int32>(l->type);
-                    combo("Light Type", types, 3, idx, 0);
-                    if (l->type != static_cast<light_type>(idx))
-                    {
-                        l->type      = static_cast<light_type>(idx);
-                        type_changed = true;
-                    }
-                    ImGui::Separator();
-                    if (l->type == light_type::directional)
-                    {
-                        if (type_changed)
-                            l->public_data_as_directional_light = directional_light();
-                        float default_fl3[3] = { 1.0f, 1.0f, 1.0f };
-                        drag_float_n("Direction", &l->public_data_as_directional_light->direction[0], 3, default_fl3, 0.08f, 0.0f, 0.0f, "%.2f", true);
+                    bool changed         = false;
+                    float default_fl3[3] = { 1.0f, 1.0f, 1.0f };
+                    changed |= drag_float_n("Direction", &l->direction[0], 3, default_fl3, 0.08f, 0.0f, 0.0f, "%.2f", true);
 
-                        color_edit("Color", &l->public_data_as_directional_light->color[0], 3, default_fl3);
+                    changed |= color_edit("Color", &l->color[0], 3, default_fl3);
 
-                        float default_value[1] = { mango::default_directional_intensity };
-                        slider_float_n("Intensity", &l->public_data_as_directional_light->intensity, 1, default_value, 0.0f, 500000.0f, "%.1f", false);
+                    float default_value[1] = { mango::default_directional_intensity };
+                    changed |= slider_float_n("Intensity", &l->intensity, 1, default_value, 0.0f, 500000.0f, "%.1f", false);
 
-                        checkbox("Cast Shadows", &l->public_data_as_directional_light->cast_shadows, false);
+                    changed |= checkbox("Cast Shadows", &l->cast_shadows, false);
 
-                        checkbox("Contribute To Atmosphere", &l->public_data_as_directional_light->contribute_to_atmosphere, false);
-                    }
-                    else if (l->type == light_type::skylight)
-                    {
-                        if (type_changed)
-                            l->public_data_as_skylight = skylight();
-                        checkbox("Use HDR Texture", &l->public_data_as_skylight->use_texture, false);
-                        if (l->public_data_as_skylight->use_texture) // hdr texture
-                        {
-                            if (l->public_data_as_skylight->hdr_texture == invalid_sid)
-                            {
-                                char const* filter[1]                   = { "*.hdr" };
-                                l->public_data_as_skylight->hdr_texture = details::load_texture_dialog(application_scene, false, true, filter, 1);
-                            }
-                            else
-                            {
-                                ImGui::PushID("hdr_texture");
-                                bool load_new                = false;
-                                optional<scene_texture&> hdr = application_scene->get_scene_texture(l->public_data_as_skylight->hdr_texture);
-                                MANGO_ASSERT(hdr, "Hdr texture does not exist!");
-                                image_load("Hdr Image", hdr->graphics_texture->native_handle(), vec2(128, 64), load_new);
-                                ImGui::Separator();
-                                if (load_new)
-                                {
-                                    // TODO Paul: We should remove the old one should we?
-                                    char const* filter[1]                   = { "*.hdr" };
-                                    l->public_data_as_skylight->hdr_texture = details::load_texture_dialog(application_scene, false, true, filter, 1);
-                                }
+                    changed |= checkbox("Contribute To Atmosphere", &l->contribute_to_atmosphere, false);
 
-                                if (l->public_data_as_skylight->hdr_texture == invalid_sid)
-                                    l->public_data_as_skylight->use_texture = false;
-
-                                ImGui::PopID();
-                            }
-                            float default_value[1] = { mango::default_skylight_intensity };
-                            slider_float_n("Skylight Intensity", &l->public_data_as_skylight->intensity, 1, default_value, 0.0f, 50000.0f, "%.1f", false);
-                        }
-                    }
-                    else
-                    {
-                        if (type_changed)
-                            l->public_data_as_atmospheric_light = atmospheric_light();
-                        ImGui::Text("Not required yet!");
-                        // float default_fl3[3] = { 1.0f, 1.0f, 1.0f };
-                        // ImGui::PushID("atmosphere");
-                        // int32 default_ivalue[1] = { 32 };
-                        // changed |= slider_int_n("Scatter Points", &el_data->scatter_points, 1, default_ivalue, 1, 64);
-                        // default_ivalue[0] = 8;
-                        // changed |= slider_int_n("Scatter Points Second Ray", &el_data->scatter_points_second_ray, 1, default_ivalue, 1, 32);
-                        // float default_fl3[3]              = { 5.8f, 13.5f, 33.1f };
-                        // vec3 coefficients_normalized = el_data->rayleigh_scattering_coefficients * 1e6f;
-                        // changed |= drag_float_n("Rayleigh Scattering Coefficients (entity-6)", &coefficients_normalized.x, 3, default_fl3);
-                        // el_data->rayleigh_scattering_coefficients = coefficients_normalized * 1e-6f;
-                        // default_value[0]                          = 21.0f;
-                        // float coefficient_normalized              = el_data->mie_scattering_coefficient * 1e6f;
-                        // changed |= drag_float_n("Mie Scattering Coefficients (entity-6)", &coefficient_normalized, 1, default_value);
-                        // el_data->mie_scattering_coefficient = coefficient_normalized * 1e-6f;
-                        // float default_fl2[2]                = { 8e3f, 1.2e3f };
-                        // changed |= drag_float_n("Density Multipler", &el_data->density_multiplier.x, 2, default_fl2);
-                        // default_value[0] = 0.758f;
-                        // changed |= slider_float_n("Preferred Mie Scattering Direction", &el_data->mie_preferred_scattering_dir, 1, default_value, 0.0f, 1.0f);
-                        // default_value[0] = 6360e3f;
-                        // changed |= drag_float_n("Ground Height", &el_data->ground_radius, 1, default_value);
-                        // default_value[0] = 6420e3f;
-                        // changed |= drag_float_n("Atmosphere Height", &el_data->atmosphere_radius, 1, default_value);
-                        // default_value[0] = 1e3f;
-                        // changed |= drag_float_n("View Height", &el_data->view_height, 1, default_value);
-                        //
-                        // default_fl3[0] = 1.0f;
-                        // default_fl3[1] = 1.0f;
-                        // default_fl3[2] = 1.0f;
-                        // changed |= drag_float_n("Sun Direction", &el_data->sun_data.direction[0], 3, default_fl3, 0.08f, 0.0f, 0.0f, "%.2f", true);
-                        // default_value[0] = mango::default_directional_intensity;
-                        // changed |= slider_float_n("Sun Intensity", &el_data->sun_data.intensity, 1, default_value, 0.0f, 500000.0f, "%.1f", false);
-                        // changed |= checkbox("Draw Sun Disc (Always On ATM)", &el_data->draw_sun_disc, false);
-                    }
+                    l->changed |= changed;
                 },
-
-                [object, &l, &application_scene]()
+                [node_id, &application_scene]()
                 {
                     if (ImGui::Selectable("Remove"))
                     {
-                        if (l->type == light_type::directional)
-                            application_scene->remove_directional_light(l->public_data_as_directional_light->containing_node);
-                        else if (l->type == light_type::skylight)
-                            application_scene->remove_skylight(l->public_data_as_skylight->containing_node);
-                        else
-                            application_scene->remove_atmospheric_light(l->public_data_as_atmospheric_light->containing_node);
+                        application_scene->remove_directional_light(node_id);
                         return false;
                     }
                     return true;
                 });
-            ;
         }
 
-        //! \brief Draws ui for a given \a scene_mesh.
-        //! \param[in] object The \a sid of the \a scene_mesh to draw ui for.
+        //! \brief Draws ui for a given \a skylight.
+        //! \param[in] node_id The \a uid of the \a node the \a skylight is in.
         //! \param[in] application_scene The current \a scene of the \a application.
-        //! \param[in,out] selected_primitive The \a sid of the currently selected \a primitive.
-        void inspect_mesh(sid object, const unique_ptr<scene_impl>& application_scene, sid& selected_primitive)
+        void inspect_skylight(uid node_id, const unique_ptr<scene_impl>& application_scene)
         {
-            optional<scene_mesh&> m = application_scene->get_scene_mesh(object);
+            optional<skylight&> l = application_scene->get_skylight(node_id);
+            MANGO_ASSERT(l, "Skylight to inspect does not exist!");
+            details::draw_component(
+                "Skylight",
+                [&application_scene, &l]()
+                {
+                    bool changed = false;
+                    changed |= checkbox("Use HDR Texture", &l->use_texture, false);
+                    if (l->use_texture) // hdr texture
+                    {
+                        if (l->hdr_texture == invalid_uid)
+                        {
+                            char const* filter[1] = { "*.hdr" };
+                            l->hdr_texture        = details::load_texture_dialog(application_scene, false, true, filter, 1);
+                        }
+                        else
+                        {
+                            ImGui::PushID("hdr_texture");
+                            bool load_new          = false;
+                            optional<texture&> hdr = application_scene->get_texture(l->hdr_texture);
+                            MANGO_ASSERT(hdr, "Hdr texture does not exist!");
+                            optional<texture_gpu_data&> hdr_data = application_scene->get_texture_gpu_data(hdr->gpu_data);
+                            MANGO_ASSERT(hdr_data, "Hdr texture does not exist!");
+                            changed |= image_load("Hdr Image", hdr_data->graphics_texture->native_handle(), vec2(128, 64), load_new);
+                            ImGui::Separator();
+                            if (load_new)
+                            {
+                                application_scene->remove_texture(l->hdr_texture);
+                                char const* filter[1] = { "*.hdr" };
+                                l->hdr_texture        = details::load_texture_dialog(application_scene, false, true, filter, 1);
+                            }
+
+                            if (l->hdr_texture == invalid_uid)
+                                l->use_texture = false;
+
+                            ImGui::PopID();
+                        }
+                        float default_value[1] = { mango::default_skylight_intensity };
+                        changed |= slider_float_n("Skylight Intensity", &l->intensity, 1, default_value, 0.0f, 50000.0f, "%.1f", false);
+                    }
+
+                    l->changed |= changed;
+                },
+                [node_id, &application_scene]()
+                {
+                    if (ImGui::Selectable("Remove"))
+                    {
+                        application_scene->remove_skylight(node_id);
+                        return false;
+                    }
+                    return true;
+                });
+        }
+
+        //! \brief Draws ui for a given \a atmospheric_light.
+        //! \param[in] node_id The \a uid of the \a node the \a atmospheric_light is in.
+        //! \param[in] application_scene The current \a scene of the \a application.
+        void inspect_atmospheric_light(uid node_id, const unique_ptr<scene_impl>& application_scene)
+        {
+            optional<atmospheric_light&> l = application_scene->get_atmospheric_light(node_id);
+            MANGO_ASSERT(l, "Atmospheric light to inspect does not exist!");
+            details::draw_component(
+                "Atmospheric Light",
+                [&application_scene, &l]()
+                {
+                    ImGui::Text("Not required yet!");
+                    // float default_fl3[3] = { 1.0f, 1.0f, 1.0f };
+                    // ImGui::PushID("atmosphere");
+                    // int32 default_ivalue[1] = { 32 };
+                    // changed |= slider_int_n("Scatter Points", &el_data->scatter_points, 1, default_ivalue, 1, 64);
+                    // default_ivalue[0] = 8;
+                    // changed |= slider_int_n("Scatter Points Second Ray", &el_data->scatter_points_second_ray, 1, default_ivalue, 1, 32);
+                    // float default_fl3[3]              = { 5.8f, 13.5f, 33.1f };
+                    // vec3 coefficients_normalized = el_data->rayleigh_scattering_coefficients * 1e6f;
+                    // changed |= drag_float_n("Rayleigh Scattering Coefficients (entity-6)", &coefficients_normalized.x, 3, default_fl3);
+                    // el_data->rayleigh_scattering_coefficients = coefficients_normalized * 1e-6f;
+                    // default_value[0]                          = 21.0f;
+                    // float coefficient_normalized              = el_data->mie_scattering_coefficient * 1e6f;
+                    // changed |= drag_float_n("Mie Scattering Coefficients (entity-6)", &coefficient_normalized, 1, default_value);
+                    // el_data->mie_scattering_coefficient = coefficient_normalized * 1e-6f;
+                    // float default_fl2[2]                = { 8e3f, 1.2e3f };
+                    // changed |= drag_float_n("Density Multipler", &el_data->density_multiplier.x, 2, default_fl2);
+                    // default_value[0] = 0.758f;
+                    // changed |= slider_float_n("Preferred Mie Scattering Direction", &el_data->mie_preferred_scattering_dir, 1, default_value, 0.0f, 1.0f);
+                    // default_value[0] = 6360e3f;
+                    // changed |= drag_float_n("Ground Height", &el_data->ground_radius, 1, default_value);
+                    // default_value[0] = 6420e3f;
+                    // changed |= drag_float_n("Atmosphere Height", &el_data->atmosphere_radius, 1, default_value);
+                    // default_value[0] = 1e3f;
+                    // changed |= drag_float_n("View Height", &el_data->view_height, 1, default_value);
+                    //
+                    // default_fl3[0] = 1.0f;
+                    // default_fl3[1] = 1.0f;
+                    // default_fl3[2] = 1.0f;
+                    // changed |= drag_float_n("Sun Direction", &el_data->sun_data.direction[0], 3, default_fl3, 0.08f, 0.0f, 0.0f, "%.2f", true);
+                    // default_value[0] = mango::default_directional_intensity;
+                    // changed |= slider_float_n("Sun Intensity", &el_data->sun_data.intensity, 1, default_value, 0.0f, 500000.0f, "%.1f", false);
+                    // changed |= checkbox("Draw Sun Disc (Always On ATM)", &el_data->draw_sun_disc, false);
+                },
+                [node_id, &application_scene]()
+                {
+                    if (ImGui::Selectable("Remove"))
+                    {
+                        application_scene->remove_atmospheric_light(node_id);
+                        return false;
+                    }
+                    return true;
+                });
+        }
+
+        //! \brief Draws ui for a given \a mesh.
+        //! \param[in] node_id The \a uid of the \a node the \a mesh is in.
+        //! \param[in] instance The \a uid of the \a mesh instance.
+        //! \param[in] application_scene The current \a scene of the \a application.
+        //! \param[in,out] selected_primitive The \a uid of the currently selected \a primitive.
+        void inspect_mesh(uid node_id, uid instance, const unique_ptr<scene_impl>& application_scene, uid& selected_primitive)
+        {
+            optional<mesh&> m = application_scene->get_mesh(instance);
             MANGO_ASSERT(m, "Mesh to inspect does not exist!");
             details::draw_component(
                 "Mesh",
-                [object, &application_scene, &m, &selected_primitive]()
+                [&application_scene, &m, &selected_primitive]()
                 {
                     custom_info("Name: ",
                                 [&m]()
                                 {
                                     ImGui::AlignTextToFramePadding();
-                                    ImGui::Text(m->public_data.name.c_str());
+                                    ImGui::Text(m->name.c_str());
                                 });
                     ImGui::Spacing();
 
                     // Could be done with tables when they support clicking.
                     ImGui::Text("Primitives:");
                     ImGui::Spacing();
-                    for (int32 p = 0; p < static_cast<int32>(m->scene_primitives.size()); p++)
+                    for (auto p : m->primitives)
                     {
-                        optional<scene_material&> mat = application_scene->get_scene_material(object);
+                        optional<primitive&> prim = application_scene->get_primitive(p);
+                        MANGO_ASSERT(prim, "Primitive referenced by mesh does not exist!");
+                        optional<material&> mat = application_scene->get_material(prim->material);
                         MANGO_ASSERT(mat, "Material referenced by primitive does not exist!");
-                        string selectable = "Primitive " + std::to_string(p) + " - Material: " + mat->public_data.name;
-                        bool selected     = selected_primitive == m->scene_primitives[p].public_data.instance_id;
+                        string selectable = "Primitive " + std::to_string(p.get()) + " - Material: " + mat->name;
+                        bool selected     = selected_primitive == p;
                         if (ImGui::Selectable(selectable.c_str(), &selected))
                         {
-                            selected_primitive = m->scene_primitives[p].public_data.instance_id;
+                            selected_primitive = p;
                         }
                     }
                 },
-                [object, &m, &application_scene]()
+                [node_id, &application_scene]()
                 {
                     if (ImGui::Selectable("Remove"))
                     {
-                        application_scene->remove_mesh(m->public_data.containing_node);
+                        application_scene->remove_mesh(node_id);
                     }
                     return true;
                 });
         }
 
-        //! \brief Draws ui for a given \a scene_camera.
-        //! \param[in] object The \a sid of the \a scene_camera to draw ui for.
+        //! \brief Draws ui for a given \a perspective_camera.
+        //! \param[in] node_id The \a uid of the \a node the \a perspective_camera is in.
         //! \param[in] application_scene The current \a scene of the \a application.
         //! \param[in] viewport_size The current viewport size.
-        void inspect_camera(sid object, const unique_ptr<scene_impl>& application_scene, const ImVec2& viewport_size)
+        void inspect_perspective_camera(uid node_id, const unique_ptr<scene_impl>& application_scene, const ImVec2& viewport_size)
         {
-            optional<scene_camera&> cam = application_scene->get_scene_camera(object);
-            MANGO_ASSERT(cam, "Camera to inspect does not exist!");
+            optional<perspective_camera&> cam = application_scene->get_perspective_camera(node_id);
+            MANGO_ASSERT(cam, "Perspective camera to inspect does not exist!");
             details::draw_component(
-                "Camera",
-                [object, &cam, &application_scene, &viewport_size]()
+                "Perspective Camera",
+                [node_id, &cam, &application_scene, &viewport_size]()
                 {
-                    sid cam_id   = application_scene->get_active_camera_sid();
-                    bool active  = cam_id == object;
+                    uid cam_id   = application_scene->get_active_camera_uid();
+                    bool active  = cam_id == node_id;
                     bool changed = checkbox("Active", &active, false);
 
-                    if ((changed || cam_id != object) && active)
+                    if ((changed || cam_id != node_id) && active)
                     {
-                        if (cam->type == camera_type::perspective)
-                            application_scene->set_main_camera(cam->public_data_as_perspective->containing_node);
-                        else
-                            application_scene->set_main_camera(cam->public_data_as_orthographic->containing_node);
+                        application_scene->set_main_camera(node_id);
                     }
-                    else if (cam_id == object && changed && !active)
-                        application_scene->set_main_camera(invalid_sid);
+                    else if (cam_id == node_id && changed && !active)
+                        application_scene->set_main_camera(invalid_uid);
 
                     ImGui::Separator();
-                    bool type_changed    = false;
-                    const char* types[2] = { "Perspective", "Orthographic" };
-                    int32 idx            = static_cast<int32>(cam->type);
-                    combo("Camera Type", types, 2, idx, 0);
-                    if (cam->type != static_cast<camera_type>(idx))
-                    {
-                        cam->type    = static_cast<camera_type>(idx);
-                        type_changed = true;
-                    }
+
+                    float default_value[1] = { 0.4f };
+                    changed |= slider_float_n("Near Plane", &cam->z_near, 1, default_value, 0.0f, cam->z_far);
+                    default_value[0] = 40.0f;
+                    changed |= slider_float_n("Far Plane", &cam->z_far, 1, default_value, cam->z_near, 10000.0f);
+                    float degree_fov = glm::degrees(cam->vertical_field_of_view);
+                    default_value[0] = 45.0f;
+                    changed |= slider_float_n("Vertical FOV", &degree_fov, 1, default_value, 1.75f, 175.0f, "%.1f°");
+                    cam->vertical_field_of_view = glm::radians(degree_fov);
+                    changed |= custom_aligned("Aspect",
+                                              [&cam, &viewport_size](bool reset)
+                                              {
+                                                  ImGui::AlignTextToFramePadding();
+                                                  ImGui::Text((std::to_string(cam->aspect) + " ").c_str());
+                                                  ImGui::SameLine();
+                                                  if (ImGui::Button("Aspect To Viewport", ImVec2(-1, 0)))
+                                                  {
+                                                      cam->aspect = viewport_size.x / viewport_size.y;
+                                                      return true;
+                                                  }
+                                                  if (reset)
+                                                  {
+                                                      cam->aspect = 16.0f / 9.0f;
+                                                      return true;
+                                                  }
+                                                  return false;
+                                              });
                     ImGui::Separator();
+                    float default_fl3[3] = { 0.0f, 0.0f, 0.0f };
+                    changed |= drag_float_n("Target", &cam->target.x, 3, default_fl3, 0.1f, 0.0, 0.0, "%.1f", true);
 
-                    if (cam->type == camera_type::perspective)
+                    ImGui::Separator();
+                    changed |= checkbox("Adaptive Exposure", &cam->adaptive_exposure, false);
+
+                    ImGui::BeginGroup();
+                    if (cam->adaptive_exposure)
                     {
-                        if (type_changed)
-                            cam->public_data_as_perspective = perspective_camera();
-                        float default_value[1] = { 0.4f };
-                        slider_float_n("Near Plane", &cam->public_data_as_perspective->z_near, 1, default_value, 0.0f, cam->public_data_as_perspective->z_far);
-                        default_value[0] = 40.0f;
-                        slider_float_n("Far Plane", &cam->public_data_as_perspective->z_far, 1, default_value, cam->public_data_as_perspective->z_near, 10000.0f);
-                        float degree_fov = glm::degrees(cam->public_data_as_perspective->vertical_field_of_view);
-                        default_value[0] = 45.0f;
-                        slider_float_n("Vertical FOV", &degree_fov, 1, default_value, 1.75f, 175.0f, "%.1f°");
-                        cam->public_data_as_perspective->vertical_field_of_view = glm::radians(degree_fov);
-                        custom_aligned("Aspect",
-                                       [&cam, &viewport_size](bool reset)
-                                       {
-                                           ImGui::AlignTextToFramePadding();
-                                           ImGui::Text((std::to_string(cam->public_data_as_perspective->aspect) + " ").c_str());
-                                           ImGui::SameLine();
-                                           if (ImGui::Button("Aspect To Viewport", ImVec2(-1, 0)))
-                                           {
-                                               cam->public_data_as_perspective->aspect = viewport_size.x / viewport_size.y;
-                                               return true;
-                                           }
-                                           if (reset)
-                                           {
-                                               cam->public_data_as_perspective->aspect = 16.0f / 9.0f;
-                                               return true;
-                                           }
-                                           return false;
-                                       });
-                        ImGui::Separator();
-                        float default_fl3[3] = { 0.0f, 0.0f, 0.0f };
-                        drag_float_n("Target", &cam->public_data_as_perspective->target.x, 3, default_fl3, 0.1f, 0.0, 0.0, "%.1f", true);
-
-                        ImGui::Separator();
-                        checkbox("Adaptive Exposure", &cam->public_data_as_perspective->adaptive_exposure, false);
-
-                        ImGui::BeginGroup();
-                        if (cam->public_data_as_perspective->adaptive_exposure)
-                        {
-                            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-                        }
-
-                        default_value[0] = mango::default_camera_aperture;
-                        drag_float_n("Aperture", &cam->public_data_as_perspective->physical.aperture, 1, default_value, 0.1f, mango::min_camera_aperture, mango::max_camera_aperture, "%.1f");
-                        default_value[0] = mango::default_camera_shutter_speed;
-                        drag_float_n("Shutter Speed", &cam->public_data_as_perspective->physical.shutter_speed, 1, default_value, 0.0001f, mango::min_camera_shutter_speed,
-                                     mango::max_camera_shutter_speed, "%.5f");
-                        default_value[0] = mango::default_camera_iso;
-                        drag_float_n("Iso", &cam->public_data_as_perspective->physical.iso, 1, default_value, 0.1f, mango::min_camera_iso, mango::max_camera_iso, "%.1f");
-
-                        ImGui::EndGroup();
-                        if (cam->public_data_as_perspective->adaptive_exposure)
-                        {
-                            ImGui::PopItemFlag();
-                            ImGui::PopStyleVar();
-                            if (ImGui::IsItemHovered())
-                                ImGui::SetTooltip("Adaptive Exposure Controlled");
-                        }
+                        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
                     }
-                    else // orthographic
+
+                    default_value[0] = mango::default_camera_aperture;
+                    changed |= drag_float_n("Aperture", &cam->physical.aperture, 1, default_value, 0.1f, mango::min_camera_aperture, mango::max_camera_aperture, "%.1f");
+                    default_value[0] = mango::default_camera_shutter_speed;
+                    changed |= drag_float_n("Shutter Speed", &cam->physical.shutter_speed, 1, default_value, 0.0001f, mango::min_camera_shutter_speed, mango::max_camera_shutter_speed, "%.5f");
+                    default_value[0] = mango::default_camera_iso;
+                    changed |= drag_float_n("Iso", &cam->physical.iso, 1, default_value, 0.1f, mango::min_camera_iso, mango::max_camera_iso, "%.1f");
+
+                    ImGui::EndGroup();
+                    if (cam->adaptive_exposure)
                     {
-                        if (type_changed)
-                            cam->public_data_as_orthographic = orthographic_camera();
-                        float default_value[1] = { 0.4f };
-                        slider_float_n("Near Plane", &cam->public_data_as_orthographic->z_near, 1, default_value, 0.0f, cam->public_data_as_orthographic->z_far);
-                        default_value[0] = 40.0f;
-                        slider_float_n("Far Plane", &cam->public_data_as_orthographic->z_far, 1, default_value, cam->public_data_as_orthographic->z_near, 10000.0f);
-                        default_value[0] = 1.0f;
-                        slider_float_n("Magnification X", &cam->public_data_as_orthographic->x_mag, 1, default_value, 0.1f, 100.0f, "%.1f");
-                        slider_float_n("Magnification Y", &cam->public_data_as_orthographic->y_mag, 1, default_value, 0.1f, 100.0f, "%.1f");
-                        custom_aligned("Magnification",
-                                       [&cam, &viewport_size](bool reset)
-                                       {
-                                           if (ImGui::Button("Magnification To Viewport", ImVec2(-1, 0)))
-                                           {
-                                               cam->public_data_as_orthographic->x_mag = viewport_size.x / viewport_size.y;
-                                               cam->public_data_as_orthographic->y_mag = 1.0f;
-                                               return true;
-                                           }
-                                           if (reset)
-                                           {
-                                               cam->public_data_as_orthographic->x_mag = 1.0f;
-                                               cam->public_data_as_orthographic->y_mag = 1.0f;
-                                               return true;
-                                           }
-                                           return false;
-                                       });
-                        ImGui::Separator();
-                        float default_fl3[3] = { 0.0f, 0.0f, 0.0f };
-                        drag_float_n("Target", &cam->public_data_as_orthographic->target.x, 3, default_fl3, 0.1f, 0.0, 0.0, "%.1f", true);
-
-                        ImGui::Separator();
-                        checkbox("Adaptive Exposure", &cam->public_data_as_orthographic->adaptive_exposure, false);
-
-                        ImGui::BeginGroup();
-                        if (cam->public_data_as_orthographic->adaptive_exposure)
-                        {
-                            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-                        }
-
-                        default_value[0] = mango::default_camera_aperture;
-                        drag_float_n("Aperture", &cam->public_data_as_orthographic->physical.aperture, 1, default_value, 0.1f, mango::min_camera_aperture, mango::max_camera_aperture, "%.1f");
-                        default_value[0] = mango::default_camera_shutter_speed;
-                        drag_float_n("Shutter Speed", &cam->public_data_as_orthographic->physical.shutter_speed, 1, default_value, 0.0001f, mango::min_camera_shutter_speed,
-                                     mango::max_camera_shutter_speed, "%.5f");
-                        default_value[0] = mango::default_camera_iso;
-                        drag_float_n("Iso", &cam->public_data_as_orthographic->physical.iso, 1, default_value, 0.1f, mango::min_camera_iso, mango::max_camera_iso, "%.1f");
-
-                        ImGui::EndGroup();
-                        if (cam->public_data_as_orthographic->adaptive_exposure)
-                        {
-                            ImGui::PopItemFlag();
-                            ImGui::PopStyleVar();
-                            if (ImGui::IsItemHovered())
-                                ImGui::SetTooltip("Adaptive Exposure Controlled");
-                        }
+                        ImGui::PopItemFlag();
+                        ImGui::PopStyleVar();
+                        if (ImGui::IsItemHovered())
+                            ImGui::SetTooltip("Adaptive Exposure Controlled");
                     }
+
+                    cam->changed |= changed;
                 },
-                [object, &cam, &application_scene]()
+                [node_id, &application_scene]()
                 {
                     if (ImGui::Selectable("Remove"))
                     {
-                        if (cam->type == camera_type::perspective)
-                            application_scene->remove_perspective_camera(cam->public_data_as_perspective->containing_node);
-                        else
-                            application_scene->remove_orthographic_camera(cam->public_data_as_orthographic->containing_node);
-                        return false;
+                        application_scene->remove_perspective_camera(node_id);
                     }
                     return true;
                 });
         }
 
-        //! \brief Draws ui for a given \a scene_transform.
-        //! \param[in] object The \a sid of the \a scene_transform to draw ui for.
+        //! \brief Draws ui for a given \a orthographic_camera.
+        //! \param[in] node_id The \a uid of the \a node the \a orthographic_camera is in.
         //! \param[in] application_scene The current \a scene of the \a application.
-        //! \param[in] is_camera True if the \a scene_node containing this transform also contains a \a scene_camera, else false.
-        //! \param[in] is_light True if the \a scene_node containing this transform also contains a \a scene_light, else false.
-        void inspect_transform(sid object, const unique_ptr<scene_impl>& application_scene, bool is_camera, bool is_light)
+        //! \param[in] viewport_size The current viewport size.
+        void inspect_orthographic_camera(uid node_id, const unique_ptr<scene_impl>& application_scene, const ImVec2& viewport_size)
         {
-            optional<scene_transform&> tr = application_scene->get_scene_transform(object);
+            optional<orthographic_camera&> cam = application_scene->get_orthographic_camera(node_id);
+            MANGO_ASSERT(cam, "Orthographic camera to inspect does not exist!");
+            details::draw_component(
+                "Orthographic Camera",
+                [node_id, &cam, &application_scene, &viewport_size]()
+                {
+                    uid cam_id   = application_scene->get_active_camera_uid();
+                    bool active  = cam_id == node_id;
+                    bool changed = checkbox("Active", &active, false);
+
+                    if ((changed || cam_id != node_id) && active)
+                    {
+                        application_scene->set_main_camera(node_id);
+                    }
+                    else if (cam_id == node_id && changed && !active)
+                        application_scene->set_main_camera(invalid_uid);
+
+                    ImGui::Separator();
+
+                    float default_value[1] = { 0.4f };
+                    changed |= slider_float_n("Near Plane", &cam->z_near, 1, default_value, 0.0f, cam->z_far);
+                    default_value[0] = 40.0f;
+                    changed |= slider_float_n("Far Plane", &cam->z_far, 1, default_value, cam->z_near, 10000.0f);
+                    default_value[0] = 1.0f;
+                    changed |= slider_float_n("Magnification X", &cam->x_mag, 1, default_value, 0.1f, 100.0f, "%.1f");
+                    changed |= slider_float_n("Magnification Y", &cam->y_mag, 1, default_value, 0.1f, 100.0f, "%.1f");
+                    changed |= custom_aligned("Magnification",
+                                              [&cam, &viewport_size](bool reset)
+                                              {
+                                                  if (ImGui::Button("Magnification To Viewport", ImVec2(-1, 0)))
+                                                  {
+                                                      cam->x_mag = viewport_size.x / viewport_size.y;
+                                                      cam->y_mag = 1.0f;
+                                                      return true;
+                                                  }
+                                                  if (reset)
+                                                  {
+                                                      cam->x_mag = 1.0f;
+                                                      cam->y_mag = 1.0f;
+                                                      return true;
+                                                  }
+                                                  return false;
+                                              });
+                    ImGui::Separator();
+                    float default_fl3[3] = { 0.0f, 0.0f, 0.0f };
+                    changed |= drag_float_n("Target", &cam->target.x, 3, default_fl3, 0.1f, 0.0, 0.0, "%.1f", true);
+
+                    ImGui::Separator();
+                    changed |= checkbox("Adaptive Exposure", &cam->adaptive_exposure, false);
+
+                    ImGui::BeginGroup();
+                    if (cam->adaptive_exposure)
+                    {
+                        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+                    }
+
+                    default_value[0] = mango::default_camera_aperture;
+                    changed |= drag_float_n("Aperture", &cam->physical.aperture, 1, default_value, 0.1f, mango::min_camera_aperture, mango::max_camera_aperture, "%.1f");
+                    default_value[0] = mango::default_camera_shutter_speed;
+                    changed |= drag_float_n("Shutter Speed", &cam->physical.shutter_speed, 1, default_value, 0.0001f, mango::min_camera_shutter_speed, mango::max_camera_shutter_speed, "%.5f");
+                    default_value[0] = mango::default_camera_iso;
+                    changed |= drag_float_n("Iso", &cam->physical.iso, 1, default_value, 0.1f, mango::min_camera_iso, mango::max_camera_iso, "%.1f");
+
+                    ImGui::EndGroup();
+                    if (cam->adaptive_exposure)
+                    {
+                        ImGui::PopItemFlag();
+                        ImGui::PopStyleVar();
+                        if (ImGui::IsItemHovered())
+                            ImGui::SetTooltip("Adaptive Exposure Controlled");
+                    }
+
+                    cam->changed |= changed;
+                },
+                [node_id, &application_scene]()
+                {
+                    if (ImGui::Selectable("Remove"))
+                    {
+                        application_scene->remove_orthographic_camera(node_id);
+                    }
+                    return true;
+                });
+        }
+
+        //! \brief Draws ui for a given \a transform.
+        //! \param[in] node_id The \a uid of the \a node the \a transform is for.
+        //! \param[in] application_scene The current \a scene of the \a application.
+        //! \param[in] is_camera True if the \a node containing this \a transform also contains a \a camera, else false.
+        //! \param[in] is_light True if the \a node containing this \a transform also contains a \a light, else false.
+        void inspect_transform(uid node_id, const unique_ptr<scene_impl>& application_scene, bool is_camera, bool is_light)
+        {
+            optional<transform&> tr = application_scene->get_transform(node_id);
             MANGO_ASSERT(tr, "Transform to inspect does not exist!");
             details::draw_component("Transform",
-                                    [object, &tr, is_camera, is_light]()
+                                    [&tr, is_camera, is_light]()
                                     {
                                         ImGui::BeginGroup();
 
@@ -640,7 +676,7 @@ namespace mango
                                         bool changed = false;
 
                                         // translation
-                                        changed |= drag_float_n("Translation", &tr->public_data.position[0], 3, default_value, 0.08f, 0.0f, 0.0f, "%.2f", true);
+                                        changed |= drag_float_n("Translation", &tr->position[0], 3, default_value, 0.08f, 0.0f, 0.0f, "%.2f", true);
 
                                         if (is_camera && !is_light)
                                         {
@@ -656,16 +692,16 @@ namespace mango
                                         default_value[1] = 1.0f;
                                         default_value[2] = 1.0f;
                                         // scale
-                                        changed |= drag_float_n("Scale", &tr->public_data.scale[0], 3, default_value, 0.08f, 0.0f, 0.0f, "%.2f", true);
+                                        changed |= drag_float_n("Scale", &tr->scale[0], 3, default_value, 0.08f, 0.0f, 0.0f, "%.2f", true);
 
                                         if (changed)
                                         {
-                                            quat x_quat         = glm::angleAxis(glm::radians(tr->rotation_hint.x - rotation_hint_before.x), vec3(1.0f, 0.0f, 0.0f));
-                                            quat y_quat         = glm::angleAxis(glm::radians(tr->rotation_hint.y - rotation_hint_before.y), vec3(0.0f, 1.0f, 0.0f));
-                                            quat z_quat         = glm::angleAxis(glm::radians(tr->rotation_hint.z - rotation_hint_before.z), vec3(0.0f, 0.0f, 1.0f));
-                                            tr->public_data.rotation = x_quat * y_quat * z_quat * tr->public_data.rotation;
-                                            tr->public_data.update();
+                                            quat x_quat  = glm::angleAxis(glm::radians(tr->rotation_hint.x - rotation_hint_before.x), vec3(1.0f, 0.0f, 0.0f));
+                                            quat y_quat  = glm::angleAxis(glm::radians(tr->rotation_hint.y - rotation_hint_before.y), vec3(0.0f, 1.0f, 0.0f));
+                                            quat z_quat  = glm::angleAxis(glm::radians(tr->rotation_hint.z - rotation_hint_before.z), vec3(0.0f, 0.0f, 1.0f));
+                                            tr->rotation = x_quat * y_quat * z_quat * tr->rotation;
                                         }
+                                        tr->changed |= changed;
 
                                         ImGui::EndGroup();
                                         if (is_camera || is_light)
@@ -678,31 +714,31 @@ namespace mango
                                     });
         }
 
-        //! \brief Draws ui for a given \a scene_model.
-        //! \param[in] object The \a sid of the \a scene_model to draw ui for.
+        //! \brief Draws ui for a given \a model.
+        //! \param[in] object The \a uid of the \a model to draw ui for.
         //! \param[in] application_scene The current \a scene of the \a application.
-        void inspect_model(sid object, const unique_ptr<scene_impl>& application_scene)
+        void inspect_model(uid object, const unique_ptr<scene_impl>& application_scene)
         {
-            optional<scene_model&> m = application_scene->get_scene_model(object);
+            optional<model&> m = application_scene->get_model(object);
             MANGO_ASSERT(m, "Model to inspect does not exist!");
             details::draw_component("Model",
-                                    [object, &m]()
+                                    [&m]()
                                     {
                                         custom_info("Model Path: ",
                                                     [&m]()
                                                     {
                                                         ImGui::AlignTextToFramePadding();
-                                                        ImGui::Text(m->public_data.file_path.c_str());
+                                                        ImGui::Text(m->file_path.c_str());
                                                     });
                                     });
         }
 
         //! \brief Draws ui for a given \a scene_primitive.
-        //! \param[in] object The \a sid of the \a scene_primitive to draw ui for.
+        //! \param[in] object The \a uid of the \a scene_primitive to draw ui for.
         //! \param[in] application_scene The current \a scene of the \a application.
-        void inspect_primitive(sid object, const unique_ptr<scene_impl>& application_scene)
+        void inspect_primitive(uid object, const unique_ptr<scene_impl>& application_scene)
         {
-            optional<scene_primitive&> prim = application_scene->get_scene_primitive(object);
+            optional<primitive&> prim = application_scene->get_primitive(object);
             MANGO_ASSERT(prim, "Primitive to inspect does not exist!");
             details::draw_component("Primitive",
                                     [&prim]()
@@ -711,23 +747,23 @@ namespace mango
                                                     [&prim]()
                                                     {
                                                         ImGui::AlignTextToFramePadding();
-                                                        ImGui::Text(prim->public_data.has_normals ? ICON_FA_CHECK : ICON_FA_TIMES);
+                                                        ImGui::Text(prim->has_normals ? ICON_FA_CHECK : ICON_FA_TIMES);
                                                     });
                                         custom_info("Vertex Tangents: ",
                                                     [&prim]()
                                                     {
                                                         ImGui::AlignTextToFramePadding();
-                                                        ImGui::Text(prim->public_data.has_tangents ? ICON_FA_CHECK : ICON_FA_TIMES);
+                                                        ImGui::Text(prim->has_tangents ? ICON_FA_CHECK : ICON_FA_TIMES);
                                                     });
                                     });
         }
 
         //! \brief Draws ui for a given \a scene_material.
-        //! \param[in] object The \a sid of the \a scene_material to draw ui for.
+        //! \param[in] object The \a uid of the \a scene_material to draw ui for.
         //! \param[in] application_scene The current \a scene of the \a application.
-        void inspect_material(sid object, const unique_ptr<scene_impl>& application_scene)
+        void inspect_material(uid object, const unique_ptr<scene_impl>& application_scene)
         {
-            optional<scene_material&> mat = application_scene->get_scene_material(object);
+            optional<material&> mat = application_scene->get_material(object);
             MANGO_ASSERT(mat, "Material to inspect does not exist!");
             details::draw_component("Material",
                                     [&mat, &application_scene]()
@@ -735,6 +771,8 @@ namespace mango
                                         char const* filter[4] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
 
                                         const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
+
+                                        bool any_change = false;
 
                                         // base color
 
@@ -744,24 +782,30 @@ namespace mango
                                             bool changed  = false;
                                             bool load_new = false;
 
-                                            if (mat->public_data.base_color_texture != invalid_sid)
+                                            if (mat->base_color_texture != invalid_uid)
                                             {
-                                                optional<scene_texture&> base_color_texture = application_scene->get_scene_texture(mat->public_data.base_color_texture);
-                                                changed |= image_load("Base Color Texture", base_color_texture->graphics_texture->native_handle(), vec2(64, 64), load_new);
+                                                optional<texture_gpu_data&> base_color_texture_data = application_scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
+                                                changed |= image_load("Base Color Texture", base_color_texture_data->graphics_texture->native_handle(), vec2(64, 64), load_new);
                                             }
                                             else
                                                 changed |= image_load("Base Color Texture", nullptr, vec2(64, 64), load_new);
 
                                             if (load_new)
-                                                mat->public_data.base_color_texture = details::load_texture_dialog(application_scene, true, false, filter, 4);
+                                            {
+                                                if (mat->base_color_texture != invalid_uid)
+                                                    application_scene->remove_texture(mat->base_color_texture);
+                                                mat->base_color_texture = details::load_texture_dialog(application_scene, true, false, filter, 4);
+                                            }
                                             else if (changed)
-                                                mat->public_data.base_color_texture = invalid_sid;
+                                                mat->base_color_texture = invalid_uid;
+
+                                            any_change |= changed;
 
                                             ImGui::Separator();
 
                                             float default_value[3] = { 1.0f, 1.0f, 1.0f };
-                                            if (mat->public_data.base_color_texture == invalid_sid)
-                                                color_edit("Color", &mat->public_data.base_color[0], 4, default_value);
+                                            if (mat->base_color_texture == invalid_uid)
+                                                any_change |= color_edit("Color", &mat->base_color[0], 4, default_value);
 
                                             ImGui::Separator();
                                             ImGui::PopID();
@@ -776,30 +820,36 @@ namespace mango
                                             bool changed  = false;
                                             bool load_new = false;
 
-                                            if (mat->public_data.metallic_roughness_texture != invalid_sid)
+                                            if (mat->metallic_roughness_texture != invalid_uid)
                                             {
-                                                optional<scene_texture&> r_m_texture = application_scene->get_scene_texture(mat->public_data.metallic_roughness_texture);
-                                                changed |= image_load("Roughness And Metallic Texture", r_m_texture->graphics_texture->native_handle(), vec2(64, 64), load_new);
+                                                optional<texture_gpu_data&> r_m_texture_data = application_scene->get_texture_gpu_data(mat->metallic_roughness_texture_gpu_data);
+                                                changed |= image_load("Roughness And Metallic Texture", r_m_texture_data->graphics_texture->native_handle(), vec2(64, 64), load_new);
                                             }
                                             else
                                                 changed |= image_load("Roughness And Metallic Texture", nullptr, vec2(64, 64), load_new);
 
                                             if (load_new)
-                                                mat->public_data.metallic_roughness_texture = details::load_texture_dialog(application_scene, false, false, filter, 4);
+                                            {
+                                                if (mat->metallic_roughness_texture != invalid_uid)
+                                                    application_scene->remove_texture(mat->metallic_roughness_texture);
+                                                mat->metallic_roughness_texture = details::load_texture_dialog(application_scene, false, false, filter, 4);
+                                            }
                                             else if (changed)
-                                                mat->public_data.metallic_roughness_texture = invalid_sid;
+                                                mat->metallic_roughness_texture = invalid_uid;
+
+                                            any_change |= changed;
 
                                             ImGui::Separator();
 
-                                            if (mat->public_data.metallic_roughness_texture != invalid_sid)
+                                            if (mat->metallic_roughness_texture != invalid_uid)
                                             {
-                                                checkbox("Has Packed AO", &mat->public_data.packed_occlusion, false);
+                                                any_change |= checkbox("Has Packed AO", &mat->packed_occlusion, false);
                                             }
                                             else
                                             {
                                                 float default_value = 0.5f;
-                                                slider_float_n("Roughness", mat->public_data.roughness.type_data(), 1, &default_value, 0.0f, 1.0f);
-                                                slider_float_n("Metallic", mat->public_data.metallic.type_data(), 1, &default_value, 0.0f, 1.0f);
+                                                any_change |= slider_float_n("Roughness", mat->roughness.type_data(), 1, &default_value, 0.0f, 1.0f);
+                                                any_change |= slider_float_n("Metallic", mat->metallic.type_data(), 1, &default_value, 0.0f, 1.0f);
                                             }
 
                                             ImGui::Separator();
@@ -815,18 +865,24 @@ namespace mango
                                             bool changed  = false;
                                             bool load_new = false;
 
-                                            if (mat->public_data.normal_texture != invalid_sid)
+                                            if (mat->normal_texture != invalid_uid)
                                             {
-                                                optional<scene_texture&> normal_texture = application_scene->get_scene_texture(mat->public_data.normal_texture);
-                                                changed |= image_load("Normal Texture", normal_texture->graphics_texture->native_handle(), vec2(64, 64), load_new);
+                                                optional<texture_gpu_data&> normal_texture_data = application_scene->get_texture_gpu_data(mat->normal_texture_gpu_data);
+                                                changed |= image_load("Normal Texture", normal_texture_data->graphics_texture->native_handle(), vec2(64, 64), load_new);
                                             }
                                             else
                                                 changed |= image_load("Normal Texture", nullptr, vec2(64, 64), load_new);
 
                                             if (load_new)
-                                                mat->public_data.normal_texture = details::load_texture_dialog(application_scene, false, false, filter, 4);
+                                            {
+                                                if (mat->normal_texture != invalid_uid)
+                                                    application_scene->remove_texture(mat->normal_texture);
+                                                mat->normal_texture = details::load_texture_dialog(application_scene, false, false, filter, 4);
+                                            }
                                             else if (changed)
-                                                mat->public_data.normal_texture = invalid_sid;
+                                                mat->normal_texture = invalid_uid;
+
+                                            any_change |= changed;
 
                                             ImGui::Separator();
                                             ImGui::PopID();
@@ -841,18 +897,24 @@ namespace mango
                                             bool changed  = false;
                                             bool load_new = false;
 
-                                            if (mat->public_data.occlusion_texture != invalid_sid)
+                                            if (mat->occlusion_texture != invalid_uid)
                                             {
-                                                optional<scene_texture&> occlusion_texture = application_scene->get_scene_texture(mat->public_data.occlusion_texture);
-                                                changed |= image_load("Occlusion Texture", occlusion_texture->graphics_texture->native_handle(), vec2(64, 64), load_new);
+                                                optional<texture_gpu_data&> occlusion_texture_data = application_scene->get_texture_gpu_data(mat->occlusion_texture_gpu_data);
+                                                changed |= image_load("Occlusion Texture", occlusion_texture_data->graphics_texture->native_handle(), vec2(64, 64), load_new);
                                             }
                                             else
                                                 changed |= image_load("Occlusion Texture", nullptr, vec2(64, 64), load_new);
 
                                             if (load_new)
-                                                mat->public_data.occlusion_texture = details::load_texture_dialog(application_scene, false, false, filter, 4);
+                                            {
+                                                if (mat->occlusion_texture != invalid_uid)
+                                                    application_scene->remove_texture(mat->occlusion_texture);
+                                                mat->occlusion_texture = details::load_texture_dialog(application_scene, false, false, filter, 4);
+                                            }
                                             else if (changed)
-                                                mat->public_data.occlusion_texture = invalid_sid;
+                                                mat->occlusion_texture = invalid_uid;
+
+                                            any_change |= changed;
 
                                             ImGui::Separator();
                                             ImGui::PopID();
@@ -867,29 +929,35 @@ namespace mango
                                             bool changed  = false;
                                             bool load_new = false;
 
-                                            if (mat->public_data.emissive_texture != invalid_sid)
+                                            if (mat->emissive_texture != invalid_uid)
                                             {
-                                                optional<scene_texture&> emissive_texture = application_scene->get_scene_texture(mat->public_data.emissive_texture);
-                                                changed |= image_load("Emissive Texture", emissive_texture->graphics_texture->native_handle(), vec2(64, 64), load_new);
+                                                optional<texture_gpu_data&> emissive_texture_data = application_scene->get_texture_gpu_data(mat->emissive_texture_gpu_data);
+                                                changed |= image_load("Emissive Texture", emissive_texture_data->graphics_texture->native_handle(), vec2(64, 64), load_new);
                                             }
                                             else
                                                 changed |= image_load("Emissive Texture", nullptr, vec2(64, 64), load_new);
 
                                             if (load_new)
-                                                mat->public_data.emissive_texture = details::load_texture_dialog(application_scene, true, false, filter, 4);
+                                            {
+                                                if (mat->emissive_texture != invalid_uid)
+                                                    application_scene->remove_texture(mat->emissive_texture);
+                                                mat->emissive_texture = details::load_texture_dialog(application_scene, true, false, filter, 4);
+                                            }
                                             else if (changed)
-                                                mat->public_data.emissive_texture = invalid_sid;
+                                                mat->emissive_texture = invalid_uid;
+
+                                            any_change |= changed;
 
                                             ImGui::Separator();
 
                                             float default_value_float = mango::default_emissive_intensity;
-                                            slider_float_n("Intensity", &mat->public_data.emissive_intensity, 1, &default_value_float, 0.0f,
-                                                           default_emissive_intensity * 10.0f); // TODO Paul: Range?
+                                            any_change |= slider_float_n("Intensity", &mat->emissive_intensity, 1, &default_value_float, 0.0f,
+                                                                         default_emissive_intensity * 10.0f); // TODO Paul: Range?
 
                                             float default_value[3] = { 1.0f, 1.0f, 1.0f };
-                                            if (mat->public_data.emissive_texture == invalid_sid)
+                                            if (mat->emissive_texture == invalid_uid)
                                             {
-                                                color_edit("Color", &mat->public_data.emissive_color[0], 4, default_value);
+                                                any_change |= color_edit("Color", &mat->emissive_color[0], 4, default_value);
                                             }
                                             ImGui::Separator();
                                             ImGui::PopID();
@@ -898,24 +966,26 @@ namespace mango
                                         ImGui::Separator();
                                         ImGui::Spacing();
 
-                                        checkbox("Double Sided", &mat->public_data.double_sided, false);
+                                        any_change |= checkbox("Double Sided", &mat->double_sided, false);
 
                                         ImGui::Separator();
 
                                         const char* types[4] = { "Opaque", "Masked", "Blended", "Dithered" };
-                                        int32 idx            = static_cast<int32>(mat->public_data.alpha_mode);
-                                        combo("Alpha Mode", types, 4, idx, 0);
-                                        mat->public_data.alpha_mode = static_cast<material_alpha_mode>(idx);
+                                        int32 idx            = static_cast<int32>(mat->alpha_mode);
+                                        any_change |= combo("Alpha Mode", types, 4, idx, 0);
+                                        mat->alpha_mode = static_cast<material_alpha_mode>(idx);
 
                                         float default_value = 0.5f;
-                                        if (mat->public_data.alpha_mode == material_alpha_mode::mode_mask)
-                                            slider_float_n("Alpha CutOff", mat->public_data.alpha_cutoff.type_data(), 1, &default_value, 0.0f, 1.0f, "%.2f");
-                                        if (mat->public_data.alpha_mode == material_alpha_mode::mode_blend)
+                                        if (mat->alpha_mode == material_alpha_mode::mode_mask)
+                                            any_change |= slider_float_n("Alpha CutOff", mat->alpha_cutoff.type_data(), 1, &default_value, 0.0f, 1.0f, "%.2f");
+                                        if (mat->alpha_mode == material_alpha_mode::mode_blend)
                                             custom_info(
                                                 "Blending With Basic Over Operator!", []() {}, 0.0f, ImGui::GetContentRegionAvail().x);
-                                        if (mat->public_data.alpha_mode == material_alpha_mode::mode_dither)
+                                        if (mat->alpha_mode == material_alpha_mode::mode_dither)
                                             custom_info(
                                                 "Dithering ... Just For Fun!", []() {}, 0.0f, ImGui::GetContentRegionAvail().x);
+
+                                        mat->changed |= any_change;
                                     });
         }
     } // namespace details
@@ -923,14 +993,14 @@ namespace mango
     //! \brief Draws a scene graph in the user interface.
     //! \param[in] application_scene The current \a scene of the \a application.
     //! \param[in,out] enabled True if the window is open, else false.
-    //! \param[in,out] selected The sid of the currently selected object, can be updated by this function.
-    void scene_inspector_widget(const unique_ptr<scene_impl>& application_scene, bool& enabled, sid& selected)
+    //! \param[in,out] selected The uid of the currently selected object, can be updated by this function.
+    void scene_inspector_widget(const unique_ptr<scene_impl>& application_scene, bool& enabled, uid& selected)
     {
         ImGui::Begin("Scene Inspector", &enabled);
         if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered())
         {
             if (ImGui::IsMouseClicked(0))
-                selected = invalid_sid;
+                selected = invalid_uid;
             if (!ImGui::IsPopupOpen("##scene_menu") && ImGui::IsMouseClicked(1))
                 ImGui::OpenPopup("##scene_menu");
         }
@@ -938,8 +1008,7 @@ namespace mango
         {
             if (ImGui::Selectable("Add Scene Object##scene_menu"))
             {
-                auto new_node = node();
-                selected      = application_scene->add_node(new_node);
+                selected = application_scene->add_node("Unnamed");
             }
             if (ImGui::Selectable("Import And Add Model (temporary)##scene_menu"))
             {
@@ -952,13 +1021,12 @@ namespace mango
                     auto ext       = queried.substr(queried.find_last_of(".") + 1);
                     if (ext == "glb" || ext == "gltf")
                     {
-                        sid m                       = application_scene->load_model_from_gltf(queried);
+                        uid m                       = application_scene->load_model_from_gltf(queried);
                         optional<mango::model&> mod = application_scene->get_model(m);
                         MANGO_ASSERT(mod, "Model not existent!");
                         auto start              = string(queried).find_last_of("\\/") + 1;
                         auto name               = string(queried).substr(start, queried.find_last_of(".") - start);
-                        node instance_root_node = node(name);
-                        sid model_instance_root = application_scene->add_node(instance_root_node);
+                        uid model_instance_root = application_scene->add_node(name);
                         application_scene->add_model_to_scene(m, mod->scenarios.at(mod->default_scenario), model_instance_root);
                     }
                 }
@@ -974,64 +1042,55 @@ namespace mango
     //! \brief Draws the scene object component inspector for a given object in the user interface.
     //! \param[in] shared_context The shared context of mango.
     //! \param[in,out] enabled True if the window is open, else false.
-    //! \param[in] object The object the components should be inspected.
+    //! \param[in] node_id The \a uid of the \a node that should be inspected.
     //! \param[in] viewport_size The size of the render_view, when enabled, else some base size.
     //! \param[in,out] selected_primitive The last selected primitive -> Should be updated by inspect_mesh().
-    void scene_object_component_inspector_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, sid object, const ImVec2& viewport_size, sid& selected_primitive)
+    void scene_object_component_inspector_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, uid node_id, const ImVec2& viewport_size, uid& selected_primitive)
     {
         ImGui::Begin("Scene Object - Component Inspector", &enabled);
-        if (object != invalid_sid)
+        if (node_id != invalid_uid)
         {
-            auto& application_scene  = shared_context->get_internal_scene();
-            optional<scene_node&> nd = application_scene->get_scene_node(object);
+            auto& application_scene = shared_context->get_internal_scene();
+            optional<node&> nd      = application_scene->get_node(node_id);
             MANGO_ASSERT(nd, "Node to inspect does not exist!");
 
-            ImGui::PushID(object.id().get());
+            ImGui::PushID(node_id.get());
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 0.0f);
 
-            if (object.structure_type() == scene_structure_type::scene_structure_node)
+            details::inspect_node(node_id, nd.value(), application_scene);
+            bool is_perspective_camera  = (nd->type & node_type::perspective_camera) != node_type::hierarchy;
+            bool is_orthographic_camera = (nd->type & node_type::orthographic_camera) != node_type::hierarchy;
+            bool is_directional_light   = (nd->type & node_type::directional_light) != node_type::hierarchy;
+            bool is_skylight            = (nd->type & node_type::skylight) != node_type::hierarchy;
+            bool is_atmospheric_light   = (nd->type & node_type::atmospheric_light) != node_type::hierarchy;
+            bool is_mesh                = (nd->type & node_type::mesh) != node_type::hierarchy;
+            bool is_camera              = is_perspective_camera || is_orthographic_camera;
+            bool is_light               = is_directional_light || is_skylight || is_atmospheric_light;
+            details::inspect_transform(nd->transform_id, application_scene, is_camera, is_light);
+            if (is_directional_light)
             {
-                optional<scene_node&> node = application_scene->get_scene_node(object);
-                MANGO_ASSERT(node, "Node to inspect does not exist!");
-                details::inspect_node(node.value(), application_scene);
-                bool is_camera = (node->type & node_type::camera) != node_type::empty_leaf; // Each node in the hierarchy has a transform.
-                bool is_light  = (node->type & node_type::light) != node_type::empty_leaf;  // Each node in the hierarchy has a transform.
-                details::inspect_transform(node->node_transform, application_scene, is_camera, is_light);
-                if (is_light)
-                {
-                    for (int32 i = 0; i < 3; ++i)
-                    {
-                        if (node->light_ids[i] == invalid_sid)
-                            continue;
-                        details::inspect_light(node->light_ids[i], application_scene);
-                    }
-                }
-                if ((node->type & node_type::mesh) != node_type::empty_leaf)
-                {
-                    details::inspect_mesh(node->mesh_id, application_scene, selected_primitive);
-                }
-                if (is_camera)
-                {
-                    details::inspect_camera(node->camera_id, application_scene, viewport_size);
-                }
+                details::inspect_directional_light(node_id, application_scene);
             }
-            else
-                MANGO_ASSERT(false, "Scene object which is not a node in the scene graph!");
-
-            /*
-
-            // Material
-            details::draw_component<mango::material_component>(
-                material_comp, [entity, &application_scene, &material_comp, &rs]() { details::draw_material(material_comp->component_material, rs); },
-                [entity, &application_scene]() {
-                    if (ImGui::Selectable("Remove"))
-                    {
-                        application_scene->remove_component<material_component>(entity);
-                        return false;
-                    }
-                    return true;
-                });
-            */
+            if (is_skylight)
+            {
+                details::inspect_skylight(node_id, application_scene);
+            }
+            if (is_atmospheric_light)
+            {
+                details::inspect_atmospheric_light(node_id, application_scene);
+            }
+            if (is_mesh)
+            {
+                details::inspect_mesh(node_id, nd->mesh_id, application_scene, selected_primitive);
+            }
+            if (is_perspective_camera)
+            {
+                details::inspect_perspective_camera(node_id, application_scene, viewport_size);
+            }
+            if (is_orthographic_camera)
+            {
+                details::inspect_orthographic_camera(node_id, application_scene, viewport_size);
+            }
 
             ImGui::PopStyleVar();
             ImGui::PopID();
@@ -1043,20 +1102,20 @@ namespace mango
     //! \param[in] shared_context The shared context of mango.
     //! \param[in,out] enabled True if the window is open, else false.
     //! \param[in] selected_primitive The selected primitive that should be inspected.
-    void primitive_material_inspector_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, sid selected_primitive)
+    void primitive_material_inspector_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, uid selected_primitive)
     {
         ImGui::Begin("Primitive - Material Inspector", &enabled);
-        if (selected_primitive != invalid_sid)
+        if (selected_primitive != invalid_uid)
         {
-            auto& application_scene         = shared_context->get_internal_scene();
-            optional<scene_primitive&> prim = application_scene->get_scene_primitive(selected_primitive);
+            auto& application_scene   = shared_context->get_internal_scene();
+            optional<primitive&> prim = application_scene->get_primitive(selected_primitive);
             MANGO_ASSERT(prim, "Primitive to inspect does not exist!");
 
-            ImGui::PushID(selected_primitive.id().get());
+            ImGui::PushID(selected_primitive.get());
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 0.0f);
 
             details::inspect_primitive(selected_primitive, application_scene);
-            details::inspect_material(prim->public_data.material, application_scene);
+            details::inspect_material(prim->material, application_scene);
             ImGui::PopStyleVar();
             ImGui::PopID();
         }

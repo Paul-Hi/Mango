@@ -1,4 +1,4 @@
-//! \file      scene_impl.cpp
+//! \file      scene_helper.cpp
 //! \author    Paul Himmler
 //! \version   1.0
 //! \date      2021
@@ -8,7 +8,7 @@
 
 using namespace mango;
 
-static void view_projection_perspective_camera(const perspective_camera& camera, const vec3& camera_position, mat4& out_view, mat4& out_projection)
+void mango::view_projection_perspective_camera(const perspective_camera& camera, const vec3& camera_position, mat4& out_view, mat4& out_projection)
 {
     vec3 front = camera.target - camera_position;
     if (glm::length(front) > 1e-5)
@@ -26,7 +26,7 @@ static void view_projection_perspective_camera(const perspective_camera& camera,
     out_projection = glm::perspective(camera.vertical_field_of_view, camera.aspect, camera.z_near, camera.z_far);
 }
 
-static void view_projection_orthographic_camera(const orthographic_camera& camera, const vec3& camera_position, mat4& out_view, mat4& out_projection)
+void mango::view_projection_orthographic_camera(const orthographic_camera& camera, const vec3& camera_position, mat4& out_view, mat4& out_projection)
 {
     vec3 front = camera.target - camera_position;
     if (glm::length(front) > 1e-5)

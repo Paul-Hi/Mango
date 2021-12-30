@@ -302,7 +302,7 @@ void skylight_builder::build(scene_impl* scene, const skylight& light, skylight_
     // HDR Texture
     if (light.use_texture)
     {
-        if (light.hdr_texture == invalid_sid)
+        if (light.hdr_texture == invalid_uid)
         {
             clear(render_data);
             return;
@@ -401,8 +401,14 @@ void skylight_builder::load_from_hdr(scene_impl* scene, const skylight& light, s
     GL_NAMED_PROFILE_ZONE("Generating IBL Cubemap");
     // equirectangular to cubemap
     device_context->bind_pipeline(m_equi_to_cubemap_pipeline);
-    auto input_hdr = scene->get_scene_texture(light.hdr_texture);
+    auto input_hdr = scene->get_texture(light.hdr_texture);
     if (!input_hdr)
+    {
+        MANGO_LOG_WARN("Hdr texture to build ibl does not exist.");
+        return;
+    }
+    auto hdr_data = scene->get_texture_gpu_data(input_hdr->gpu_data);
+    if (!hdr_data)
     {
         MANGO_LOG_WARN("Hdr texture to build ibl does not exist.");
         return;
@@ -411,8 +417,8 @@ void skylight_builder::load_from_hdr(scene_impl* scene, const skylight& light, s
     m_current_ibl_generator_data.data     = vec2(0.0f); // unused here
     device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
 
-    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("texture_hdr_in", input_hdr->graphics_texture);
-    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("sampler_hdr_in", input_hdr->graphics_sampler);
+    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("texture_hdr_in", hdr_data->graphics_texture);
+    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("sampler_hdr_in", hdr_data->graphics_sampler);
     auto cubemap_view = graphics_device->create_image_texture_view(render_data->cubemap);
     m_equi_to_cubemap_pipeline->get_resource_mapping()->set("cubemap_out", cubemap_view);
     m_equi_to_cubemap_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generator_data_buffer);
