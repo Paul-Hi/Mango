@@ -62,6 +62,12 @@ scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& conte
     root.type             = node_type::hierarchy;
     root.global_matrix_id = m_global_transformation_matrices.emplace(1.0f);
     m_root_node           = m_nodes.emplace(root);
+
+    transform& tr    = m_transforms.at(root.transform_id);
+    tr.position      = vec3(0.0f);
+    tr.rotation      = quat(1.0f, 0.0f, 0.0f, 0.0f);
+    tr.scale         = vec3(1.0f);
+    tr.rotation_hint = glm::degrees(glm::eulerAngles(tr.rotation));
 }
 
 scene_impl::~scene_impl() {}
@@ -75,6 +81,12 @@ uid scene_impl::add_node(const string& name, uid parent_node)
     new_node.type             = node_type::hierarchy;
     new_node.global_matrix_id = m_global_transformation_matrices.emplace(1.0f);
     uid node_id               = m_nodes.emplace(new_node);
+
+    transform& tr    = m_transforms.at(new_node.transform_id);
+    tr.position      = vec3(0.0f);
+    tr.rotation      = quat(1.0f, 0.0f, 0.0f, 0.0f);
+    tr.scale         = vec3(1.0f);
+    tr.rotation_hint = glm::degrees(glm::eulerAngles(tr.rotation));
 
     if (!parent_node.is_valid())
     {
@@ -2172,58 +2184,65 @@ uid scene_impl::default_material()
 
 void scene_impl::update_scene_graph(uid node_id, uid parent_id, bool force_update)
 {
-    node& node    = m_nodes.at(node_id);
-    transform& tr = m_transforms.at(node.transform_id);
+    node& nd      = m_nodes.at(node_id);
+    transform& tr = m_transforms.at(nd.transform_id);
 
     if (tr.changed || force_update)
     {
         // recalculate node matrices
         mat4 local_transformation_matrix = glm::translate(mat4(1.0), tr.position);
-        local_transformation_matrix      = local_transformation_matrix * glm::mat4_cast(tr.rotation);
+        local_transformation_matrix      = local_transformation_matrix * glm::toMat4(tr.rotation);
         local_transformation_matrix      = glm::scale(local_transformation_matrix, tr.scale);
 
-        const mat4& parent_transformation_matrix = parent_id.is_valid() ? m_global_transformation_matrices.at(parent_id) : mat4(1.0f);
-        mat4& global_transformation_matrix       = m_global_transformation_matrices.at(node_id);
+        mat4 parent_transformation_matrix = mat4(1.0f);
+        if (parent_id.is_valid())
+        {
+            const node& parent           = m_nodes.at(parent_id);
+            parent_transformation_matrix = m_global_transformation_matrices.at(parent.global_matrix_id);
+        }
+
+        mat4& global_transformation_matrix = m_global_transformation_matrices.at(nd.global_matrix_id);
 
         global_transformation_matrix = parent_transformation_matrix * local_transformation_matrix;
 
         // Set changed flags
-        if ((node.type & node_type::mesh) != node_type::hierarchy)
+        if ((nd.type & node_type::mesh) != node_type::hierarchy)
         {
-            mesh& m   = m_meshes.at(node.mesh_id);
+            mesh& m   = m_meshes.at(nd.mesh_id);
             m.changed = true;
         }
-        if ((node.type & node_type::perspective_camera) != node_type::hierarchy)
+        if ((nd.type & node_type::perspective_camera) != node_type::hierarchy)
         {
-            uid camera_id           = node.camera_ids[static_cast<uint8>(camera_type::perspective)];
+            uid camera_id           = nd.camera_ids[static_cast<uint8>(camera_type::perspective)];
             perspective_camera& cam = m_perspective_cameras.at(camera_id);
             cam.changed             = true;
         }
-        if ((node.type & node_type::orthographic_camera) != node_type::hierarchy)
+        if ((nd.type & node_type::orthographic_camera) != node_type::hierarchy)
         {
-            uid camera_id            = node.camera_ids[static_cast<uint8>(camera_type::orthographic)];
+            uid camera_id            = nd.camera_ids[static_cast<uint8>(camera_type::orthographic)];
             orthographic_camera& cam = m_orthographic_cameras.at(camera_id);
             cam.changed              = true;
         }
 
         tr.changed = false;
+        force_update = true;
     }
     // light changes are handled by the light stack
-    if ((node.type & node_type::directional_light) != node_type::hierarchy)
+    if ((nd.type & node_type::directional_light) != node_type::hierarchy)
     {
-        uid light_id         = node.light_ids[static_cast<uint8>(light_type::directional)];
+        uid light_id         = nd.light_ids[static_cast<uint8>(light_type::directional)];
         directional_light& l = m_directional_lights.at(light_id);
         m_light_stack.push(l);
     }
-    if ((node.type & node_type::skylight) != node_type::hierarchy)
+    if ((nd.type & node_type::skylight) != node_type::hierarchy)
     {
-        uid light_id = node.light_ids[static_cast<uint8>(light_type::skylight)];
+        uid light_id = nd.light_ids[static_cast<uint8>(light_type::skylight)];
         skylight& l  = m_skylights.at(light_id);
         m_light_stack.push(l);
     }
-    if ((node.type & node_type::atmospheric_light) != node_type::hierarchy)
+    if ((nd.type & node_type::atmospheric_light) != node_type::hierarchy)
     {
-        uid light_id         = node.light_ids[static_cast<uint8>(light_type::atmospheric)];
+        uid light_id         = nd.light_ids[static_cast<uint8>(light_type::atmospheric)];
         atmospheric_light& l = m_atmospheric_lights.at(light_id);
         m_light_stack.push(l);
     }
@@ -2231,9 +2250,18 @@ void scene_impl::update_scene_graph(uid node_id, uid parent_id, bool force_updat
     // add to render instances
     m_render_instances.push_back(render_instance(node_id));
 
-    for (auto c : node.children)
+    for (auto it = nd.children.begin(); it != nd.children.end();)
     {
-        update_scene_graph(c, node_id, tr.changed || force_update);
+        uid c = *it;
+        if (c.is_valid())
+        {
+            update_scene_graph(c, node_id, force_update);
+            it++;
+        }
+        else
+        {
+            it = nd.children.erase(it);
+        }
     }
 }
 
@@ -2258,7 +2286,7 @@ void scene_impl::update(float dt)
             const mat4& trafo   = m_global_transformation_matrices.at(nd.global_matrix_id);
 
             data.per_mesh_data.model_matrix  = trafo;
-            data.per_mesh_data.normal_matrix = glm::inverse(trafo);
+            data.per_mesh_data.normal_matrix = mat3(glm::transpose(glm::inverse(trafo)));
 
             auto device_context = m_scene_graphics_device->create_graphics_device_context();
             device_context->begin();
@@ -2500,7 +2528,7 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid& sel
 {
     optional<node&> opt_node = get_node(current);
     MANGO_ASSERT(opt_node, "Something is broken - Can not draw hierarchy for a non existing node!");
-    node nd = opt_node.value();
+    node& nd = opt_node.value();
 
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 5));
     const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_FramePadding |
@@ -2557,11 +2585,12 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid& sel
     {
         if (!removed)
         {
-            for (auto it = nd.children.begin(); it != nd.children.end(); it++)
+            for (auto& c : nd.children)
             {
-                auto& child           = *it;
-                auto removed_children = draw_scene_hierarchy_internal(child, selected);
+                auto removed_children = draw_scene_hierarchy_internal(c, selected);
                 to_remove.insert(to_remove.end(), removed_children.begin(), removed_children.end());
+                if (removed_children.size() > 0 && removed_children[0] == c)
+                    c = invalid_uid;
             }
         }
         ImGui::TreePop();
