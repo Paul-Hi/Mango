@@ -131,8 +131,10 @@ namespace mango
         //! \brief The mapped luminance data from the data calculation.
         luminance_data* m_luminance_data_mapping;
 
+        /*
         //! \brief The \a gfx_semaphore used to synchronize luminance calculation.
         gfx_handle<const gfx_semaphore> m_luminance_semaphore;
+        */
 
         //! \brief True if the renderer should draw wireframe, else false.
         bool m_wireframe;
@@ -143,8 +145,10 @@ namespace mango
         //! \brief True if the renderer should cull primitives against camera and shadow frusta, else false.
         bool m_frustum_culling;
 
+        /*
         //! \brief The \a gfx_semaphore used to synchronize \a renderer frames.
         gfx_handle<const gfx_semaphore> m_frame_semaphore;
+        */
 
         float get_average_luminance() const override;
     };

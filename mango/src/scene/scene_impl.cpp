@@ -1757,13 +1757,21 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
 {
     PROFILE_ZONE;
 
+    material new_material;
+    new_material.name = "Unnamed";
     if (!primitive_material.name.empty())
     {
         MANGO_LOG_DEBUG("Loading material: {0}", primitive_material.name.c_str());
+        new_material.name = primitive_material.name;
+
+        // check if material with that name is alread loaded
+        auto cached = material_name_to_uid.find(new_material.name);
+        if (cached != material_name_to_uid.end())
+        {
+            return cached->second;
+        }
     }
 
-    material new_material;
-    new_material.name         = primitive_material.name.empty() ? "Unnamed" : primitive_material.name;
     new_material.double_sided = primitive_material.doubleSided;
 
     auto& pbr = primitive_material.pbrMetallicRoughness;
@@ -2137,7 +2145,14 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         new_material.alpha_cutoff = 1.0f;
     }
 
-    return build_material(new_material);
+    uid material_uid = build_material(new_material);
+
+    if (!primitive_material.name.empty())
+    {
+        material_name_to_uid.insert({ new_material.name, material_uid });
+    }
+
+    return material_uid;
 }
 
 uid scene_impl::default_material()
@@ -2224,7 +2239,7 @@ void scene_impl::update_scene_graph(uid node_id, uid parent_id, bool force_updat
             cam.changed              = true;
         }
 
-        tr.changed = false;
+        tr.changed   = false;
         force_update = true;
     }
     // light changes are handled by the light stack

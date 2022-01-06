@@ -282,7 +282,10 @@ namespace mango
         packed_freelist<atmospheric_light, 32> m_atmospheric_lights;
 
         //! \brief The \a packed_freelist for all \a buffer_views in the \a scene.
-        packed_freelist<buffer_view, 8192> m_buffer_views;
+        packed_freelist<buffer_view, 16384> m_buffer_views;
+
+        //! \brief Maps names of materials to already loaded \a material \a uids.
+        std::map<string, uid> material_name_to_uid;
 
         //! \brief The internal recursive function to draw the hierarchy of \a nodes in a ui widget.
         //! \param[in] current The current \a nodes \a uid to inspect and draw.
