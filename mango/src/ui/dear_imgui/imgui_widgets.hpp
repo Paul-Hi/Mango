@@ -195,17 +195,22 @@ namespace mango
         //! \param[in] high_dynamic_range True if texture image is hdr, else false.
         //! \param[in] filter A list of file extensions to filter them.
         //! \param[in] num_filters The number of elements in filter.
-        //! \return The \a uid referencing the created \a texture.
-        uid load_texture_dialog(const unique_ptr<scene_impl>& application_scene, bool standard_color_space, bool high_dynamic_range, const char* const* filter, int32 num_filters)
+        //! \return The \a uids referencing the created \a texture and \a texture_gpu_data.
+        std::pair<uid, uid> load_texture_dialog(const unique_ptr<scene_impl>& application_scene, bool standard_color_space, bool high_dynamic_range, const char* const* filter, int32 num_filters)
         {
             char* query_path = tinyfd_openFileDialog("", "res/", num_filters, filter, NULL, 0);
             if (query_path)
             {
                 string queried = string(query_path);
 
-                return application_scene->load_texture_from_image(queried, standard_color_space, high_dynamic_range);
+                uid texture_id = application_scene->load_texture_from_image(queried, standard_color_space, high_dynamic_range);
+
+                optional<texture> tex = application_scene->get_texture(texture_id);
+                MANGO_ASSERT(tex, "Missing texture after adding it!");
+
+                return std::pair<uid, uid>(texture_id, tex->gpu_data);
             }
-            return invalid_uid;
+            return std::pair<uid, uid>(invalid_uid, invalid_uid);
         }
 
         //! \brief Draws ui for a given \a node.
@@ -322,7 +327,7 @@ namespace mango
                         if (l->hdr_texture == invalid_uid)
                         {
                             char const* filter[1] = { "*.hdr" };
-                            l->hdr_texture        = details::load_texture_dialog(application_scene, false, true, filter, 1);
+                            l->hdr_texture        = details::load_texture_dialog(application_scene, false, true, filter, 1).first;
                         }
                         else
                         {
@@ -338,7 +343,7 @@ namespace mango
                             {
                                 application_scene->remove_texture(l->hdr_texture);
                                 char const* filter[1] = { "*.hdr" };
-                                l->hdr_texture        = details::load_texture_dialog(application_scene, false, true, filter, 1);
+                                l->hdr_texture        = details::load_texture_dialog(application_scene, false, true, filter, 1).first;
                             }
 
                             if (l->hdr_texture == invalid_uid)
@@ -765,228 +770,239 @@ namespace mango
         {
             optional<material&> mat = application_scene->get_material(object);
             MANGO_ASSERT(mat, "Material to inspect does not exist!");
-            details::draw_component("Material",
-                                    [&mat, &application_scene]()
-                                    {
-                                        char const* filter[4] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
+            details::draw_component(
+                "Material",
+                [&mat, &application_scene]()
+                {
+                    char const* filter[4] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
 
-                                        const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
+                    const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
 
-                                        bool any_change = false;
+                    bool any_change = false;
 
-                                        // base color
+                    // base color
 
-                                        if (ImGui::CollapsingHeader("Base Color", flags | ImGuiTreeNodeFlags_DefaultOpen))
-                                        {
-                                            ImGui::PushID("Base Color");
-                                            bool changed  = false;
-                                            bool load_new = false;
+                    if (ImGui::CollapsingHeader("Base Color", flags | ImGuiTreeNodeFlags_DefaultOpen))
+                    {
+                        ImGui::PushID("Base Color");
+                        bool changed  = false;
+                        bool load_new = false;
 
-                                            if (mat->base_color_texture != invalid_uid)
-                                            {
-                                                optional<texture_gpu_data&> base_color_texture_data = application_scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
-                                                changed |= image_load("Base Color Texture", base_color_texture_data->graphics_texture->native_handle(), vec2(64, 64), load_new);
-                                            }
-                                            else
-                                                changed |= image_load("Base Color Texture", nullptr, vec2(64, 64), load_new);
+                        if (mat->base_color_texture != invalid_uid)
+                        {
+                            optional<texture_gpu_data&> base_color_texture_data = application_scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
+                            changed |= image_load("Base Color Texture", base_color_texture_data ? base_color_texture_data->graphics_texture->native_handle() : NULL, vec2(64, 64), load_new);
+                        }
+                        else
+                            changed |= image_load("Base Color Texture", nullptr, vec2(64, 64), load_new);
 
-                                            if (load_new)
-                                            {
-                                                if (mat->base_color_texture != invalid_uid)
-                                                    application_scene->remove_texture(mat->base_color_texture);
-                                                mat->base_color_texture = details::load_texture_dialog(application_scene, true, false, filter, 4);
-                                            }
-                                            else if (changed)
-                                                mat->base_color_texture = invalid_uid;
+                        if (load_new)
+                        {
+                            if (mat->base_color_texture != invalid_uid)
+                                application_scene->remove_texture(mat->base_color_texture);
+                            auto uid_pair                    = details::load_texture_dialog(application_scene, true, false, filter, 4);
+                            mat->base_color_texture          = uid_pair.first;
+                            mat->base_color_texture_gpu_data = uid_pair.first;
+                        }
+                        else if (changed)
+                            mat->base_color_texture = invalid_uid;
 
-                                            any_change |= changed;
+                        any_change |= changed;
 
-                                            ImGui::Separator();
+                        ImGui::Separator();
 
-                                            float default_value[3] = { 1.0f, 1.0f, 1.0f };
-                                            if (mat->base_color_texture == invalid_uid)
-                                                any_change |= color_edit("Color", &mat->base_color[0], 4, default_value);
+                        float default_value[3] = { 1.0f, 1.0f, 1.0f };
+                        if (mat->base_color_texture == invalid_uid)
+                            any_change |= color_edit("Color", &mat->base_color[0], 4, default_value);
 
-                                            ImGui::Separator();
-                                            ImGui::PopID();
-                                        }
+                        ImGui::Separator();
+                        ImGui::PopID();
+                    }
 
-                                        // roughness metallic
+                    // roughness metallic
 
-                                        if (ImGui::CollapsingHeader("Roughness And Metallic", flags))
-                                        {
-                                            ImGui::PushID("Roughness And Metallic");
+                    if (ImGui::CollapsingHeader("Roughness And Metallic", flags))
+                    {
+                        ImGui::PushID("Roughness And Metallic");
 
-                                            bool changed  = false;
-                                            bool load_new = false;
+                        bool changed  = false;
+                        bool load_new = false;
 
-                                            if (mat->metallic_roughness_texture != invalid_uid)
-                                            {
-                                                optional<texture_gpu_data&> r_m_texture_data = application_scene->get_texture_gpu_data(mat->metallic_roughness_texture_gpu_data);
-                                                changed |= image_load("Roughness And Metallic Texture", r_m_texture_data->graphics_texture->native_handle(), vec2(64, 64), load_new);
-                                            }
-                                            else
-                                                changed |= image_load("Roughness And Metallic Texture", nullptr, vec2(64, 64), load_new);
+                        if (mat->metallic_roughness_texture != invalid_uid)
+                        {
+                            optional<texture_gpu_data&> r_m_texture_data = application_scene->get_texture_gpu_data(mat->metallic_roughness_texture_gpu_data);
+                            changed |= image_load("Roughness And Metallic Texture", r_m_texture_data ? r_m_texture_data->graphics_texture->native_handle() : NULL, vec2(64, 64), load_new);
+                        }
+                        else
+                            changed |= image_load("Roughness And Metallic Texture", nullptr, vec2(64, 64), load_new);
 
-                                            if (load_new)
-                                            {
-                                                if (mat->metallic_roughness_texture != invalid_uid)
-                                                    application_scene->remove_texture(mat->metallic_roughness_texture);
-                                                mat->metallic_roughness_texture = details::load_texture_dialog(application_scene, false, false, filter, 4);
-                                            }
-                                            else if (changed)
-                                                mat->metallic_roughness_texture = invalid_uid;
+                        if (load_new)
+                        {
+                            if (mat->metallic_roughness_texture != invalid_uid)
+                                application_scene->remove_texture(mat->metallic_roughness_texture);
+                            auto uid_pair                            = details::load_texture_dialog(application_scene, false, false, filter, 4);
+                            mat->metallic_roughness_texture          = uid_pair.first;
+                            mat->metallic_roughness_texture_gpu_data = uid_pair.first;
+                        }
+                        else if (changed)
+                            mat->metallic_roughness_texture = invalid_uid;
 
-                                            any_change |= changed;
+                        any_change |= changed;
 
-                                            ImGui::Separator();
+                        ImGui::Separator();
 
-                                            if (mat->metallic_roughness_texture != invalid_uid)
-                                            {
-                                                any_change |= checkbox("Has Packed AO", &mat->packed_occlusion, false);
-                                            }
-                                            else
-                                            {
-                                                float default_value = 0.5f;
-                                                any_change |= slider_float_n("Roughness", mat->roughness.type_data(), 1, &default_value, 0.0f, 1.0f);
-                                                any_change |= slider_float_n("Metallic", mat->metallic.type_data(), 1, &default_value, 0.0f, 1.0f);
-                                            }
+                        if (mat->metallic_roughness_texture != invalid_uid)
+                        {
+                            any_change |= checkbox("Has Packed AO", &mat->packed_occlusion, false);
+                        }
+                        else
+                        {
+                            float default_value = 0.5f;
+                            any_change |= slider_float_n("Roughness", mat->roughness.type_data(), 1, &default_value, 0.0f, 1.0f);
+                            any_change |= slider_float_n("Metallic", mat->metallic.type_data(), 1, &default_value, 0.0f, 1.0f);
+                        }
 
-                                            ImGui::Separator();
-                                            ImGui::PopID();
-                                        }
+                        ImGui::Separator();
+                        ImGui::PopID();
+                    }
 
-                                        // normal
+                    // normal
 
-                                        if (ImGui::CollapsingHeader("Normal Map", flags))
-                                        {
-                                            ImGui::PushID("Normal Map");
+                    if (ImGui::CollapsingHeader("Normal Map", flags))
+                    {
+                        ImGui::PushID("Normal Map");
 
-                                            bool changed  = false;
-                                            bool load_new = false;
+                        bool changed  = false;
+                        bool load_new = false;
 
-                                            if (mat->normal_texture != invalid_uid)
-                                            {
-                                                optional<texture_gpu_data&> normal_texture_data = application_scene->get_texture_gpu_data(mat->normal_texture_gpu_data);
-                                                changed |= image_load("Normal Texture", normal_texture_data->graphics_texture->native_handle(), vec2(64, 64), load_new);
-                                            }
-                                            else
-                                                changed |= image_load("Normal Texture", nullptr, vec2(64, 64), load_new);
+                        if (mat->normal_texture != invalid_uid)
+                        {
+                            optional<texture_gpu_data&> normal_texture_data = application_scene->get_texture_gpu_data(mat->normal_texture_gpu_data);
+                            changed |= image_load("Normal Texture", normal_texture_data ? normal_texture_data->graphics_texture->native_handle() : NULL, vec2(64, 64), load_new);
+                        }
+                        else
+                            changed |= image_load("Normal Texture", nullptr, vec2(64, 64), load_new);
 
-                                            if (load_new)
-                                            {
-                                                if (mat->normal_texture != invalid_uid)
-                                                    application_scene->remove_texture(mat->normal_texture);
-                                                mat->normal_texture = details::load_texture_dialog(application_scene, false, false, filter, 4);
-                                            }
-                                            else if (changed)
-                                                mat->normal_texture = invalid_uid;
+                        if (load_new)
+                        {
+                            if (mat->normal_texture != invalid_uid)
+                                application_scene->remove_texture(mat->normal_texture);
+                            auto uid_pair                = details::load_texture_dialog(application_scene, false, false, filter, 4);
+                            mat->normal_texture          = uid_pair.first;
+                            mat->normal_texture_gpu_data = uid_pair.first;
+                        }
+                        else if (changed)
+                            mat->normal_texture = invalid_uid;
 
-                                            any_change |= changed;
+                        any_change |= changed;
 
-                                            ImGui::Separator();
-                                            ImGui::PopID();
-                                        }
+                        ImGui::Separator();
+                        ImGui::PopID();
+                    }
 
-                                        // occlusion
+                    // occlusion
 
-                                        if (ImGui::CollapsingHeader("Occlusion Map", flags))
-                                        {
-                                            ImGui::PushID("Occlusion Map");
+                    if (ImGui::CollapsingHeader("Occlusion Map", flags))
+                    {
+                        ImGui::PushID("Occlusion Map");
 
-                                            bool changed  = false;
-                                            bool load_new = false;
+                        bool changed  = false;
+                        bool load_new = false;
 
-                                            if (mat->occlusion_texture != invalid_uid)
-                                            {
-                                                optional<texture_gpu_data&> occlusion_texture_data = application_scene->get_texture_gpu_data(mat->occlusion_texture_gpu_data);
-                                                changed |= image_load("Occlusion Texture", occlusion_texture_data->graphics_texture->native_handle(), vec2(64, 64), load_new);
-                                            }
-                                            else
-                                                changed |= image_load("Occlusion Texture", nullptr, vec2(64, 64), load_new);
+                        if (mat->occlusion_texture != invalid_uid)
+                        {
+                            optional<texture_gpu_data&> occlusion_texture_data = application_scene->get_texture_gpu_data(mat->occlusion_texture_gpu_data);
+                            changed |= image_load("Occlusion Texture", occlusion_texture_data ? occlusion_texture_data->graphics_texture->native_handle() : NULL, vec2(64, 64), load_new);
+                        }
+                        else
+                            changed |= image_load("Occlusion Texture", nullptr, vec2(64, 64), load_new);
 
-                                            if (load_new)
-                                            {
-                                                if (mat->occlusion_texture != invalid_uid)
-                                                    application_scene->remove_texture(mat->occlusion_texture);
-                                                mat->occlusion_texture = details::load_texture_dialog(application_scene, false, false, filter, 4);
-                                            }
-                                            else if (changed)
-                                                mat->occlusion_texture = invalid_uid;
+                        if (load_new)
+                        {
+                            if (mat->occlusion_texture != invalid_uid)
+                                application_scene->remove_texture(mat->occlusion_texture);
+                            auto uid_pair                   = details::load_texture_dialog(application_scene, false, false, filter, 4);
+                            mat->occlusion_texture          = uid_pair.first;
+                            mat->occlusion_texture_gpu_data = uid_pair.first;
+                        }
+                        else if (changed)
+                            mat->occlusion_texture = invalid_uid;
 
-                                            any_change |= changed;
+                        any_change |= changed;
 
-                                            ImGui::Separator();
-                                            ImGui::PopID();
-                                        }
+                        ImGui::Separator();
+                        ImGui::PopID();
+                    }
 
-                                        // emissive
+                    // emissive
 
-                                        if (ImGui::CollapsingHeader("Emissive", flags))
-                                        {
-                                            ImGui::PushID("Emissive");
+                    if (ImGui::CollapsingHeader("Emissive", flags))
+                    {
+                        ImGui::PushID("Emissive");
 
-                                            bool changed  = false;
-                                            bool load_new = false;
+                        bool changed  = false;
+                        bool load_new = false;
 
-                                            if (mat->emissive_texture != invalid_uid)
-                                            {
-                                                optional<texture_gpu_data&> emissive_texture_data = application_scene->get_texture_gpu_data(mat->emissive_texture_gpu_data);
-                                                changed |= image_load("Emissive Texture", emissive_texture_data->graphics_texture->native_handle(), vec2(64, 64), load_new);
-                                            }
-                                            else
-                                                changed |= image_load("Emissive Texture", nullptr, vec2(64, 64), load_new);
+                        if (mat->emissive_texture != invalid_uid)
+                        {
+                            optional<texture_gpu_data&> emissive_texture_data = application_scene->get_texture_gpu_data(mat->emissive_texture_gpu_data);
+                            changed |= image_load("Emissive Texture", emissive_texture_data ? emissive_texture_data->graphics_texture->native_handle() : NULL, vec2(64, 64), load_new);
+                        }
+                        else
+                            changed |= image_load("Emissive Texture", nullptr, vec2(64, 64), load_new);
 
-                                            if (load_new)
-                                            {
-                                                if (mat->emissive_texture != invalid_uid)
-                                                    application_scene->remove_texture(mat->emissive_texture);
-                                                mat->emissive_texture = details::load_texture_dialog(application_scene, true, false, filter, 4);
-                                            }
-                                            else if (changed)
-                                                mat->emissive_texture = invalid_uid;
+                        if (load_new)
+                        {
+                            if (mat->emissive_texture != invalid_uid)
+                                application_scene->remove_texture(mat->emissive_texture);
+                            auto uid_pair                  = details::load_texture_dialog(application_scene, true, false, filter, 4);
+                            mat->emissive_texture          = uid_pair.first;
+                            mat->emissive_texture_gpu_data = uid_pair.first;
+                        }
+                        else if (changed)
+                            mat->emissive_texture = invalid_uid;
 
-                                            any_change |= changed;
+                        any_change |= changed;
 
-                                            ImGui::Separator();
+                        ImGui::Separator();
 
-                                            float default_value_float = mango::default_emissive_intensity;
-                                            any_change |= slider_float_n("Intensity", &mat->emissive_intensity, 1, &default_value_float, 0.0f,
-                                                                         default_emissive_intensity * 10.0f); // TODO Paul: Range?
+                        float default_value_float = mango::default_emissive_intensity;
+                        any_change |= slider_float_n("Intensity", &mat->emissive_intensity, 1, &default_value_float, 0.0f,
+                                                     default_emissive_intensity * 10.0f); // TODO Paul: Range?
 
-                                            float default_value[3] = { 1.0f, 1.0f, 1.0f };
-                                            if (mat->emissive_texture == invalid_uid)
-                                            {
-                                                any_change |= color_edit("Color", &mat->emissive_color[0], 4, default_value);
-                                            }
-                                            ImGui::Separator();
-                                            ImGui::PopID();
-                                        }
+                        float default_value[3] = { 1.0f, 1.0f, 1.0f };
+                        if (mat->emissive_texture == invalid_uid)
+                        {
+                            any_change |= color_edit("Color", &mat->emissive_color[0], 4, default_value);
+                        }
+                        ImGui::Separator();
+                        ImGui::PopID();
+                    }
 
-                                        ImGui::Separator();
-                                        ImGui::Spacing();
+                    ImGui::Separator();
+                    ImGui::Spacing();
 
-                                        any_change |= checkbox("Double Sided", &mat->double_sided, false);
+                    any_change |= checkbox("Double Sided", &mat->double_sided, false);
 
-                                        ImGui::Separator();
+                    ImGui::Separator();
 
-                                        const char* types[4] = { "Opaque", "Masked", "Blended", "Dithered" };
-                                        int32 idx            = static_cast<int32>(mat->alpha_mode);
-                                        any_change |= combo("Alpha Mode", types, 4, idx, 0);
-                                        mat->alpha_mode = static_cast<material_alpha_mode>(idx);
+                    const char* types[4] = { "Opaque", "Masked", "Blended", "Dithered" };
+                    int32 idx            = static_cast<int32>(mat->alpha_mode);
+                    any_change |= combo("Alpha Mode", types, 4, idx, 0);
+                    mat->alpha_mode = static_cast<material_alpha_mode>(idx);
 
-                                        float default_value = 0.5f;
-                                        if (mat->alpha_mode == material_alpha_mode::mode_mask)
-                                            any_change |= slider_float_n("Alpha CutOff", mat->alpha_cutoff.type_data(), 1, &default_value, 0.0f, 1.0f, "%.2f");
-                                        if (mat->alpha_mode == material_alpha_mode::mode_blend)
-                                            custom_info(
-                                                "Blending With Basic Over Operator!", []() {}, 0.0f, ImGui::GetContentRegionAvail().x);
-                                        if (mat->alpha_mode == material_alpha_mode::mode_dither)
-                                            custom_info(
-                                                "Dithering ... Just For Fun!", []() {}, 0.0f, ImGui::GetContentRegionAvail().x);
+                    float default_value = 0.5f;
+                    if (mat->alpha_mode == material_alpha_mode::mode_mask)
+                        any_change |= slider_float_n("Alpha CutOff", mat->alpha_cutoff.type_data(), 1, &default_value, 0.0f, 1.0f, "%.2f");
+                    if (mat->alpha_mode == material_alpha_mode::mode_blend)
+                        custom_info(
+                            "Blending With Basic Over Operator!", []() {}, 0.0f, ImGui::GetContentRegionAvail().x);
+                    if (mat->alpha_mode == material_alpha_mode::mode_dither)
+                        custom_info(
+                            "Dithering ... Just For Fun!", []() {}, 0.0f, ImGui::GetContentRegionAvail().x);
 
-                                        mat->changed |= any_change;
-                                    });
+                    mat->changed |= any_change;
+                });
         }
     } // namespace details
 
