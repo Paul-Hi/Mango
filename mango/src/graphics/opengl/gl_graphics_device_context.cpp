@@ -64,6 +64,8 @@ void gl_graphics_device_context::set_swap_interval(int32 swap)
 
 void gl_graphics_device_context::set_buffer_data(gfx_handle<const gfx_buffer> buffer_handle, int32 offset, int32 size, void* data)
 {
+    GL_NAMED_PROFILE_ZONE("Set Buffer Data");
+    NAMED_PROFILE_ZONE("Set Buffer Data");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -84,6 +86,8 @@ void gl_graphics_device_context::set_buffer_data(gfx_handle<const gfx_buffer> bu
 
 void* gl_graphics_device_context::map_buffer_data(gfx_handle<const gfx_buffer> buffer_handle, int32 offset, int32 size)
 {
+    GL_NAMED_PROFILE_ZONE("Map Buffer Data");
+    NAMED_PROFILE_ZONE("Map Buffer Data");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -103,6 +107,8 @@ void* gl_graphics_device_context::map_buffer_data(gfx_handle<const gfx_buffer> b
 
 void gl_graphics_device_context::set_texture_data(gfx_handle<const gfx_texture> texture_handle, const texture_set_description& desc, void* data)
 {
+    GL_NAMED_PROFILE_ZONE("Set Texture Data");
+    NAMED_PROFILE_ZONE("Set Texture Data");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -143,6 +149,8 @@ void gl_graphics_device_context::set_texture_data(gfx_handle<const gfx_texture> 
 
 void gl_graphics_device_context::set_viewport(int32 first, int32 count, const gfx_viewport* viewports)
 {
+    GL_NAMED_PROFILE_ZONE("Set Viewport");
+    NAMED_PROFILE_ZONE("Set Viewport");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -168,6 +176,8 @@ void gl_graphics_device_context::set_viewport(int32 first, int32 count, const gf
 
 void gl_graphics_device_context::set_scissor(int32 first, int32 count, const gfx_scissor_rectangle* scissors)
 {
+    GL_NAMED_PROFILE_ZONE("Set Scissor");
+    NAMED_PROFILE_ZONE("Set Scissor");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -193,6 +203,8 @@ void gl_graphics_device_context::set_scissor(int32 first, int32 count, const gfx
 
 void gl_graphics_device_context::set_line_width(float width)
 {
+    GL_NAMED_PROFILE_ZONE("Set Line Width");
+    NAMED_PROFILE_ZONE("Set Line Width");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -217,6 +229,8 @@ void gl_graphics_device_context::set_line_width(float width)
 
 void gl_graphics_device_context::set_depth_bias(float constant_factor, float clamp, float slope_factor)
 {
+    GL_NAMED_PROFILE_ZONE("Set Depth Bias");
+    NAMED_PROFILE_ZONE("Set Depth Bias");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -247,6 +261,8 @@ void gl_graphics_device_context::set_depth_bias(float constant_factor, float cla
 
 void gl_graphics_device_context::set_blend_constants(const float constants[4])
 {
+    GL_NAMED_PROFILE_ZONE("Set Blend Constants");
+    NAMED_PROFILE_ZONE("Set Blend Constants");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -274,6 +290,8 @@ void gl_graphics_device_context::set_blend_constants(const float constants[4])
 
 void gl_graphics_device_context::set_stencil_compare_mask_and_reference(gfx_stencil_face_flag_bits face_mask, uint32 compare_mask, uint32 reference)
 {
+    GL_NAMED_PROFILE_ZONE("Set Stencil Compare Mask And Reference");
+    NAMED_PROFILE_ZONE("Set Stencil Compare Mask And Reference");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -313,6 +331,8 @@ void gl_graphics_device_context::set_stencil_compare_mask_and_reference(gfx_sten
 
 void gl_graphics_device_context::set_stencil_write_mask(gfx_stencil_face_flag_bits face_mask, uint32 write_mask)
 {
+    GL_NAMED_PROFILE_ZONE("Set Stencil Write Mask");
+    NAMED_PROFILE_ZONE("Set Stencil Write Mask");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -343,6 +363,8 @@ void gl_graphics_device_context::set_stencil_write_mask(gfx_stencil_face_flag_bi
 
 void gl_graphics_device_context::set_render_targets(int32 count, gfx_handle<const gfx_texture>* render_targets, gfx_handle<const gfx_texture> depth_stencil_target)
 {
+    GL_NAMED_PROFILE_ZONE("Set Render Targets");
+    NAMED_PROFILE_ZONE("Set Render Targets");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -417,6 +439,8 @@ void gl_graphics_device_context::set_render_targets(int32 count, gfx_handle<cons
 
 void gl_graphics_device_context::calculate_mipmaps(gfx_handle<const gfx_texture> texture_handle)
 {
+    GL_NAMED_PROFILE_ZONE("Calculate Mipmaps");
+    NAMED_PROFILE_ZONE("Calculate Mipmaps");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -439,6 +463,8 @@ void gl_graphics_device_context::calculate_mipmaps(gfx_handle<const gfx_texture>
 
 void gl_graphics_device_context::clear_render_target(gfx_clear_attachment_flag_bits color_attachment, float clear_color[4])
 {
+    GL_NAMED_PROFILE_ZONE("Clear Render Targets");
+    NAMED_PROFILE_ZONE("Clear Render Targets");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -472,6 +498,8 @@ void gl_graphics_device_context::clear_render_target(gfx_clear_attachment_flag_b
 
 void gl_graphics_device_context::clear_depth_stencil(gfx_clear_attachment_flag_bits depth_stencil, float clear_depth, int32 clear_stencil)
 {
+    GL_NAMED_PROFILE_ZONE("Clear Depth Stencil");
+    NAMED_PROFILE_ZONE("Clear Depth Stencil");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -497,6 +525,8 @@ void gl_graphics_device_context::clear_depth_stencil(gfx_clear_attachment_flag_b
 
 void gl_graphics_device_context::set_vertex_buffers(int32 count, gfx_handle<const gfx_buffer>* buffers, int32* bindings, int32* offsets)
 {
+    GL_NAMED_PROFILE_ZONE("Set Vertex Buffers");
+    NAMED_PROFILE_ZONE("Set Vertex Buffers");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -518,6 +548,8 @@ void gl_graphics_device_context::set_vertex_buffers(int32 count, gfx_handle<cons
 
 void gl_graphics_device_context::set_index_buffer(gfx_handle<const gfx_buffer> buffer_handle, gfx_format index_type)
 {
+    GL_NAMED_PROFILE_ZONE("Set Index Buffer");
+    NAMED_PROFILE_ZONE("Set Index Buffer");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -535,6 +567,8 @@ void gl_graphics_device_context::set_index_buffer(gfx_handle<const gfx_buffer> b
 
 void gl_graphics_device_context::bind_pipeline(gfx_handle<const gfx_pipeline> pipeline_handle)
 {
+    GL_NAMED_PROFILE_ZONE("Bind Pipeline");
+    NAMED_PROFILE_ZONE("Bind Pipeline");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -683,6 +717,8 @@ void gl_graphics_device_context::submit_pipeline_state_resources()
 
 void gl_graphics_device_context::draw(int32 vertex_count, int32 index_count, int32 instance_count, int32 base_vertex, int32 base_instance, int32 index_offset)
 {
+    GL_NAMED_PROFILE_ZONE("Draw");
+    NAMED_PROFILE_ZONE("Draw");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -692,7 +728,7 @@ void gl_graphics_device_context::draw(int32 vertex_count, int32 index_count, int
     MANGO_ASSERT(m_shared_graphics_state->bound_pipeline, "No Pipeline is currently bound!");
     MANGO_ASSERT(std::dynamic_pointer_cast<const gl_graphics_pipeline>(m_shared_graphics_state->bound_pipeline), "Pipeline is not a graphics pipeline!");
 
-    auto& info = static_gfx_handle_cast<const gl_graphics_pipeline>(m_shared_graphics_state->bound_pipeline)->m_info;
+    const auto& info = static_gfx_handle_cast<const gl_graphics_pipeline>(m_shared_graphics_state->bound_pipeline)->m_info;
 
     if (m_shared_graphics_state->internal.vertex_array_name < 0) // Invalid
     {
@@ -737,6 +773,8 @@ void gl_graphics_device_context::draw(int32 vertex_count, int32 index_count, int
 
 void gl_graphics_device_context::dispatch(int32 x, int32 y, int32 z)
 {
+    GL_NAMED_PROFILE_ZONE("Dispatch");
+    NAMED_PROFILE_ZONE("Dispatch");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -762,6 +800,8 @@ void gl_graphics_device_context::end()
 
 void gl_graphics_device_context::barrier(const barrier_description& desc)
 {
+    GL_NAMED_PROFILE_ZONE("Barrier");
+    NAMED_PROFILE_ZONE("Barrier");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -773,6 +813,8 @@ void gl_graphics_device_context::barrier(const barrier_description& desc)
 
 gfx_handle<const gfx_semaphore> gl_graphics_device_context::fence(const semaphore_create_info& info)
 {
+    GL_NAMED_PROFILE_ZONE("Fence");
+    NAMED_PROFILE_ZONE("Fence");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -784,7 +826,8 @@ gfx_handle<const gfx_semaphore> gl_graphics_device_context::fence(const semaphor
 
 void gl_graphics_device_context::client_wait(gfx_handle<const gfx_semaphore> semaphore)
 {
-    PROFILE_ZONE;
+    GL_NAMED_PROFILE_ZONE("Client Wait");
+    NAMED_PROFILE_ZONE("Client Wait");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -814,6 +857,8 @@ void gl_graphics_device_context::client_wait(gfx_handle<const gfx_semaphore> sem
 
 void gl_graphics_device_context::wait(gfx_handle<const gfx_semaphore> semaphore)
 {
+    GL_NAMED_PROFILE_ZONE("Wait");
+    NAMED_PROFILE_ZONE("Wait");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
@@ -830,6 +875,8 @@ void gl_graphics_device_context::wait(gfx_handle<const gfx_semaphore> semaphore)
 
 void gl_graphics_device_context::present()
 {
+    GL_NAMED_PROFILE_ZONE("Present");
+    NAMED_PROFILE_ZONE("Present");
     if (!recording)
     {
         MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);

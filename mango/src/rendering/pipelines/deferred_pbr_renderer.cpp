@@ -911,7 +911,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     m_renderer_info.last_frame.materials  = 0;
 
     m_frame_context->begin();
-    m_frame_context->client_wait(m_frame_semaphore);
+    //m_frame_context->client_wait(m_frame_semaphore);
     float clear_color[4] = { 0.1f, 0.1f, 0.1f, 1.0f }; // TODO Paul: member or dynamic?
     auto swap_buffer     = m_graphics_device->get_swap_chain_render_target();
 
@@ -1076,11 +1076,11 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                                              active_camera_data->per_camera_data.view_projection_matrix, sc.direction);
                 auto& shadow_data_buffer = shadow_pass->get_shadow_data_buffer();
                 m_frame_context->set_render_targets(0, nullptr, shadow_pass->get_shadow_maps_texture());
-                for (int32 casc = 0; casc < shadow_pass->get_shadow_data().cascade_count; ++casc)
+                auto& data   = shadow_pass->get_shadow_data();
+                for (int32 casc = 0; casc < data.cascade_count; ++casc)
                 {
                     auto& cascade_frustum = shadow_pass->get_cascade_frustum(casc);
 
-                    auto& data   = shadow_pass->get_shadow_data();
                     data.cascade = casc;
 
                     if (m_debug_bounds)
@@ -1688,8 +1688,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
         auto hdr_view = m_graphics_device->create_image_texture_view(m_hdr_buffer_render_targets[0], mip_level);
 
-        m_frame_context->client_wait(m_luminance_semaphore);
-
         // time coefficient with tau = 1.1;
         float tau                        = 1.1f;
         float time_coefficient           = 1.0f - expf(-dt * tau);
@@ -1711,7 +1709,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
         m_frame_context->dispatch(1, 1, 1);
 
-        m_luminance_semaphore = m_frame_context->fence(semaphore_create_info());
+        bd.barrier_bit = gfx_barrier_bit::buffer_update_barrier_bit;
+        m_frame_context->barrier(bd);
     }
 
     auto fxaa_pass             = std::static_pointer_cast<fxaa_step>(m_pipeline_steps[mango::render_pipeline_step::fxaa]);
@@ -1779,7 +1778,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 void deferred_pbr_renderer::present()
 {
     m_frame_context->present();
-    m_frame_semaphore = m_frame_context->fence(semaphore_create_info());
+    //m_frame_semaphore = m_frame_context->fence(semaphore_create_info());
     m_frame_context->end();
     m_frame_context->submit();
 }
@@ -1938,10 +1937,5 @@ void deferred_pbr_renderer::on_ui_widget()
 
 float deferred_pbr_renderer::get_average_luminance() const
 {
-    auto device_context = m_graphics_device->create_graphics_device_context();
-    device_context->begin();
-    device_context->client_wait(m_luminance_semaphore);
-    device_context->end();
-    device_context->submit();
     return m_luminance_data_mapping->luminance;
 }

@@ -5,6 +5,7 @@
 //! \copyright Apache License 2.0
 
 #include <graphics/opengl/gl_vertex_array_cache.hpp>
+#include <mango/profile.hpp>
 
 using namespace mango;
 
@@ -28,6 +29,7 @@ gl_vertex_array_cache::~gl_vertex_array_cache()
 
 gl_handle gl_vertex_array_cache::get_vertex_array(const vertex_array_data_descriptor& desc)
 {
+    PROFILE_ZONE;
     vertex_array_key key;
     vao_create_info create_info;
 
