@@ -613,7 +613,7 @@ void scene_impl::remove_mesh(uid node_id)
     const mesh& to_remove = m_meshes.at(mesh_id);
 
     uid gpu_data_id = to_remove.gpu_data;
-    MANGO_ASSERT(m_camera_gpu_data.contains(gpu_data_id), "Mesh gpu data for mesh does not exist!");
+    MANGO_ASSERT(m_mesh_gpu_data.contains(gpu_data_id), "Mesh gpu data for mesh does not exist!");
 
     node.type &= ~node_type::mesh;
     node.mesh_id = invalid_uid;

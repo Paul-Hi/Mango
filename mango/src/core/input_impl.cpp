@@ -17,6 +17,8 @@ input_impl::input_impl()
     m_current_input_state.scroll_offset   = dvec3(0.0);
 
     m_signals.input_key.connect([this](key_code key, input_action action, modifier mods) {
+        if(static_cast<int32>(key) >= m_current_input_state.keys.size())
+            return; // FOR NOW
         m_current_input_state.keys[static_cast<int32>(key)] = action;
         m_current_input_state.modifier_field &= mods;
     });
