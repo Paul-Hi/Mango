@@ -2,7 +2,7 @@
 //! This file provides structures and functions to use for intersections.
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2021
+//! \date      2022
 //! \copyright Apache License 2.0
 
 #ifndef MANGO_INTERSECT_HPP

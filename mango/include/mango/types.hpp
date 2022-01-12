@@ -2,7 +2,7 @@
 //! This file has different typedefs mostly for convenience and some perfect forwarding helper functions for standard types as well as some helpful macro definitions.
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2021
+//! \date      2022
 //! \copyright Apache License 2.0
 
 #ifndef MANGO_TYPES_HPP

@@ -2,7 +2,7 @@
 //! The classes in this file are all used to fake classes for testing.
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2021
+//! \date      2022
 //! \copyright Apache License 2.0
 
 #include <core/context_impl.hpp>
