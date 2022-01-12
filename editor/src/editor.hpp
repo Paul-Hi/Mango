@@ -1,7 +1,7 @@
 //! \file      editor.hpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2021
+//! \date      2022
 //! \copyright Apache License 2.0
 
 #ifndef EDITOR_HPP

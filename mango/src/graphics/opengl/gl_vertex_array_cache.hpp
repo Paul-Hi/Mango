@@ -1,7 +1,7 @@
 //! \file      gl_vertex_array_cache.hpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2021
+//! \date      2022
 //! \copyright Apache License 2.0
 
 #ifndef MANGO_GL_VERTEX_ARRAY_CACHE_HPP

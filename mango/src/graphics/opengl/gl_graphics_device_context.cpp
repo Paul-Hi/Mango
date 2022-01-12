@@ -1,7 +1,7 @@
 //! \file      gl_graphics_device_context.cpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2021
+//! \date      2022
 //! \copyright Apache License 2.0
 
 #include <graphics/opengl/gl_graphics_device_context.hpp>

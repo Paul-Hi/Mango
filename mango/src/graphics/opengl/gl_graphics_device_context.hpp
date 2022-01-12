@@ -1,7 +1,7 @@
 //! \file      gl_graphics_device_context.hpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2021
+//! \date      2022
 //! \copyright Apache License 2.0
 
 #ifndef MANGO_GL_GRAPHICS_DEVICE_CONTEXT_HPP

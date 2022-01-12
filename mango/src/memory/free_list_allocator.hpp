@@ -1,7 +1,7 @@
 //! \file      free_list_allocator.hpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2021
+//! \date      2022
 //! \copyright Apache License 2.0
 
 #ifndef MANGO_FREE_LIST_ALLOCATOR_HPP

@@ -1,7 +1,7 @@
 //! \file      ui_impl.cpp
 //! \author    Paul Himmler
 //! \version   1.0
-//! \date      2021
+//! \date      2022
 //! \copyright Apache License 2.0
 
 #define GLFW_INCLUDE_NONE // for glad
