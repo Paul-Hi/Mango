@@ -352,24 +352,24 @@ bool mango::image_load(const string& label, void* texture_native_handle, const v
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 10));
             canvas_p0 = ImGui::GetCursorScreenPos();
-            draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + size.x, canvas_p0.y + size.y), IM_COL32(127, 127, 127, 255), 2.0f);
+            draw_list->AddRectFilled(canvas_p0, ImVec2(canvas_p0.x + size.x(), canvas_p0.y + size.y()), IM_COL32(127, 127, 127, 255), 2.0f);
             if (texture_native_handle)
-                ImGui::Image(texture_native_handle, ImVec2(size.x, size.y));
+                ImGui::Image(texture_native_handle, ImVec2(size.x(), size.y()));
             else
-                ImGui::Dummy(ImVec2(size.x, size.y));
+                ImGui::Dummy(ImVec2(size.x(), size.y()));
             if (ImGui::IsItemHovered())
             {
                 if (texture_native_handle)
                 {
                     ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.5, 0.5, 0.5, 1.0));
                     ImGui::BeginTooltip();
-                    ImGui::Image(texture_native_handle, ImVec2(size.x * 4.0f, size.y * 4.0f));
+                    ImGui::Image(texture_native_handle, ImVec2(size.x() * 4.0f, size.y() * 4.0f));
                     ImGui::EndTooltip();
                     ImGui::PopStyleColor();
                 }
                 else
                     ImGui::SetTooltip("Load");
-                draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + size.x, canvas_p0.y + size.y), IM_COL32(200, 200, 200, 255), 2.0f);
+                draw_list->AddRect(canvas_p0, ImVec2(canvas_p0.x + size.x(), canvas_p0.y + size.y()), IM_COL32(200, 200, 200, 255), 2.0f);
             }
             ImGui::PopStyleVar();
             if (ImGui::IsItemClicked())

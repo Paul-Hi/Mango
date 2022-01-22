@@ -224,7 +224,7 @@ void context_impl::update(float dt)
     {
         m_ui->update(dt);
         auto size = m_ui->get_content_size();
-        m_renderer->set_viewport(0, 0, size.x, size.y);
+        m_renderer->set_viewport(0, 0, size.x(), size.y());
     }
 
     float avg_luminance = 1.0f;

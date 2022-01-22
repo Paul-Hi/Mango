@@ -11,35 +11,35 @@ using namespace mango;
 void mango::view_projection_perspective_camera(const perspective_camera& camera, const vec3& camera_position, mat4& out_view, mat4& out_projection)
 {
     vec3 front = camera.target - camera_position;
-    if (glm::length(front) > 1e-5)
+    if (front.norm() > 1e-5)
     {
-        front = glm::normalize(front);
+        front = front.normalized();
     }
     else
     {
         front = GLOBAL_FORWARD;
     }
-    auto right = glm::normalize(glm::cross(GLOBAL_UP, front));
-    auto up    = glm::normalize(glm::cross(front, right));
+    auto right = (GLOBAL_UP.cross(front)).normalized();
+    auto up    = (front.cross(right)).normalized();
 
-    out_view       = glm::lookAt(camera_position, camera.target, up);
-    out_projection = glm::perspective(camera.vertical_field_of_view, camera.aspect, camera.z_near, camera.z_far);
+    out_view       = lookAt(camera_position, camera.target, up);
+    out_projection = perspective(camera.vertical_field_of_view, camera.aspect, camera.z_near, camera.z_far);
 }
 
 void mango::view_projection_orthographic_camera(const orthographic_camera& camera, const vec3& camera_position, mat4& out_view, mat4& out_projection)
 {
     vec3 front = camera.target - camera_position;
-    if (glm::length(front) > 1e-5)
+    if (front.norm() > 1e-5)
     {
-        front = glm::normalize(front);
+        front = front.normalized();
     }
     else
     {
         front = GLOBAL_FORWARD;
     }
-    auto right = glm::normalize(glm::cross(GLOBAL_UP, front));
-    auto up    = glm::normalize(glm::cross(front, right));
+    auto right = (GLOBAL_UP.cross(front)).normalized();
+    auto up    = (front.cross(right)).normalized();
 
-    out_view       = glm::lookAt(camera_position, camera.target, up);
-    out_projection = glm::ortho(-camera.x_mag * 0.5f, camera.x_mag * 0.5f, -camera.y_mag * 0.5f, camera.y_mag * 0.5f, camera.z_near, camera.z_far);
+    out_view       = lookAt(camera_position, camera.target, up);
+    out_projection = ortho(-camera.x_mag * 0.5f, camera.x_mag * 0.5f, -camera.y_mag * 0.5f, camera.y_mag * 0.5f, camera.z_near, camera.z_far);
 }

@@ -8,19 +8,17 @@
 #ifndef MANGO_TYPES_HPP
 #define MANGO_TYPES_HPP
 
-//! \cond NO_COND
-#define GLM_FORCE_SILENT_WARNINGS 1
-//! \endcond
+#include <Eigen/Dense>
 #include <algorithm>
+#include <cmath>
 #include <functional>
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <limits>
 #include <mango/assert.hpp>
 #include <memory>
 #include <stdint.h>
 #include <string>
 #include <tl/optional.hpp>
+#include <type_traits>
 
 namespace mango
 {
@@ -60,41 +58,76 @@ namespace mango
     //! \brief Type alias for a std::string.
     using string = std::string;
 
-    //! \brief Type alias for a glm::ivec2.
-    using ivec2 = glm::ivec2;
+    //! \brief Type alias for a Eigen::Vector2i.
+    using ivec2 = Eigen::Vector2i;
 
-    //! \brief Type alias for a glm::ivec3.
-    using ivec3 = glm::ivec3;
+    //! \brief Type alias for a  Eigen::Vector3i.
+    using ivec3 = Eigen::Vector3i;
 
-    //! \brief Type alias for a glm::ivec4.
-    using ivec4 = glm::ivec4;
+    //! \brief Type alias for a Eigen::Vector4i.
+    using ivec4 = Eigen::Vector4i;
 
-    //! \brief Type alias for a glm::vec2.
-    using vec2 = glm::vec2;
+    //! \brief Type alias for a Eigen::Vector2f.
+    using vec2 = Eigen::Vector2f;
 
-    //! \brief Type alias for a glm::vec3.
-    using vec3 = glm::vec3;
+    //! \brief Type alias for a Eigen::Vector3f.
+    using vec3 = Eigen::Vector3f;
 
-    //! \brief Type alias for a glm::vec4.
-    using vec4 = glm::vec4;
+    //! \brief Type alias for a Eigen::Vector4f.
+    using vec4 = Eigen::Vector4f;
 
-    //! \brief Type alias for a glm::quat.
-    using quat = glm::quat;
+    //! \brief Type alias for a Eigen::Vector2d.
+    using dvec2 = Eigen::Vector2d;
 
-    //! \brief Type alias for a glm::dvec2.
-    using dvec2 = glm::dvec2;
+    //! \brief Type alias for a Eigen::Vector3d.
+    using dvec3 = Eigen::Vector3d;
 
-    //! \brief Type alias for a glm::dvec3.
-    using dvec3 = glm::dvec3;
+    //! \brief Type alias for a Eigen::Vector4d.
+    using dvec4 = Eigen::Vector4d;
 
-    //! \brief Type alias for a glm::dvec4.
-    using dvec4 = glm::dvec4;
+    //! \brief Type alias for a Eigen::Quaternionf.
+    using quat = Eigen::Quaternionf;
 
-    //! \brief Type alias for a glm::mat3.
-    using mat3 = glm::mat3;
+    //! \brief Type alias for a Eigen::Quaterniond.
+    using dquat = Eigen::Quaterniond;
 
-    //! \brief Type alias for a glm::mat4.
-    using mat4 = glm::mat4;
+    //! \brief Type alias for a Eigen::Matrix2f.
+    using mat2 = Eigen::Matrix2f;
+
+    //! \brief Type alias for a Eigen::Matrix3f.
+    using mat3 = Eigen::Matrix3f;
+
+    //! \brief Type alias for a Eigen::Matrix4f.
+    using mat4 = Eigen::Matrix4f;
+
+    //! \brief Type alias for a Eigen::Matrix2d.
+    using dmat2 = Eigen::Matrix2d;
+
+    //! \brief Type alias for a Eigen::Matrix3d.
+    using dmat3 = Eigen::Matrix3d;
+
+    //! \brief Type alias for a Eigen::Matrix4d.
+    using dmat4 = Eigen::Matrix4d;
+
+    //! \brief Create a \a vec3 from one value.
+    //! \param[in] value The value to fill the \a vec3 with.
+    //! \return The created \a vec3.
+    inline vec3 make_vec3(const float& value)
+    {
+        vec3 v;
+        v << value, value, value;
+        return v;
+    }
+
+    //! \brief Create a \a vec4 from one value.
+    //! \param[in] value The value to fill the \a vec4 with.
+    //! \return The created \a vec4.
+    inline vec4 make_vec4(const float& value)
+    {
+        vec4 v;
+        v << value, value, value, value;
+        return v;
+    }
 
     //! \brief Type alias for a std::shared_ptr.
     template <typename T>
@@ -134,9 +167,9 @@ namespace mango
     }
 
 //! \brief Pi.
-#define PI 3.1415926535897932384626433832795f
+#define PI 3.1415926535897932384626433832795
 //! \brief Pi times two.
-#define TWO_PI 2.0f * PI
+#define TWO_PI 2.0 * PI
 //! \brief Define for the global up vector.
 #define GLOBAL_UP vec3(0.0f, 1.0f, 0.0f)
 //! \brief Define for the global right vector.
@@ -286,7 +319,7 @@ namespace mango
     struct color_rgb
     {
         //! \cond NO_COND
-        color_rgb(vec3 v = vec3(0.0f))
+        color_rgb(vec3 v = make_vec3(0.0f))
         {
             values = v;
         }
@@ -298,23 +331,23 @@ namespace mango
         color_rgb(float v)
         {
             MANGO_ASSERT(v >= 0.0f && v <= 1.0f, "Value is not normalized (between 0.0f and 1.0f)!");
-            this->r = v;
-            this->g = v;
-            this->b = v;
+            values = make_vec3(v);
         }
         color_rgb(float r, float g, float b)
         {
-            this->r = r;
-            this->g = g;
-            this->b = b;
+            values = vec3(r, g, b);
         }
-        operator vec3()
+        vec3& as_vec3()
+        {
+            return values;
+        }
+        const vec3& as_vec3() const
         {
             return values;
         }
         operator float*()
         {
-            return glm::value_ptr(values);
+            return values.data();
         }
         color_rgb& operator=(const color_rgb& other)
         {
@@ -329,18 +362,23 @@ namespace mango
             return *this;
         }
 
-#pragma warning(push)
-#pragma warning(disable : 4201) // nonstandard extension used : nameless struct/union
-        union
+        float& r()
         {
-            struct
-            {
-                float r, g, b;
-            };
+            return values.x();
+        }
 
-            vec3 values;
-        };
-#pragma warning(pop)
+        float& g()
+        {
+            return values.y();
+        }
+
+        float& b()
+        {
+            return values.z();
+        }
+
+      private:
+        vec3 values;
         //! \endcond
     };
 
@@ -348,7 +386,7 @@ namespace mango
     struct color_rgba
     {
         //! \cond NO_COND
-        color_rgba(vec4 v = vec4(0.0f))
+        color_rgba(vec4 v = make_vec4(0.0f))
         {
             values = v;
         }
@@ -359,25 +397,23 @@ namespace mango
         }
         color_rgba(float v)
         {
-            this->r = v;
-            this->g = v;
-            this->b = v;
-            this->a = v;
+            values = make_vec4(v);
         }
         color_rgba(float r, float g, float b, float a)
         {
-            this->r = r;
-            this->g = g;
-            this->b = b;
-            this->a = a;
+            values = vec4(r, g, b, a);
         }
-        operator glm::vec4()
+        vec4& as_vec4()
+        {
+            return values;
+        }
+        const vec4& as_vec4() const
         {
             return values;
         }
         operator float*()
         {
-            return glm::value_ptr(values);
+            return values.data();
         }
         color_rgba& operator=(const color_rgba& other)
         {
@@ -392,18 +428,28 @@ namespace mango
             return *this;
         }
 
-#pragma warning(push)
-#pragma warning(disable : 4201) // nonstandard extension used : nameless struct/union
-        union
+        float& r()
         {
-            struct
-            {
-                float r, g, b, a;
-            };
+            return values.x();
+        }
 
-            vec4 values;
-        };
-#pragma warning(pop)
+        float& g()
+        {
+            return values.y();
+        }
+
+        float& b()
+        {
+            return values.z();
+        }
+
+        float& a()
+        {
+            return values.w();
+        }
+
+      private:
+        vec4 values;
         //! \endcond
     };
 
@@ -503,6 +549,220 @@ namespace mango
 
     //! \endcond
 
+    // Utility functions
+
+    // TODO Paul: We might move such utility functions.
+    inline float deg_to_rad(const float& degrees)
+    {
+        return degrees * (static_cast<float>(PI) / 180.0f);
+    }
+
+    inline float rad_to_deg(const float& radians)
+    {
+        return radians * (180.0f / static_cast<float>(PI));
+    }
+
+    inline vec3 deg_to_rad(const vec3& degrees)
+    {
+        return degrees * (PI / 180.0f);
+    }
+
+    inline vec3 rad_to_deg(const vec3& radians)
+    {
+        return radians * (180.0f / PI);
+    }
+
+    inline vec4 deg_to_rad(const vec4& degrees)
+    {
+        return degrees * (PI / 180.0f);
+    }
+
+    inline vec4 rad_to_deg(const vec4& radians)
+    {
+        return radians * (180.0f / PI);
+    }
+
+    template <typename T>
+    constexpr const T& clamp(const T& v, const T& lo, const T& hi)
+    {
+        return clamp(v, lo, hi, std::less<>());
+    }
+
+    template <typename T, typename Compare>
+    constexpr const T& clamp(const T& v, const T& lo, const T& hi, Compare comp)
+    {
+        return comp(v, lo) ? lo : comp(hi, v) ? hi : v;
+    }
+
+    inline vec3 abs(const vec3& v)
+    {
+        return vec3(std::abs(v.x()), std::abs(v.y()), std::abs(v.z()));
+    }
+
+    inline vec4 abs(const vec4& v)
+    {
+        return vec4(std::abs(v.x()), std::abs(v.y()), std::abs(v.z()), std::abs(v.w()));
+    }
+
+    template <typename T, typename U>
+    typename std::common_type<T, U>::type min(const T& a, const U& b)
+    {
+        return (a < b) ? a : b;
+    }
+
+    template <typename T, typename U>
+    typename std::common_type<T, U>::type max(const T& a, const U& b)
+    {
+        return (a > b) ? a : b;
+    }
+
+    template <>
+    inline vec3 min<vec3, vec3>(const vec3& a, const vec3& b)
+    {
+        return vec3(mango::min(a.x(), b.x()), mango::min(a.y(), b.y()), mango::min(a.z(), b.z()));
+    }
+
+    template <>
+    inline vec3 max<vec3, vec3>(const vec3& a, const vec3& b)
+    {
+        return vec3(mango::max(a.x(), b.x()), mango::max(a.y(), b.y()), mango::max(a.z(), b.z()));
+    }
+
+    template <>
+    inline vec4 min<vec4, vec4>(const vec4& a, const vec4& b)
+    {
+        return vec4(mango::min(a.x(), b.x()), mango::min(a.y(), b.y()), mango::min(a.z(), b.z()), mango::min(a.w(), b.w()));
+    }
+
+    template <>
+    inline vec4 max<vec4, vec4>(const vec4& a, const vec4& b)
+    {
+        return vec4(mango::max(a.x(), b.x()), mango::max(a.y(), b.y()), mango::max(a.z(), b.z()), mango::max(a.w(), b.w()));
+    }
+
+    template <typename Scalar>
+    Eigen::Matrix<Scalar, 4, 4> perspective(Scalar fovy, Scalar aspect, Scalar zNear, Scalar zFar)
+    {
+        Eigen::Transform<Scalar, 3, Eigen::Projective> tr;
+        tr.matrix().setZero();
+        assert(aspect > 0);
+        assert(zFar > zNear);
+        assert(zNear > 0);
+        Scalar tan_half_fovy = std::tan(fovy / static_cast<Scalar>(2));
+        tr(0, 0)             = static_cast<Scalar>(1) / (aspect * tan_half_fovy);
+        tr(1, 1)             = static_cast<Scalar>(1) / (tan_half_fovy);
+        tr(2, 2)             = -(zFar + zNear) / (zFar - zNear);
+        tr(3, 2)             = -static_cast<Scalar>(1);
+        tr(2, 3)             = -(static_cast<Scalar>(2) * zFar * zNear) / (zFar - zNear);
+        return tr.matrix();
+    }
+
+    template <typename Scalar>
+    Eigen::Matrix<Scalar, 4, 4> ortho(const Scalar& left, const Scalar& right, const Scalar& bottom, const Scalar& top, const Scalar& zNear, const Scalar& zFar)
+    {
+        Eigen::Matrix<Scalar, 4, 4> mat = Eigen::Matrix<Scalar, 4, 4>::Identity();
+        mat(0, 0)                       = static_cast<Scalar>(2) / (right - left);
+        mat(1, 1)                       = static_cast<Scalar>(2) / (top - bottom);
+        mat(2, 2)                       = -static_cast<Scalar>(2) / (zFar - zNear);
+        mat(0, 3)                       = -(right + left) / (right - left);
+        mat(1, 3)                       = -(top + bottom) / (top - bottom);
+        mat(2, 3)                       = -(zFar + zNear) / (zFar - zNear);
+        return mat;
+    }
+
+    template <typename Derived>
+    Eigen::Matrix<typename Derived::Scalar, 4, 4> lookAt(const Derived& eye, const Derived& center, const Derived& up)
+    {
+        typedef Eigen::Matrix<typename Derived::Scalar, 4, 4> Matrix4;
+        typedef Eigen::Matrix<typename Derived::Scalar, 3, 1> Vector3;
+        Vector3 f   = (center - eye).normalized();
+        Vector3 u   = up.normalized();
+        Vector3 s   = f.cross(u).normalized();
+        u           = s.cross(f);
+        Matrix4 mat = Matrix4::Zero();
+        mat(0, 0)   = s.x();
+        mat(0, 1)   = s.y();
+        mat(0, 2)   = s.z();
+        mat(1, 0)   = u.x();
+        mat(1, 1)   = u.y();
+        mat(1, 2)   = u.z();
+        mat(2, 0)   = -f.x();
+        mat(2, 1)   = -f.y();
+        mat(2, 2)   = -f.z();
+        mat(0, 3)   = -s.dot(eye);
+        mat(1, 3)   = -u.dot(eye);
+        mat(2, 3)   = f.dot(eye);
+        mat.row(3) << 0, 0, 0, 1;
+        return mat;
+    }
+
+    template <typename Scalar>
+    Eigen::Matrix<Scalar, 4, 4> scale(Scalar x, Scalar y, Scalar z)
+    {
+        Eigen::Transform<Scalar, 3, Eigen::Affine> tr;
+        tr.matrix().setZero();
+        tr(0, 0) = x;
+        tr(1, 1) = y;
+        tr(2, 2) = z;
+        tr(3, 3) = 1;
+        return tr.matrix();
+    }
+
+    template <typename Scalar>
+    Eigen::Matrix<Scalar, 4, 4> translate(Scalar x, Scalar y, Scalar z)
+    {
+        Eigen::Transform<Scalar, 3, Eigen::Affine> tr;
+        tr.matrix().setIdentity();
+        tr(0, 3) = x;
+        tr(1, 3) = y;
+        tr(2, 3) = z;
+        return tr.matrix();
+    }
+
+    template <typename Scalar>
+    Eigen::Matrix<Scalar, 4, 4> scale(const Eigen::Vector3<Scalar>& scale)
+    {
+        Eigen::Transform<Scalar, 3, Eigen::Affine> tr;
+        tr.matrix().setZero();
+        tr(0, 0) = scale.x();
+        tr(1, 1) = scale.y();
+        tr(2, 2) = scale.z();
+        tr(3, 3) = 1;
+        return tr.matrix();
+    }
+
+    template <typename Scalar>
+    Eigen::Matrix<Scalar, 4, 4> translate(const Eigen::Vector3<Scalar>& translation)
+    {
+        Eigen::Transform<Scalar, 3, Eigen::Affine> tr;
+        tr.matrix().setIdentity();
+        tr(0, 3) = translation.x();
+        tr(1, 3) = translation.y();
+        tr(2, 3) = translation.z();
+        return tr.matrix();
+    }
+
+    inline mat4 quaternion_to_mat4(const quat& rotation)
+    {
+        mat4 m              = Eigen::Matrix4f::Identity();
+        m.block(0, 0, 3, 3) = rotation.toRotationMatrix();
+        return m;
+    }
+
+    inline void decompose_transformation(const mat4& input, vec3& out_scale, quat& out_rotation, vec3& out_translation)
+    {
+        out_translation = input.col(3).head<3>();
+        mat3 rot        = input.block(0, 0, 3, 3);
+        out_scale.x()   = rot.col(0).norm();
+        out_scale.y()   = rot.col(1).norm();
+        out_scale.z()   = (rot.determinant() < 0.0 ? -1 : 1) * rot.col(2).norm();
+
+        rot.col(0) /= out_scale.x();
+        rot.col(1) /= out_scale.y();
+        rot.col(2) /= out_scale.z();
+
+        out_rotation = quat(rot);
+    }
 } // namespace mango
 
 #endif // MANGO_TYPES_HPP

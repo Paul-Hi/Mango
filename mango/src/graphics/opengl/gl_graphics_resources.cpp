@@ -71,7 +71,7 @@ gl_texture::gl_texture(const texture_create_info& info)
 
     gl_enum internal_format = gfx_format_to_gl(m_info.texture_format);
 
-    m_info.miplevels = glm::min(m_info.miplevels, gfx_calculate_max_miplevels(m_info.width, m_info.height));
+    m_info.miplevels = min(m_info.miplevels, gfx_calculate_max_miplevels(m_info.width, m_info.height));
 
     switch (m_info.texture_type)
     {

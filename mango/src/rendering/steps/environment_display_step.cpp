@@ -216,7 +216,7 @@ void environment_display_step::execute()
 
     // TODO Paul: Other Uniform Buffers? Can we be sure, that they are set by renderer? -.-
 
-    m_cubemap_data.model_matrix = mat4(1.0f); // TODO Paul!
+    m_cubemap_data.model_matrix = mat4::Identity(); // TODO Paul!
     step_context->set_buffer_data(m_cubemap_data_buffer, 0, sizeof(m_cubemap_data), &m_cubemap_data);
 
     m_cubemap_pass_pipeline->get_resource_mapping()->set("cubemap_data", m_cubemap_data_buffer);

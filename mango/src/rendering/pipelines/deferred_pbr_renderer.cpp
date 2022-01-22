@@ -992,10 +992,10 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     bounding_frustum camera_frustum;
     if (m_frustum_culling)
     {
-        camera_frustum = bounding_frustum(mat4(active_camera_data->per_camera_data.view_matrix), mat4(active_camera_data->per_camera_data.projection_matrix));
+        camera_frustum = bounding_frustum(active_camera_data->per_camera_data.view_matrix.to_mat4(), active_camera_data->per_camera_data.projection_matrix.to_mat4());
         if (m_debug_bounds)
         {
-            auto corners = bounding_frustum::get_corners(mat4(active_camera_data->per_camera_data.view_projection_matrix));
+            auto corners = bounding_frustum::get_corners(active_camera_data->per_camera_data.view_projection_matrix.to_mat4());
             m_debug_drawer.set_color(color_rgb(0.0f, 1.0f, 0.0f));
             m_debug_drawer.add(corners[0], corners[1]);
             m_debug_drawer.add(corners[1], corners[3]);
@@ -1045,7 +1045,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 a_draw.transparent = mat->alpha_mode > material_alpha_mode::mode_mask;
                 opaque_count += a_draw.transparent ? 0 : 1;
 
-                a_draw.view_depth = (mat4(active_camera_data->per_camera_data.view_projection_matrix) * global_transformation_matrix.value() * vec4(0, 0, 0, 1)).z;
+                a_draw.view_depth = (active_camera_data->per_camera_data.view_projection_matrix.to_mat4() * global_transformation_matrix.value() * vec4(0.0f, 0.0f, 0.0f, 1.0f)).z();
 
                 a_draw.bounding_box = prim->bounding_box.get_transformed(global_transformation_matrix.value());
 
@@ -1073,7 +1073,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             for (auto sc : shadow_casters)
             {
                 shadow_pass->update_cascades(dt, active_camera_data->per_camera_data.camera_near, active_camera_data->per_camera_data.camera_far,
-                                             active_camera_data->per_camera_data.view_projection_matrix, sc.direction);
+                                             active_camera_data->per_camera_data.view_projection_matrix.to_mat4(), sc.direction);
                 auto& shadow_data_buffer = shadow_pass->get_shadow_data_buffer();
                 m_frame_context->set_render_targets(0, nullptr, shadow_pass->get_shadow_maps_texture());
                 auto& data   = shadow_pass->get_shadow_data();
@@ -1085,7 +1085,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
                     if (m_debug_bounds)
                     {
-                        auto corners = bounding_frustum::get_corners(mat4(data.view_projection_matrices[casc]));
+                        auto corners = bounding_frustum::get_corners(data.view_projection_matrices[casc].to_mat4());
                         m_debug_drawer.set_color(color_rgb(0.5f));
                         m_debug_drawer.add(corners[0], corners[1]);
                         m_debug_drawer.add(corners[1], corners[3]);

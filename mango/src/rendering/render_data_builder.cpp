@@ -253,8 +253,8 @@ void skylight_builder::create_brdf_lookup()
     GL_NAMED_PROFILE_ZONE("Generating brdf lookup");
 
     device_context->bind_pipeline(m_brdf_integration_lut_pipeline);
-    m_current_ibl_generator_data.out_size = vec2(static_cast<float>(brdf_lut_size));
-    m_current_ibl_generator_data.data     = vec2(0.0f); // unused here
+    m_current_ibl_generator_data.out_size = vec2(static_cast<float>(brdf_lut_size), static_cast<float>(brdf_lut_size));
+    m_current_ibl_generator_data.data     = vec2(0.0f, 0.0f); // unused here
     device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
 
     auto lut_view = graphics_device->create_image_texture_view(m_brdf_integration_lut);
@@ -413,8 +413,8 @@ void skylight_builder::load_from_hdr(scene_impl* scene, const skylight& light, s
         MANGO_LOG_WARN("Hdr texture to build ibl does not exist.");
         return;
     }
-    m_current_ibl_generator_data.out_size = vec2(static_cast<float>(global_cubemap_size));
-    m_current_ibl_generator_data.data     = vec2(0.0f); // unused here
+    m_current_ibl_generator_data.out_size = vec2(static_cast<float>(global_cubemap_size), static_cast<float>(global_cubemap_size));
+    m_current_ibl_generator_data.data     = vec2(0.0f, 0.0f); // unused here
     device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
 
     m_equi_to_cubemap_pipeline->get_resource_mapping()->set("texture_hdr_in", hdr_data->graphics_texture);
@@ -495,8 +495,8 @@ void skylight_builder::calculate_ibl_maps(skylight_cache* render_data)
     // build irradiance map
     device_context->bind_pipeline(m_build_irradiance_map_pipeline);
 
-    m_current_ibl_generator_data.out_size = vec2(static_cast<float>(global_irradiance_map_size));
-    m_current_ibl_generator_data.data     = vec2(0.0f); // unused here
+    m_current_ibl_generator_data.out_size = vec2(static_cast<float>(global_irradiance_map_size), static_cast<float>(global_irradiance_map_size));
+    m_current_ibl_generator_data.data     = vec2(0.0f, 0.0f); // unused here
     device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
 
     m_build_irradiance_map_pipeline->get_resource_mapping()->set("texture_cubemap_in", render_data->cubemap);
@@ -590,7 +590,7 @@ void atmosphere_builder::build(atmosphere_light* light, atmosphere_cache* render
 // void environment_display_step::create_with_atmosphere(const mango::environment_light_data* el_data)
 // {
 //     PROFILE_ZONE;
-//     m_atmosphere_data_mapping->sun_dir                          = glm::normalize(el_data->sun_data.direction);
+//     m_atmosphere_data_mapping->sun_dir                          = el_data->sun_data.direction.normalized();
 //     m_atmosphere_data_mapping->sun_intensity                    = el_data->sun_data.intensity * 0.0025f;
 //     m_atmosphere_data_mapping->scatter_points                   = el_data->scatter_points;
 //     m_atmosphere_data_mapping->scatter_points_second_ray        = el_data->scatter_points_second_ray;

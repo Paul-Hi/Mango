@@ -5,7 +5,6 @@
 //! \copyright Apache License 2.0
 
 #include "editor.hpp"
-#include "glm/gtc/matrix_transform.hpp"
 
 using namespace mango;
 
@@ -78,7 +77,7 @@ bool editor::create()
                                                           editor_cam.aspect                 = 16.0f / 9.0f;
                                                           editor_cam.z_near                 = 0.05f;
                                                           editor_cam.z_far                  = 28.0f;
-                                                          editor_cam.vertical_field_of_view = glm::radians(45.0f);
+                                                          editor_cam.vertical_field_of_view = deg_to_rad(45.0f);
                                                           editor_cam.target                 = vec3(0.0f, 0.0f, 0.0f);
                                                           main_cam                          = application_scene->add_perspective_camera(editor_cam, application_scene->get_root_node());
                                                       }
@@ -100,7 +99,7 @@ bool editor::create()
     editor_cam.aspect                  = 16.0f / 9.0f;
     editor_cam.z_near                  = 0.05f;
     editor_cam.z_far                   = 28.0f;
-    editor_cam.vertical_field_of_view  = glm::radians(45.0f);
+    editor_cam.vertical_field_of_view  = deg_to_rad(45.0f);
     editor_cam.target                  = vec3(0.0f, 0.0f, 0.0f);
     m_current_scene->add_perspective_camera(editor_cam, m_main_camera_node_id);
     optional<transform&> cam_transform = m_current_scene->get_transform(m_main_camera_node_id);
@@ -140,9 +139,9 @@ bool editor::create()
     MANGO_ASSERT(mango_input, "Input does not exist!");
 
     // temporary editor camera controls
-    m_camera_rotation     = vec2(glm::radians(90.0f), glm::radians(45.0f));
-    m_target_offset       = vec2(0.0f);
-    m_last_mouse_position = vec2(0.0f);
+    m_camera_rotation     = vec2(deg_to_rad(90.0f), deg_to_rad(45.0f));
+    m_target_offset       = vec2(0.0f, 0.0f);
+    m_last_mouse_position = vec2(0.0f, 0.0f);
     mango_input->register_cursor_position_callback(
         [this](double x_position, double y_position)
         {
@@ -158,7 +157,7 @@ bool editor::create()
             bool no_rotation         = mango_input->get_mouse_button(mouse_button::mouse_button_left) == input_action::release;
             bool no_panning          = mango_input->get_mouse_button(mouse_button::mouse_button_middle) == input_action::release;
             vec2 diff                = vec2(x_position, y_position) - m_last_mouse_position;
-            bool offset_not_relevant = glm::length(diff) < 1.0f; // In pixels.
+            bool offset_not_relevant = diff.norm() < 1.0f; // In pixels.
 
             m_last_mouse_position = vec2(x_position, y_position);
             // mango_input->hide_cursor(false); TODO
@@ -170,11 +169,11 @@ bool editor::create()
             {
                 // mango_input->hide_cursor(true); TODO
                 vec2 rot = diff;
-                rot.y *= -1.0f;
+                rot.y() *= -1.0f;
                 m_camera_rotation += rot * 0.005f;
-                m_camera_rotation.y = glm::clamp(m_camera_rotation.y, glm::radians(15.0f), glm::radians(165.0f));
-                m_camera_rotation.x = m_camera_rotation.x < 0.0f ? m_camera_rotation.x + glm::radians(360.0f) : m_camera_rotation.x;
-                m_camera_rotation.x = glm::mod(m_camera_rotation.x, glm::radians(360.0f));
+                m_camera_rotation.y() = clamp(m_camera_rotation.y(), deg_to_rad(15.0f), deg_to_rad(165.0f));
+                m_camera_rotation.x() = m_camera_rotation.x() < 0.0f ? m_camera_rotation.x() + deg_to_rad(360.0f) : m_camera_rotation.x();
+                m_camera_rotation.x() = fmodf(m_camera_rotation.x(), deg_to_rad(360.0f));
                 return;
             }
 
@@ -204,7 +203,7 @@ bool editor::create()
             {
                 m_camera_radius /= 1.04f;
             }
-            m_camera_radius = glm::clamp(m_camera_radius, 0.01f, 20.0f);
+            m_camera_radius = clamp(m_camera_radius, 0.01f, 20.0f);
         });
 
     return true;
@@ -224,37 +223,37 @@ void editor::update(float dt)
         if (!cam || !cam_transform)
             return;
 
-        if (glm::length(m_target_offset) > 0.0f)
+        if (m_target_offset.norm() > 0.0f)
         {
-            vec3 front = glm::normalize(cam->target - cam_transform->position);
+            vec3 front = (cam->target - cam_transform->position).normalized();
 
-            if (glm::length(front) > 1e-5)
+            if (front.norm() > 1e-5)
             {
-                front = glm::normalize(front);
+                front = front.normalized();
             }
             else
             {
                 front = GLOBAL_FORWARD;
             }
 
-            auto right = glm::normalize(glm::cross(GLOBAL_UP, front));
-            auto up    = glm::normalize(glm::cross(front, right));
+            auto right = (GLOBAL_UP.cross(front)).normalized();
+            auto up    = (front.cross(right)).normalized();
 
-            cam->target += right * m_target_offset.x * glm::min(m_camera_radius, 10.0f);
-            cam->target += up * m_target_offset.y * glm::min(m_camera_radius, 10.0f);
-            m_target_offset = vec3(0.0f);
+            cam->target += right * m_target_offset.x() * min(m_camera_radius, 10.0f);
+            cam->target += up * m_target_offset.y() * min(m_camera_radius, 10.0f);
+            m_target_offset = vec2(0.0f, 0.0f);
         }
 
-        cam_transform->position.x = cam->target.x + m_camera_radius * (sinf(m_camera_rotation.y) * cosf(m_camera_rotation.x));
-        cam_transform->position.y = cam->target.y + m_camera_radius * (cosf(m_camera_rotation.y));
-        cam_transform->position.z = cam->target.z + m_camera_radius * (sinf(m_camera_rotation.y) * sinf(m_camera_rotation.x));
+        cam_transform->position.x() = cam->target.x() + m_camera_radius * (sinf(m_camera_rotation.y()) * cosf(m_camera_rotation.x()));
+        cam_transform->position.y() = cam->target.y() + m_camera_radius * (cosf(m_camera_rotation.y()));
+        cam_transform->position.z() = cam->target.z() + m_camera_radius * (sinf(m_camera_rotation.y()) * sinf(m_camera_rotation.x()));
         cam_transform->changed = true;
 
         auto ui = mango_context->get_ui();
         if (ui)
         {
             auto size   = ui->get_content_size();
-            cam->aspect = static_cast<float>(size.x) / static_cast<float>(size.y);
+            cam->aspect = static_cast<float>(size.x()) / static_cast<float>(size.y());
         }
     }
 }

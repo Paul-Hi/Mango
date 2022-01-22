@@ -10,7 +10,7 @@ using namespace mango;
 
 bool bounding_sphere::intersects(const bounding_sphere& other) const
 {
-    return glm::distance(other.center, center) <= (other.radius + radius);
+    return (other.center - center).norm() <= (other.radius + radius);
 }
 
 bool bounding_sphere::intersects(const bounding_frustum& other) const
@@ -21,26 +21,26 @@ bool bounding_sphere::intersects(const bounding_frustum& other) const
 bounding_frustum::bounding_frustum(const mat4& view, const mat4& projection)
 {
     // Gribb/Hartmann
-    mat4 combined = glm::transpose(projection * view);
+    mat4 combined = (projection * view).transpose();
     // Left
-    planes[0] = combined[3] + combined[0];
+    planes[0] = combined.col(3) + combined.col(0);
     // Right
-    planes[1] = combined[3] - combined[0];
+    planes[1] = combined.col(3) - combined.col(0);
     // Top
-    planes[2] = combined[3] - combined[1];
+    planes[2] = combined.col(3) - combined.col(1);
     // Bottom
-    planes[3] = combined[3] + combined[1];
+    planes[3] = combined.col(3) + combined.col(1);
     // Near
-    planes[4] = combined[3] + combined[2];
+    planes[4] = combined.col(3) + combined.col(2);
     // Far
-    planes[5] = combined[3] - combined[2];
+    planes[5] = combined.col(3) - combined.col(2);
 
-    float len0 = glm::length(vec3(planes[0].x, planes[0].y, planes[0].z));
-    float len1 = glm::length(vec3(planes[1].x, planes[1].y, planes[1].z));
-    float len2 = glm::length(vec3(planes[2].x, planes[2].y, planes[2].z));
-    float len3 = glm::length(vec3(planes[3].x, planes[3].y, planes[3].z));
-    float len4 = glm::length(vec3(planes[4].x, planes[4].y, planes[4].z));
-    float len5 = glm::length(vec3(planes[5].x, planes[5].y, planes[5].z));
+    float len0 = (vec3(planes[0].x(), planes[0].y(), planes[0].z())).norm();
+    float len1 = (vec3(planes[1].x(), planes[1].y(), planes[1].z())).norm();
+    float len2 = (vec3(planes[2].x(), planes[2].y(), planes[2].z())).norm();
+    float len3 = (vec3(planes[3].x(), planes[3].y(), planes[3].z())).norm();
+    float len4 = (vec3(planes[4].x(), planes[4].y(), planes[4].z())).norm();
+    float len5 = (vec3(planes[5].x(), planes[5].y(), planes[5].z())).norm();
 
     planes[0] /= len0;
     planes[1] /= len1;
@@ -66,13 +66,13 @@ std::array<vec3, 8> bounding_frustum::get_corners(const mat4& view_projection)
     std::array<vec4, 8> intermediate;
     std::array<vec3, 8> points;
 
-    mat4 inverse = glm::inverse(view_projection);
+    mat4 inverse = view_projection.inverse();
 
     for (int i = 0; i < 8; i++)
     {
         intermediate[i] = inverse * hom[i];
 
-        points[i] = vec3(intermediate[i] / intermediate[i].w);
+        points[i] = intermediate[i].head<3>() / intermediate[i].w();
     }
 
     return points;
@@ -82,7 +82,7 @@ bool bounding_frustum::intersects(const bounding_sphere& other) const
 {
     for (int32 i = 0; i < 6; ++i)
     {
-        if (dot(planes[i], vec4(other.center, 1.0f)) < -other.radius)
+        if (planes[i].dot(vec4(other.center.x(), other.center.y(), other.center.z(), 1.0f)) < -other.radius)
         {
             return false;
         }
@@ -100,7 +100,7 @@ bool bounding_frustum::intersects(const axis_aligned_bounding_box& other) const
         bool inside = false;
         for (int j = 0; j < 8; ++j)
         {
-            if (dot(planes[i], vec4(corners[j], 1.0f)) >= 0.0f)
+            if (planes[i].dot(vec4(corners[j].x(), corners[j].y(), corners[j].z(), 1.0f)) >= 0.0f)
             {
                 inside = true;
                 break;
@@ -126,26 +126,26 @@ axis_aligned_bounding_box axis_aligned_bounding_box::get_transformed(mat4 transf
 {
     // computing the corner points of the aabb
     vec4 points[8] = {
-        vec4(center + vec3(extents.x, extents.y, extents.z), 1.0f),   //
-        vec4(center + vec3(extents.x, extents.y, -extents.z), 1.0f),  //
-        vec4(center + vec3(extents.x, -extents.y, extents.z), 1.0f),  //
-        vec4(center + vec3(extents.x, -extents.y, -extents.z), 1.0f), //
-        vec4(center + vec3(-extents.x, extents.y, extents.z), 1.0f),  //
-        vec4(center + vec3(-extents.x, extents.y, -extents.z), 1.0f), //
-        vec4(center + vec3(-extents.x, -extents.y, extents.z), 1.0f), //
-        vec4(center + vec3(-extents.x, -extents.y, -extents.z), 1.0f) //
+        vec4(center.x() + extents.x(), center.y() + extents.y(), center.z() + extents.z(), 1.0f), //
+        vec4(center.x() + extents.x(), center.y() + extents.y(), center.z() - extents.z(), 1.0f), //
+        vec4(center.x() + extents.x(), center.y() - extents.y(), center.z() + extents.z(), 1.0f), //
+        vec4(center.x() + extents.x(), center.y() - extents.y(), center.z() - extents.z(), 1.0f), //
+        vec4(center.x() - extents.x(), center.y() + extents.y(), center.z() + extents.z(), 1.0f), //
+        vec4(center.x() - extents.x(), center.y() + extents.y(), center.z() - extents.z(), 1.0f), //
+        vec4(center.x() - extents.x(), center.y() - extents.y(), center.z() + extents.z(), 1.0f), //
+        vec4(center.x() - extents.x(), center.y() - extents.y(), center.z() - extents.z(), 1.0f)  //
     };
 
     vec3 min_value, max_value;
-    min_value = max_value = vec3(transformation_matrix * points[0]);
+    min_value = max_value = (transformation_matrix * points[0]).head<3>();
 
     // transform points
     for (int32 i = 1; i < 8; ++i)
     {
-        vec3 transformed = vec3(transformation_matrix * points[i]);
+        vec3 transformed = (transformation_matrix * points[i]).head<3>();
 
-        min_value = glm::min(min_value, transformed);
-        max_value = glm::max(max_value, transformed);
+        min_value = min(min_value, transformed);
+        max_value = max(max_value, transformed);
     }
 
     return axis_aligned_bounding_box::from_min_max(min_value, max_value);
@@ -154,14 +154,14 @@ axis_aligned_bounding_box axis_aligned_bounding_box::get_transformed(mat4 transf
 std::array<vec3, 8> axis_aligned_bounding_box::get_corners() const
 {
     std::array<vec3, 8> points = {
-        center + vec3(extents.x, extents.y, extents.z),   //
-        center + vec3(extents.x, extents.y, -extents.z),  //
-        center + vec3(extents.x, -extents.y, extents.z),  //
-        center + vec3(extents.x, -extents.y, -extents.z), //
-        center + vec3(-extents.x, extents.y, extents.z),  //
-        center + vec3(-extents.x, extents.y, -extents.z), //
-        center + vec3(-extents.x, -extents.y, extents.z), //
-        center + vec3(-extents.x, -extents.y, -extents.z) //
+        vec3(center.x() + extents.x(), center.y() + extents.y(), center.z() + extents.z()), //
+        vec3(center.x() + extents.x(), center.y() + extents.y(), center.z() - extents.z()), //
+        vec3(center.x() + extents.x(), center.y() - extents.y(), center.z() + extents.z()), //
+        vec3(center.x() + extents.x(), center.y() - extents.y(), center.z() - extents.z()), //
+        vec3(center.x() - extents.x(), center.y() + extents.y(), center.z() + extents.z()), //
+        vec3(center.x() - extents.x(), center.y() + extents.y(), center.z() - extents.z()), //
+        vec3(center.x() - extents.x(), center.y() - extents.y(), center.z() + extents.z()), //
+        vec3(center.x() - extents.x(), center.y() - extents.y(), center.z() - extents.z())  //
     };
 
     return points;
@@ -169,7 +169,15 @@ std::array<vec3, 8> axis_aligned_bounding_box::get_corners() const
 
 bool axis_aligned_bounding_box::intersects(const axis_aligned_bounding_box& other) const
 {
-    return !glm::any(glm::greaterThan(glm::abs(center - other.center), extents + other.extents));
+    vec3 dif = abs(vec3(center - other.center));
+    vec3 ext = extents + other.extents;
+    if (dif.x() > ext.x())
+        return false;
+    if (dif.y() > ext.y())
+        return false;
+    if (dif.z() > ext.z())
+        return false;
+    return true;
 }
 
 bool axis_aligned_bounding_box::intersects(const bounding_frustum& other) const
