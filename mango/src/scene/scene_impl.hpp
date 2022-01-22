@@ -126,6 +126,13 @@ namespace mango
         //! \return The optional \a camera_gpu_data referenced from the active \a camera.
         optional<camera_gpu_data&> get_active_camera_gpu_data();
 
+        //! \brief Retrieves a list of loaded \a model \a uids from the \a scene.
+        //! \return A list of loaded \a model \a uids from the \a scene.
+        inline const packed_freelist<model, 16>& get_imported_models()
+        {
+            return m_models;
+        }
+
         //! \brief Updates the \a scene.
         //! \param[in] dt Past time since last call.
         void update(float dt);
@@ -222,9 +229,14 @@ namespace mango
         //! \brief Returns the \a uid of the default material and creates it if not already done.
         uid default_material();
 
-        //! \brief Removes a \a node even though it is instantiable.
+        //! \brief Instantiates some \a scene in the scene graph.
+        //! \param[in] node_id The \a scene \a node \a uid to instantiate.
+        //! \param[in] parent_id The parent \a node \a uid.
+        void instantiate_model_scene(uid node_id, uid parent_id);
+
+        //! \brief Removes a \a node belonging to a \a model.
         //! \param[in] node_id The \a uid of the \a node to remove.
-        void remove_instantiable_node(uid node_id);
+        void remove_model_node(uid node_id);
 
         //! \brief Traverses a \a node and its children in the scene graph and updates the transformation if necessary; also creates render instances.
         //! \param[in] node_id The \a uid of the node.

@@ -445,9 +445,7 @@ void scene_impl::add_model_to_scene(uid model_to_add, uid scenario_id, uid node_
         return;
     }
 
-    const model& m        = m_models.at(model_to_add);
-    const scenario& scen  = m_scenarios.at(scenario_id);
-    node& containing_node = m_nodes.at(node_id);
+    const model& m       = m_models.at(model_to_add);
 
     auto found = std::find(m.scenarios.begin(), m.scenarios.end(), scenario_id);
     if (found == m.scenarios.end())
@@ -456,16 +454,11 @@ void scene_impl::add_model_to_scene(uid model_to_add, uid scenario_id, uid node_
         return;
     }
 
-    if ((containing_node.type & node_type::instantiable) != node_type::hierarchy)
-    {
-        // TODO Paul: This should be possible later on.
-        MANGO_LOG_WARN("Node with ID {0} is already instanced! Can not add model here!", node_id.get());
-        return;
-    }
-
-    scenario sc = m_scenarios.at(scenario_id);
+    const scenario& sc = m_scenarios.at(scenario_id);
     for (auto nd : sc.root_nodes)
-        containing_node.children.push_back(nd);
+    {
+        instantiate_model_scene(nd, node_id);
+    }
 }
 
 void scene_impl::remove_node(uid node_id)
@@ -485,20 +478,18 @@ void scene_impl::remove_node(uid node_id)
 
     const node& to_remove = m_nodes.at(node_id);
 
-    if ((to_remove.type & node_type::instantiable) != node_type::hierarchy)
-        return;
     if ((to_remove.type & node_type::mesh) != node_type::hierarchy)
-        remove_mesh(to_remove.mesh_id);
+        remove_mesh(node_id);
     if ((to_remove.type & node_type::perspective_camera) != node_type::hierarchy)
-        remove_perspective_camera(to_remove.camera_ids[static_cast<uint8>(camera_type::perspective)]);
+        remove_perspective_camera(node_id);
     if ((to_remove.type & node_type::orthographic_camera) != node_type::hierarchy)
-        remove_orthographic_camera(to_remove.camera_ids[static_cast<uint8>(camera_type::orthographic)]);
+        remove_orthographic_camera(node_id);
     if ((to_remove.type & node_type::directional_light) != node_type::hierarchy)
-        remove_directional_light(to_remove.light_ids[static_cast<uint8>(light_type::directional)]);
+        remove_directional_light(node_id);
     if ((to_remove.type & node_type::skylight) != node_type::hierarchy)
-        remove_skylight(to_remove.light_ids[static_cast<uint8>(light_type::skylight)]);
+        remove_skylight(node_id);
     if ((to_remove.type & node_type::atmospheric_light) != node_type::hierarchy)
-        remove_atmospheric_light(to_remove.light_ids[static_cast<uint8>(light_type::atmospheric)]);
+        remove_atmospheric_light(node_id);
 
     for (uid c : to_remove.children)
     {
@@ -749,7 +740,7 @@ void scene_impl::unload_gltf_model(uid model_id)
         const scenario& scen = m_scenarios.at(sc);
         for (auto node : scen.root_nodes)
         {
-            remove_instantiable_node(node);
+            remove_model_node(node);
         }
 
         m_scenarios.erase(sc);
@@ -758,7 +749,119 @@ void scene_impl::unload_gltf_model(uid model_id)
     m_models.erase(model_id);
 }
 
-void scene_impl::remove_instantiable_node(uid node_id)
+void scene_impl::instantiate_model_scene(uid node_id, uid parent_id)
+{
+    if (!m_nodes.contains(node_id))
+    {
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not instantiate!", node_id.get());
+        return;
+    }
+
+    node& nd = m_nodes.at(node_id);
+
+    uid instance_id = add_node(nd.name, parent_id);
+
+    node& instance = m_nodes.at(instance_id);
+
+    instance.type = nd.type;
+
+    if (nd.mesh_id.is_valid())
+    {
+        mesh copy               = m_meshes.at(nd.mesh_id);
+        mesh_gpu_data data_copy = m_mesh_gpu_data.at(copy.gpu_data);
+
+        buffer_create_info buffer_info;
+        buffer_info.buffer_target   = gfx_buffer_target::buffer_target_uniform;
+        buffer_info.buffer_access   = gfx_buffer_access::buffer_access_dynamic_storage;
+        buffer_info.size            = sizeof(model_data);
+        data_copy.model_data_buffer = nullptr;
+        data_copy.model_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
+        if (!check_creation(data_copy.model_data_buffer.get(), "model data buffer"))
+            return;
+
+        copy.gpu_data    = m_mesh_gpu_data.emplace(data_copy);
+        copy.node_id     = instance_id;
+        copy.changed     = true;
+        instance.mesh_id = m_meshes.emplace(copy);
+    }
+
+    if (nd.camera_ids[0].is_valid())
+    {
+        perspective_camera copy   = m_perspective_cameras.at(nd.camera_ids[0]);
+        camera_gpu_data data_copy = m_camera_gpu_data.at(copy.gpu_data);
+
+        buffer_create_info buffer_info;
+        buffer_info.buffer_target    = gfx_buffer_target::buffer_target_uniform;
+        buffer_info.buffer_access    = gfx_buffer_access::buffer_access_dynamic_storage;
+        buffer_info.size             = sizeof(camera_data);
+        data_copy.camera_data_buffer = nullptr;
+        data_copy.camera_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
+        if (!check_creation(data_copy.camera_data_buffer.get(), "camera data buffer"))
+            return;
+
+        copy.gpu_data          = m_camera_gpu_data.emplace(data_copy);
+        copy.node_id           = instance_id;
+        copy.changed           = true;
+        instance.camera_ids[0] = m_perspective_cameras.emplace(copy);
+    }
+
+    if (nd.camera_ids[1].is_valid())
+    {
+        orthographic_camera copy  = m_orthographic_cameras.at(nd.camera_ids[1]);
+        camera_gpu_data data_copy = m_camera_gpu_data.at(copy.gpu_data);
+
+        buffer_create_info buffer_info;
+        buffer_info.buffer_target    = gfx_buffer_target::buffer_target_uniform;
+        buffer_info.buffer_access    = gfx_buffer_access::buffer_access_dynamic_storage;
+        buffer_info.size             = sizeof(camera_data);
+        data_copy.camera_data_buffer = nullptr;
+        data_copy.camera_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
+        if (!check_creation(data_copy.camera_data_buffer.get(), "camera data buffer"))
+            return;
+
+        copy.gpu_data          = m_camera_gpu_data.emplace(data_copy);
+        copy.node_id           = instance_id;
+        copy.changed           = true;
+        instance.camera_ids[1] = m_orthographic_cameras.emplace(copy);
+    }
+
+    if (nd.light_ids[0].is_valid())
+    {
+        directional_light copy = m_directional_lights.at(nd.light_ids[0]);
+        copy.changed           = true;
+        instance.light_ids[0]  = m_directional_lights.emplace(copy);
+    }
+
+    if (nd.light_ids[1].is_valid())
+    {
+        skylight copy         = m_skylights.at(nd.light_ids[1]);
+        copy.changed          = true;
+        instance.light_ids[1] = m_skylights.emplace(copy);
+    }
+
+    if (nd.light_ids[2].is_valid())
+    {
+        atmospheric_light& to_copy = m_atmospheric_lights.at(nd.light_ids[2]);
+        atmospheric_light copy     = to_copy;
+        copy.changed               = true;
+        instance.light_ids[2]      = m_atmospheric_lights.emplace(copy);
+    }
+
+    transform& tr             = m_transforms.at(nd.transform_id);
+    transform& instance_tr    = m_transforms.at(instance.transform_id);
+    instance_tr.position      = tr.position;
+    instance_tr.rotation      = tr.rotation;
+    instance_tr.scale         = tr.scale;
+    instance_tr.rotation_hint = tr.rotation_hint;
+    instance_tr.changed       = true;
+
+    for (uid c : nd.children)
+    {
+        instantiate_model_scene(c, instance_id);
+    }
+}
+
+void scene_impl::remove_model_node(uid node_id)
 {
     MANGO_UNUSED(node_id);
     MANGO_ASSERT(false, "Not implemented!");
@@ -1091,17 +1194,6 @@ void scene_impl::detach(uid child_node, uid parent_node)
 
     const node& child = m_nodes.at(child_node);
     node& parent      = m_nodes.at(parent_node);
-
-    if ((child.type & node_type::instantiable) != node_type::hierarchy)
-    {
-        MANGO_LOG_WARN("Child is instantiated! Can not detach!");
-        return;
-    }
-    if ((parent.type & node_type::instantiable) != node_type::hierarchy)
-    {
-        MANGO_LOG_WARN("Parent is instantiated! Can not detach!");
-        return;
-    }
 
     auto found = std::find(parent.children.begin(), parent.children.end(), child_node);
     if (found == parent.children.end())
@@ -1485,7 +1577,7 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
     node model_node(n.name);
     model_node.transform_id     = m_transforms.emplace();
     model_node.type             = node_type::hierarchy;
-    model_node.global_matrix_id = m_global_transformation_matrices.emplace(1.0f);
+    model_node.global_matrix_id = invalid_uid; // We do not need this here, since we add it when instantiated.
     uid node_id                 = m_nodes.emplace(model_node);
     node& node_ref              = m_nodes.back();
 
@@ -1580,7 +1672,12 @@ uid scene_impl::build_model_camera(tinygltf::Camera& t_camera, uid node_id, cons
 
         cam.target = target;
 
-        return add_perspective_camera(cam, node_id);
+        cam.node_id = node_id;
+        cam.changed = false; // No update needed, since this is only storage.
+
+        cam.gpu_data = m_camera_gpu_data.emplace(camera_gpu_data()); // gpu data is filled on instantiation
+
+        return m_perspective_cameras.emplace(cam);
     }
     if (t_camera.type == "orthographic")
     {
@@ -1595,9 +1692,15 @@ uid scene_impl::build_model_camera(tinygltf::Camera& t_camera, uid node_id, cons
         cam.physical.shutter_speed = default_camera_shutter_speed;
         cam.physical.iso           = default_camera_iso;
 
-        cam.target = target;
+        cam.target  = target;
+        cam.changed = false; // No update needed, since this is only storage.
 
-        return add_orthographic_camera(cam, node_id);
+        cam.node_id = node_id;
+        cam.changed = false; // No update needed, since this is only storage.
+
+        cam.gpu_data = m_camera_gpu_data.emplace(camera_gpu_data()); // gpu data is filled on instantiation
+
+        return m_orthographic_cameras.emplace(cam);
     }
 
     return invalid_uid;
@@ -1737,18 +1840,12 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
         data.per_mesh_data.has_tangents &= prim.has_tangents;
     }
 
-    buffer_create_info buffer_info;
-    buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
-    buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
-    buffer_info.size          = sizeof(model_data);
-    data.model_data_buffer    = m_scene_graphics_device->create_buffer(buffer_info);
-    if (!check_creation(data.model_data_buffer.get(), "model data buffer"))
-        return invalid_uid;
-
     // data.per_mesh_data.model_matrix is updated in update()
     // data.per_mesh_data.normal_matrix is updated in update()
 
     mesh.gpu_data = m_mesh_gpu_data.emplace(data);
+
+    mesh.changed = false; // No update needed, since this is only storage.
 
     return m_meshes.emplace(mesh);
 }
@@ -2456,6 +2553,7 @@ void scene_impl::update(float dt)
         }
     }
 
+    // Lights are only updated if they are instantiated in the hierarchy.
     m_light_stack.update(this);
     m_light_gpu_data.scene_light_data = m_light_stack.get_light_data();
 
@@ -2619,10 +2717,6 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid& sel
 string scene_impl::get_display_name(node_type type, const string name) // TODO Paul: Make that better!
 {
     string postfix = "";
-    if ((type & node_type::instantiable) != node_type::hierarchy)
-    {
-        postfix = " (Instance)";
-    }
     if ((type & node_type::mesh) != node_type::hierarchy)
     {
         return name.empty() ? string(ICON_FA_DICE_D6) + "Unnamed" : string(ICON_FA_DICE_D6) + " " + name + postfix;

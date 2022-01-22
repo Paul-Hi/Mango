@@ -396,13 +396,12 @@ namespace mango
     enum class node_type : uint8
     {
         hierarchy           = 0,
-        instantiable        = 1 << 0,
-        mesh                = 1 << 1,
-        perspective_camera  = 1 << 2,
-        orthographic_camera = 1 << 3,
-        directional_light   = 1 << 4,
-        skylight            = 1 << 5,
-        atmospheric_light   = 1 << 6
+        mesh                = 1 << 0,
+        perspective_camera  = 1 << 1,
+        orthographic_camera = 1 << 2,
+        directional_light   = 1 << 3,
+        skylight            = 1 << 4,
+        atmospheric_light   = 1 << 5
     };
     MANGO_ENABLE_BITMASK_OPERATIONS(node_type)
 
@@ -450,7 +449,7 @@ namespace mango
         node() = default;
 
         //! \brief Constructor taking a name.
-        //! \param[in] node_name The name for the new node.
+        //! \param[in] node_name The name for the new \a node.
         node(const string& node_name)
             : name(node_name)
             , type(node_type::hierarchy){};
