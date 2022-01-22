@@ -33,8 +33,6 @@ set(VERSION_PATCH 1 CACHE STRING "Project patch version number.")
 mark_as_advanced(VERSION_MAJOR VERSION_MINOR VERSION_PATCH)
 message(STATUS "Mango Build type: " ${CMAKE_BUILD_TYPE})
 
-# Add path to glm files for find_package.
-set(CMAKE_PREFIX_PATH "dependencies/glm/cmake/glm/")
 macro(find_package_verbose)
         find_package(${ARGV0})
         message(STATUS "Found ${ARGV0}.")
@@ -94,7 +92,9 @@ if(MANGO_PROFILE)
     message(STATUS "Added tracy.")
 endif()
 
-find_package_verbose(glm REQUIRED)
+# Add path to eigen files for find_package.
+# set(CMAKE_PREFIX_PATH "dependencies/eigen/cmake/")
+# find_package_verbose(Eigen3 3.4 REQUIRED NO_MODULE)
 
 if(MANGO_BUILD_TESTS)
     if(WIN32)

@@ -4,14 +4,8 @@
 //! \date      2022
 //! \copyright Apache License 2.0
 
-//! \cond NO_COND
-#define GLM_FORCE_SILENT_WARNINGS 1
-//! \endcond
 #include <core/context_impl.hpp>
 #include <glad/glad.h>
-#include <glm/gtx/component_wise.hpp>
-#include <glm/gtx/matrix_decompose.hpp>
-#include <glm/gtx/quaternion.hpp>
 #include <mango/profile.hpp>
 #include <mango/resources.hpp>
 #include <scene/scene_helper.hpp>
@@ -60,14 +54,14 @@ scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& conte
     node root("Root");
     root.transform_id     = m_transforms.emplace();
     root.type             = node_type::hierarchy;
-    root.global_matrix_id = m_global_transformation_matrices.emplace(1.0f);
+    root.global_matrix_id = m_global_transformation_matrices.emplace(mat4::Identity());
     m_root_node           = m_nodes.emplace(root);
 
     transform& tr    = m_transforms.at(root.transform_id);
-    tr.position      = vec3(0.0f);
+    tr.position      = make_vec3(0.0f);
     tr.rotation      = quat(1.0f, 0.0f, 0.0f, 0.0f);
-    tr.scale         = vec3(1.0f);
-    tr.rotation_hint = glm::degrees(glm::eulerAngles(tr.rotation));
+    tr.scale         = make_vec3(1.0f);
+    tr.rotation_hint = rad_to_deg(tr.rotation.toRotationMatrix().eulerAngles(1, 2, 0));
 }
 
 scene_impl::~scene_impl() {}
@@ -79,14 +73,14 @@ uid scene_impl::add_node(const string& name, uid parent_node)
     node new_node(name);
     new_node.transform_id     = m_transforms.emplace();
     new_node.type             = node_type::hierarchy;
-    new_node.global_matrix_id = m_global_transformation_matrices.emplace(1.0f);
+    new_node.global_matrix_id = m_global_transformation_matrices.emplace(mat4::Identity());
     uid node_id               = m_nodes.emplace(new_node);
 
     transform& tr    = m_transforms.at(new_node.transform_id);
-    tr.position      = vec3(0.0f);
+    tr.position      = make_vec3(0.0f);
     tr.rotation      = quat(1.0f, 0.0f, 0.0f, 0.0f);
-    tr.scale         = vec3(1.0f);
-    tr.rotation_hint = glm::degrees(glm::eulerAngles(tr.rotation));
+    tr.scale         = make_vec3(1.0f);
+    tr.rotation_hint = rad_to_deg(tr.rotation.toRotationMatrix().eulerAngles(1, 2, 0));
 
     if (!parent_node.is_valid())
     {
@@ -131,7 +125,7 @@ uid scene_impl::add_perspective_camera(perspective_camera& new_perspective_camer
     data.per_camera_data.view_matrix             = view;
     data.per_camera_data.projection_matrix       = projection;
     data.per_camera_data.view_projection_matrix  = view_projection;
-    data.per_camera_data.inverse_view_projection = glm::inverse(view_projection);
+    data.per_camera_data.inverse_view_projection = view_projection.inverse();
     data.per_camera_data.camera_position         = camera_position;
     data.per_camera_data.camera_near             = new_perspective_camera.z_near;
     data.per_camera_data.camera_far              = new_perspective_camera.z_far;
@@ -201,7 +195,7 @@ uid scene_impl::add_orthographic_camera(orthographic_camera& new_orthographic_ca
     data.per_camera_data.view_matrix             = view;
     data.per_camera_data.projection_matrix       = projection;
     data.per_camera_data.view_projection_matrix  = view_projection;
-    data.per_camera_data.inverse_view_projection = glm::inverse(view_projection);
+    data.per_camera_data.inverse_view_projection = view_projection.inverse();
     data.per_camera_data.camera_position         = camera_position;
     data.per_camera_data.camera_near             = new_orthographic_camera.z_near;
     data.per_camera_data.camera_far              = new_orthographic_camera.z_far;
@@ -313,8 +307,8 @@ uid scene_impl::build_material(material& new_material)
     if (!check_creation(data.material_data_buffer.get(), "material data buffer"))
         return invalid_uid;
 
-    data.per_material_data.base_color                 = new_material.base_color;
-    data.per_material_data.emissive_color             = new_material.emissive_color;
+    data.per_material_data.base_color                 = new_material.base_color.as_vec4();
+    data.per_material_data.emissive_color             = new_material.emissive_color.as_vec3();
     data.per_material_data.metallic                   = new_material.metallic;
     data.per_material_data.roughness                  = new_material.roughness;
     data.per_material_data.base_color_texture         = new_material.base_color_texture.is_valid();
@@ -1585,10 +1579,11 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
 
     if (n.matrix.size() == 16)
     {
-        mat4 input = glm::make_mat4(n.matrix.data());
+        dmat4 dinput = Eigen::Map<Eigen::Matrix<double, 4, 4>>(n.matrix.data());
+        mat4 input = dinput.cast<float>();
         vec3 s;
         vec4 p;
-        glm::decompose(input, tr.scale, tr.rotation, tr.position, s, p);
+        decompose_transformation(input, tr.scale, tr.rotation, tr.position);
     }
     else
     {
@@ -1598,7 +1593,7 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
         }
         else
         {
-            tr.position = vec3(0.0f);
+            tr.position = make_vec3(0.0f);
         }
         if (n.rotation.size() == 4)
         {
@@ -1614,11 +1609,11 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
         }
         else
         {
-            tr.scale = vec3(1.0f);
+            tr.scale = make_vec3(1.0f);
         }
     }
 
-    tr.rotation_hint = glm::degrees(glm::eulerAngles(tr.rotation));
+    tr.rotation_hint = rad_to_deg(tr.rotation.toRotationMatrix().eulerAngles(1, 2, 0));
 
     if (n.mesh > -1)
     {
@@ -2260,7 +2255,7 @@ uid scene_impl::default_material()
     material default_material;
     default_material.name = "Default";
     // Some defaults
-    default_material.base_color = vec4(vec3(0.9f), 1.0f);
+    default_material.base_color = vec4(0.9f, 0.9f, 0.9f, 1.0f);
     default_material.metallic   = 0.0f;
     default_material.roughness  = 1.0f;
 
@@ -2302,11 +2297,11 @@ void scene_impl::update_scene_graph(uid node_id, uid parent_id, bool force_updat
     if (tr.changed || force_update)
     {
         // recalculate node matrices
-        mat4 local_transformation_matrix = glm::translate(mat4(1.0), tr.position);
-        local_transformation_matrix      = local_transformation_matrix * glm::toMat4(tr.rotation);
-        local_transformation_matrix      = glm::scale(local_transformation_matrix, tr.scale);
+        mat4 local_transformation_matrix = mat4::Identity() * translate(tr.position);
+        local_transformation_matrix      = local_transformation_matrix * quaternion_to_mat4(tr.rotation);
+        local_transformation_matrix      = local_transformation_matrix* scale( tr.scale);
 
-        mat4 parent_transformation_matrix = mat4(1.0f);
+        mat4 parent_transformation_matrix = mat4::Identity();
         if (parent_id.is_valid())
         {
             const node& parent           = m_nodes.at(parent_id);
@@ -2398,7 +2393,7 @@ void scene_impl::update(float dt)
             const mat4& trafo   = m_global_transformation_matrices.at(nd.global_matrix_id);
 
             data.per_mesh_data.model_matrix  = trafo;
-            data.per_mesh_data.normal_matrix = mat3(glm::transpose(glm::inverse(trafo)));
+            data.per_mesh_data.normal_matrix = trafo.block(0, 0, 3, 3).inverse().transpose();
 
             auto device_context = m_scene_graphics_device->create_graphics_device_context();
             device_context->begin();
@@ -2419,7 +2414,7 @@ void scene_impl::update(float dt)
             camera_gpu_data& data = m_camera_gpu_data.at(cam.gpu_data);
             const node& nd        = m_nodes.at(cam.node_id);
             const mat4& trafo     = m_global_transformation_matrices.at(nd.global_matrix_id);
-            vec3 camera_position  = vec3(trafo[3]);
+            vec3 camera_position  = trafo.col(3).head<3>();
 
             mat4 view, projection;
             view_projection_perspective_camera(cam, camera_position, view, projection);
@@ -2428,7 +2423,7 @@ void scene_impl::update(float dt)
             data.per_camera_data.view_matrix             = view;
             data.per_camera_data.projection_matrix       = projection;
             data.per_camera_data.view_projection_matrix  = view_projection;
-            data.per_camera_data.inverse_view_projection = glm::inverse(view_projection);
+            data.per_camera_data.inverse_view_projection = view_projection.inverse();
             data.per_camera_data.camera_position         = camera_position;
             data.per_camera_data.camera_near             = cam.z_near;
             data.per_camera_data.camera_far              = cam.z_far;
@@ -2445,20 +2440,20 @@ void scene_impl::update(float dt)
                 // K is a light meter calibration constant
                 static const float K = 12.5f;
                 static const float S = 100.0f;
-                float target_ev      = glm::log2(m_average_luminance * S / K);
+                float target_ev      = log2(m_average_luminance * S / K);
 
                 // Compute the resulting ISO if we left both shutter and aperture here
-                iso                 = glm::clamp(((ape * ape) * 100.0f) / (shu * glm::exp2(target_ev)), min_camera_iso, max_camera_iso);
-                float unclamped_iso = (shu * glm::exp2(target_ev));
+                iso                 = clamp(((ape * ape) * 100.0f) / (shu * exp2(target_ev)), min_camera_iso, max_camera_iso);
+                float unclamped_iso = (shu * exp2(target_ev));
                 MANGO_UNUSED(unclamped_iso);
 
                 // Apply half the difference in EV to the aperture
-                float ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
-                ape           = glm::clamp(ape * glm::pow(glm::sqrt(2.0f), ev_diff * 0.5f), min_camera_aperture, max_camera_aperture);
+                float ev_diff = target_ev - log2(((ape * ape) * 100.0f) / (shu * iso));
+                ape           = clamp(ape * pow(sqrt(2.0f), ev_diff * 0.5f), min_camera_aperture, max_camera_aperture);
 
                 // Apply the remaining difference to the shutter speed
-                ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
-                shu     = glm::clamp(shu * glm::pow(2.0f, -ev_diff), min_camera_shutter_speed, max_camera_shutter_speed);
+                ev_diff = target_ev - log2(((ape * ape) * 100.0f) / (shu * iso));
+                shu     = clamp(shu * pow(2.0f, -ev_diff), min_camera_shutter_speed, max_camera_shutter_speed);
             }
             else
             {
@@ -2466,9 +2461,9 @@ void scene_impl::update(float dt)
                 shu = cam.physical.shutter_speed;
                 iso = cam.physical.iso;
             }
-            cam.physical.aperture                = glm::clamp(ape, min_camera_aperture, max_camera_aperture);
-            cam.physical.shutter_speed           = glm::clamp(shu, min_camera_shutter_speed, max_camera_shutter_speed);
-            cam.physical.iso                     = glm::clamp(iso, min_camera_iso, max_camera_iso);
+            cam.physical.aperture                = clamp(ape, min_camera_aperture, max_camera_aperture);
+            cam.physical.shutter_speed           = clamp(shu, min_camera_shutter_speed, max_camera_shutter_speed);
+            cam.physical.iso                     = clamp(iso, min_camera_iso, max_camera_iso);
             float e                              = ((ape * ape) * 100.0f) / (shu * iso);
             data.per_camera_data.camera_exposure = 1.0f / (1.2f * e);
 
@@ -2490,7 +2485,7 @@ void scene_impl::update(float dt)
             camera_gpu_data& data = m_camera_gpu_data.at(cam.gpu_data);
             const node& nd        = m_nodes.at(cam.node_id);
             const mat4& trafo     = m_global_transformation_matrices.at(nd.global_matrix_id);
-            vec3 camera_position  = vec3(trafo[3]);
+            vec3 camera_position  = trafo.col(3).head<3>();
 
             mat4 view, projection;
             view_projection_orthographic_camera(cam, camera_position, view, projection);
@@ -2499,7 +2494,7 @@ void scene_impl::update(float dt)
             data.per_camera_data.view_matrix             = view;
             data.per_camera_data.projection_matrix       = projection;
             data.per_camera_data.view_projection_matrix  = view_projection;
-            data.per_camera_data.inverse_view_projection = glm::inverse(view_projection);
+            data.per_camera_data.inverse_view_projection = view_projection.inverse();
             data.per_camera_data.camera_position         = camera_position;
             data.per_camera_data.camera_near             = cam.z_near;
             data.per_camera_data.camera_far              = cam.z_far;
@@ -2516,20 +2511,20 @@ void scene_impl::update(float dt)
                 // K is a light meter calibration constant
                 static const float K = 12.5f;
                 static const float S = 100.0f;
-                float target_ev      = glm::log2(m_average_luminance * S / K);
+                float target_ev      = log2(m_average_luminance * S / K);
 
                 // Compute the resulting ISO if we left both shutter and aperture here
-                iso                 = glm::clamp(((ape * ape) * 100.0f) / (shu * glm::exp2(target_ev)), min_camera_iso, max_camera_iso);
-                float unclamped_iso = (shu * glm::exp2(target_ev));
+                iso                 = clamp(((ape * ape) * 100.0f) / (shu * exp2(target_ev)), min_camera_iso, max_camera_iso);
+                float unclamped_iso = (shu * exp2(target_ev));
                 MANGO_UNUSED(unclamped_iso);
 
                 // Apply half the difference in EV to the aperture
-                float ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
-                ape           = glm::clamp(ape * glm::pow(glm::sqrt(2.0f), ev_diff * 0.5f), min_camera_aperture, max_camera_aperture);
+                float ev_diff = target_ev - log2(((ape * ape) * 100.0f) / (shu * iso));
+                ape           = clamp(ape * pow(sqrt(2.0f), ev_diff * 0.5f), min_camera_aperture, max_camera_aperture);
 
                 // Apply the remaining difference to the shutter speed
-                ev_diff = target_ev - glm::log2(((ape * ape) * 100.0f) / (shu * iso));
-                shu     = glm::clamp(shu * glm::pow(2.0f, -ev_diff), min_camera_shutter_speed, max_camera_shutter_speed);
+                ev_diff = target_ev - log2(((ape * ape) * 100.0f) / (shu * iso));
+                shu     = clamp(shu * pow(2.0f, -ev_diff), min_camera_shutter_speed, max_camera_shutter_speed);
             }
             else
             {
@@ -2537,9 +2532,9 @@ void scene_impl::update(float dt)
                 shu = cam.physical.shutter_speed;
                 iso = cam.physical.iso;
             }
-            cam.physical.aperture                = glm::clamp(ape, min_camera_aperture, max_camera_aperture);
-            cam.physical.shutter_speed           = glm::clamp(shu, min_camera_shutter_speed, max_camera_shutter_speed);
-            cam.physical.iso                     = glm::clamp(iso, min_camera_iso, max_camera_iso);
+            cam.physical.aperture                = clamp(ape, min_camera_aperture, max_camera_aperture);
+            cam.physical.shutter_speed           = clamp(shu, min_camera_shutter_speed, max_camera_shutter_speed);
+            cam.physical.iso                     = clamp(iso, min_camera_iso, max_camera_iso);
             float e                              = ((ape * ape) * 100.0f) / (shu * iso);
             data.per_camera_data.camera_exposure = 1.0f / (1.2f * e);
 
@@ -2570,8 +2565,8 @@ void scene_impl::update(float dt)
         {
             material_gpu_data& data = m_material_gpu_data.at(mat.gpu_data);
 
-            data.per_material_data.base_color                 = mat.base_color;
-            data.per_material_data.emissive_color             = mat.emissive_color;
+            data.per_material_data.base_color                 = mat.base_color.as_vec4();
+            data.per_material_data.emissive_color             = mat.emissive_color.as_vec3();
             data.per_material_data.metallic                   = mat.metallic;
             data.per_material_data.roughness                  = mat.roughness;
             data.per_material_data.base_color_texture         = mat.base_color_texture.is_valid();

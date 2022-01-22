@@ -187,8 +187,7 @@ namespace mango
         //! \return A reference to the \a plane_factory.
         box_factory& set_segments_vertical(const ivec2& segments)
         {
-            m_segments.r = segments.r;
-            m_segments.g = segments.g;
+            m_segments.head<2>() = segments;
             return *this;
         }
 
@@ -197,8 +196,7 @@ namespace mango
         //! \return A reference to the \a plane_factory.
         box_factory& set_segments_horizontal(const ivec2& segments)
         {
-            m_segments.b = segments.r;
-            m_segments.a = segments.g;
+            m_segments.tail<2>() = segments;
             return *this;
         }
 
@@ -207,8 +205,7 @@ namespace mango
         //! \return A reference to the \a plane_factory.
         box_factory& set_uv_tiling_vertical(const vec2& tiling)
         {
-            m_uv_tiling.r = tiling.r;
-            m_uv_tiling.g = tiling.g;
+            m_uv_tiling.head<2>() = tiling;
             return *this;
         }
 
@@ -217,8 +214,7 @@ namespace mango
         //! \return A reference to the \a plane_factory.
         box_factory& set_uv_tiling_horizontal(const vec2& tiling)
         {
-            m_uv_tiling.b = tiling.r;
-            m_uv_tiling.a = tiling.g;
+            m_uv_tiling.tail<2>() = tiling;
             return *this;
         }
 
@@ -267,7 +263,7 @@ namespace mango
         //! \return A reference to the \a plane_factory.
         sphere_factory& set_segments(int32 segments)
         {
-            m_segments.x = segments;
+            m_segments.x() = segments;
             return *this;
         }
 
@@ -276,7 +272,7 @@ namespace mango
         //! \return A reference to the \a plane_factory.
         sphere_factory& set_rings(int32 rings)
         {
-            m_segments.y = rings;
+            m_segments.y() = rings;
             return *this;
         }
 

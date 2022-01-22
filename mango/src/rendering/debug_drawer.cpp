@@ -149,9 +149,9 @@ void debug_drawer::clear()
 void debug_drawer::add(const vec3& point0, const vec3& point1)
 {
     m_vertices.push_back(point0);
-    m_vertices.push_back(m_color);
+    m_vertices.push_back(m_color.as_vec3());
     m_vertices.push_back(point1);
-    m_vertices.push_back(m_color);
+    m_vertices.push_back(m_color.as_vec3());
 }
 
 void debug_drawer::update_buffer()

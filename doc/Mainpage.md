@@ -81,7 +81,7 @@ As an alternative you could just go to ```\build\debug\bin``` or ```\build\relea
 
 * GLAD
 * GLFW3
-* glm
+* Eigen
 * spdlog
 * tiny_gltf
 * stb_image

@@ -254,7 +254,7 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
     for (int32 i = 0; i < m_shadow_data.cascade_count; ++i)
     {
         float p           = static_cast<float>(i + 1) / static_cast<float>(m_shadow_data.cascade_count);
-        float log         = min_z * std::pow(glm::abs(ratio), p);
+        float log         = min_z * std::pow(std::abs(ratio), p);
         float uniform     = min_z + range * p;
         float d           = m_cascade_data.lambda * (log - uniform) + uniform;
         cascade_splits[i] = (d - clip_near) / clip_range;
@@ -267,18 +267,18 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         vec3(-1.0f, 1.0f, 1.0f),  vec3(1.0f, 1.0f, 1.0f),  vec3(1.0f, -1.0f, 1.0f),  vec3(-1.0f, -1.0f, 1.0f),
     };
 
-    mat4 cam_inv_vp = glm::inverse(camera_view_projection);
+    mat4 cam_inv_vp = camera_view_projection.inverse();
     for (int32 i = 0; i < 8; ++i)
     {
-        vec4 inv           = cam_inv_vp * vec4(frustum_corners[i], 1.0f);
-        frustum_corners[i] = vec3(inv / inv.w);
+        vec4 inv           = cam_inv_vp * vec4(frustum_corners[i].x(), frustum_corners[i].y(), frustum_corners[i].z(), 1.0f);
+        frustum_corners[i] = inv.head<3>() / inv.w();
     }
 
     float interpolation   = (m_shadow_data.cascade_interpolation_range - clip_near) / clip_range;
     float last_split_dist = 0.0f;
     for (int32 casc = 0; casc < m_shadow_data.cascade_count; ++casc)
     {
-        vec3 center = vec3(0.0f);
+        vec3 center = make_vec3(0.0f);
         vec3 current_frustum_corners[8];
         float split_dist = cascade_splits[casc] - interpolation;
         for (int32 i = 0; i < 4; ++i)
@@ -295,12 +295,12 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         float radius = 0.0f;
         for (int32 i = 0; i < 8; ++i)
         {
-            float distance = glm::length(current_frustum_corners[i] - center);
-            radius         = glm::max(radius, distance);
+            float distance = (current_frustum_corners[i] - center).norm();
+            radius         = max(radius, distance);
         }
         radius = std::ceil(radius * 16.0f) / 16.0f;
 
-        vec3 max_extends = vec3(radius);
+        vec3 max_extends = make_vec3(radius);
         vec3 min_extends = -max_extends;
 
         // calculate view projection
@@ -308,23 +308,28 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         mat4 projection;
         mat4 view;
         vec3 up             = GLOBAL_UP;
-        vec3 light_to_point = -glm::normalize(m_cascade_data.directional_direction);
-        if (glm::dot(up, light_to_point) < 1e-5f)
+        vec3 light_to_point = -m_cascade_data.directional_direction.normalized();
+        if (up.dot(light_to_point) < 1e-5f)
             up = GLOBAL_RIGHT;
-        view                           = glm::lookAt(center - light_to_point * (-min_extends.z + m_shadow_map_offset), center, up);
-        projection                     = glm::ortho(min_extends.x, max_extends.x, min_extends.y, max_extends.y, 0.0f, (max_extends.z - min_extends.z) + m_shadow_map_offset);
-        m_shadow_data.far_planes[casc] = (max_extends.z - min_extends.z) + m_shadow_map_offset;
+        view                           = lookAt(vec3(center - light_to_point * (-min_extends.z() + m_shadow_map_offset)), center, up);
+        projection                     = ortho(min_extends.x(), max_extends.x(), min_extends.y(), max_extends.y(), 0.0f, (max_extends.z() - min_extends.z()) + m_shadow_map_offset);
+        m_shadow_data.far_planes[casc] = (max_extends.z() - min_extends.z()) + m_shadow_map_offset;
 
         mat4 shadow_matrix = projection * view;
         vec4 origin        = vec4(0.0f, 0.0f, 0.0f, 1.0f);
         origin             = shadow_matrix * origin;
         origin *= static_cast<float>(m_shadow_data.resolution) * 0.5f;
 
-        vec4 offset = glm::round(origin) - origin;
+        vec4 rounded;
+        rounded.x() = round(origin.x());
+        rounded.y() = round(origin.y());
+        rounded.z() = round(origin.z());
+        rounded.w() = round(origin.w());
+        vec4 offset = rounded - origin;
         offset *= 2.0f / static_cast<float>(m_shadow_data.resolution);
-        offset.z = 0.0f;
-        offset.w = 0.0f;
-        projection[3] += offset;
+        offset.z() = 0.0f;
+        offset.w() = 0.0f;
+        projection.col(3) += offset;
 
         m_shadow_data.split_depth[casc]              = (clip_near + split_dist * clip_range);
         m_shadow_data.view_projection_matrices[casc] = projection * view;
@@ -340,7 +345,7 @@ void shadow_map_step::on_ui_widget()
     int32 r                    = m_shadow_data.resolution;
     int32 current              = r > 2048 ? 3 : (r > 1024 ? 2 : (r > 512 ? 1 : 0));
     combo("Shadow Map Resolution", resolutions, 4, current, 2);
-    m_shadow_data.resolution = 512 * static_cast<int32>(glm::pow(2, current));
+    m_shadow_data.resolution = 512 * static_cast<int32>(pow(2, current));
     if (m_shadow_data.resolution != r)
         create_shadow_map();
 

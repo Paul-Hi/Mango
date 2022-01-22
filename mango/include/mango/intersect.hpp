@@ -8,12 +8,7 @@
 #ifndef MANGO_INTERSECT_HPP
 #define MANGO_INTERSECT_HPP
 
-//! \cond NO_COND
-#define GLM_FORCE_SILENT_WARNINGS 1
-//! \endcond
 #include <array>
-#include <glm/gtx/quaternion.hpp>
-#include <glm/gtx/matrix_decompose.hpp>
 #include <mango/types.hpp>
 
 namespace mango
@@ -45,7 +40,7 @@ namespace mango
         {
         }
         bounding_sphere()
-            : center(0.0f)
+            : center(make_vec3(0.0f))
             , radius(0.0f)
         {
         }
@@ -110,8 +105,8 @@ namespace mango
         {
         }
         axis_aligned_bounding_box()
-            : center(0.0f)
-            , extents(0.0f)
+            : center(make_vec3(0.0f))
+            , extents(make_vec3(0.0f))
         {
         }
 

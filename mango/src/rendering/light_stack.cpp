@@ -15,7 +15,7 @@ light_stack::light_stack()
     : m_allocator(524288) // 0.5 MiB
 {
     m_current_light_data.directional_light.direction    = vec3(0.5f, 0.5f, 0.5f);
-    m_current_light_data.directional_light.color        = vec3(1.0f);
+    m_current_light_data.directional_light.color        = make_vec3(1.0f);
     m_current_light_data.directional_light.intensity    = default_directional_intensity;
     m_current_light_data.directional_light.cast_shadows = false;
     m_current_light_data.directional_light.valid        = false;
@@ -121,7 +121,7 @@ void light_stack::update_directional_lights()
     const auto& light                                   = m_directional_stack.back();
     m_current_light_data.directional_light.valid        = true;
     m_current_light_data.directional_light.direction    = light.direction;
-    m_current_light_data.directional_light.color        = light.color.values;
+    m_current_light_data.directional_light.color        = light.color.as_vec3();
     m_current_light_data.directional_light.intensity    = light.intensity;
     m_current_light_data.directional_light.cast_shadows = light.cast_shadows;
     if (light.cast_shadows)

@@ -155,7 +155,7 @@ target_include_directories(mango
 
 target_include_directories(mango SYSTEM
     PUBLIC
-        ${CMAKE_SOURCE_DIR}/dependencies/glm
+        ${CMAKE_SOURCE_DIR}/dependencies/eigen
         ${CMAKE_SOURCE_DIR}/dependencies/glad/include
         ${CMAKE_SOURCE_DIR}/dependencies/optional/include
 )
@@ -169,6 +169,7 @@ set_target_properties(mango
 
 target_link_libraries(mango
     PUBLIC
+        # Eigen3::Eigen
         spdlog::spdlog
         imgui
         tinyfd

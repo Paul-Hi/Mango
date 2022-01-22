@@ -29,7 +29,7 @@ namespace mango
         //! \brief Sets the active cubemap to render.
         //! \param[in] environment_cubemap Pointer to the environment cubemap texture to set.
         //! \param[in] model_matrix A model matrix for the cubemap.
-        void set_cubemap(const gfx_handle<const gfx_texture> environment_cubemap, const mat4& model_matrix = mat4(1.0f))
+        void set_cubemap(const gfx_handle<const gfx_texture> environment_cubemap, const mat4& model_matrix = mat4::Identity())
         {
             m_current_cubemap           = environment_cubemap;
             m_cubemap_data.model_matrix = model_matrix;

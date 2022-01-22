@@ -162,7 +162,9 @@ void fxaa_step::execute()
 
     step_context->set_render_targets(1, &m_output_target, m_output_target_depth_stencil);
 
-    m_fxaa_data.inverse_screen_size = 1.0f / m_output_target->get_size();
+    m_fxaa_data.inverse_screen_size = m_output_target->get_size();
+    m_fxaa_data.inverse_screen_size[0] = 1.0f / m_fxaa_data.inverse_screen_size[0];
+    m_fxaa_data.inverse_screen_size[1] = 1.0f / m_fxaa_data.inverse_screen_size[1];
     step_context->set_buffer_data(m_fxaa_data_buffer, 0, sizeof(m_fxaa_data), &m_fxaa_data);
 
     m_fxaa_pass_pipeline->get_resource_mapping()->set("fxaa_data", m_fxaa_data_buffer);

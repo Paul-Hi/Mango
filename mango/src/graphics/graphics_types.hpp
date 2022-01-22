@@ -7,10 +7,6 @@
 #ifndef MANGO_GRAPHICS_TYPES_HPP
 #define MANGO_GRAPHICS_TYPES_HPP
 
-//! \cond NO_COND
-#define GLM_FORCE_SILENT_WARNINGS 1
-//! \endcond
-#include <glm/gtx/matrix_major_storage.hpp>
 #include <mango/types.hpp>
 
 namespace mango
@@ -717,10 +713,10 @@ namespace mango
         {
         }
         std140_vec2()
-            : v(vec2(0.0f))
+            : v(vec2(0.0f, 0.0f))
         {
         }
-        operator vec2&()
+        vec2& values()
         {
             return v;
         }
@@ -747,10 +743,10 @@ namespace mango
         {
         }
         std140_vec3()
-            : v(vec3(0.0f))
+            : v(make_vec3(0.0f))
         {
         }
-        operator vec3&()
+        vec3& values()
         {
             return v;
         }
@@ -778,10 +774,10 @@ namespace mango
         {
         }
         std140_vec4()
-            : v(vec4(0.0f))
+            : v(make_vec4(0.0f))
         {
         }
-        operator vec4&()
+        vec4& values()
         {
             return v;
         }
@@ -804,9 +800,9 @@ namespace mango
     {
         //! \cond NO_COND
         std140_mat3(const mat3& mat)
-            : c0(mat[0])
-            , c1(mat[1])
-            , c2(mat[2])
+            : c0(mat.col(0))
+            , c1(mat.col(1))
+            , c2(mat.col(2))
         {
         }
         std140_mat3()
@@ -817,27 +813,29 @@ namespace mango
         }
         void operator=(const mat3& o)
         {
-            c0 = o[0];
-            c1 = o[1];
-            c2 = o[2];
+            c0 = o.col(0);
+            c1 = o.col(1);
+            c2 = o.col(2);
         }
         vec3& operator[](int i)
         {
             switch (i)
             {
             case 0:
-                return c0;
+                return c0.values();
             case 1:
-                return c1;
+                return c1.values();
             case 2:
-                return c2;
+                return c2.values();
             default:
                 MANGO_ASSERT(false, "3D Matrix has only 3 columns!"); // TODO Paul: Ouch!
             }
         }
-        operator mat3()
+        mat3 to_mat3()
         {
-            return glm::colMajor3(vec3(c0), vec3(c1), vec3(c2));
+            mat3 m = mat3::Identity();
+            m << c0.values(), c1.values(), c2.values();
+            return m;
         }
 
       private:
@@ -852,10 +850,10 @@ namespace mango
     {
         //! \cond NO_COND
         std140_mat4(const mat4& mat)
-            : c0(mat[0])
-            , c1(mat[1])
-            , c2(mat[2])
-            , c3(mat[3])
+            : c0(mat.col(0))
+            , c1(mat.col(1))
+            , c2(mat.col(2))
+            , c3(mat.col(3))
         {
         }
         std140_mat4()
@@ -867,30 +865,32 @@ namespace mango
         }
         void operator=(const mat4& o)
         {
-            c0 = o[0];
-            c1 = o[1];
-            c2 = o[2];
-            c3 = o[3];
+            c0 = o.col(0);
+            c1 = o.col(1);
+            c2 = o.col(2);
+            c3 = o.col(3);
         }
         vec4& operator[](int i)
         {
             switch (i)
             {
             case 0:
-                return c0;
+                return c0.values();
             case 1:
-                return c1;
+                return c1.values();
             case 2:
-                return c2;
+                return c2.values();
             case 3:
-                return c3;
+                return c3.values();
             default:
                 MANGO_ASSERT(false, "4D Matrix has only 4 columns!"); // TODO Paul: Ouch!
             }
         }
-        operator mat4()
+        mat4 to_mat4()
         {
-            return glm::colMajor4(vec4(c0), vec4(c1), vec4(c2), vec4(c3));
+            mat4 m = mat4::Identity();
+            m << c0.values(), c1.values(), c2.values(), c3.values();
+            return m;
         }
 
       private:

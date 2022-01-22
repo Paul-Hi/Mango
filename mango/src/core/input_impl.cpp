@@ -13,8 +13,8 @@ input_impl::input_impl()
     m_current_input_state.keys.fill(input_action::release);
     m_current_input_state.mouse_buttons.fill(input_action::release);
     m_current_input_state.modifier_field  = modifier::none;
-    m_current_input_state.cursor_position = dvec3(0.0);
-    m_current_input_state.scroll_offset   = dvec3(0.0);
+    m_current_input_state.cursor_position = dvec2(0.0, 0.0);
+    m_current_input_state.scroll_offset   = dvec2(0.0, 0.0);
 
     m_signals.input_key.connect([this](key_code key, input_action action, modifier mods) {
         if(static_cast<int32>(key) >= m_current_input_state.keys.size())
@@ -29,13 +29,13 @@ input_impl::input_impl()
     });
 
     m_signals.input_cursor_position.connect([this](double x_position, double y_position) {
-        m_current_input_state.cursor_position.x = x_position;
-        m_current_input_state.cursor_position.y = y_position;
+        m_current_input_state.cursor_position.x() = x_position;
+        m_current_input_state.cursor_position.y() = y_position;
     });
 
     m_signals.input_cursor_position.connect([this](double x_offset, double y_offset) {
-        m_current_input_state.scroll_offset.x = x_offset;
-        m_current_input_state.scroll_offset.y = y_offset;
+        m_current_input_state.scroll_offset.x() = x_offset;
+        m_current_input_state.scroll_offset.y() = y_offset;
     });
 }
 

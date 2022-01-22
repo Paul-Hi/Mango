@@ -6,8 +6,8 @@
 
 #include <graphics/buffer.hpp>
 #include <graphics/vertex_array.hpp>
-#include <mango/scene_ecs.hpp>
 #include <mango/mesh_factory.hpp>
+#include <mango/scene_ecs.hpp>
 #include <util/helpers.hpp>
 
 using namespace mango;
@@ -74,20 +74,20 @@ void plane_factory::create_mesh_primitive_component(mesh_primitive_component* co
 
 void plane_factory::append(std::vector<float>& vertex_data, std::vector<uint32>& index_data, bool restart, bool seal)
 {
-    vec3 diff_x = glm::cross(m_face_normal, GLOBAL_UP);
-    if (glm::all(glm::equal(GLOBAL_UP, glm::abs(m_face_normal))))
-        diff_x = glm::cross(m_face_normal, GLOBAL_FORWARD);
-    vec3 diff_y = glm::cross(m_face_normal, diff_x);
+    vec3 diff_x = m_face_normal.cross(GLOBAL_UP);
+    if (GLOBAL_UP.x() == std::abs(m_face_normal.x()) && GLOBAL_UP.y() == std::abs(m_face_normal.y()) && GLOBAL_UP.z() == std::abs(m_face_normal.z()))
+        diff_x = m_face_normal.cross(GLOBAL_FORWARD);
+    vec3 diff_y = m_face_normal.cross(diff_x);
 
-    int32 x_count     = m_segments.x + 1;
-    int32 y_count     = m_segments.y + 1;
-    vec3 delta_x = 1.0f / m_segments.x * diff_x;
-    vec3 delta_y = 1.0f / m_segments.y * diff_y;
+    int32 x_count = m_segments.x + 1;
+    int32 y_count = m_segments.y + 1;
+    vec3 delta_x  = 1.0f / m_segments.x * diff_x;
+    vec3 delta_y  = 1.0f / m_segments.y * diff_y;
 
     vec3 origin = -0.5f * diff_x - 0.5f * diff_y + m_offset * m_face_normal;
 
     bool reverse = false;
-    if (glm::dot(glm::cross(diff_x, diff_y), m_face_normal) > 0)
+    if (diff_x.cross(diff_y).dot(m_face_normal) > 0)
         reverse = true;
 
     int32 stride = 3;
@@ -234,18 +234,18 @@ void sphere_factory::append(std::vector<float>& vertex_data, std::vector<uint32>
 
     for (int32 ring = 0; ring < ring_count; ++ring)
     {
-        float r0 = glm::sin(ring * ring_delta);
-        float y0 = glm::cos(ring * ring_delta);
+        float r0 = sin(ring * ring_delta);
+        float y0 = cos(ring * ring_delta);
         for (int32 seg = 0; seg < seg_count; ++seg)
         {
-            float x0 = r0 * glm::sin(seg * seg_delta);
-            float z0 = r0 * glm::cos(seg * seg_delta);
+            float x0 = r0 * sin(seg * seg_delta);
+            float z0 = r0 * cos(seg * seg_delta);
 
             vec3 point = vec3(x0, y0, z0);
             vertex_data.push_back(point.x);
             vertex_data.push_back(point.y);
             vertex_data.push_back(point.z);
-            vec3 normal = glm::normalize(point);
+            vec3 normal = point.normalized();
             if (m_generate_normals)
             {
                 vertex_data.push_back(normal.x);

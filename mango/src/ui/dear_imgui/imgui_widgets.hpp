@@ -7,13 +7,8 @@
 #ifndef MANGO_IMGUI_WIDGETS_HPP
 #define MANGO_IMGUI_WIDGETS_HPP
 
-//! \cond NO_COND
-#define GLM_FORCE_SILENT_WARNINGS 1
-//! \endcond
 #include "tinyfiledialogs.h"
 #include <core/context_impl.hpp>
-#include <glm/gtc/matrix_access.hpp>
-#include <glm/gtx/vector_angle.hpp>
 #include <mango/imgui_helper.hpp>
 #include <mango/mesh_factory.hpp>
 #include <scene/scene_impl.hpp>
@@ -501,10 +496,10 @@ namespace mango
                     changed |= slider_float_n("Near Plane", &cam->z_near, 1, default_value, 0.0f, cam->z_far);
                     default_value[0] = 40.0f;
                     changed |= slider_float_n("Far Plane", &cam->z_far, 1, default_value, cam->z_near, 10000.0f);
-                    float degree_fov = glm::degrees(cam->vertical_field_of_view);
+                    float degree_fov = rad_to_deg(cam->vertical_field_of_view);
                     default_value[0] = 45.0f;
                     changed |= slider_float_n("Vertical FOV", &degree_fov, 1, default_value, 1.75f, 175.0f, "%.1f°");
-                    cam->vertical_field_of_view = glm::radians(degree_fov);
+                    cam->vertical_field_of_view = deg_to_rad(degree_fov);
                     changed |= custom_aligned("Aspect",
                                               [&cam, &viewport_size](bool reset)
                                               {
@@ -525,7 +520,7 @@ namespace mango
                                               });
                     ImGui::Separator();
                     float default_fl3[3] = { 0.0f, 0.0f, 0.0f };
-                    changed |= drag_float_n("Target", &cam->target.x, 3, default_fl3, 0.1f, 0.0, 0.0, "%.1f", true);
+                    changed |= drag_float_n("Target", cam->target.data(), 3, default_fl3, 0.1f, 0.0, 0.0, "%.1f", true);
 
                     ImGui::Separator();
                     changed |= checkbox("Adaptive Exposure", &cam->adaptive_exposure, false);
@@ -616,7 +611,7 @@ namespace mango
                                               });
                     ImGui::Separator();
                     float default_fl3[3] = { 0.0f, 0.0f, 0.0f };
-                    changed |= drag_float_n("Target", &cam->target.x, 3, default_fl3, 0.1f, 0.0, 0.0, "%.1f", true);
+                    changed |= drag_float_n("Target", cam->target.data(), 3, default_fl3, 0.1f, 0.0, 0.0, "%.1f", true);
 
                     ImGui::Separator();
                     changed |= checkbox("Adaptive Exposure", &cam->adaptive_exposure, false);
@@ -701,10 +696,9 @@ namespace mango
 
                                         if (changed)
                                         {
-                                            quat x_quat  = glm::angleAxis(glm::radians(tr->rotation_hint.x - rotation_hint_before.x), vec3(1.0f, 0.0f, 0.0f));
-                                            quat y_quat  = glm::angleAxis(glm::radians(tr->rotation_hint.y - rotation_hint_before.y), vec3(0.0f, 1.0f, 0.0f));
-                                            quat z_quat  = glm::angleAxis(glm::radians(tr->rotation_hint.z - rotation_hint_before.z), vec3(0.0f, 0.0f, 1.0f));
-                                            tr->rotation = x_quat * y_quat * z_quat * tr->rotation;
+                                            tr->rotation = Eigen::AngleAxisf(deg_to_rad(tr->rotation_hint.x() - rotation_hint_before.x()), vec3::UnitX()) *
+                                                           Eigen::AngleAxisf(deg_to_rad(tr->rotation_hint.y() - rotation_hint_before.y()), vec3::UnitY()) *
+                                                           Eigen::AngleAxisf(deg_to_rad(tr->rotation_hint.z() - rotation_hint_before.z()), vec3::UnitZ()) * tr->rotation;
                                         }
                                         tr->changed |= changed;
 
@@ -1063,7 +1057,7 @@ namespace mango
                         int32 scenario_nr = 0;
                         for (uid sc : mod->scenarios)
                         {
-                            if(scenario_nr == mod->default_scenario)
+                            if (scenario_nr == mod->default_scenario)
                             {
                                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{ 1.0f, 0.8f, 0.0f, 1.0f });
                             }
@@ -1072,7 +1066,7 @@ namespace mango
                                 uid model_instance_root = application_scene->add_node(name);
                                 application_scene->add_model_to_scene(m, sc, model_instance_root);
                             }
-                            if(scenario_nr == mod->default_scenario)
+                            if (scenario_nr == mod->default_scenario)
                             {
                                 ImGui::PopStyleColor();
                             }

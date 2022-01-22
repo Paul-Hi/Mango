@@ -37,9 +37,9 @@ namespace mango
         vec3 rotation_hint;
 
         transform()
-            : position(0.0f)
+            : position(make_vec3(0.0f))
             , rotation(1.0f, 0.0f, 0.0f, 0.0f)
-            , scale(1.0f)
+            , scale(make_vec3(1.0f))
         {
         }
         //! \brief \a Transform is a scene structure.
@@ -83,7 +83,7 @@ namespace mango
             , z_far(0.0f)
             , z_near(0.0f)
             , adaptive_exposure(true)
-            , target(0.0f)
+            , target(make_vec3(0.0f))
         {
             physical.aperture      = default_camera_aperture;
             physical.shutter_speed = default_camera_shutter_speed;
@@ -130,7 +130,7 @@ namespace mango
             , z_far(0.0f)
             , z_near(0.0f)
             , adaptive_exposure(true)
-            , target(0.0f)
+            , target(make_vec3(0.0f))
         {
             physical.aperture      = default_camera_aperture;
             physical.shutter_speed = default_camera_shutter_speed;
@@ -155,7 +155,7 @@ namespace mango
         bool contribute_to_atmosphere;
 
         directional_light()
-            : direction(0.0f)
+            : direction(make_vec3(0.0f))
             , color(0.0f)
             , intensity(default_directional_intensity)
             , cast_shadows(false)
