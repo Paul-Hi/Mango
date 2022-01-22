@@ -1022,11 +1022,11 @@ namespace mango
         }
         if (ImGui::BeginPopup("##scene_menu"))
         {
-            if (ImGui::Selectable("Add Scene Object##scene_menu"))
+            if (ImGui::Selectable("Add Node##scene_menu"))
             {
                 selected = application_scene->add_node("Unnamed");
             }
-            if (ImGui::Selectable("Import And Add Model (temporary)##scene_menu"))
+            if (ImGui::Selectable("Import Model##scene_menu"))
             {
                 char const* filter[2] = { "*.gltf", "*.glb" };
 
@@ -1037,15 +1037,51 @@ namespace mango
                     auto ext       = queried.substr(queried.find_last_of(".") + 1);
                     if (ext == "glb" || ext == "gltf")
                     {
-                        uid m                       = application_scene->load_model_from_gltf(queried);
+                        application_scene->load_model_from_gltf(queried);
+                        /*
                         optional<mango::model&> mod = application_scene->get_model(m);
                         MANGO_ASSERT(mod, "Model not existent!");
                         auto start              = string(queried).find_last_of("\\/") + 1;
                         auto name               = string(queried).substr(start, queried.find_last_of(".") - start);
+
                         uid model_instance_root = application_scene->add_node(name);
                         application_scene->add_model_to_scene(m, mod->scenarios.at(mod->default_scenario), model_instance_root);
+                        */
                     }
                 }
+            }
+            if (ImGui::BeginMenu("Instantiate Model Scene##scene_menu"))
+            {
+                for (uid m : application_scene->get_imported_models())
+                {
+                    optional<mango::model&> mod = application_scene->get_model(m);
+                    MANGO_ASSERT(mod, "Model not existent!");
+                    auto start = mod->file_path.find_last_of("\\/") + 1;
+                    auto name  = mod->file_path.substr(start, mod->file_path.find_last_of(".") - start);
+                    if (ImGui::BeginMenu((name + "##instantiation").c_str()))
+                    {
+                        int32 scenario_nr = 0;
+                        for (uid sc : mod->scenarios)
+                        {
+                            if(scenario_nr == mod->default_scenario)
+                            {
+                                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{ 1.0f, 0.8f, 0.0f, 1.0f });
+                            }
+                            if (ImGui::Selectable(("Scenario " + std::to_string(scenario_nr) + "##" + std::to_string(m.get())).c_str()))
+                            {
+                                uid model_instance_root = application_scene->add_node(name);
+                                application_scene->add_model_to_scene(m, sc, model_instance_root);
+                            }
+                            if(scenario_nr == mod->default_scenario)
+                            {
+                                ImGui::PopStyleColor();
+                            }
+                            scenario_nr++;
+                            ImGui::EndMenu();
+                        }
+                    }
+                }
+                ImGui::EndMenu();
             }
 
             ImGui::EndPopup();
