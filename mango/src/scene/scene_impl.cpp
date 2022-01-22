@@ -439,7 +439,7 @@ void scene_impl::add_model_to_scene(uid model_to_add, uid scenario_id, uid node_
         return;
     }
 
-    const model& m       = m_models.at(model_to_add);
+    const model& m = m_models.at(model_to_add);
 
     auto found = std::find(m.scenarios.begin(), m.scenarios.end(), scenario_id);
     if (found == m.scenarios.end())
@@ -1161,6 +1161,15 @@ void scene_impl::attach(uid child_node, uid parent_node)
         return;
     }
 
+    node& child = m_nodes.at(child_node);
+
+    auto found = std::find(child.children.begin(), child.children.end(), parent_node);
+    if (found != child.children.end())
+    {
+        MANGO_LOG_ERROR("Parent is attached to child! Can not attach in a circle!"); // TODO Paul: We need to check the whole subtree!
+        return;
+    }
+
     node& parent = m_nodes.at(parent_node);
 
     parent.children.push_back(child_node);
@@ -1180,14 +1189,8 @@ void scene_impl::detach(uid child_node, uid parent_node)
         MANGO_LOG_WARN("Parent node with ID {0} does not exist! Can not detach!", parent_node.get());
         return;
     }
-    if (parent_node == m_root_node)
-    {
-        MANGO_LOG_WARN("Can not detach from root node - only removable would be possible!");
-        return;
-    }
 
-    const node& child = m_nodes.at(child_node);
-    node& parent      = m_nodes.at(parent_node);
+    node& parent = m_nodes.at(parent_node);
 
     auto found = std::find(parent.children.begin(), parent.children.end(), child_node);
     if (found == parent.children.end())
@@ -1197,8 +1200,6 @@ void scene_impl::detach(uid child_node, uid parent_node)
     }
 
     parent.children.erase(found);
-    node& root = m_nodes.at(m_root_node);
-    root.children.push_back(child_node);
 }
 
 void scene_impl::remove_texture(uid texture_id)
@@ -1580,7 +1581,7 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
     if (n.matrix.size() == 16)
     {
         dmat4 dinput = Eigen::Map<Eigen::Matrix<double, 4, 4>>(n.matrix.data());
-        mat4 input = dinput.cast<float>();
+        mat4 input   = dinput.cast<float>();
         vec3 s;
         vec4 p;
         decompose_transformation(input, tr.scale, tr.rotation, tr.position);
@@ -2299,7 +2300,7 @@ void scene_impl::update_scene_graph(uid node_id, uid parent_id, bool force_updat
         // recalculate node matrices
         mat4 local_transformation_matrix = mat4::Identity() * translate(tr.position);
         local_transformation_matrix      = local_transformation_matrix * quaternion_to_mat4(tr.rotation);
-        local_transformation_matrix      = local_transformation_matrix* scale( tr.scale);
+        local_transformation_matrix      = local_transformation_matrix * scale(tr.scale);
 
         mat4 parent_transformation_matrix = mat4::Identity();
         if (parent_id.is_valid())
@@ -2627,12 +2628,12 @@ void scene_impl::update(float dt)
 
 void scene_impl::draw_scene_hierarchy(uid& selected)
 {
-    std::vector<uid> to_remove = draw_scene_hierarchy_internal(m_root_node, selected);
+    std::vector<uid> to_remove = draw_scene_hierarchy_internal(m_root_node, invalid_uid, selected);
     for (auto n : to_remove)
         remove_node(n);
 }
 
-std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid& selected)
+std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid parent, uid& selected)
 {
     optional<node&> opt_node = get_node(current);
     MANGO_ASSERT(opt_node, "Something is broken - Can not draw hierarchy for a non existing node!");
@@ -2665,7 +2666,7 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid& sel
         {
             m_ui_selected_uid = add_node("Node", current);
         }
-        if (!(m_root_node == current) && ImGui::Selectable(("Remove Node##object_menu" + std::to_string(current.get())).c_str()))
+        if (m_root_node != current && ImGui::Selectable(("Remove Node##object_menu" + std::to_string(current.get())).c_str()))
         {
             m_ui_selected_uid = invalid_uid;
             to_remove.push_back(current);
@@ -2674,18 +2675,20 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid& sel
 
         ImGui::EndPopup();
     }
-    if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
+    if (m_root_node != current && !removed && ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
     {
-        ImGui::SetDragDropPayload("DRAG_DROP_NODE", (void*)&current, sizeof(uid));
+        uid payload[2] = { current, parent };
+        ImGui::SetDragDropPayload("DRAG_DROP_NODE", (void*)payload, sizeof(uid) * 2);
         ImGui::EndDragDropSource();
     }
-    if (ImGui::BeginDragDropTarget())
+    if (!removed && ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DRAG_DROP_NODE"))
         {
-            IM_ASSERT(payload->DataSize == sizeof(uid));
-            auto dropped = (const uid*)payload->Data;
-            attach(*dropped, current);
+            IM_ASSERT(payload->DataSize == sizeof(uid) * 2);
+            const uid* dropped = (const uid*)payload->Data;
+            attach(dropped[0], current);
+            detach(dropped[0], dropped[1]);
         }
         ImGui::EndDragDropTarget();
     }
@@ -2695,7 +2698,7 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid& sel
         {
             for (auto& c : nd.children)
             {
-                auto removed_children = draw_scene_hierarchy_internal(c, selected);
+                auto removed_children = draw_scene_hierarchy_internal(c, current, selected);
                 to_remove.insert(to_remove.end(), removed_children.begin(), removed_children.end());
                 if (removed_children.size() > 0 && removed_children[0] == c)
                     c = invalid_uid;

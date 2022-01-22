@@ -301,9 +301,10 @@ namespace mango
 
         //! \brief The internal recursive function to draw the hierarchy of \a nodes in a ui widget.
         //! \param[in] current The current \a nodes \a uid to inspect and draw.
+        //! \param[in] parent The current \a nodes parent \a uid.
         //! \param[in,out] selected The \a uid of the selected node.
         //! \return The list of \a uids of \a nodes that should be removed, after the hierarchy is drawn.
-        std::vector<uid> draw_scene_hierarchy_internal(uid current, uid& selected);
+        std::vector<uid> draw_scene_hierarchy_internal(uid current, uid parent, uid& selected);
 
         //! \brief Returns a name for a \a node_type and a \a node name.
         //! \param[in] type The \a node_type of the \a node.
