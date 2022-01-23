@@ -911,7 +911,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     m_renderer_info.last_frame.materials  = 0;
 
     m_frame_context->begin();
-    //m_frame_context->client_wait(m_frame_semaphore);
+    // m_frame_context->client_wait(m_frame_semaphore);
     float clear_color[4] = { 0.1f, 0.1f, 0.1f, 1.0f }; // TODO Paul: member or dynamic?
     auto swap_buffer     = m_graphics_device->get_swap_chain_render_target();
 
@@ -1045,9 +1045,22 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 a_draw.transparent = mat->alpha_mode > material_alpha_mode::mode_mask;
                 opaque_count += a_draw.transparent ? 0 : 1;
 
-                a_draw.view_depth = (active_camera_data->per_camera_data.view_projection_matrix.to_mat4() * global_transformation_matrix.value() * vec4(0.0f, 0.0f, 0.0f, 1.0f)).z();
-
                 a_draw.bounding_box = prim->bounding_box.get_transformed(global_transformation_matrix.value());
+
+                if (!a_draw.transparent)
+                    a_draw.view_depth = active_camera_data->per_camera_data.camera_far + 1.0f;
+                else
+                    a_draw.view_depth = active_camera_data->per_camera_data.camera_near - 1.0f;
+
+                std::array<vec3, 8> bb_corners = a_draw.bounding_box.get_corners();
+                for (const vec3& corner : bb_corners)
+                {
+                    if (!a_draw.transparent)
+                        a_draw.view_depth = min(a_draw.view_depth, (active_camera_data->per_camera_data.view_matrix.to_mat4() * vec4(corner.x(), corner.y(), corner.z(), 1.0f)).z());
+                    else
+                        a_draw.view_depth = max(a_draw.view_depth, (active_camera_data->per_camera_data.view_matrix.to_mat4() * vec4(corner.x(), corner.y(), corner.z(), 1.0f)).z());
+                }
+                // MANGO_LOG_INFO("{0}", a_draw.view_depth);
 
                 draws.push_back(a_draw);
             }
@@ -1076,7 +1089,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                                              active_camera_data->per_camera_data.view_projection_matrix.to_mat4(), sc.direction);
                 auto& shadow_data_buffer = shadow_pass->get_shadow_data_buffer();
                 m_frame_context->set_render_targets(0, nullptr, shadow_pass->get_shadow_maps_texture());
-                auto& data   = shadow_pass->get_shadow_data();
+                auto& data = shadow_pass->get_shadow_data();
                 for (int32 casc = 0; casc < data.cascade_count; ++casc)
                 {
                     auto& cascade_frustum = shadow_pass->get_cascade_frustum(casc);
@@ -1778,7 +1791,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 void deferred_pbr_renderer::present()
 {
     m_frame_context->present();
-    //m_frame_semaphore = m_frame_context->fence(semaphore_create_info());
+    // m_frame_semaphore = m_frame_context->fence(semaphore_create_info());
     m_frame_context->end();
     m_frame_context->submit();
 }
