@@ -167,6 +167,14 @@ std::array<vec3, 8> axis_aligned_bounding_box::get_corners() const
     return points;
 }
 
+void axis_aligned_bounding_box::expand(const axis_aligned_bounding_box& other)
+{
+    vec3 max_point = max<vec3, vec3>(center + extents, other.center + other.extents);
+    vec3 min_point = min<vec3, vec3>(center - extents, other.center - other.extents);
+    center  = (max_point + min_point) * 0.5f;
+    extents = (max_point - min_point) * 0.5f;
+}
+
 bool axis_aligned_bounding_box::intersects(const axis_aligned_bounding_box& other) const
 {
     vec3 dif = abs(vec3(center - other.center));

@@ -8,14 +8,12 @@ const vec2 inv_atan = vec2(0.15915, 0.31831);
 
 layout(local_size_x = 32, local_size_y = 32) in;
 
+#define BIND_IBL_GENERATION_DATA_BUFFER
+
+#include <include/binding_data.glsl>
+
 layout(binding = 0) uniform sampler2D sampler_hdr_in; // texture "texture_hdr_in"
 layout(binding = 1, rgba16f) uniform writeonly imageCube cubemap_out;
-
-layout(binding = 3) uniform ibl_generation_data
-{
-    vec2 out_size;
-    vec2 data;
-};
 
 vec2 cube_to_equi(in vec3 v);
 

@@ -34,6 +34,7 @@ namespace mango
         void set_swap_interval(int32 swap) override;
         void set_buffer_data(gfx_handle<const gfx_buffer> buffer_handle, int32 offset, int32 size, void* data) override;
         void* map_buffer_data(gfx_handle<const gfx_buffer> buffer_handle, int32 offset, int32 size) override;
+        bool unmap_buffer_data(gfx_handle<const gfx_buffer> buffer_handle) override;
         void set_texture_data(gfx_handle<const gfx_texture> texture_handle, const texture_set_description& desc, void* data) override;
         void begin() override;
         void set_viewport(int32 first, int32 count, const gfx_viewport* viewports) override;
@@ -52,6 +53,8 @@ namespace mango
         void bind_pipeline(gfx_handle<const gfx_pipeline> pipeline_handle) override;
         void submit_pipeline_state_resources() override;
         void draw(int32 vertex_count, int32 index_count, int32 instance_count, int32 base_vertex, int32 base_instance, int32 index_offset) override;
+        void multi_draw(gfx_primitive_topology mode, const int32* count, gfx_format index_type, const int64* index_offset, int32 drawcount, const int32* base_vertex);
+        void multi_draw_indirect(gfx_handle<const gfx_buffer> indirect_buffer, gfx_primitive_topology mode, gfx_format index_type, const int64 indirect_offset, int32 drawcount, const int32 stride);
         void dispatch(int32 x, int32 y, int32 z) override;
         void end() override;
         void barrier(const barrier_description& desc) override;

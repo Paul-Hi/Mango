@@ -224,6 +224,15 @@ namespace mango
             return *(m_element_array + m_lookup_array[id.lookup_id & id_index_mask].element_index);
         }
 
+        //! \brief Returns an element for a given \a uid.
+        //! \param id The \a uid to get the element for.
+        //! \return The corresponding element for id.
+        inline const element& at(uid id) const
+        {
+            MANGO_ASSERT(contains(id), "Trying to access non contained value!");
+            return *(m_element_array + m_lookup_array[id.lookup_id & id_index_mask].element_index);
+        }
+
         //! \brief Returns the last element in the \a packed_freelist.
         //! \return The last element.
         inline element& back()

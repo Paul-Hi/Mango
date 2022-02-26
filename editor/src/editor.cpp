@@ -110,8 +110,10 @@ bool editor::create()
 
     // test settings comment in to have some example scene
     {
-        uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
-        //uid bb                      = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/Bistro_v5_1/BistroExterior.gltf");
+        //uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Cube/glTF/Cube.gltf");
+        //uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
+        //uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
+        uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/Bistro_v5_1/BistroExterior.gltf");
         optional<mango::model&> mod = m_current_scene->get_model(bb);
         MANGO_ASSERT(mod, "Model not existent!");
         uid model_instance_root            = m_current_scene->add_node("Sponza");

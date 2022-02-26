@@ -48,20 +48,20 @@ namespace mango
         //! \param[in] wireframe True if the pipeline should render wireframe, else false.
         //! \param[in] double_sided True if the pipeline should render double sided, else false.
         //! \return A \a gfx_handle of a \a gfx_pipeline to use for rendering opaque geometry.
-        gfx_handle<const gfx_pipeline> get_opaque(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool wireframe, bool double_sided);
+        gfx_handle<const gfx_pipeline> get_opaque(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool wireframe, bool double_sided = false);
         //! \brief Gets a graphics \a gfx_pipeline for transparent geometry.
         //! \param[in] geo_vid The \a vertex_input_descriptor of the geometry.
         //! \param[in] geo_iad The \a input_assembly_dedscriptor of the geometry.
         //! \param[in] wireframe True if the pipeline should render wireframe, else false.
         //! \param[in] double_sided True if the pipeline should render double sided, else false.
         //! \return A \a gfx_handle of a \a gfx_pipeline to use for rendering transparent geometry.
-        gfx_handle<const gfx_pipeline> get_transparent(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool wireframe, bool double_sided);
+        gfx_handle<const gfx_pipeline> get_transparent(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool wireframe, bool double_sided = false);
         //! \brief Gets a graphics \a gfx_pipeline for shadow pass geometry.
         //! \param[in] geo_vid The \a vertex_input_descriptor of the geometry.
         //! \param[in] geo_iad The \a input_assembly_dedscriptor of the geometry.
         //! \param[in] double_sided True if the pipeline should render double sided, else false.
         //! \return A \a gfx_handle of a \a gfx_pipeline to use for rendering shadow pass geometry.
-        gfx_handle<const gfx_pipeline> get_shadow(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool double_sided);
+        gfx_handle<const gfx_pipeline> get_shadow(const vertex_input_descriptor& geo_vid, const input_assembly_descriptor& geo_iad, bool double_sided = false);
 
       private:
         //! \brief Key for caching \a gfx_pipelines.

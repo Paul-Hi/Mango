@@ -195,6 +195,21 @@ namespace mango
             return gfx_format::invalid;
         }
 
+        //! \brief Unified vertex layout used to batch draw calls.
+        static const vertex_input_descriptor UNIFIED_VERTEX_LAYOUT = {
+            5,
+            { vertex_input_binding_description{ 0, sizeof(vec3), gfx_vertex_input_rate::per_vertex }, vertex_input_binding_description{ 1, sizeof(vec3), gfx_vertex_input_rate::per_vertex },
+              vertex_input_binding_description{ 2, sizeof(vec2), gfx_vertex_input_rate::per_vertex }, vertex_input_binding_description{ 3, sizeof(vec4), gfx_vertex_input_rate::per_vertex },
+              vertex_input_binding_description{ 4, sizeof(ivec2), gfx_vertex_input_rate::per_instance } },
+            5,
+            { vertex_input_attribute_description{ 0, 0, gfx_format::rgb32f, 0 }, vertex_input_attribute_description{ 1, 1, gfx_format::rgb32f, 0 },
+              vertex_input_attribute_description{ 2, 2, gfx_format::rg32f, 0 }, vertex_input_attribute_description{ 3, 3, gfx_format::rgba32f, 0 },
+              vertex_input_attribute_description{ 4, 4, gfx_format::rg32i, 0 } }
+        };
+
+        //! \brief Unified input assembly used to batch draw calls.
+        static const input_assembly_descriptor UNIFIED_INPUT_ASSEMBLY = { gfx_primitive_topology::primitive_topology_triangle_list };
+
     } // namespace graphics
 } // namespace mango
 

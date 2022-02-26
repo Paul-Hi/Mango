@@ -36,6 +36,48 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
 
     m_frame_context = m_graphics_device->create_graphics_device_context();
 
+    texture_create_info attachment_info;
+    attachment_info.texture_type   = gfx_texture_type::texture_type_2d;
+    attachment_info.width          = 1;
+    attachment_info.height         = 1;
+    attachment_info.miplevels      = 1;
+    attachment_info.array_layers   = 1;
+    attachment_info.texture_format = gfx_format::r8;
+    default_texture_2D             = m_graphics_device->create_texture(attachment_info);
+    if (!check_creation(default_texture_2D.get(), "default texture 2D"))
+    {
+        MANGO_LOG_ERROR("Resource Creation Failed! Renderer is not available!");
+        return;
+    }
+    attachment_info.texture_type = gfx_texture_type::texture_type_cube_map;
+    default_texture_cube         = m_graphics_device->create_texture(attachment_info);
+    if (!check_creation(default_texture_cube.get(), "default texture cube"))
+    {
+        MANGO_LOG_ERROR("Resource Creation Failed! Renderer is not available!");
+        return;
+    }
+    attachment_info.texture_type = gfx_texture_type::texture_type_2d_array;
+    attachment_info.array_layers = 3;
+    default_texture_array        = m_graphics_device->create_texture(attachment_info);
+    if (!check_creation(default_texture_array.get(), "default texture array"))
+    {
+        MANGO_LOG_ERROR("Resource Creation Failed! Renderer is not available!");
+        return;
+    }
+
+    texture_set_description set_desc;
+    set_desc.level          = 0;
+    set_desc.x_offset       = 0;
+    set_desc.y_offset       = 0;
+    set_desc.z_offset       = 0;
+    set_desc.width          = 1;
+    set_desc.height         = 1;
+    set_desc.depth          = 1;
+    set_desc.pixel_format   = gfx_format::rgba;
+    set_desc.component_type = gfx_format::t_unsigned_byte;
+
+    uint8 albedo[4] = { 1, 1, 1, 255 };
+
     if (!create_renderer_resources())
     {
         MANGO_LOG_ERROR("Resource Creation Failed! Renderer is not available!");
@@ -62,6 +104,11 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
 
     auto device_context = m_graphics_device->create_graphics_device_context();
     device_context->begin();
+    device_context->set_texture_data(default_texture_2D, set_desc, albedo);
+    device_context->set_texture_data(default_texture_cube, set_desc, albedo);
+    set_desc.pixel_format = gfx_format::rgb;
+    set_desc.depth        = 3;
+    device_context->set_texture_data(default_texture_array, set_desc, albedo);
     device_context->set_buffer_data(m_renderer_data_buffer, 0, sizeof(m_renderer_data), &m_renderer_data);
     device_context->set_swap_interval(m_vsync ? 1 : 0);
     device_context->end();
@@ -143,50 +190,10 @@ bool deferred_pbr_renderer::create_textures_and_samplers()
     const int32& h = m_renderer_info.canvas.height;
 
     texture_create_info attachment_info;
-    attachment_info.texture_type   = gfx_texture_type::texture_type_2d;
-    attachment_info.width          = 1;
-    attachment_info.height         = 1;
-    attachment_info.miplevels      = 1;
-    attachment_info.array_layers   = 1;
-    attachment_info.texture_format = gfx_format::r8;
-    default_texture_2D             = m_graphics_device->create_texture(attachment_info);
-    if (!check_creation(default_texture_2D.get(), "default texture 2D"))
-        return false;
-    attachment_info.texture_type = gfx_texture_type::texture_type_cube_map;
-    default_texture_cube         = m_graphics_device->create_texture(attachment_info);
-    if (!check_creation(default_texture_cube.get(), "default texture cube"))
-        return false;
-    attachment_info.texture_type = gfx_texture_type::texture_type_2d_array;
-    attachment_info.array_layers = 3;
-    default_texture_array        = m_graphics_device->create_texture(attachment_info);
-    if (!check_creation(default_texture_array.get(), "default texture array"))
-        return false;
-
-    texture_set_description set_desc;
-    set_desc.level          = 0;
-    set_desc.x_offset       = 0;
-    set_desc.y_offset       = 0;
-    set_desc.z_offset       = 0;
-    set_desc.width          = 1;
-    set_desc.height         = 1;
-    set_desc.depth          = 1;
-    set_desc.pixel_format   = gfx_format::rgba;
-    set_desc.component_type = gfx_format::t_unsigned_byte;
-
-    uint8 albedo[4] = { 1, 1, 1, 255 };
-
-    auto device_context = m_graphics_device->create_graphics_device_context();
-    device_context->begin();
-    device_context->set_texture_data(default_texture_2D, set_desc, albedo);
-    device_context->set_texture_data(default_texture_cube, set_desc, albedo);
-    set_desc.pixel_format = gfx_format::rgb;
-    set_desc.depth        = 3;
-    device_context->set_texture_data(default_texture_array, set_desc, albedo);
-    device_context->end();
-    device_context->submit();
-
+    attachment_info.texture_type = gfx_texture_type::texture_type_2d;
     attachment_info.width        = w;
     attachment_info.height       = h;
+    attachment_info.miplevels    = 1;
     attachment_info.array_layers = 1;
     attachment_info.texture_type = gfx_texture_type::texture_type_2d;
 
@@ -299,7 +306,7 @@ bool deferred_pbr_renderer::create_buffers()
         return false;
 
     buffer_info.buffer_target = gfx_buffer_target::buffer_target_shader_storage;
-    buffer_info.buffer_access = gfx_buffer_access::buffer_access_mapped_access_read_write;
+    buffer_info.buffer_access = gfx_buffer_access::buffer_access_mapped_access_read_write | gfx_buffer_access::buffer_access_persistent_map | gfx_buffer_access::buffer_access_dynamic_storage;
     buffer_info.size          = sizeof(luminance_data);
     m_luminance_data_buffer   = m_graphics_device->create_buffer(buffer_info);
     if (!check_creation(m_luminance_data_buffer.get(), "luminance data buffer"))
@@ -315,6 +322,50 @@ bool deferred_pbr_renderer::create_buffers()
 
     memset(&m_luminance_data_mapping->histogram[0], 0, 256 * sizeof(int32));
     m_luminance_data_mapping->luminance = 1.0f;
+
+    buffer_info.buffer_access = gfx_buffer_access::buffer_access_mapped_access_write | gfx_buffer_access::buffer_access_persistent_map | gfx_buffer_access::buffer_access_dynamic_storage;
+
+    buffer_info.size    = sizeof(model_data) * maximum_per_frame_meshes;
+    m_model_data_buffer = m_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(m_model_data_buffer.get(), "model data buffer"))
+        return false;
+
+    buffer_info.size       = sizeof(material_data) * maximum_per_frame_materials;
+    m_material_data_buffer = m_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(m_material_data_buffer.get(), "material data buffer"))
+        return false;
+
+    buffer_info.buffer_target = gfx_buffer_target::buffer_target_vertex;
+    buffer_info.size          = sizeof(ivec2) * maximum_per_frame_materials;
+    m_id_buffer               = m_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(m_id_buffer.get(), "draw id buffer"))
+        return false;
+
+    buffer_info.buffer_target = gfx_buffer_target::buffer_target_indirect_draw;
+    buffer_info.size          = sizeof(draw_elements_indirect_command) * maximum_per_frame_materials * 5;
+    m_indirect_buffer         = m_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(m_indirect_buffer.get(), "indirect buffer"))
+        return false;
+
+    m_id_buffer_mapping            = nullptr;
+    m_model_data_buffer_mapping    = nullptr;
+    m_material_data_buffer_mapping = nullptr;
+    device_context->begin();
+    m_id_buffer_mapping            = static_cast<ivec2*>(device_context->map_buffer_data(m_id_buffer, 0, sizeof(ivec2) * maximum_per_frame_materials));
+    m_model_data_buffer_mapping    = static_cast<model_data*>(device_context->map_buffer_data(m_model_data_buffer, 0, sizeof(model_data) * maximum_per_frame_meshes));
+    m_material_data_buffer_mapping = static_cast<material_data*>(device_context->map_buffer_data(m_material_data_buffer, 0, sizeof(material_data) * maximum_per_frame_materials));
+    m_indirect_buffer_mapping =
+        static_cast<draw_elements_indirect_command*>(device_context->map_buffer_data(m_indirect_buffer, 0, sizeof(draw_elements_indirect_command) * maximum_per_frame_materials * 5));
+    device_context->end();
+    device_context->submit();
+    if (!check_mapping(m_id_buffer_mapping, "draw id buffer mapping"))
+        return false;
+    if (!check_mapping(m_model_data_buffer_mapping, "model data buffer mapping"))
+        return false;
+    if (!check_mapping(m_material_data_buffer_mapping, "material data buffer mapping"))
+        return false;
+    if (!check_mapping(m_indirect_buffer_mapping, "indirect buffer mapping"))
+        return false;
 
     return true;
 }
@@ -911,7 +962,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     m_renderer_info.last_frame.materials  = 0;
 
     m_frame_context->begin();
-    // m_frame_context->client_wait(m_frame_semaphore);
+    m_frame_context->client_wait(m_frame_semaphore);
     float clear_color[4] = { 0.1f, 0.1f, 0.1f, 1.0f }; // TODO Paul: member or dynamic?
     auto swap_buffer     = m_graphics_device->get_swap_chain_render_target();
 
@@ -962,14 +1013,14 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             if (other.transparent < transparent)
                 return false;
 
-            if (view_depth > other.view_depth)
-                return true;
-            if (other.view_depth > view_depth)
-                return false;
-
             if (material_id < other.material_id)
                 return true;
             if (other.material_id < material_id)
+                return false;
+
+            if (view_depth > other.view_depth)
+                return true;
+            if (other.view_depth > view_depth)
                 return false;
 
             if (primitive_gpu_data_id < other.primitive_gpu_data_id)
@@ -985,8 +1036,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     MANGO_ASSERT(active_camera_data, "Non existing active camera!");
 
     std::vector<draw_key> draws;
-    int32 opaque_count = 0;
-    auto instances     = scene->get_render_instances();
+    auto instances = scene->get_render_instances();
     if (m_debug_bounds)
         m_debug_drawer.clear();
     bounding_frustum camera_frustum;
@@ -1022,6 +1072,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         optional<mat4&> global_transformation_matrix = scene->get_global_transformation_matrix(node->global_matrix_id);
         MANGO_ASSERT(global_transformation_matrix, "Non existing transformation matrix in instances!");
 
+        std::vector<uid> used_materials;
+
         if ((node->type & node_type::mesh) != node_type::hierarchy)
         {
             draw_key a_draw;
@@ -1034,6 +1086,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
             for (auto p : mesh->primitives)
             {
+                m_renderer_info.last_frame.primitives++;
                 optional<primitive&> prim = scene->get_primitive(p);
                 MANGO_ASSERT(prim, "Non existing primitive in instances!");
                 optional<material&> mat = scene->get_material(prim->material);
@@ -1043,26 +1096,19 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 a_draw.material_id           = prim->material;
 
                 a_draw.transparent = mat->alpha_mode > material_alpha_mode::mode_mask;
-                opaque_count += a_draw.transparent ? 0 : 1;
 
                 a_draw.bounding_box = prim->bounding_box.get_transformed(global_transformation_matrix.value());
 
-                if (!a_draw.transparent)
-                    a_draw.view_depth = active_camera_data->per_camera_data.camera_far + 1.0f;
-                else
-                    a_draw.view_depth = active_camera_data->per_camera_data.camera_near - 1.0f;
+                const vec3& bb_center = a_draw.bounding_box.center;
 
-                std::array<vec3, 8> bb_corners = a_draw.bounding_box.get_corners();
-                for (const vec3& corner : bb_corners)
-                {
-                    if (!a_draw.transparent)
-                        a_draw.view_depth = min(a_draw.view_depth, (active_camera_data->per_camera_data.view_matrix.to_mat4() * vec4(corner.x(), corner.y(), corner.z(), 1.0f)).z());
-                    else
-                        a_draw.view_depth = max(a_draw.view_depth, (active_camera_data->per_camera_data.view_matrix.to_mat4() * vec4(corner.x(), corner.y(), corner.z(), 1.0f)).z());
-                }
+                a_draw.view_depth = (active_camera_data->per_camera_data.view_matrix.to_mat4() * vec4(bb_center.x(), bb_center.y(), bb_center.z(), 1.0f)).z();
                 // MANGO_LOG_INFO("{0}", a_draw.view_depth);
 
                 draws.push_back(a_draw);
+                if (std::find(used_materials.begin(), used_materials.end(), a_draw.material_id) == used_materials.end())
+                {
+                    used_materials.push_back(a_draw.material_id);
+                }
             }
         }
     }
@@ -1070,6 +1116,142 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     std::sort(begin(draws), end(draws));
 
     auto warn_missing_draw = [](string what) { MANGO_LOG_WARN("{0} missing for draw. Skipping DrawCall!", what); };
+
+    struct batch // ATM only stuff with same material is batched...
+    {
+        std::vector<int32> counts;
+        std::vector<int64> index_offsets;
+        std::vector<int32> base_vertices;
+        std::vector<axis_aligned_bounding_box> bounds;
+        int32 drawcount;
+
+        uid material_id;
+        axis_aligned_bounding_box bb;
+    };
+
+    uid current_material = invalid_uid;
+    batch current_batch;
+
+    std::vector<batch> batches;
+    int32 global_model_data_index = -1;
+    int32 material_data_index     = 0;
+
+    std::vector<ivec2> ids; // id is (model_data index, material_data index)
+
+    std::vector<material_data> materials;
+    std::vector<model_data> models;
+
+    const primitive_manager& primitive_manager = scene->get_primitive_manager();
+
+    int32 opaque_count = 0;
+    uid last_mesh_gpu_data_id;
+    {
+        NAMED_PROFILE_ZONE("Batch Creation");
+        for (uint32 c = 0; c < draws.size(); ++c)
+        {
+            auto& dc = draws[c];
+
+            if (current_material != dc.material_id)
+            {
+                if (current_material.is_valid())
+                {
+                    optional<material&> mat                   = scene->get_material(current_material);
+                    optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
+                    if (!mat || !mat_gpu_data)
+                    {
+                        warn_missing_draw("Material");
+                        continue;
+                    }
+
+                    batches.push_back(current_batch);
+                    opaque_count += !(mat->alpha_mode > material_alpha_mode::mode_mask);
+
+                    materials.push_back(mat_gpu_data->per_material_data);
+
+                    material_data_index++;
+                }
+                current_material          = dc.material_id;
+                current_batch.material_id = dc.material_id;
+                current_batch.counts.clear();
+                current_batch.index_offsets.clear();
+                current_batch.base_vertices.clear();
+                current_batch.bounds.clear();
+                current_batch.drawcount = 0;
+                current_batch.bb        = dc.bounding_box;
+            }
+            else
+                current_batch.bb.expand(dc.bounding_box);
+            current_batch.drawcount++;
+
+            optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(dc.primitive_gpu_data_id);
+            if (!prim_gpu_data)
+            {
+                warn_missing_draw("Primitive gpu data");
+                continue;
+            }
+
+            // get stuff from primitive manager
+            int64 index_offset;
+            int32 index_count, vertex_count, base_vertex;
+            primitive_manager.get_draw_parameters(prim_gpu_data->manager_id, &index_offset, &index_count, &vertex_count, &base_vertex);
+            current_batch.counts.push_back(index_count);
+            current_batch.index_offsets.push_back(index_offset);
+            current_batch.base_vertices.push_back(base_vertex);
+            current_batch.bounds.push_back(dc.bounding_box);
+
+            bool add_mesh_data = (last_mesh_gpu_data_id != dc.mesh_gpu_data_id);
+            if (add_mesh_data)
+            {
+                global_model_data_index++;
+                optional<mesh_gpu_data&> m_gpu_data = scene->get_mesh_gpu_data(dc.mesh_gpu_data_id);
+                if (!m_gpu_data)
+                {
+                    warn_missing_draw("Mesh gpu data");
+                    continue;
+                }
+
+                // TODO Paul: With unified layout this is always true...
+                m_gpu_data->per_mesh_data.has_normals  = true;
+                m_gpu_data->per_mesh_data.has_tangents = true;
+
+                models.push_back(m_gpu_data->per_mesh_data);
+
+                last_mesh_gpu_data_id = dc.mesh_gpu_data_id;
+            }
+            ids.push_back(ivec2(global_model_data_index, material_data_index));
+        }
+        m_indirect_offset = 0;
+
+        if (current_material.is_valid())
+        {
+            optional<material&> mat                   = scene->get_material(current_material);
+            optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
+            if (!mat || !mat_gpu_data)
+            {
+                warn_missing_draw("Material");
+            }
+            else
+            {
+                batches.push_back(current_batch);
+                opaque_count += !(mat->alpha_mode > material_alpha_mode::mode_mask);
+
+                materials.push_back(mat_gpu_data->per_material_data);
+
+                material_data_index++;
+            }
+        }
+    }
+
+    {
+        NAMED_PROFILE_ZONE("Per Frame Buffers Copy");
+        std::copy(ids.begin(), ids.end(), m_id_buffer_mapping);
+        std::copy(materials.begin(), materials.end(), m_material_data_buffer_mapping);
+        std::copy(models.begin(), models.end(), m_model_data_buffer_mapping);
+    }
+
+    // TODO NEXT: Draw Calls now bottleneck GPU. Indirect Buffer Update could be a reason for that. Maybe we should pregenerate commands and do the culling on the GPU, setting instance count to 0.
+    // TODO NEXT: Also something is not entirely correct, Bistro does have some visual artefacts...
+    primitive_manager.bind_buffers(m_frame_context, m_id_buffer);
 
     const light_stack& ls = scene->get_light_stack();
     auto light_data       = scene->get_light_gpu_data();
@@ -1083,18 +1265,27 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
         if (shadow_pass && !m_renderer_data.debug_view_enabled && !shadow_casters.empty())
         {
+            gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_shadow(graphics::UNIFIED_VERTEX_LAYOUT, graphics::UNIFIED_INPUT_ASSEMBLY);
+            m_frame_context->bind_pipeline(dc_pipeline);
+            m_frame_context->set_render_targets(0, nullptr, shadow_pass->get_shadow_maps_texture());
+            gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(shadow_pass->resolution()), static_cast<float>(shadow_pass->resolution()) };
+            m_frame_context->set_viewport(0, 1, &shadow_viewport);
+            dc_pipeline->get_resource_mapping()->set("model_data", m_model_data_buffer);
+            dc_pipeline->get_resource_mapping()->set("material_data", m_material_data_buffer);
             for (auto sc : shadow_casters)
             {
                 shadow_pass->update_cascades(dt, active_camera_data->per_camera_data.camera_near, active_camera_data->per_camera_data.camera_far,
                                              active_camera_data->per_camera_data.view_projection_matrix.to_mat4(), sc.direction);
                 auto& shadow_data_buffer = shadow_pass->get_shadow_data_buffer();
-                m_frame_context->set_render_targets(0, nullptr, shadow_pass->get_shadow_maps_texture());
-                auto& data = shadow_pass->get_shadow_data();
+                auto& data               = shadow_pass->get_shadow_data();
+
                 for (int32 casc = 0; casc < data.cascade_count; ++casc)
                 {
                     auto& cascade_frustum = shadow_pass->get_cascade_frustum(casc);
 
                     data.cascade = casc;
+                    m_frame_context->set_buffer_data(shadow_data_buffer, 0, sizeof(shadow_map_step::shadow_data), &(data));
+                    dc_pipeline->get_resource_mapping()->set("shadow_data", shadow_data_buffer);
 
                     if (m_debug_bounds)
                     {
@@ -1117,94 +1308,74 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                         m_debug_drawer.add(corners[5], corners[7]);
                     }
 
-                    for (uint32 c = 0; c < draws.size(); ++c)
+                    int32 instance = 0;
+                    for (uint32 c = 0; c < opaque_count; ++c)
                     {
-                        auto& dc = draws[c];
+                        auto& btch = batches[c];
 
                         if (m_frustum_culling)
                         {
-                            auto& bb = dc.bounding_box;
-                            if (!cascade_frustum.intersects(bb))
-                                continue;
-                        }
-
-                        optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(dc.primitive_gpu_data_id);
-                        if (!prim_gpu_data)
-                        {
-                            warn_missing_draw("Primitive gpu data");
-                            continue;
-                        }
-                        optional<mesh_gpu_data&> m_gpu_data = scene->get_mesh_gpu_data(dc.mesh_gpu_data_id);
-                        if (!m_gpu_data)
-                        {
-                            warn_missing_draw("Mesh gpu data");
-                            continue;
-                        }
-                        optional<material&> mat                   = scene->get_material(dc.material_id);
-                        optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
-                        if (!mat || !mat_gpu_data)
-                        {
-                            warn_missing_draw("Material");
-                            continue;
-                        }
-
-                        gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_shadow(prim_gpu_data->vertex_layout, prim_gpu_data->input_assembly, mat->double_sided);
-
-                        m_frame_context->bind_pipeline(dc_pipeline);
-                        gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(shadow_pass->resolution()), static_cast<float>(shadow_pass->resolution()) };
-                        m_frame_context->set_viewport(0, 1, &shadow_viewport);
-
-                        m_frame_context->set_buffer_data(shadow_data_buffer, 0, sizeof(shadow_map_step::shadow_data), &(data));
-                        dc_pipeline->get_resource_mapping()->set("shadow_data", shadow_data_buffer);
-
-                        dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);
-
-                        if (mat_gpu_data->per_material_data.alpha_mode > 1)
-                            continue; // TODO Paul: Transparent shadows?!
-
-                        dc_pipeline->get_resource_mapping()->set("material_data", mat_gpu_data->material_data_buffer);
-
-                        if (mat_gpu_data->per_material_data.base_color_texture)
-                        {
-                            optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
-                            if (!tex)
+                            if (!cascade_frustum.intersects(btch.bb))
                             {
-                                warn_missing_draw("Base Color Texture");
+                                instance += btch.drawcount;
                                 continue;
                             }
-                            dc_pipeline->get_resource_mapping()->set("texture_base_color", tex->graphics_texture);
-                            dc_pipeline->get_resource_mapping()->set("sampler_base_color", tex->graphics_sampler);
                         }
-                        else
+
+                        // Build indirect calls
+                        int32 indirect_start = m_indirect_offset;
+                        for (int32 idx = 0; idx < btch.drawcount; ++idx)
                         {
-                            dc_pipeline->get_resource_mapping()->set("texture_base_color", default_texture_2D);
+                            if (m_frustum_culling)
+                            {
+                                if (!cascade_frustum.intersects(btch.bounds[idx]))
+                                {
+                                    instance++;
+                                    continue;
+                                }
+                            }
+                            draw_elements_indirect_command* cmd = m_indirect_buffer_mapping + m_indirect_offset;
+                            cmd->count                          = btch.counts[idx];
+                            cmd->first_index                    = btch.index_offsets[idx];
+                            cmd->base_vertex                    = btch.base_vertices[idx];
+                            cmd->instance_count                 = 1;
+                            cmd->base_instance                  = instance++;
+                            m_indirect_offset++;
                         }
+                        int32 indirect_calls = m_indirect_offset - indirect_start;
 
-                        m_frame_context->submit_pipeline_state_resources();
-
-                        m_frame_context->set_index_buffer(prim_gpu_data->index_buffer_view.graphics_buffer, prim_gpu_data->index_type);
-
-                        std::vector<gfx_handle<const gfx_buffer>> vbs;
-                        vbs.reserve(prim_gpu_data->vertex_buffer_views.size());
-                        std::vector<int32> bindings;
-                        bindings.reserve(prim_gpu_data->vertex_buffer_views.size());
-                        std::vector<int32> offsets;
-                        offsets.reserve(prim_gpu_data->vertex_buffer_views.size());
-                        int32 idx = 0;
-                        for (auto vbv : prim_gpu_data->vertex_buffer_views)
+                        if (indirect_calls > 0)
                         {
-                            vbs.push_back(vbv.graphics_buffer);
-                            bindings.push_back(idx++);
-                            offsets.push_back(vbv.offset);
+                            optional<material&> mat                   = scene->get_material(btch.material_id);
+                            optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
+                            if (!mat || !mat_gpu_data)
+                            {
+                                warn_missing_draw("Material");
+                                continue;
+                            }
+
+                            if (mat_gpu_data->per_material_data.base_color_texture)
+                            {
+                                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
+                                if (!tex)
+                                {
+                                    warn_missing_draw("Base Color Texture");
+                                    continue;
+                                }
+                                dc_pipeline->get_resource_mapping()->set("texture_base_color", tex->graphics_texture);
+                                dc_pipeline->get_resource_mapping()->set("sampler_base_color", tex->graphics_sampler);
+                            }
+                            else
+                            {
+                                dc_pipeline->get_resource_mapping()->set("texture_base_color", default_texture_2D);
+                            }
+
+                            m_frame_context->submit_pipeline_state_resources();
+
+                            m_renderer_info.last_frame.draw_calls++;
+                            m_frame_context->multi_draw_indirect(m_indirect_buffer, gfx_primitive_topology::primitive_topology_triangle_list, gfx_format::t_unsigned_int,
+                                                                 indirect_start * sizeof(draw_elements_indirect_command), indirect_calls, 0);
                         }
-
-                        m_frame_context->set_vertex_buffers(static_cast<int32>(prim_gpu_data->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
-
-                        m_renderer_info.last_frame.draw_calls++;
-                        m_renderer_info.last_frame.primitives++;
-                        m_renderer_info.last_frame.vertices += std::max(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count);
-                        m_frame_context->draw(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count, prim_gpu_data->draw_call_desc.instance_count,
-                                              prim_gpu_data->draw_call_desc.base_vertex, prim_gpu_data->draw_call_desc.base_instance, prim_gpu_data->draw_call_desc.index_offset);
                     }
                 }
             }
@@ -1216,173 +1387,166 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     {
         GL_NAMED_PROFILE_ZONE("GBuffer Pass");
         NAMED_PROFILE_ZONE("GBuffer Pass");
+        gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_opaque(graphics::UNIFIED_VERTEX_LAYOUT, graphics::UNIFIED_INPUT_ASSEMBLY, m_wireframe);
+        m_frame_context->bind_pipeline(dc_pipeline);
         m_frame_context->set_render_targets(static_cast<int32>(m_gbuffer_render_targets.size()) - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
+        gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
+                                      static_cast<float>(m_renderer_info.canvas.height) };
+        m_frame_context->set_viewport(0, 1, &window_viewport);
+        dc_pipeline->get_resource_mapping()->set("model_data", m_model_data_buffer);
+        dc_pipeline->get_resource_mapping()->set("material_data", m_material_data_buffer);
+        dc_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
+        int32 instance = 0;
         for (int32 c = 0; c < opaque_count; ++c)
         {
-            auto& dc = draws[c];
+            auto& btch = batches[c];
 
             if (m_frustum_culling)
             {
-                auto& bb = dc.bounding_box;
+                auto& bb = btch.bb;
                 if (!camera_frustum.intersects(bb))
-                    continue;
-            }
-            if (m_debug_bounds)
-            {
-                auto& bb     = dc.bounding_box;
-                auto corners = bb.get_corners();
-                m_debug_drawer.set_color(color_rgb(1.0f, 0.0f, 0.0f));
-                m_debug_drawer.add(corners[0], corners[1]);
-                m_debug_drawer.add(corners[1], corners[3]);
-                m_debug_drawer.add(corners[3], corners[2]);
-                m_debug_drawer.add(corners[2], corners[6]);
-                m_debug_drawer.add(corners[6], corners[4]);
-                m_debug_drawer.add(corners[4], corners[0]);
-                m_debug_drawer.add(corners[0], corners[2]);
-
-                m_debug_drawer.add(corners[5], corners[4]);
-                m_debug_drawer.add(corners[4], corners[6]);
-                m_debug_drawer.add(corners[6], corners[7]);
-                m_debug_drawer.add(corners[7], corners[3]);
-                m_debug_drawer.add(corners[3], corners[1]);
-                m_debug_drawer.add(corners[1], corners[5]);
-                m_debug_drawer.add(corners[5], corners[7]);
-            }
-
-            optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(dc.primitive_gpu_data_id);
-            if (!prim_gpu_data)
-            {
-                warn_missing_draw("Primitive gpu data");
-                continue;
-            }
-            optional<mesh_gpu_data&> m_gpu_data = scene->get_mesh_gpu_data(dc.mesh_gpu_data_id);
-            if (!m_gpu_data)
-            {
-                warn_missing_draw("Mesh gpu data");
-                continue;
-            }
-            optional<material&> mat                   = scene->get_material(dc.material_id);
-            optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
-            if (!mat || !mat_gpu_data)
-            {
-                warn_missing_draw("Material");
-                continue;
-            }
-
-            gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_opaque(prim_gpu_data->vertex_layout, prim_gpu_data->input_assembly, m_wireframe, mat->double_sided);
-
-            m_frame_context->bind_pipeline(dc_pipeline);
-            gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
-                                          static_cast<float>(m_renderer_info.canvas.height) };
-            m_frame_context->set_viewport(0, 1, &window_viewport);
-
-            dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);
-            dc_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
-            dc_pipeline->get_resource_mapping()->set("material_data", mat_gpu_data->material_data_buffer);
-
-            if (mat_gpu_data->per_material_data.base_color_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
-                if (!tex)
                 {
-                    warn_missing_draw("Base Color Texture");
+                    instance += btch.drawcount;
                     continue;
                 }
-                dc_pipeline->get_resource_mapping()->set("texture_base_color", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_base_color", tex->graphics_sampler);
             }
-            else
+
+            // Build indirect calls
+            int32 indirect_start = m_indirect_offset;
+            for (int32 idx = 0; idx < btch.drawcount; ++idx)
             {
-                dc_pipeline->get_resource_mapping()->set("texture_base_color", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.roughness_metallic_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->metallic_roughness_texture_gpu_data);
-                if (!tex)
+                if (m_frustum_culling)
                 {
-                    warn_missing_draw("Roughness Metallic Texture");
+                    if (!camera_frustum.intersects(btch.bounds[idx]))
+                    {
+                        instance++;
+                        continue;
+                    }
+                }
+                draw_elements_indirect_command* cmd = m_indirect_buffer_mapping + m_indirect_offset;
+                cmd->count                          = btch.counts[idx];
+                cmd->first_index                    = btch.index_offsets[idx];
+                cmd->base_vertex                    = btch.base_vertices[idx];
+                cmd->instance_count                 = 1;
+                cmd->base_instance                  = instance++;
+                m_indirect_offset++;
+            }
+            int32 indirect_calls = m_indirect_offset - indirect_start;
+
+            if (indirect_calls > 0)
+            {
+                if (m_debug_bounds)
+                {
+                    auto& bb     = btch.bb;
+                    auto corners = bb.get_corners();
+                    m_debug_drawer.set_color(color_rgb(1.0f, 0.0f, 0.0f));
+                    m_debug_drawer.add(corners[0], corners[1]);
+                    m_debug_drawer.add(corners[1], corners[3]);
+                    m_debug_drawer.add(corners[3], corners[2]);
+                    m_debug_drawer.add(corners[2], corners[6]);
+                    m_debug_drawer.add(corners[6], corners[4]);
+                    m_debug_drawer.add(corners[4], corners[0]);
+                    m_debug_drawer.add(corners[0], corners[2]);
+
+                    m_debug_drawer.add(corners[5], corners[4]);
+                    m_debug_drawer.add(corners[4], corners[6]);
+                    m_debug_drawer.add(corners[6], corners[7]);
+                    m_debug_drawer.add(corners[7], corners[3]);
+                    m_debug_drawer.add(corners[3], corners[1]);
+                    m_debug_drawer.add(corners[1], corners[5]);
+                    m_debug_drawer.add(corners[5], corners[7]);
+                }
+
+                optional<material&> mat                   = scene->get_material(btch.material_id);
+                optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
+                if (!mat || !mat_gpu_data)
+                {
+                    warn_missing_draw("Material");
                     continue;
                 }
-                dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_roughness_metallic", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.occlusion_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->occlusion_texture_gpu_data);
-                if (!tex)
+
+                if (mat_gpu_data->per_material_data.base_color_texture)
                 {
-                    warn_missing_draw("Occlusion Texture");
-                    continue;
+                    optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
+                    if (!tex)
+                    {
+                        warn_missing_draw("Base Color Texture");
+                        continue;
+                    }
+                    dc_pipeline->get_resource_mapping()->set("texture_base_color", tex->graphics_texture);
+                    dc_pipeline->get_resource_mapping()->set("sampler_base_color", tex->graphics_sampler);
                 }
-                dc_pipeline->get_resource_mapping()->set("texture_occlusion", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_occlusion", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_occlusion", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.normal_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->normal_texture_gpu_data);
-                if (!tex)
+                else
                 {
-                    warn_missing_draw("Normal Texture");
-                    continue;
+                    dc_pipeline->get_resource_mapping()->set("texture_base_color", default_texture_2D);
                 }
-                dc_pipeline->get_resource_mapping()->set("texture_normal", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_normal", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_normal", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.emissive_color_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->emissive_texture_gpu_data);
-                if (!tex)
+                if (mat_gpu_data->per_material_data.roughness_metallic_texture)
                 {
-                    warn_missing_draw("Emissive Color Texture");
-                    continue;
+                    optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->metallic_roughness_texture_gpu_data);
+                    if (!tex)
+                    {
+                        warn_missing_draw("Roughness Metallic Texture");
+                        continue;
+                    }
+                    dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", tex->graphics_texture);
+                    dc_pipeline->get_resource_mapping()->set("sampler_roughness_metallic", tex->graphics_sampler);
                 }
-                dc_pipeline->get_resource_mapping()->set("texture_emissive_color", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_emissive_color", tex->graphics_sampler);
+                else
+                {
+                    dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", default_texture_2D);
+                }
+                if (mat_gpu_data->per_material_data.occlusion_texture)
+                {
+                    optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->occlusion_texture_gpu_data);
+                    if (!tex)
+                    {
+                        warn_missing_draw("Occlusion Texture");
+                        continue;
+                    }
+                    dc_pipeline->get_resource_mapping()->set("texture_occlusion", tex->graphics_texture);
+                    dc_pipeline->get_resource_mapping()->set("sampler_occlusion", tex->graphics_sampler);
+                }
+                else
+                {
+                    dc_pipeline->get_resource_mapping()->set("texture_occlusion", default_texture_2D);
+                }
+                if (mat_gpu_data->per_material_data.normal_texture)
+                {
+                    optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->normal_texture_gpu_data);
+                    if (!tex)
+                    {
+                        warn_missing_draw("Normal Texture");
+                        continue;
+                    }
+                    dc_pipeline->get_resource_mapping()->set("texture_normal", tex->graphics_texture);
+                    dc_pipeline->get_resource_mapping()->set("sampler_normal", tex->graphics_sampler);
+                }
+                else
+                {
+                    dc_pipeline->get_resource_mapping()->set("texture_normal", default_texture_2D);
+                }
+                if (mat_gpu_data->per_material_data.emissive_color_texture)
+                {
+                    optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->emissive_texture_gpu_data);
+                    if (!tex)
+                    {
+                        warn_missing_draw("Emissive Color Texture");
+                        continue;
+                    }
+                    dc_pipeline->get_resource_mapping()->set("texture_emissive_color", tex->graphics_texture);
+                    dc_pipeline->get_resource_mapping()->set("sampler_emissive_color", tex->graphics_sampler);
+                }
+                else
+                {
+                    dc_pipeline->get_resource_mapping()->set("texture_emissive_color", default_texture_2D);
+                }
+
+                m_frame_context->submit_pipeline_state_resources();
+
+                m_renderer_info.last_frame.draw_calls++;
+                m_frame_context->multi_draw_indirect(m_indirect_buffer, gfx_primitive_topology::primitive_topology_triangle_list, gfx_format::t_unsigned_int,
+                                                     indirect_start * sizeof(draw_elements_indirect_command), indirect_calls, 0);
             }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_emissive_color", default_texture_2D);
-            }
-
-            m_frame_context->submit_pipeline_state_resources();
-
-            m_frame_context->set_index_buffer(prim_gpu_data->index_buffer_view.graphics_buffer, prim_gpu_data->index_type);
-
-            std::vector<gfx_handle<const gfx_buffer>> vbs;
-            vbs.reserve(prim_gpu_data->vertex_buffer_views.size());
-            std::vector<int32> bindings;
-            bindings.reserve(prim_gpu_data->vertex_buffer_views.size());
-            std::vector<int32> offsets;
-            offsets.reserve(prim_gpu_data->vertex_buffer_views.size());
-            int32 idx = 0;
-            for (auto vbv : prim_gpu_data->vertex_buffer_views)
-            {
-                vbs.push_back(vbv.graphics_buffer);
-                bindings.push_back(idx++);
-                offsets.push_back(vbv.offset);
-            }
-
-            m_frame_context->set_vertex_buffers(static_cast<int32>(prim_gpu_data->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
-
-            // m_frame_context->set_render_targets(m_gbuffer_render_targets.size() - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
-
-            m_renderer_info.last_frame.draw_calls++;
-            m_renderer_info.last_frame.primitives++;
-            m_renderer_info.last_frame.vertices += std::max(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count);
-            m_frame_context->draw(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count, prim_gpu_data->draw_call_desc.instance_count,
-                                  prim_gpu_data->draw_call_desc.base_vertex, prim_gpu_data->draw_call_desc.base_instance, prim_gpu_data->draw_call_desc.index_offset);
         }
     }
 
@@ -1403,7 +1567,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_lighting_pass_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
         m_lighting_pass_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer); // TODO Paul: Refill (Atm only filled on construction).
         m_lighting_pass_pipeline->get_resource_mapping()->set("light_data", light_data.light_data_buffer);
-        // m_lighting_pass_pipeline->get_resource_mapping()->set("shadow_data", ); // TODO Paul: Should be filled in the shadow step. Nothing here yet.
+        // m_lighting_pass_pipeline->get_resource_mapping()->set("shadow_data", ); // Set in shadow step -- // TODO Paul: Fishy -.-
 
         m_lighting_pass_pipeline->get_resource_mapping()->set("texture_gbuffer_c0", m_gbuffer_render_targets[0]);
         m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_gbuffer_c0", m_nearest_sampler);
@@ -1470,207 +1634,203 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         }
     }
 
+    primitive_manager.bind_buffers(m_frame_context, m_id_buffer);
+
     // transparent pass
     {
         GL_NAMED_PROFILE_ZONE("Transparent Pass");
         NAMED_PROFILE_ZONE("Transparent Pass");
-        for (uint32 c = opaque_count; c < draws.size(); ++c)
+        gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_transparent(graphics::UNIFIED_VERTEX_LAYOUT, graphics::UNIFIED_INPUT_ASSEMBLY, m_wireframe);
+        m_frame_context->bind_pipeline(dc_pipeline);
+        m_frame_context->set_render_targets(static_cast<int32>(m_gbuffer_render_targets.size()) - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
+        gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
+                                      static_cast<float>(m_renderer_info.canvas.height) };
+        m_frame_context->set_viewport(0, 1, &window_viewport);
+        dc_pipeline->get_resource_mapping()->set("model_data", m_model_data_buffer);
+        dc_pipeline->get_resource_mapping()->set("material_data", m_material_data_buffer);
+        dc_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
+        dc_pipeline->get_resource_mapping()->set("light_data", light_data.light_data_buffer);
+        dc_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer);
+        int32 instance = 0;
+        for (uint32 c = opaque_count; c < batches.size(); ++c)
         {
-            auto& dc = draws[c];
+            auto& btch = batches[c];
 
             if (m_frustum_culling)
             {
-                auto& bb = dc.bounding_box;
+                auto& bb = btch.bb;
                 if (!camera_frustum.intersects(bb))
-                    continue;
-            }
-            if (m_debug_bounds)
-            {
-                auto& bb     = dc.bounding_box;
-                auto corners = bb.get_corners();
-                m_debug_drawer.set_color(color_rgb(1.0f, 0.0f, 0.0f));
-                m_debug_drawer.add(corners[0], corners[1]);
-                m_debug_drawer.add(corners[1], corners[3]);
-                m_debug_drawer.add(corners[3], corners[2]);
-                m_debug_drawer.add(corners[2], corners[6]);
-                m_debug_drawer.add(corners[6], corners[4]);
-                m_debug_drawer.add(corners[4], corners[0]);
-                m_debug_drawer.add(corners[0], corners[2]);
-
-                m_debug_drawer.add(corners[5], corners[4]);
-                m_debug_drawer.add(corners[4], corners[6]);
-                m_debug_drawer.add(corners[6], corners[7]);
-                m_debug_drawer.add(corners[7], corners[3]);
-                m_debug_drawer.add(corners[3], corners[1]);
-                m_debug_drawer.add(corners[1], corners[5]);
-                m_debug_drawer.add(corners[5], corners[7]);
-            }
-
-            optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(dc.primitive_gpu_data_id);
-            if (!prim_gpu_data)
-            {
-                warn_missing_draw("Primitive gpu data");
-                continue;
-            }
-            optional<mesh_gpu_data&> m_gpu_data = scene->get_mesh_gpu_data(dc.mesh_gpu_data_id);
-            if (!m_gpu_data)
-            {
-                warn_missing_draw("Mesh gpu data");
-                continue;
-            }
-            optional<material&> mat                   = scene->get_material(dc.material_id);
-            optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
-            if (!mat || !mat_gpu_data)
-            {
-                warn_missing_draw("Material");
-                continue;
-            }
-
-            gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_transparent(prim_gpu_data->vertex_layout, prim_gpu_data->input_assembly, m_wireframe, mat->double_sided);
-
-            m_frame_context->bind_pipeline(dc_pipeline);
-            gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
-                                          static_cast<float>(m_renderer_info.canvas.height) };
-            m_frame_context->set_viewport(0, 1, &window_viewport);
-
-            dc_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
-            dc_pipeline->get_resource_mapping()->set("light_data", light_data.light_data_buffer);
-            dc_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer);
-            dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);
-            dc_pipeline->get_resource_mapping()->set("material_data", mat_gpu_data->material_data_buffer);
-
-            if (mat_gpu_data->per_material_data.base_color_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
-                if (!tex)
                 {
-                    warn_missing_draw("Base Color Texture");
+                    instance += btch.drawcount;
                     continue;
                 }
-                dc_pipeline->get_resource_mapping()->set("texture_base_color", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_base_color", tex->graphics_sampler);
             }
-            else
+
+            // Build indirect calls
+            int32 indirect_start = m_indirect_offset;
+            for (int32 idx = 0; idx < btch.drawcount; ++idx)
             {
-                dc_pipeline->get_resource_mapping()->set("texture_base_color", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.roughness_metallic_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->metallic_roughness_texture_gpu_data);
-                if (!tex)
+                if (m_frustum_culling)
                 {
-                    warn_missing_draw("Roughness Metallic Texture");
+                    if (!camera_frustum.intersects(btch.bounds[idx]))
+                    {
+                        instance++;
+                        continue;
+                    }
+                }
+                draw_elements_indirect_command* cmd = m_indirect_buffer_mapping + m_indirect_offset;
+                cmd->count                          = btch.counts[idx];
+                cmd->first_index                    = btch.index_offsets[idx];
+                cmd->base_vertex                    = btch.base_vertices[idx];
+                cmd->instance_count                 = 1;
+                cmd->base_instance                  = instance++;
+                m_indirect_offset++;
+            }
+            int32 indirect_calls = m_indirect_offset - indirect_start;
+
+            if (indirect_calls > 0)
+            {
+                if (m_debug_bounds)
+                {
+                    auto& bb     = btch.bb;
+                    auto corners = bb.get_corners();
+                    m_debug_drawer.set_color(color_rgb(1.0f, 0.0f, 0.0f));
+                    m_debug_drawer.add(corners[0], corners[1]);
+                    m_debug_drawer.add(corners[1], corners[3]);
+                    m_debug_drawer.add(corners[3], corners[2]);
+                    m_debug_drawer.add(corners[2], corners[6]);
+                    m_debug_drawer.add(corners[6], corners[4]);
+                    m_debug_drawer.add(corners[4], corners[0]);
+                    m_debug_drawer.add(corners[0], corners[2]);
+
+                    m_debug_drawer.add(corners[5], corners[4]);
+                    m_debug_drawer.add(corners[4], corners[6]);
+                    m_debug_drawer.add(corners[6], corners[7]);
+                    m_debug_drawer.add(corners[7], corners[3]);
+                    m_debug_drawer.add(corners[3], corners[1]);
+                    m_debug_drawer.add(corners[1], corners[5]);
+                    m_debug_drawer.add(corners[5], corners[7]);
+                }
+
+                optional<material&> mat                   = scene->get_material(btch.material_id);
+                optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
+                if (!mat || !mat_gpu_data)
+                {
+                    warn_missing_draw("Material");
                     continue;
                 }
-                dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_roughness_metallic", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.occlusion_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->occlusion_texture_gpu_data);
-                if (!tex)
+
+                if (mat_gpu_data->per_material_data.base_color_texture)
                 {
-                    warn_missing_draw("Occlusion Texture");
-                    continue;
+                    optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
+                    if (!tex)
+                    {
+                        warn_missing_draw("Base Color Texture");
+                        continue;
+                    }
+                    dc_pipeline->get_resource_mapping()->set("texture_base_color", tex->graphics_texture);
+                    dc_pipeline->get_resource_mapping()->set("sampler_base_color", tex->graphics_sampler);
                 }
-                dc_pipeline->get_resource_mapping()->set("texture_occlusion", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_occlusion", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_occlusion", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.normal_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->normal_texture_gpu_data);
-                if (!tex)
+                else
                 {
-                    warn_missing_draw("Normal Texture");
-                    continue;
+                    dc_pipeline->get_resource_mapping()->set("texture_base_color", default_texture_2D);
                 }
-                dc_pipeline->get_resource_mapping()->set("texture_normal", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_normal", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_normal", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.emissive_color_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->emissive_texture_gpu_data);
-                if (!tex)
+                if (mat_gpu_data->per_material_data.roughness_metallic_texture)
                 {
-                    warn_missing_draw("Emissive Color Texture");
-                    continue;
+                    optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->metallic_roughness_texture_gpu_data);
+                    if (!tex)
+                    {
+                        warn_missing_draw("Roughness Metallic Texture");
+                        continue;
+                    }
+                    dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", tex->graphics_texture);
+                    dc_pipeline->get_resource_mapping()->set("sampler_roughness_metallic", tex->graphics_sampler);
                 }
-                dc_pipeline->get_resource_mapping()->set("texture_emissive_color", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_emissive_color", tex->graphics_sampler);
+                else
+                {
+                    dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", default_texture_2D);
+                }
+                if (mat_gpu_data->per_material_data.occlusion_texture)
+                {
+                    optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->occlusion_texture_gpu_data);
+                    if (!tex)
+                    {
+                        warn_missing_draw("Occlusion Texture");
+                        continue;
+                    }
+                    dc_pipeline->get_resource_mapping()->set("texture_occlusion", tex->graphics_texture);
+                    dc_pipeline->get_resource_mapping()->set("sampler_occlusion", tex->graphics_sampler);
+                }
+                else
+                {
+                    dc_pipeline->get_resource_mapping()->set("texture_occlusion", default_texture_2D);
+                }
+                if (mat_gpu_data->per_material_data.normal_texture)
+                {
+                    optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->normal_texture_gpu_data);
+                    if (!tex)
+                    {
+                        warn_missing_draw("Normal Texture");
+                        continue;
+                    }
+                    dc_pipeline->get_resource_mapping()->set("texture_normal", tex->graphics_texture);
+                    dc_pipeline->get_resource_mapping()->set("sampler_normal", tex->graphics_sampler);
+                }
+                else
+                {
+                    dc_pipeline->get_resource_mapping()->set("texture_normal", default_texture_2D);
+                }
+                if (mat_gpu_data->per_material_data.emissive_color_texture)
+                {
+                    optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->emissive_texture_gpu_data);
+                    if (!tex)
+                    {
+                        warn_missing_draw("Emissive Color Texture");
+                        continue;
+                    }
+                    dc_pipeline->get_resource_mapping()->set("texture_emissive_color", tex->graphics_texture);
+                    dc_pipeline->get_resource_mapping()->set("sampler_emissive_color", tex->graphics_sampler);
+                }
+                else
+                {
+                    dc_pipeline->get_resource_mapping()->set("texture_emissive_color", default_texture_2D);
+                }
+
+                if (irradiance && specular) // If this exists the rest has to exist too
+                {
+                    dc_pipeline->get_resource_mapping()->set("texture_irradiance_map", irradiance);
+                    dc_pipeline->get_resource_mapping()->set("sampler_irradiance_map", m_mipmapped_linear_sampler);
+                    dc_pipeline->get_resource_mapping()->set("texture_radiance_map", specular);
+                    dc_pipeline->get_resource_mapping()->set("sampler_radiance_map", m_mipmapped_linear_sampler);
+                    dc_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", ls.get_skylight_brdf_lookup());
+                    dc_pipeline->get_resource_mapping()->set("sampler_brdf_integration_lut", m_linear_sampler);
+                }
+                else
+                {
+                    dc_pipeline->get_resource_mapping()->set("texture_irradiance_map", default_texture_cube);
+                    dc_pipeline->get_resource_mapping()->set("texture_radiance_map", default_texture_cube);
+                    dc_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", default_texture_2D);
+                }
+
+                if (shadow_pass)
+                {
+                    dc_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", shadow_pass->get_shadow_maps_texture());
+                    dc_pipeline->get_resource_mapping()->set("texture_shadow_map", shadow_pass->get_shadow_maps_texture());
+                    dc_pipeline->get_resource_mapping()->set("sampler_shadow_shadow_map", shadow_pass->get_shadow_maps_shadow_sampler());
+                    dc_pipeline->get_resource_mapping()->set("sampler_shadow_map", shadow_pass->get_shadow_maps_sampler());
+                }
+                else
+                {
+                    m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", default_texture_array);
+                    m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map", default_texture_array);
+                }
+
+                m_frame_context->submit_pipeline_state_resources();
+
+                m_renderer_info.last_frame.draw_calls++;
+                m_frame_context->multi_draw_indirect(m_indirect_buffer, gfx_primitive_topology::primitive_topology_triangle_list, gfx_format::t_unsigned_int,
+                                                     indirect_start * sizeof(draw_elements_indirect_command), indirect_calls, 0);
             }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_emissive_color", default_texture_2D);
-            }
-
-            if (irradiance && specular) // If this exists the rest has to exist too
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_irradiance_map", irradiance);
-                dc_pipeline->get_resource_mapping()->set("sampler_irradiance_map", m_mipmapped_linear_sampler);
-                dc_pipeline->get_resource_mapping()->set("texture_radiance_map", specular);
-                dc_pipeline->get_resource_mapping()->set("sampler_radiance_map", m_mipmapped_linear_sampler);
-                dc_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", ls.get_skylight_brdf_lookup());
-                dc_pipeline->get_resource_mapping()->set("sampler_brdf_integration_lut", m_linear_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_irradiance_map", default_texture_cube);
-                dc_pipeline->get_resource_mapping()->set("texture_radiance_map", default_texture_cube);
-                dc_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", default_texture_2D);
-            }
-
-            if (shadow_pass)
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", shadow_pass->get_shadow_maps_texture());
-                dc_pipeline->get_resource_mapping()->set("texture_shadow_map", shadow_pass->get_shadow_maps_texture());
-                dc_pipeline->get_resource_mapping()->set("sampler_shadow_shadow_map", shadow_pass->get_shadow_maps_shadow_sampler());
-                dc_pipeline->get_resource_mapping()->set("sampler_shadow_map", shadow_pass->get_shadow_maps_sampler());
-            }
-            else
-            {
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", default_texture_array);
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map", default_texture_array);
-            }
-
-            m_frame_context->submit_pipeline_state_resources();
-
-            m_frame_context->set_index_buffer(prim_gpu_data->index_buffer_view.graphics_buffer, prim_gpu_data->index_type);
-
-            std::vector<gfx_handle<const gfx_buffer>> vbs;
-            vbs.reserve(prim_gpu_data->vertex_buffer_views.size());
-            std::vector<int32> bindings;
-            bindings.reserve(prim_gpu_data->vertex_buffer_views.size());
-            std::vector<int32> offsets;
-            offsets.reserve(prim_gpu_data->vertex_buffer_views.size());
-            int32 idx = 0;
-            for (auto vbv : prim_gpu_data->vertex_buffer_views)
-            {
-                vbs.push_back(vbv.graphics_buffer);
-                bindings.push_back(idx++);
-                offsets.push_back(vbv.offset);
-            }
-
-            m_frame_context->set_vertex_buffers(static_cast<int32>(prim_gpu_data->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
-
-            // m_frame_context->set_render_targets(m_gbuffer_render_targets.size() - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
-
-            m_renderer_info.last_frame.draw_calls++;
-            m_renderer_info.last_frame.primitives++;
-            m_renderer_info.last_frame.vertices += std::max(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count);
-            m_frame_context->draw(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count, prim_gpu_data->draw_call_desc.instance_count,
-                                  prim_gpu_data->draw_call_desc.base_vertex, prim_gpu_data->draw_call_desc.base_instance, prim_gpu_data->draw_call_desc.index_offset);
         }
     }
 
@@ -1791,7 +1951,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 void deferred_pbr_renderer::present()
 {
     m_frame_context->present();
-    // m_frame_semaphore = m_frame_context->fence(semaphore_create_info());
+    m_frame_semaphore = m_frame_context->fence(semaphore_create_info());
     m_frame_context->end();
     m_frame_context->submit();
 }

@@ -249,7 +249,8 @@ void ui_impl::update(float)
 
     // Render View
     ImVec2 viewport_size           = ImVec2(1080, 720);
-    void* backbuffer_render_target = m_shared_context->get_internal_renderer()->get_ouput_render_target()->native_handle();
+    m_backbuffer                   = m_shared_context->get_internal_renderer()->get_ouput_render_target();
+    void* backbuffer_render_target = m_backbuffer->native_handle();
     if (available_widgets[ui_widget::render_view] && m_enabled_ui_widgets[render_view])
         viewport_size = render_view_widget(backbuffer_render_target, m_enabled_ui_widgets[render_view]);
     content_size = ivec2(viewport_size.x, viewport_size.y);

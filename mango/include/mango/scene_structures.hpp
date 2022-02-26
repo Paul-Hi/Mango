@@ -346,11 +346,6 @@ namespace mango
         //! \brief The \a primitive_type.
         primitive_type type;
 
-        //! \brief True if the \a primitive has normals in the vertex data, else false.
-        bool has_normals;
-        //! \brief True if the \a primitive has tangents in the vertex data, else false.
-        bool has_tangents;
-
         //! \brief The \a uid of the \a primitives \a material.
         uid material;
 
@@ -362,8 +357,6 @@ namespace mango
 
         primitive()
             : type(primitive_type::custom)
-            , has_normals(false)
-            , has_tangents(false)
 
         {
         }

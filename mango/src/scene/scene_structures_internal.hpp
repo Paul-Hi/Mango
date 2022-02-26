@@ -43,36 +43,10 @@ namespace mango
     {
         //! \brief The gpu data per material.
         material_data per_material_data;
-        //! \brief The graphics uniform buffer for uploading \a material_data.
-        gfx_handle<const gfx_buffer> material_data_buffer;
 
         material_gpu_data() = default;
         //! \brief The \a material_gpu_data is an internal scene structure.
         DECLARE_SCENE_INTERNAL(material_gpu_data);
-    };
-
-    //! \brief An internal buffer view structure.
-    struct buffer_view
-    {
-        //! \brief The offset of the \a buffer_view.
-        int32 offset;
-        //! \brief The size of the \a buffer_view.
-        int32 size;
-        //! \brief The stride of the \a buffer_view.
-        int32 stride;
-
-        //! \brief The gpu \a gfx_buffer of the \a buffer_view.
-        gfx_handle<const gfx_buffer> graphics_buffer;
-
-        buffer_view()
-            : offset(0)
-            , size(0)
-            , stride(0)
-            , graphics_buffer(nullptr)
-        {
-        }
-        //! \brief The \a buffer_view is an internal scene structure.
-        DECLARE_SCENE_INTERNAL(buffer_view);
     };
 
     //! \brief The \a primitive gpu data.
@@ -85,19 +59,9 @@ namespace mango
         //! \details The \a renderer does the pipeline setup and should also cache this.
         input_assembly_descriptor input_assembly;
 
-        //! \brief The \a buffer_views used as vertex buffers.
-        std::vector<buffer_view> vertex_buffer_views;
-        //! \brief The \a buffer_view used as index buffer.
-        buffer_view index_buffer_view;
-        //! \brief The \a gfx_format of the indices.
-        gfx_format index_type;
-        //! \brief The \a draw_call_description providing information to schedule a draw call for this \a primitive_gpu_data.
-        draw_call_description draw_call_desc;
+        uid manager_id;
 
-        primitive_gpu_data()
-            : index_type(gfx_format::t_unsigned_byte)
-        {
-        }
+        primitive_gpu_data() {}
         //! \brief The \a primitive_gpu_data is an internal scene structure.
         DECLARE_SCENE_INTERNAL(primitive_gpu_data);
     };
@@ -107,8 +71,6 @@ namespace mango
     {
         //! \brief The gpu data per mesh.
         model_data per_mesh_data;
-        //! \brief The graphics uniform buffer for uploading \a model_data.
-        gfx_handle<const gfx_buffer> model_data_buffer;
 
         mesh_gpu_data() = default;
         //! \brief The \a mesh_gpu_data is an internal scene structure.

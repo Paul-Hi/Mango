@@ -131,6 +131,19 @@ namespace mango
         //! \brief The mapped luminance data from the data calculation.
         luminance_data* m_luminance_data_mapping;
 
+        // Batch buffers
+        gfx_handle<const gfx_buffer> m_id_buffer;
+        gfx_handle<const gfx_buffer> m_model_data_buffer;
+        gfx_handle<const gfx_buffer> m_material_data_buffer;
+
+        ivec2* m_id_buffer_mapping;
+        model_data* m_model_data_buffer_mapping;
+        material_data* m_material_data_buffer_mapping;
+
+        gfx_handle<const gfx_buffer> m_indirect_buffer;
+        draw_elements_indirect_command* m_indirect_buffer_mapping;
+        int32 m_indirect_offset;
+
         /*
         //! \brief The \a gfx_semaphore used to synchronize luminance calculation.
         gfx_handle<const gfx_semaphore> m_luminance_semaphore;
@@ -145,14 +158,14 @@ namespace mango
         //! \brief True if the renderer should cull primitives against camera and shadow frusta, else false.
         bool m_frustum_culling;
 
-        /*
         //! \brief The \a gfx_semaphore used to synchronize \a renderer frames.
         gfx_handle<const gfx_semaphore> m_frame_semaphore;
-        */
 
         float get_average_luminance() const override;
-    };
 
+        const int32 maximum_per_frame_meshes    = 8192;  // Same as scene mesh maximum
+        const int32 maximum_per_frame_materials = 16384; // Same as scene material maximum
+    };
 } // namespace mango
 
 #endif // MANGO_DEFERRED_PBR_RENDERER_HPP

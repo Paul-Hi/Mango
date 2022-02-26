@@ -33,9 +33,8 @@ gl_handle gl_vertex_array_cache::get_vertex_array(const vertex_array_data_descri
     vertex_array_key key;
     vao_create_info create_info;
 
-    if (desc.index_count)
+    if (*desc.index_buffer)
     {
-        MANGO_ASSERT(desc.index_buffer, "Index count > 0, but index buffer not provided!");
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_buffer>(*desc.index_buffer), "Buffer is not a gl_buffer!");
         auto ib          = static_gfx_handle_cast<const gl_buffer>(*desc.index_buffer);
         key.index_buffer = ib->get_uid();
@@ -110,11 +109,15 @@ gl_handle gl_vertex_array_cache::create(const vao_create_info& create_info, cons
 
         gl_enum type           = 0;
         int32 number_of_values = 0;
-        bool normalized        = 0;
-        gfx_format_to_gl_attribute_data(attribute_format, type, number_of_values, normalized);
+        bool normalized        = false;
+        bool integer_type      = false;
+        gfx_format_to_gl_attribute_data(attribute_format, type, number_of_values, normalized, integer_type);
 
         glEnableVertexArrayAttrib(vertex_array, attribute_index);
-        glVertexArrayAttribFormat(vertex_array, attribute_index, number_of_values, type, normalized, relative_offset);
+        if(integer_type && !normalized)
+            glVertexArrayAttribIFormat(vertex_array, attribute_index, number_of_values, type, relative_offset);
+        else
+            glVertexArrayAttribFormat(vertex_array, attribute_index, number_of_values, type, normalized, relative_offset);
         glVertexArrayAttribBinding(vertex_array, attribute_index, buffer_index);
     }
 

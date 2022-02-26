@@ -130,7 +130,7 @@ namespace mango
             gl_handle index_buffer_handle = 0; // No object is zero.
         };
 
-        //! \brief Creates a framebuffer and returns th handle from opengl.
+        //! \brief Creates a framebuffer and returns the handle from opengl.
         //! \param[in] create_info The \a framebuffer_create_info used for creation.
         //! \param[in] input_descriptor The \a vertex_input_descriptor describing the layout of the vertex attributes.
         //! \return The \a gl_handle of the created opengl framebuffer.

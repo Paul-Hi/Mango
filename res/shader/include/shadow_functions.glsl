@@ -1,9 +1,12 @@
 #ifndef MANGO_SHADOW_FUNCTIONS_GLSL
 #define MANGO_SHADOW_FUNCTIONS_GLSL
 
-#include <shadow.glsl>
-#include <camera.glsl>
 #include <common_constants_and_functions.glsl>
+
+#define BIND_CAMERA_DATA_BUFFER
+#define BIND_SHADOW_DATA_BUFFER
+
+#include <binding_data.glsl>
 
 // interpolation_mode: 0 -> no interpolation | 1 -> interpolation from cascade_id to cascade_id + 1 - shadow_cascade_interpolation_range | 2 -> interpolation from cascade_id - 1  + shadow_cascade_interpolation_range to cascade_id
 int compute_cascade_id(in float view_depth, out float interpolation_factor, out int interpolation_mode) // xy texcoords, z depth

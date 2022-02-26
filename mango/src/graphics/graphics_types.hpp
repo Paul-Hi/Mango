@@ -532,7 +532,8 @@ namespace mango
         buffer_target_uniform,
         buffer_target_shader_storage,
         buffer_target_texture,
-        buffer_target_last = buffer_target_texture
+        buffer_target_indirect_draw,
+        buffer_target_last = buffer_target_indirect_draw
     };
 
     //! \brief Bit specification providing access information for buffers.
@@ -542,6 +543,7 @@ namespace mango
         buffer_access_dynamic_storage          = 1 << 0,
         buffer_access_mapped_access_read       = 1 << 1,
         buffer_access_mapped_access_write      = 1 << 2,
+        buffer_access_persistent_map           = 1 << 3,
         buffer_access_mapped_access_read_write = buffer_access_mapped_access_read | buffer_access_mapped_access_write,
         buffer_access_last                     = buffer_access_mapped_access_read_write
     };
@@ -589,6 +591,15 @@ namespace mango
         sampler_edge_wrap_clamp_to_edge_mirrored,
         sampler_edge_wrap_last = sampler_edge_wrap_clamp_to_edge_mirrored
     };
+
+    typedef struct
+    {
+        uint32 count;
+        uint32 instance_count;
+        uint32 first_index;
+        uint32 base_vertex;
+        uint32 base_instance;
+    } draw_elements_indirect_command;
 
     // TODO Paul: Should these be in here?
     //! \brief A boolean in the glsl std140 layout.

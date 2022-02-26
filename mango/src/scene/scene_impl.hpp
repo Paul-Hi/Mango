@@ -13,6 +13,7 @@
 #include <map>
 #include <queue>
 #include <rendering/light_stack.hpp>
+#include <scene/primitive_manager.hpp>
 #include <scene/scene_structures_internal.hpp>
 #include <util/helpers.hpp>
 
@@ -117,11 +118,6 @@ namespace mango
         //! \return The constant \a light_gpu_data reference.
         const light_gpu_data& get_light_gpu_data();
 
-        //! \brief Retrieves a \a buffer_view from the \a scene.
-        //! \param[in] instance_id The \a uid of the \a buffer_view to retrieve from the \a scene.
-        //! \return An optional \a buffer_view reference.
-        optional<buffer_view&> get_buffer_view(uid instance_id);
-
         //! \brief Retrieves the \a camera_gpu_data from the active \a camera from the \a scene.
         //! \return The optional \a camera_gpu_data referenced from the active \a camera.
         optional<camera_gpu_data&> get_active_camera_gpu_data();
@@ -171,7 +167,66 @@ namespace mango
             return m_requires_auto_exposure;
         }
 
+        inline const primitive_manager& get_primitive_manager()
+        {
+            return m_primitive_manager;
+        }
+
       private:
+        struct buffer_view_item
+        {
+            int32 buffer_size;
+            int32 element_stride;
+
+            gfx_buffer_target target;
+
+            const uint8* data_ptr;
+        };
+
+        void fill_and_convert_index_array(const buffer_view_item& item, std::vector<uint32>& out_vector, int32 item_count, gfx_format index_type, int32 offset = 0)
+        {
+            // indices can only have type ubyte, ushort or uint
+            if (index_type == gfx_format::t_unsigned_byte)
+            {
+                out_vector.reserve(item_count);
+                for (int32 i = 0; i < item_count; ++i)
+                {
+                    uint8 value = *(uint8*)(item.data_ptr + offset + i * item.element_stride); // TODO Paul: Recheck that!
+                    out_vector.push_back(static_cast<uint32>(value));
+                }
+            }
+            if (index_type == gfx_format::t_unsigned_short)
+            {
+                out_vector.reserve(item_count);
+                for (int32 i = 0; i < item_count; ++i)
+                {
+                    uint16 value = *(uint16*)(item.data_ptr + offset + i * item.element_stride); // TODO Paul: Recheck that!
+                    out_vector.push_back(static_cast<uint32>(value));
+                }
+            }
+            if (index_type == gfx_format::t_unsigned_int)
+            {
+                out_vector.reserve(item_count);
+                for (int32 i = 0; i < item_count; ++i)
+                {
+                    uint32 value = *(uint32*)(item.data_ptr + offset + i * item.element_stride); // TODO Paul: Recheck that!
+                    out_vector.push_back(value);
+                }
+            }
+        }
+
+        template <typename T>
+        void fill_and_convert_attribute_array(const buffer_view_item& item, std::vector<T>& out_vector, int32 item_count, int32 offset = 0)
+        {
+            out_vector.reserve(item_count);
+            for (int32 i = 0; i < item_count; ++i)
+            {
+                Eigen::Map<T> mapped((T::Scalar*)(item.data_ptr + offset + i * item.element_stride)); // TODO Paul: Recheck that!
+                T value = mapped;
+                out_vector.push_back(value);
+            }
+        }
+
         //! \brief Loads an image from a path and creates and returns a \a gfx_texture and \a gfx_sampler for the image.
         //! \param[in] path The full path to the image to load.
         //! \param[in] standard_color_space True if the image should be loaded in standard color space, else false.
@@ -200,9 +255,9 @@ namespace mango
         //! \brief Builds a \a node from a tinygltf model node.
         //! \param[in] m The loaded tinygltf model.
         //! \param[in] n The tinygltf model node.
-        //! \param[in] buffer_view_ids The \a uids of all loaded \a buffer_views.
+        //! \param[in] buffer_view_items The loaded \a buffer_view_items.
         //! \return The \a uid of the created \a node.
-        uid build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<uid>& buffer_view_ids);
+        uid build_model_node(tinygltf::Model& m, tinygltf::Node& n, std::vector<buffer_view_item>& buffer_view_items);
 
         //! \brief Builds a \a camera from a tinygltf model camera.
         //! \param[in] t_camera The loaded tinygltf model camera.
@@ -216,9 +271,9 @@ namespace mango
         //! \param[in] m The loaded tinygltf model.
         //! \param[in] t_mesh The loaded tinygltf model mesh.
         //! \param[in] node_id The \a uid of the \a node the \a mesh should be added to.
-        //! \param[in] buffer_view_ids The \a uids of all loaded \a buffer_views.
+        //! \param[in] buffer_view_items The loaded \a buffer_view_items.
         //! \return The \a uid of the created \a mesh.
-        uid build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid node_id, const std::vector<uid>& buffer_view_ids);
+        uid build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid node_id, std::vector<buffer_view_item>& buffer_view_items);
 
         //! \brief Builds a \a material from a tinygltf model material.
         //! \param[in] primitive_material The loaded tinygltf model material.
@@ -246,6 +301,8 @@ namespace mango
 
         //! \brief Mangos internal context for shared usage in all \a scenes.
         shared_ptr<context_impl> m_shared_context;
+
+        primitive_manager m_primitive_manager;
 
         //! \brief The light stack managing all lights.
         light_stack m_light_stack;
@@ -293,11 +350,8 @@ namespace mango
         //! \brief The \a packed_freelist for all \a atmospheric_lights in the \a scene.
         packed_freelist<atmospheric_light, 32> m_atmospheric_lights;
 
-        //! \brief The \a packed_freelist for all \a buffer_views in the \a scene.
-        packed_freelist<buffer_view, 16384> m_buffer_views;
-
-        //! \brief Maps names of materials to already loaded \a material \a uids.
-        std::map<string, uid> material_name_to_uid;
+        //! \brief Maps gltf index of materials to already loaded \a material \a uids.
+        std::map<int, uid> material_index_to_uid;
 
         //! \brief The internal recursive function to draw the hierarchy of \a nodes in a ui widget.
         //! \param[in] current The current \a nodes \a uid to inspect and draw.

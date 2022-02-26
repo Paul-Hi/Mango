@@ -1,11 +1,14 @@
 #include <../include/common_constants_and_functions.glsl>
-#include <../include/camera.glsl>
-#include <../include/renderer.glsl>
-#include <../include/light.glsl>
 
 out vec4 frag_color;
 
 in vec3 shared_texcoord;
+
+#define BIND_RENDERER_DATA_BUFFER
+#define BIND_CAMERA_DATA_BUFFER
+#define BIND_LIGHT_DATA_BUFFER
+
+#include <../include/binding_data.glsl>
 
 layout(binding = 0) uniform samplerCube sampler_environment_cubemap; // texture "texture_environment_cubemap"
 

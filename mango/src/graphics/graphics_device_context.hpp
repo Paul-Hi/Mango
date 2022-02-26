@@ -47,6 +47,11 @@ namespace mango
         //! \return A pointer to the data.
         virtual void* map_buffer_data(gfx_handle<const gfx_buffer> buffer_handle, int32 offset, int32 size) = 0;
 
+        //! \brief Unmaps the data of a \a gfx_buffer on the gpu.
+        //! \param[in] buffer_handle The \a gfx_handle of the \a gfx_buffer to unmap the data for.
+        //! \return True on sucess, else False.
+        virtual bool unmap_buffer_data(gfx_handle<const gfx_buffer> buffer_handle) = 0;
+
         //! \brief Sets the data of a \a gfx_texture on the gpu.
         //! \param[in] texture_handle The \a gfx_handle of the \a gfx_texture to set the data for.
         //! \param[in] desc The \a texture_set_description holding all information how and where exactly to set the data.
@@ -161,6 +166,27 @@ namespace mango
         //! \param[in] base_instance Constant value that should be added when fetching instanced vertex attributes.
         //! \param[in] index_offset The offset in the index array.
         virtual void draw(int32 vertex_count, int32 index_count, int32 instance_count, int32 base_vertex, int32 base_instance, int32 index_offset) = 0;
+
+        //! \brief Schedules a multi draw call on the gpu.
+        //! \details Requires a bound \a gfx_pipeline.
+        //! \param[in] mode The \a gfx_primitive_topology the data is in.
+        //! \param[in] count List of element counts.
+        //! \param[in] index_type The type of the indices.
+        //! \param[in] index_offset List of offsets in the index array.
+        //! \param[in] drawcount Size of the count, index_offset and base_vertex lists.
+        //! \param[in] base_vertex List of base vertex offsets.
+        virtual void multi_draw(gfx_primitive_topology mode, const int32* count, gfx_format index_type, const int64* index_offset, int32 drawcount, const int32* base_vertex) = 0;
+
+        //! \brief Schedules a indirect multi draw call on the gpu.
+        //! \details Requires a bound \a gfx_pipeline.
+        //! \param[in] indirect_buffer The \a gfx_buffer the data is stored in.
+        //! \param[in] mode The \a gfx_primitive_topology the data is in.
+        //! \param[in] index_type The type of the indices.
+        //! \param[in] indirect_offset Offset in the indirect array.
+        //! \param[in] drawcount Size of the count, index_offset and base_vertex lists.
+        //! \param[in] stride Stride of the commands.
+        virtual void multi_draw_indirect(gfx_handle<const gfx_buffer> indirect_buffer, gfx_primitive_topology mode, gfx_format index_type, const int64 indirect_offset, int32 drawcount,
+                                         const int32 stride) = 0;
 
         //! \brief Schedules a compute dispatch on the gpu.
         //! \details Requires a bound \a gfx_pipeline.

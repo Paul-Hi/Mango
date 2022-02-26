@@ -8,14 +8,10 @@ const float width_sqr = 2048.0 * 2048.0; // TODO Paul: Hardcoded and random sinc
 
 layout(local_size_x = 32, local_size_y = 32) in;
 
-layout(binding = 0) uniform samplerCube sampler_cubemap_in; // texture "texture_cubemap_in"
-layout(binding = 1, rgba16f) uniform writeonly imageCube irradiance_map_out;
+#define BIND_IBL_GENERATION_DATA_BUFFER
+#define BIND_IBL_IRRADIANCE_GENERATION_DATA
 
-layout(binding = 3) uniform ibl_generation_data
-{
-    vec2 out_size;
-    vec2 data;
-};
+#include <../include/binding_data.glsl>
 
 void main()
 {

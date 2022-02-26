@@ -26,7 +26,6 @@ namespace mango
 #include <mango/imgui_helper.hpp>
 #include <mango/input_codes.hpp>
 #include <mango/log.hpp>
-// #include <mango/mesh_factory.hpp>
 #include <mango/profile.hpp>
 #include <mango/renderer.hpp>
 #include <mango/resource_structures.hpp>

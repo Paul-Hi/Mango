@@ -10,7 +10,6 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/input_codes.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/profile.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/imgui_helper.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/mesh_factory.hpp
 
     # Display
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/display.hpp
@@ -55,9 +54,11 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/input_impl.hpp
     # Resources
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resources_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/primitive_builder.hpp
     # Scene
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_structures_internal.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_impl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/primitive_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_helper.hpp
     # UI
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_impl.hpp
@@ -89,6 +90,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/debug_drawer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/ring_buffer_manager.hpp
 )
 
 set(SOURCES
@@ -97,7 +99,6 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/environment_display_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.cpp
-    # ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/mesh_factory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/linear_allocator.cpp
@@ -115,9 +116,11 @@ set(SOURCES
     # Graphics
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics.cpp
     # Resources
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/primitive_builder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resources_impl.cpp
     # Scene
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/primitive_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_helper.cpp
     # UI
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_impl.cpp

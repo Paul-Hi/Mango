@@ -38,6 +38,8 @@ namespace mango
 #define VERTEX_INPUT_TEXCOORD 2
     //! \brief The vertex input binding point for the tangent vertex attribute.
 #define VERTEX_INPUT_TANGENT 3
+    //! \brief The vertex input binding point for the draw id vertex attribute.
+#define VERTEX_INPUT_DRAW_ID 4
 
     //! \brief The target binding point for the gbuffer color attachment 0.
 #define GBUFFER_OUTPUT_TARGET0 0
@@ -88,6 +90,15 @@ namespace mango
 
     //! \brief The image binding point for the output target color hdr attachment to compute the average luminance for.
 #define HDR_IMAGE_LUMINANCE_COMPUTE 0
+
+    //! \brief The buffer binding point for the ibl generation data used to generate image based lighting convolution textures.
+#define IBL_GENERATION_DATA_BUFFER_BINDING_POINT 3
+    //! \brief The image binding point for the lookup image used to generate image based lighting convolution textures.
+#define IBL_INTEGRATION_LUT 0
+    //! \brief The sampler and texture binding point for the hdr cubemap used to generate image based lighting convolution textures.
+#define IBL_SAMPLER_CUBEMAP 0
+    //! \brief The image binding point to write generated output maps used in image based lighting convolution textures.
+#define IBL_IMAGE_CUBE_OUT 1
 
     //! \brief Uniform buffer struct for renderer data.
     //! \details Bound once per frame to binding point 0.
@@ -154,15 +165,6 @@ namespace mango
         std140_float padding0;                  //!< Padding.
     };
 
-    //! \brief Structure to store data for adaptive exposure.
-    //! \details Bound to binding point 6.
-    struct luminance_data
-    {
-        std140_int histogram[256]; //!< The histogram data
-        std140_vec4 params;        //!< Parameters used for automatic exposure calculation.
-        std140_float luminance;    //!< Smoothed out average luminance.
-    };
-
     //! \brief Structure to store data for light data.
     //! \details Bound to binding point 4.
     struct light_data
@@ -187,6 +189,15 @@ namespace mango
         std140_float padding0; //!< Padding.
         std140_float padding1; //!< Padding.
         std140_float padding2; //!< Padding.
+    };
+
+    //! \brief Structure to store data for adaptive exposure.
+    //! \details Bound to binding point 6.
+    struct luminance_data
+    {
+        std140_int histogram[256]; //!< The histogram data
+        std140_vec4 params;        //!< Parameters used for automatic exposure calculation.
+        std140_float luminance;    //!< Smoothed out average luminance.
     };
 
     //! \brief The implementation of the \a renderer.

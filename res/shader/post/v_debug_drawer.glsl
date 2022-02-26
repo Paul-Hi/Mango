@@ -1,4 +1,7 @@
-#include <../include/camera.glsl>
+
+#define BIND_CAMERA_DATA_BUFFER
+
+#include <../include/binding_data.glsl>
 
 layout(location = 0) in vec3 vertex_data_position;
 layout(location = 1) in vec3 vertex_data_color;

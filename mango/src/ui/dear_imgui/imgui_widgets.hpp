@@ -10,7 +10,6 @@
 #include "tinyfiledialogs.h"
 #include <core/context_impl.hpp>
 #include <mango/imgui_helper.hpp>
-#include <mango/mesh_factory.hpp>
 #include <scene/scene_impl.hpp>
 #include <ui/dear_imgui/icons_font_awesome_5.hpp>
 #include <ui/dear_imgui/imgui_glfw.hpp>
@@ -742,18 +741,6 @@ namespace mango
             details::draw_component("Primitive",
                                     [&prim]()
                                     {
-                                        custom_info("Vertex Normals: ",
-                                                    [&prim]()
-                                                    {
-                                                        ImGui::AlignTextToFramePadding();
-                                                        ImGui::Text(prim->has_normals ? ICON_FA_CHECK : ICON_FA_TIMES);
-                                                    });
-                                        custom_info("Vertex Tangents: ",
-                                                    [&prim]()
-                                                    {
-                                                        ImGui::AlignTextToFramePadding();
-                                                        ImGui::Text(prim->has_tangents ? ICON_FA_CHECK : ICON_FA_TIMES);
-                                                    });
                                     });
         }
 

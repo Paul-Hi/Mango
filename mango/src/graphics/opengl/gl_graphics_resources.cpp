@@ -61,7 +61,8 @@ gl_buffer gl_buffer::dummy()
 
 gl_buffer::~gl_buffer()
 {
-    glDeleteBuffers(1, &m_buffer_gl_handle);
+    if(m_buffer_gl_handle)
+        glDeleteBuffers(1, &m_buffer_gl_handle);
 }
 
 gl_texture::gl_texture(const texture_create_info& info)
@@ -96,7 +97,7 @@ gl_texture::gl_texture(const texture_create_info& info)
     default:
         MANGO_LOG_ERROR("Unknown texture_type!");
     }
-    // Binding reqiured since we only use glBindTextures later // TODO Paul: Check!
+    // Binding required since we only use glBindTextures later // TODO Paul: Check!
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(gfx_texture_type_to_gl(m_info.texture_type), m_texture_gl_handle);
     glBindTexture(gfx_texture_type_to_gl(m_info.texture_type), 0);
@@ -111,7 +112,8 @@ gl_texture gl_texture::dummy()
 
 gl_texture::~gl_texture()
 {
-    glDeleteTextures(1, &m_texture_gl_handle);
+    if(m_texture_gl_handle)
+        glDeleteTextures(1, &m_texture_gl_handle);
 }
 
 gl_sampler::gl_sampler(const sampler_create_info& info)
@@ -149,7 +151,8 @@ gl_sampler gl_sampler::dummy()
 
 gl_sampler::~gl_sampler()
 {
-    glDeleteSamplers(1, &m_sampler_gl_handle);
+    if(m_sampler_gl_handle)
+        glDeleteSamplers(1, &m_sampler_gl_handle);
 }
 
 gl_semaphore::gl_semaphore(const semaphore_create_info& info)

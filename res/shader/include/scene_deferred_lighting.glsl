@@ -21,13 +21,12 @@ layout(binding = IBL_SAMPLER_LOOKUP) uniform sampler2D sampler_brdf_integration_
 layout(binding = SAMPLER_SHADOW_SHADOW_MAP) uniform sampler2DArrayShadow sampler_shadow_shadow_map; // texture "texture_shadow_map_comp"
 layout(binding = SAMPLER_SHADOW_MAP) uniform sampler2DArray sampler_shadow_map; // texture "texture_shadow_map"
 
-#include <renderer.glsl>
+#define BIND_RENDERER_DATA_BUFFER
+#define BIND_CAMERA_DATA_BUFFER
+#define BIND_LIGHT_DATA_BUFFER
+#define BIND_SHADOW_DATA_BUFFER
 
-#include <camera.glsl>
-
-#include <light.glsl>
-
-#include <shadow.glsl>
+#include <binding_data.glsl>
 
 vec4 get_base_color()
 {

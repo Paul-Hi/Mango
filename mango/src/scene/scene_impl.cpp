@@ -8,6 +8,7 @@
 #include <glad/glad.h>
 #include <mango/profile.hpp>
 #include <mango/resources.hpp>
+#include <resources/primitive_builder.hpp>
 #include <scene/scene_helper.hpp>
 #include <scene/scene_impl.hpp>
 #include <ui/dear_imgui/icons_font_awesome_5.hpp>
@@ -42,7 +43,6 @@ scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& conte
     , m_directional_lights()
     , m_skylights()
     , m_atmospheric_lights()
-    , m_buffer_views()
     , m_scene_graphics_device(m_shared_context->get_graphics_device())
 {
     PROFILE_ZONE;
@@ -50,6 +50,15 @@ scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& conte
 
     // create light stack
     m_light_stack.init(m_shared_context);
+
+    buffer_create_info buffer_info;
+    buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
+    buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
+    buffer_info.size          = sizeof(light_data);
+    // light_data is filled by the light_stack
+    m_light_gpu_data.light_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(m_light_gpu_data.light_data_buffer.get(), "light data buffer"))
+        MANGO_LOG_ERROR("Scene corrupted");
 
     node root("Root");
     root.transform_id     = m_transforms.emplace();
@@ -298,14 +307,7 @@ uid scene_impl::build_material(material& new_material)
 {
     PROFILE_ZONE;
 
-    buffer_create_info buffer_info;
-    buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
-    buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
-    buffer_info.size          = sizeof(material_data);
     material_gpu_data data;
-    data.material_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
-    if (!check_creation(data.material_data_buffer.get(), "material data buffer"))
-        return invalid_uid;
 
     data.per_material_data.base_color                 = new_material.base_color.as_vec4();
     data.per_material_data.emissive_color             = new_material.emissive_color.as_vec3();
@@ -320,12 +322,6 @@ uid scene_impl::build_material(material& new_material)
     data.per_material_data.emissive_intensity         = new_material.emissive_intensity;
     data.per_material_data.alpha_mode                 = static_cast<uint8>(new_material.alpha_mode);
     data.per_material_data.alpha_cutoff               = new_material.alpha_cutoff;
-
-    auto device_context = m_scene_graphics_device->create_graphics_device_context();
-    device_context->begin();
-    device_context->set_buffer_data(data.material_data_buffer, 0, sizeof(material_data), const_cast<void*>((void*)(&(data.per_material_data))));
-    device_context->end();
-    device_context->submit();
 
     new_material.changed  = false;
     new_material.gpu_data = m_material_gpu_data.emplace(data);
@@ -603,6 +599,26 @@ void scene_impl::remove_mesh(uid node_id)
     node.type &= ~node_type::mesh;
     node.mesh_id = invalid_uid;
 
+    // remove primitives
+    for (uid prim_id : to_remove.primitives)
+    {
+        if (!m_primitives.contains(prim_id))
+        {
+            MANGO_LOG_WARN("Primitive with ID {0} does not exist! Can not remove mesh!", prim_id.get());
+            return;
+        }
+        const primitive& prim_to_remove = m_primitives.at(prim_id);
+
+        uid prim_gpu_data_id = to_remove.gpu_data;
+        MANGO_ASSERT(m_primitive_gpu_data.contains(prim_gpu_data_id), "Primitive gpu data for primitive does not exist!");
+
+        const primitive_gpu_data& prim_gpu_data = m_primitive_gpu_data.at(prim_gpu_data_id);
+        m_primitive_manager.remove_primitive(prim_gpu_data.manager_id);
+
+        m_primitive_gpu_data.erase(prim_gpu_data_id);
+        m_primitives.erase(mesh_id);
+    }
+
     m_mesh_gpu_data.erase(gpu_data_id);
     m_meshes.erase(mesh_id);
 }
@@ -763,15 +779,6 @@ void scene_impl::instantiate_model_scene(uid node_id, uid parent_id)
     {
         mesh copy               = m_meshes.at(nd.mesh_id);
         mesh_gpu_data data_copy = m_mesh_gpu_data.at(copy.gpu_data);
-
-        buffer_create_info buffer_info;
-        buffer_info.buffer_target   = gfx_buffer_target::buffer_target_uniform;
-        buffer_info.buffer_access   = gfx_buffer_access::buffer_access_dynamic_storage;
-        buffer_info.size            = sizeof(model_data);
-        data_copy.model_data_buffer = nullptr;
-        data_copy.model_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
-        if (!check_creation(data_copy.model_data_buffer.get(), "model data buffer"))
-            return;
 
         copy.gpu_data    = m_mesh_gpu_data.emplace(data_copy);
         copy.node_id     = instance_id;
@@ -1320,19 +1327,6 @@ const light_gpu_data& scene_impl::get_light_gpu_data()
     return m_light_gpu_data;
 }
 
-optional<buffer_view&> scene_impl::get_buffer_view(uid instance_id)
-{
-    PROFILE_ZONE;
-
-    if (!m_buffer_views.contains(instance_id))
-    {
-        MANGO_LOG_WARN("Buffer view with ID {0} does not exist! Can not retrieve buffer view!", instance_id.get());
-        return NULL_OPTION;
-    }
-
-    return m_buffer_views.at(instance_id);
-}
-
 optional<camera_gpu_data&> scene_impl::get_active_camera_gpu_data()
 {
     PROFILE_ZONE;
@@ -1501,7 +1495,7 @@ std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& def
     }
 
     // load buffer views and data
-    std::vector<uid> buffer_view_ids(m.bufferViews.size());
+    std::vector<buffer_view_item> buffer_view_items(m.bufferViews.size());
     for (int32 i = 0; i < static_cast<int32>(m.bufferViews.size()); ++i)
     {
         const tinygltf::BufferView& bv = m.bufferViews[i];
@@ -1510,44 +1504,19 @@ std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& def
             MANGO_LOG_DEBUG("Buffer view target is zero!"); // We can continue here.
         }
 
-        buffer_view view;
-        view.offset = 0; // bv.byteOffset; -> Is done on upload.
-        view.size   = static_cast<int32>(bv.byteLength);
-        view.stride = static_cast<int32>(bv.byteStride);
-
-        buffer_create_info buffer_info;
-        buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
-        buffer_info.buffer_target = (bv.target == 0 || bv.target == GL_ARRAY_BUFFER) ? gfx_buffer_target::buffer_target_vertex : gfx_buffer_target::buffer_target_index;
-        buffer_info.size          = bv.byteLength;
-
-        view.graphics_buffer = graphics_device->create_buffer(buffer_info);
-
-        // upload data
         const tinygltf::Buffer& buffer = m.buffers[bv.buffer];
-        auto device_context            = graphics_device->create_graphics_device_context();
-        device_context->begin();
-        const unsigned char* buffer_start = buffer.data.data() + bv.byteOffset;
-        const void* buffer_data           = static_cast<const void*>(buffer_start);
-        device_context->set_buffer_data(view.graphics_buffer, 0, view.size, const_cast<void*>(buffer_data));
-        device_context->end();
-        device_context->submit();
-        // TODO Paul: Are interleaved buffers loaded multiple times? Could we just preprocess them?
 
-        buffer_view_ids[i] = m_buffer_views.emplace(view);
+        const unsigned char* buffer_start = buffer.data.data() + bv.byteOffset;
+        buffer_view_item& item            = buffer_view_items[i];
+        item.buffer_size                  = static_cast<int32>(bv.byteLength);
+        item.element_stride               = static_cast<int32>(bv.byteStride); // Needs to be adjusted when accessing it...
+        item.target                       = (bv.target == 0 || bv.target == GL_ARRAY_BUFFER) ? gfx_buffer_target::buffer_target_vertex : gfx_buffer_target::buffer_target_index;
+        item.data_ptr                     = static_cast<const uint8*>(buffer_start);
     }
 
     default_scenario = m.defaultScene > -1 ? m.defaultScene : 0;
 
     std::vector<uid> all_scenarios;
-
-    buffer_create_info buffer_info;
-    buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
-    buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
-    buffer_info.size          = sizeof(light_data);
-    // light_data is filled by the light_stack
-    m_light_gpu_data.light_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
-    if (!check_creation(m_light_gpu_data.light_data_buffer.get(), "light data buffer"))
-        return std::vector<uid>();
 
     for (const tinygltf::Scene& t_scene : m.scenes)
     {
@@ -1555,17 +1524,19 @@ std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& def
 
         for (int32 i = 0; i < static_cast<int32>(t_scene.nodes.size()); ++i)
         {
-            scen.root_nodes.push_back(build_model_node(m, m.nodes.at(t_scene.nodes.at(i)), buffer_view_ids));
+            scen.root_nodes.push_back(build_model_node(m, m.nodes.at(t_scene.nodes.at(i)), buffer_view_items));
         }
 
         uid scenario_id = m_scenarios.emplace(scen);
         all_scenarios.push_back(scenario_id);
     }
 
+    m_primitive_manager.generate_buffers(m_scene_graphics_device);
+
     return all_scenarios;
 }
 
-uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<uid>& buffer_view_ids)
+uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, std::vector<buffer_view_item>& buffer_view_items)
 {
     PROFILE_ZONE;
 
@@ -1620,7 +1591,7 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
     {
         MANGO_ASSERT(n.mesh < static_cast<int32>(m.meshes.size()), "Invalid gltf mesh!");
         MANGO_LOG_DEBUG("Node contains a mesh!");
-        node_ref.mesh_id = build_model_mesh(m, m.meshes.at(n.mesh), node_id, buffer_view_ids);
+        node_ref.mesh_id = build_model_mesh(m, m.meshes.at(n.mesh), node_id, buffer_view_items);
         node_ref.type |= node_type::mesh;
     }
 
@@ -1642,7 +1613,7 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
     {
         MANGO_ASSERT(n.children[i] < static_cast<int32>(m.nodes.size()), "Invalid gltf node!");
 
-        uid child_id = build_model_node(m, m.nodes.at(n.children.at(i)), buffer_view_ids);
+        uid child_id = build_model_node(m, m.nodes.at(n.children.at(i)), buffer_view_items);
         node_ref.children.push_back(child_id);
     }
 
@@ -1702,53 +1673,65 @@ uid scene_impl::build_model_camera(tinygltf::Camera& t_camera, uid node_id, cons
     return invalid_uid;
 }
 
-uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid node_id, const std::vector<uid>& buffer_view_ids)
+uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid node_id, std::vector<buffer_view_item>& buffer_view_items)
 {
     PROFILE_ZONE;
     mesh mesh;
     mesh.name    = t_mesh.name;
     mesh.node_id = node_id;
     mesh_gpu_data data;
-    data.per_mesh_data.has_normals  = true;
-    data.per_mesh_data.has_tangents = true;
 
     for (int32 i = 0; i < static_cast<int32>(t_mesh.primitives.size()); ++i)
     {
         const tinygltf::Primitive& t_primitive = t_mesh.primitives[i];
 
         primitive prim;
-        primitive_gpu_data prim_gpu_data;
+        std::vector<vec3> positions;
+        std::vector<vec3> normals;
+        std::vector<vec2> uvs;
+        std::vector<vec4> tangents;
+        std::vector<uint32> indices;
+        vertex_input_descriptor vertex_layout;
+        input_assembly_descriptor input_assembly;
 
-        prim_gpu_data.draw_call_desc.vertex_count   = 0;
-        prim_gpu_data.draw_call_desc.instance_count = 1;
-        prim_gpu_data.draw_call_desc.base_instance  = 0;
-        prim_gpu_data.draw_call_desc.base_vertex    = 0;
-        prim_gpu_data.draw_call_desc.index_offset   = 0;
+        primitive_builder builder;
 
-        prim_gpu_data.input_assembly.topology = static_cast<gfx_primitive_topology>(t_primitive.mode + 1); // cast should be okay
+        input_assembly.topology = static_cast<gfx_primitive_topology>(t_primitive.mode + 1); // cast should be okay
+        builder.with_input_assembly(std::move(input_assembly));
+
+        // TODO Paul: Duplicate triangles for double sided or find another solution -.-
 
         if (t_primitive.indices >= 0)
         {
             const tinygltf::Accessor& index_accessor = m.accessors[t_primitive.indices];
 
-            uid view_id                               = buffer_view_ids[index_accessor.bufferView];
-            prim_gpu_data.index_buffer_view           = m_buffer_views.at(view_id);
-            prim_gpu_data.index_type                  = static_cast<gfx_format>(index_accessor.componentType); // cast should be okay
-            prim_gpu_data.draw_call_desc.index_count  = static_cast<int32>(index_accessor.count);
-            prim_gpu_data.draw_call_desc.index_offset = static_cast<int32>(index_accessor.byteOffset);
-        }
-        else
-        {
-            prim_gpu_data.draw_call_desc.index_count = 0; // Has to be set!!!
-            prim_gpu_data.index_type                 = gfx_format::invalid;
-            // vertex_count has to be set later.
+            buffer_view_item& item = buffer_view_items[index_accessor.bufferView];
+            MANGO_ASSERT(item.target == gfx_buffer_target::buffer_target_index, "Index buffer target is wrong");
+            int32 index_count = static_cast<int32>(index_accessor.count);
+
+            item.element_stride = index_accessor.ByteStride(m.bufferViews[index_accessor.bufferView]);
+            fill_and_convert_index_array(item, indices, index_count, static_cast<gfx_format>(index_accessor.componentType), index_accessor.byteOffset);
+            builder.with_indices(std::move(indices));
         }
 
         uid material_id;
-        if (t_primitive.material >= 0)
-            material_id = load_material(m.materials[t_primitive.material], m);
+        bool double_sided = m.materials[t_primitive.material].doubleSided; // For later
+        // check if material with gltf index is alread loaded
+        auto cached = material_index_to_uid.find(t_primitive.material);
+        if (cached != material_index_to_uid.end())
+        {
+            material_id = cached->second;
+        }
         else
-            material_id = default_material();
+        {
+            if (t_primitive.material >= 0)
+            {
+                material_id = load_material(m.materials[t_primitive.material], m);
+                material_index_to_uid.insert({ t_primitive.material, material_id });
+            }
+            else
+                material_id = default_material();
+        }
 
         prim.material = material_id;
 
@@ -1772,23 +1755,48 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
                 attrib_location = 0;
             else if (attrib.first.compare("NORMAL") == 0)
             {
-                attrib_location  = 1;
-                prim.has_normals = true;
+                attrib_location = 1;
             }
             else if (attrib.first.compare("TEXCOORD_0") == 0)
                 attrib_location = 2;
             else if (attrib.first.compare("TANGENT") == 0)
             {
-                attrib_location   = 3;
-                prim.has_tangents = true;
+                attrib_location = 3;
             }
 
             if (attrib_location > -1)
             {
-                uid view_id   = buffer_view_ids[accessor.bufferView];
-                auto buffer_v = m_buffer_views.at(view_id);
-                buffer_v.offset += static_cast<int32>(accessor.byteOffset);
-                prim_gpu_data.vertex_buffer_views.emplace_back(buffer_v);
+                buffer_view_item& item = buffer_view_items[accessor.bufferView];
+                MANGO_ASSERT(item.target == gfx_buffer_target::buffer_target_vertex, "Vertex buffer target is wrong");
+                int32 item_count    = static_cast<int32>(accessor.count);
+                item.element_stride = item.element_stride > 0 ? item.element_stride : accessor.ByteStride(m.bufferViews[accessor.bufferView]);
+
+                switch (attrib_location)
+                {
+                case 0:
+                    MANGO_ASSERT(!builder.has_position_data(), "Duplicate positions!");
+                    fill_and_convert_attribute_array<vec3>(item, positions, item_count, accessor.byteOffset);
+                    builder.with_positions(std::move(positions));
+                    break;
+                case 1:
+                    MANGO_ASSERT(!builder.has_normal_data(), "Duplicate normals!");
+                    fill_and_convert_attribute_array<vec3>(item, normals, item_count, accessor.byteOffset);
+                    builder.with_normals(std::move(normals));
+                    break;
+                case 2:
+                    MANGO_ASSERT(!builder.has_uv_data(), "Duplicate uvs!");
+                    fill_and_convert_attribute_array<vec2>(item, uvs, item_count, accessor.byteOffset);
+                    builder.with_uvs(std::move(uvs));
+                    break;
+                case 3:
+                    MANGO_ASSERT(!builder.has_tangent_data(), "Duplicate tangents!");
+                    fill_and_convert_attribute_array<vec4>(item, tangents, item_count, accessor.byteOffset);
+                    builder.with_tangents(std::move(tangents));
+                    break;
+                default:
+                    MANGO_ASSERT(false, "Can not happen!");
+                    break;
+                }
 
                 binding_desc.binding    = vertex_buffer_binding;
                 binding_desc.stride     = accessor.ByteStride(m.bufferViews[accessor.bufferView]);
@@ -1801,14 +1809,10 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
                     graphics::get_attribute_format_for_component_info(static_cast<gfx_format>(accessor.componentType), get_attrib_component_count_from_tinygltf_types(accessor.type));
                 attrib_desc.location = attrib_location;
 
-                if (attrib_location == 0 && prim_gpu_data.index_type == gfx_format::invalid)
-                {
-                    prim_gpu_data.draw_call_desc.vertex_count = static_cast<int32>(accessor.count);
-                }
-
                 vertex_buffer_binding++;
-                prim_gpu_data.vertex_layout.binding_descriptions[description_index]   = binding_desc;
-                prim_gpu_data.vertex_layout.attribute_descriptions[description_index] = attrib_desc;
+                // The layout is potentially ignored later on, but we fill the original stuff here.
+                vertex_layout.binding_descriptions[description_index]   = binding_desc;
+                vertex_layout.attribute_descriptions[description_index] = attrib_desc;
                 description_index++;
 
                 // AABB
@@ -1824,16 +1828,28 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
                 continue;
             }
         }
-        prim_gpu_data.vertex_layout.binding_description_count   = description_index;
-        prim_gpu_data.vertex_layout.attribute_description_count = description_index;
 
-        uid prim_gpu_data_id = m_primitive_gpu_data.emplace(prim_gpu_data);
+        vertex_layout.binding_description_count   = description_index;
+        vertex_layout.attribute_description_count = description_index;
+
+        builder.with_vertex_layout(std::move(vertex_layout));
+
+        builder.unify();
+        if (double_sided)
+        {
+            builder.double_side(); // TODO Paul: Does not work yet.
+        }
+        if (!builder.has_normal_data())
+            builder.calculate_vertex_normals().calculate_tangents();
+        if (!builder.has_tangent_data())
+            builder.calculate_tangents();
+
+        primitive_gpu_data p_data = m_primitive_manager.add_primitive(builder);
+
+        uid prim_gpu_data_id = m_primitive_gpu_data.emplace(p_data);
         prim.gpu_data        = prim_gpu_data_id;
         uid prim_id          = m_primitives.emplace(prim);
         mesh.primitives.push_back(prim_id);
-
-        data.per_mesh_data.has_normals &= prim.has_normals;
-        data.per_mesh_data.has_tangents &= prim.has_tangents;
     }
 
     // data.per_mesh_data.model_matrix is updated in update()
@@ -1856,13 +1872,6 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
     {
         MANGO_LOG_DEBUG("Loading material: {0}", primitive_material.name.c_str());
         new_material.name = primitive_material.name;
-
-        // check if material with that name is alread loaded
-        auto cached = material_name_to_uid.find(new_material.name);
-        if (cached != material_name_to_uid.end())
-        {
-            return cached->second;
-        }
     }
 
     new_material.double_sided = primitive_material.doubleSided;
@@ -2240,11 +2249,6 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
 
     uid material_uid = build_material(new_material);
 
-    if (!primitive_material.name.empty())
-    {
-        material_name_to_uid.insert({ new_material.name, material_uid });
-    }
-
     return material_uid;
 }
 
@@ -2395,12 +2399,6 @@ void scene_impl::update(float dt)
 
             data.per_mesh_data.model_matrix  = trafo;
             data.per_mesh_data.normal_matrix = trafo.block(0, 0, 3, 3).inverse().transpose();
-
-            auto device_context = m_scene_graphics_device->create_graphics_device_context();
-            device_context->begin();
-            device_context->set_buffer_data(data.model_data_buffer, 0, sizeof(model_data), const_cast<void*>((void*)(&(data.per_mesh_data))));
-            device_context->end();
-            device_context->submit();
 
             m.changed = false;
         }
@@ -2579,12 +2577,6 @@ void scene_impl::update(float dt)
             data.per_material_data.emissive_intensity         = mat.emissive_intensity;
             data.per_material_data.alpha_mode                 = static_cast<uint8>(mat.alpha_mode);
             data.per_material_data.alpha_cutoff               = mat.alpha_cutoff;
-
-            auto device_context = m_scene_graphics_device->create_graphics_device_context();
-            device_context->begin();
-            device_context->set_buffer_data(data.material_data_buffer, 0, sizeof(material_data), const_cast<void*>((void*)(&(data.per_material_data))));
-            device_context->end();
-            device_context->submit();
 
             mat.changed = false;
         }

@@ -123,6 +123,8 @@ namespace mango
         //! \return The corner points.
         std::array<vec3, 8> get_corners() const;
 
+        void expand(const axis_aligned_bounding_box& other);
+
         //! \brief Checks the intersection of this \a axis_aligned_bounding_box with another one.
         //! \return True, if the two \a axis_aligned_bounding_boxes intersect, else false.
         bool intersects(const axis_aligned_bounding_box& other) const;

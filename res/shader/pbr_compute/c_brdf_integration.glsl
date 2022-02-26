@@ -7,13 +7,10 @@ float inverse_sample_count = 1.0 / float(sample_count);
 
 layout(local_size_x = 32, local_size_y = 32) in;
 
-layout(binding = 0, rgba16f) uniform writeonly image2D integration_lut_out;
+#define BIND_IBL_GENERATION_DATA_BUFFER
+#define BIND_IBL_BRDF_INTEGRATION_DATA
 
-layout(binding = 3) uniform ibl_generation_data
-{
-    vec2 out_size;
-    vec2 data;
-};
+#include <../include/binding_data.glsl>
 
 float inv_tex_size = 1.0 / out_size.x;
 

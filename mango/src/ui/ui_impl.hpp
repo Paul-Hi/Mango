@@ -8,6 +8,7 @@
 #define MANGO_UI_IMPL_HPP
 
 #include <core/context_impl.hpp>
+#include <graphics/graphics_resources.hpp>
 #include <mango/ui.hpp>
 #include <util/helpers.hpp>
 
@@ -62,6 +63,9 @@ namespace mango
         bool m_cinema_view;
         //! \brief Specifies which \a ui_widgets are shown if available.
         bool m_enabled_ui_widgets[mango::ui_widget::number_of_ui_widgets + 1];
+
+        //! \brief The currently displayed backbuffer texture. Has to be cached, because the renderer could change it and the handle would be deleted.
+        gfx_handle<const gfx_texture> m_backbuffer;
     };
 
 } // namespace mango

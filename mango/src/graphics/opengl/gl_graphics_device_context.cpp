@@ -99,10 +99,31 @@ void* gl_graphics_device_context::map_buffer_data(gfx_handle<const gfx_buffer> b
     gfx_handle<const gl_buffer> buf = static_gfx_handle_cast<const gl_buffer>(buffer_handle);
 
     MANGO_ASSERT(offset + size <= buf->m_info.size, "Buffer access out of bounds!");
-    MANGO_ASSERT((buf->m_info.buffer_access & gfx_buffer_access::buffer_access_mapped_access_read_write) != gfx_buffer_access::buffer_access_none, "Buffer access violation!");
+    bool read  = (buf->m_info.buffer_access & gfx_buffer_access::buffer_access_mapped_access_read) != gfx_buffer_access::buffer_access_none;
+    bool write = (buf->m_info.buffer_access & gfx_buffer_access::buffer_access_mapped_access_write) != gfx_buffer_access::buffer_access_none;
+    MANGO_ASSERT(read || write, "Buffer access violation!");
+    bool persistent = (buf->m_info.buffer_access & gfx_buffer_access::buffer_access_persistent_map) != gfx_buffer_access::buffer_access_none;
 
     // TODO Paul: Check if that persistent and coherent stuff is correct.
-    return glMapNamedBufferRange(buf->m_buffer_gl_handle, offset, size, GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    return glMapNamedBufferRange(buf->m_buffer_gl_handle, offset, size,
+                                 (read ? GL_MAP_READ_BIT : 0) | (write ? GL_MAP_WRITE_BIT : 0) | (persistent ? GL_MAP_PERSISTENT_BIT : GL_MAP_INVALIDATE_BUFFER_BIT) | GL_MAP_COHERENT_BIT);
+}
+
+bool gl_graphics_device_context::unmap_buffer_data(gfx_handle<const gfx_buffer> buffer_handle)
+{
+    GL_NAMED_PROFILE_ZONE("Unmap Buffer Data");
+    NAMED_PROFILE_ZONE("Unmap Buffer Data");
+    if (!recording)
+    {
+        MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
+        return false;
+    }
+
+    MANGO_ASSERT(std::dynamic_pointer_cast<const gl_buffer>(buffer_handle), "buffer is not a gl_buffer");
+
+    gfx_handle<const gl_buffer> buf = static_gfx_handle_cast<const gl_buffer>(buffer_handle);
+
+    return glUnmapNamedBuffer(buf->m_buffer_gl_handle);
 }
 
 void gl_graphics_device_context::set_texture_data(gfx_handle<const gfx_texture> texture_handle, const texture_set_description& desc, void* data)
@@ -374,8 +395,11 @@ void gl_graphics_device_context::set_render_targets(int32 count, gfx_handle<cons
     if (depth_stencil_target)
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_texture>(depth_stencil_target), "Depth Stencil target is not a gl_texture!");
 
-    bool default_framebuffer = false;
-    gl_handle framebuffer    = 0;
+    bool default_framebuffer                            = false;
+    gl_handle framebuffer                               = 0;
+    m_shared_graphics_state->depth_target_count         = 0;
+    m_shared_graphics_state->depth_stencil_target_count = 0;
+    m_shared_graphics_state->stencil_target_count       = 0;
     if (count == 1)
     {
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_texture>(render_targets[0]), "Render target is not a gl_texture!");
@@ -417,7 +441,6 @@ void gl_graphics_device_context::set_render_targets(int32 count, gfx_handle<cons
         const gfx_format& internal = tex->m_info.texture_format;
 
         // TODO Paul: Pure stencil not supported.
-
         switch (internal)
         {
         case gfx_format::depth24_stencil8:
@@ -734,8 +757,6 @@ void gl_graphics_device_context::draw(int32 vertex_count, int32 index_count, int
     {
         vertex_array_data_descriptor desc;
         desc.input_descriptor    = &info.vertex_input_state;
-        desc.vertex_count        = vertex_count;
-        desc.index_count         = index_count;
         desc.vertex_buffer_count = m_shared_graphics_state->vertex_buffer_count;
         desc.vertex_buffers      = &m_shared_graphics_state->set_vertex_buffers[0];
         desc.index_buffer        = &m_shared_graphics_state->set_index_buffer;
@@ -769,6 +790,95 @@ void gl_graphics_device_context::draw(int32 vertex_count, int32 index_count, int
         gl_enum type = gfx_format_to_gl(m_shared_graphics_state->index_type);
         glDrawElementsInstancedBaseVertexBaseInstance(gfx_primitive_topology_to_gl(topology), index_count, type, (unsigned char*)NULL + index_offset, instance_count, base_vertex, base_instance);
     }
+}
+
+void gl_graphics_device_context::multi_draw(gfx_primitive_topology mode, const int32* count, gfx_format index_type, const int64* index_offset, int32 drawcount, const int32* base_vertex)
+{
+    GL_NAMED_PROFILE_ZONE("Multi Draw");
+    NAMED_PROFILE_ZONE("Multi Draw");
+    if (!recording)
+    {
+        MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
+        return;
+    }
+
+    MANGO_ASSERT(m_shared_graphics_state->bound_pipeline, "No Pipeline is currently bound!");
+    MANGO_ASSERT(std::dynamic_pointer_cast<const gl_graphics_pipeline>(m_shared_graphics_state->bound_pipeline), "Pipeline is not a graphics pipeline!");
+    MANGO_ASSERT(count != NULL, "Multi Draw count is NULL!");
+    MANGO_ASSERT(index_offset != NULL, "Multi Draw index_offset is NULL!");
+
+    const auto& info = static_gfx_handle_cast<const gl_graphics_pipeline>(m_shared_graphics_state->bound_pipeline)->m_info;
+
+    if (m_shared_graphics_state->internal.vertex_array_name < 0) // Invalid
+    {
+        vertex_array_data_descriptor desc;
+        desc.input_descriptor    = &info.vertex_input_state;
+        desc.vertex_buffer_count = m_shared_graphics_state->vertex_buffer_count;
+        desc.vertex_buffers      = &m_shared_graphics_state->set_vertex_buffers[0];
+        desc.index_buffer        = &m_shared_graphics_state->set_index_buffer;
+        desc.index_type          = gfx_format::invalid;
+        desc.index_type          = m_shared_graphics_state->index_type;
+
+        gl_enum vertex_array = m_vertex_array_cache->get_vertex_array(desc);
+
+        m_shared_graphics_state->internal.vertex_array_name = vertex_array;
+    }
+    glBindVertexArray(m_shared_graphics_state->internal.vertex_array_name);
+
+    MANGO_ASSERT(m_shared_graphics_state->set_index_buffer, "Indexed drawing without an index buffer bound");
+    MANGO_ASSERT(mode == info.input_assembly_state.topology, "Multi Draw Mode does not fit the set topology");
+    MANGO_ASSERT(index_type == m_shared_graphics_state->index_type, "Multi Draw Index type does not fit set type");
+
+    // draw elements
+    if (base_vertex)
+        glMultiDrawElementsBaseVertex(gfx_primitive_topology_to_gl(mode), count, gfx_format_to_gl(index_type), (const void* const*)index_offset, drawcount, base_vertex);
+    else
+        glMultiDrawElements(gfx_primitive_topology_to_gl(mode), count, gfx_format_to_gl(index_type), (const void* const*)index_offset, drawcount);
+}
+
+void gl_graphics_device_context::multi_draw_indirect(gfx_handle<const gfx_buffer> indirect_buffer, gfx_primitive_topology mode, gfx_format index_type, const int64 indirect_offset, int32 drawcount,
+                                                     const int32 stride)
+{
+    GL_NAMED_PROFILE_ZONE("Multi Draw");
+    NAMED_PROFILE_ZONE("Multi Draw");
+    if (!recording)
+    {
+        MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
+        return;
+    }
+
+    MANGO_ASSERT(m_shared_graphics_state->bound_pipeline, "No Pipeline is currently bound!");
+    MANGO_ASSERT(std::dynamic_pointer_cast<const gl_graphics_pipeline>(m_shared_graphics_state->bound_pipeline), "Pipeline is not a graphics pipeline!");
+
+    const auto& info = static_gfx_handle_cast<const gl_graphics_pipeline>(m_shared_graphics_state->bound_pipeline)->m_info;
+
+    if (m_shared_graphics_state->internal.vertex_array_name < 0) // Invalid
+    {
+        vertex_array_data_descriptor desc;
+        desc.input_descriptor    = &info.vertex_input_state;
+        desc.vertex_buffer_count = m_shared_graphics_state->vertex_buffer_count;
+        desc.vertex_buffers      = &m_shared_graphics_state->set_vertex_buffers[0];
+        desc.index_buffer        = &m_shared_graphics_state->set_index_buffer;
+        desc.index_type          = gfx_format::invalid;
+        desc.index_type          = m_shared_graphics_state->index_type;
+
+        gl_enum vertex_array = m_vertex_array_cache->get_vertex_array(desc);
+
+        m_shared_graphics_state->internal.vertex_array_name = vertex_array;
+    }
+    glBindVertexArray(m_shared_graphics_state->internal.vertex_array_name);
+
+    MANGO_ASSERT(m_shared_graphics_state->set_index_buffer, "Indexed drawing without an index buffer bound");
+    MANGO_ASSERT(mode == info.input_assembly_state.topology, "Multi Draw Mode does not fit the set topology");
+    MANGO_ASSERT(index_type == m_shared_graphics_state->index_type, "Multi Draw Index type does not fit set type");
+
+    MANGO_ASSERT(std::dynamic_pointer_cast<const gl_buffer>(indirect_buffer), "indirect_buffer is not a gl_buffer");
+
+    gfx_handle<const gl_buffer> buf = static_gfx_handle_cast<const gl_buffer>(indirect_buffer);
+    glBindBuffer(gfx_buffer_target_to_gl(buf->m_info.buffer_target), buf->m_buffer_gl_handle);
+
+    // draw elements
+    glMultiDrawElementsIndirect(gfx_primitive_topology_to_gl(mode), gfx_format_to_gl(index_type), (const void* const*)indirect_offset, drawcount, stride);
 }
 
 void gl_graphics_device_context::dispatch(int32 x, int32 y, int32 z)
