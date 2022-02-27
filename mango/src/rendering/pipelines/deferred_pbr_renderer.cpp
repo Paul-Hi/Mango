@@ -962,7 +962,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     m_renderer_info.last_frame.materials  = 0;
 
     m_frame_context->begin();
-    m_frame_context->client_wait(m_frame_semaphore);
     float clear_color[4] = { 0.1f, 0.1f, 0.1f, 1.0f }; // TODO Paul: member or dynamic?
     auto swap_buffer     = m_graphics_device->get_swap_chain_render_target();
 
@@ -1018,10 +1017,10 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             if (other.material_id < material_id)
                 return false;
 
-            if (view_depth > other.view_depth)
-                return true;
-            if (other.view_depth > view_depth)
-                return false;
+            if (view_depth < other.view_depth)
+                return transparent ? true : false;
+            if (other.view_depth < view_depth)
+                return transparent ? false : true;
 
             if (primitive_gpu_data_id < other.primitive_gpu_data_id)
                 return true;
@@ -1072,8 +1071,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         optional<mat4&> global_transformation_matrix = scene->get_global_transformation_matrix(node->global_matrix_id);
         MANGO_ASSERT(global_transformation_matrix, "Non existing transformation matrix in instances!");
 
-        std::vector<uid> used_materials;
-
         if ((node->type & node_type::mesh) != node_type::hierarchy)
         {
             draw_key a_draw;
@@ -1105,10 +1102,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 // MANGO_LOG_INFO("{0}", a_draw.view_depth);
 
                 draws.push_back(a_draw);
-                if (std::find(used_materials.begin(), used_materials.end(), a_draw.material_id) == used_materials.end())
-                {
-                    used_materials.push_back(a_draw.material_id);
-                }
             }
         }
     }
@@ -1136,14 +1129,13 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     int32 global_model_data_index = -1;
     int32 material_data_index     = 0;
 
-    std::vector<ivec2> ids; // id is (model_data index, material_data index)
-
-    std::vector<material_data> materials;
-    std::vector<model_data> models;
-
+    m_frame_context->client_wait(m_buffer_semaphore);
     const primitive_manager& primitive_manager = scene->get_primitive_manager();
 
-    int32 opaque_count = 0;
+    ivec2* next_id = m_id_buffer_mapping;
+
+    int32 opaque_count     = 0;
+    int32 opaque_instances = 0;
     uid last_mesh_gpu_data_id;
     {
         NAMED_PROFILE_ZONE("Batch Creation");
@@ -1165,8 +1157,10 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
                     batches.push_back(current_batch);
                     opaque_count += !(mat->alpha_mode > material_alpha_mode::mode_mask);
+                    opaque_instances += mat->alpha_mode > material_alpha_mode::mode_mask ? 0 : current_batch.drawcount;
 
-                    materials.push_back(mat_gpu_data->per_material_data);
+                    material_data* md = m_material_data_buffer_mapping + material_data_index;
+                    *md               = mat_gpu_data->per_material_data;
 
                     material_data_index++;
                 }
@@ -1214,11 +1208,13 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 m_gpu_data->per_mesh_data.has_normals  = true;
                 m_gpu_data->per_mesh_data.has_tangents = true;
 
-                models.push_back(m_gpu_data->per_mesh_data);
+                model_data* md = m_model_data_buffer_mapping + global_model_data_index;
+                *md            = m_gpu_data->per_mesh_data;
 
                 last_mesh_gpu_data_id = dc.mesh_gpu_data_id;
             }
-            ids.push_back(ivec2(global_model_data_index, material_data_index));
+            *next_id = ivec2(global_model_data_index, material_data_index);
+            next_id++;
         }
         m_indirect_offset = 0;
 
@@ -1234,23 +1230,16 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             {
                 batches.push_back(current_batch);
                 opaque_count += !(mat->alpha_mode > material_alpha_mode::mode_mask);
+                opaque_instances += mat->alpha_mode > material_alpha_mode::mode_mask ? 0 : current_batch.drawcount;
 
-                materials.push_back(mat_gpu_data->per_material_data);
+                material_data* md = m_material_data_buffer_mapping + material_data_index;
+                *md               = mat_gpu_data->per_material_data;
 
                 material_data_index++;
             }
         }
     }
 
-    {
-        NAMED_PROFILE_ZONE("Per Frame Buffers Copy");
-        std::copy(ids.begin(), ids.end(), m_id_buffer_mapping);
-        std::copy(materials.begin(), materials.end(), m_material_data_buffer_mapping);
-        std::copy(models.begin(), models.end(), m_model_data_buffer_mapping);
-    }
-
-    // TODO NEXT: Draw Calls now bottleneck GPU. Indirect Buffer Update could be a reason for that. Maybe we should pregenerate commands and do the culling on the GPU, setting instance count to 0.
-    // TODO NEXT: Also something is not entirely correct, Bistro does have some visual artefacts...
     primitive_manager.bind_buffers(m_frame_context, m_id_buffer);
 
     const light_stack& ls = scene->get_light_stack();
@@ -1634,15 +1623,14 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         }
     }
 
-    primitive_manager.bind_buffers(m_frame_context, m_id_buffer);
-
     // transparent pass
+    if (opaque_count < batches.size())
     {
         GL_NAMED_PROFILE_ZONE("Transparent Pass");
         NAMED_PROFILE_ZONE("Transparent Pass");
+        primitive_manager.bind_buffers(m_frame_context, m_id_buffer);
         gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_transparent(graphics::UNIFIED_VERTEX_LAYOUT, graphics::UNIFIED_INPUT_ASSEMBLY, m_wireframe);
         m_frame_context->bind_pipeline(dc_pipeline);
-        m_frame_context->set_render_targets(static_cast<int32>(m_gbuffer_render_targets.size()) - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
         gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
                                       static_cast<float>(m_renderer_info.canvas.height) };
         m_frame_context->set_viewport(0, 1, &window_viewport);
@@ -1651,7 +1639,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         dc_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
         dc_pipeline->get_resource_mapping()->set("light_data", light_data.light_data_buffer);
         dc_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer);
-        int32 instance = 0;
+        int32 instance = opaque_instances;
         for (uint32 c = opaque_count; c < batches.size(); ++c)
         {
             auto& btch = batches[c];
@@ -1834,6 +1822,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         }
     }
 
+    m_buffer_semaphore = m_frame_context->fence(semaphore_create_info());
     m_debug_drawer.update_buffer();
 
     // auto exposure
@@ -1951,7 +1940,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 void deferred_pbr_renderer::present()
 {
     m_frame_context->present();
-    m_frame_semaphore = m_frame_context->fence(semaphore_create_info());
     m_frame_context->end();
     m_frame_context->submit();
 }

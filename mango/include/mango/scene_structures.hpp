@@ -257,9 +257,9 @@ namespace mango
     enum class material_alpha_mode : uint8
     {
         mode_opaque = 0u,
-        mode_mask   = 1u,
-        mode_blend  = 2u,
-        mode_dither = 3u
+        mode_dither = 1u,
+        mode_mask   = 2u,
+        mode_blend  = 3u
     };
 
     //! \brief Public structure holding informations for a material.

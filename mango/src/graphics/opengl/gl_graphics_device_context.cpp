@@ -961,8 +961,8 @@ void gl_graphics_device_context::client_wait(gfx_handle<const gfx_semaphore> sem
         wait_return = glClientWaitSync(sync_object, GL_SYNC_FLUSH_COMMANDS_BIT, waiting_time);
         waiting_sum += waiting_time;
     }
-    // if (waiting_sum > 0)
-    //    MANGO_LOG_DEBUG("Waited {0} ns.", waiting_time);
+    //if (waiting_sum > 0)
+    //   MANGO_LOG_INFO("Waited {0} ns.", waiting_sum);
 }
 
 void gl_graphics_device_context::wait(gfx_handle<const gfx_semaphore> semaphore)

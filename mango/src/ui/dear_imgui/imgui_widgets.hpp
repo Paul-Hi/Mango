@@ -967,7 +967,7 @@ namespace mango
 
                     ImGui::Separator();
 
-                    const char* types[4] = { "Opaque", "Masked", "Blended", "Dithered" };
+                    const char* types[4] = { "Opaque", "Dithered", "Masked", "Blended" };
                     int32 idx            = static_cast<int32>(mat->alpha_mode);
                     any_change |= combo("Alpha Mode", types, 4, idx, 0);
                     mat->alpha_mode = static_cast<material_alpha_mode>(idx);

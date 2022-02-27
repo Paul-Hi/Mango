@@ -351,7 +351,7 @@ namespace mango
         packed_freelist<atmospheric_light, 32> m_atmospheric_lights;
 
         //! \brief Maps gltf index of materials to already loaded \a material \a uids.
-        std::map<int, uid> material_index_to_uid;
+        std::map<int, uid> m_material_index_to_uid;
 
         //! \brief The internal recursive function to draw the hierarchy of \a nodes in a ui widget.
         //! \param[in] current The current \a nodes \a uid to inspect and draw.

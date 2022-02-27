@@ -1517,6 +1517,7 @@ std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& def
     default_scenario = m.defaultScene > -1 ? m.defaultScene : 0;
 
     std::vector<uid> all_scenarios;
+    m_material_index_to_uid.clear();
 
     for (const tinygltf::Scene& t_scene : m.scenes)
     {
@@ -1717,8 +1718,8 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
         uid material_id;
         bool double_sided = m.materials[t_primitive.material].doubleSided; // For later
         // check if material with gltf index is alread loaded
-        auto cached = material_index_to_uid.find(t_primitive.material);
-        if (cached != material_index_to_uid.end())
+        auto cached = m_material_index_to_uid.find(t_primitive.material);
+        if (cached != m_material_index_to_uid.end())
         {
             material_id = cached->second;
         }
@@ -1727,7 +1728,7 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
             if (t_primitive.material >= 0)
             {
                 material_id = load_material(m.materials[t_primitive.material], m);
-                material_index_to_uid.insert({ t_primitive.material, material_id });
+                m_material_index_to_uid.insert({ t_primitive.material, material_id });
             }
             else
                 material_id = default_material();
@@ -2623,6 +2624,8 @@ void scene_impl::draw_scene_hierarchy(uid& selected)
     std::vector<uid> to_remove = draw_scene_hierarchy_internal(m_root_node, invalid_uid, selected);
     for (auto n : to_remove)
         remove_node(n);
+    if(!to_remove.empty())
+        m_primitive_manager.generate_buffers(m_scene_graphics_device);
 }
 
 std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid parent, uid& selected)

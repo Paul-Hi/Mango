@@ -106,10 +106,10 @@ vec4 get_base_color()
 {
     per_material_data data = get_draw_material_data();
     vec4 color = data.base_color_texture ? texture(sampler_base_color, fs_in.texcoord) : data.base_color;
-    if(data.alpha_mode == 1 && color.a <= data.alpha_cutoff)
+    if(data.alpha_mode == 2 && color.a <= data.alpha_cutoff)
         discard;
 
-    if(data.alpha_mode == 3 && alpha_dither(gl_FragCoord.xy, sqrt(color.a)))
+    if(data.alpha_mode == 1 && alpha_dither(gl_FragCoord.xy, sqrt(color.a)))
         discard;
 
     return color;
@@ -221,10 +221,10 @@ vec4 get_base_color()
 {
     per_material_data data = get_draw_material_data();
     vec4 color = data.base_color_texture ? texture(sampler_base_color, fs_in.texcoord) : data.base_color;
-    if(data.alpha_mode == 1 && color.a <= data.alpha_cutoff)
+    if(data.alpha_mode == 2 && color.a <= data.alpha_cutoff)
         discard;
 
-    if(data.alpha_mode == 3 && alpha_dither(gl_FragCoord.xy, sqrt(color.a)))
+    if(data.alpha_mode == 1 && alpha_dither(gl_FragCoord.xy, sqrt(color.a)))
         discard;
 
     return color;
