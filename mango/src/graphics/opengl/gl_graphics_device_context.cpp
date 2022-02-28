@@ -767,8 +767,8 @@ void gl_graphics_device_context::draw(int32 vertex_count, int32 index_count, int
         gl_enum vertex_array = m_vertex_array_cache->get_vertex_array(desc);
 
         m_shared_graphics_state->internal.vertex_array_name = vertex_array;
+        glBindVertexArray(m_shared_graphics_state->internal.vertex_array_name);
     }
-    glBindVertexArray(m_shared_graphics_state->internal.vertex_array_name);
 
     MANGO_ASSERT(index_count == 0 || m_shared_graphics_state->set_index_buffer, "Indexed drawing without an index buffer bound");
     MANGO_ASSERT(base_vertex >= 0, "The base vertex index has to be greater than 0!");
@@ -822,8 +822,8 @@ void gl_graphics_device_context::multi_draw(gfx_primitive_topology mode, const i
         gl_enum vertex_array = m_vertex_array_cache->get_vertex_array(desc);
 
         m_shared_graphics_state->internal.vertex_array_name = vertex_array;
+        glBindVertexArray(m_shared_graphics_state->internal.vertex_array_name);
     }
-    glBindVertexArray(m_shared_graphics_state->internal.vertex_array_name);
 
     MANGO_ASSERT(m_shared_graphics_state->set_index_buffer, "Indexed drawing without an index buffer bound");
     MANGO_ASSERT(mode == info.input_assembly_state.topology, "Multi Draw Mode does not fit the set topology");
@@ -865,8 +865,8 @@ void gl_graphics_device_context::multi_draw_indirect(gfx_handle<const gfx_buffer
         gl_enum vertex_array = m_vertex_array_cache->get_vertex_array(desc);
 
         m_shared_graphics_state->internal.vertex_array_name = vertex_array;
+        glBindVertexArray(m_shared_graphics_state->internal.vertex_array_name);
     }
-    glBindVertexArray(m_shared_graphics_state->internal.vertex_array_name);
 
     MANGO_ASSERT(m_shared_graphics_state->set_index_buffer, "Indexed drawing without an index buffer bound");
     MANGO_ASSERT(mode == info.input_assembly_state.topology, "Multi Draw Mode does not fit the set topology");
@@ -961,8 +961,8 @@ void gl_graphics_device_context::client_wait(gfx_handle<const gfx_semaphore> sem
         wait_return = glClientWaitSync(sync_object, GL_SYNC_FLUSH_COMMANDS_BIT, waiting_time);
         waiting_sum += waiting_time;
     }
-    //if (waiting_sum > 0)
-    //   MANGO_LOG_INFO("Waited {0} ns.", waiting_sum);
+    if (waiting_sum > 0)
+        MANGO_LOG_INFO("Waited {0} ns.", waiting_sum);
 }
 
 void gl_graphics_device_context::wait(gfx_handle<const gfx_semaphore> semaphore)

@@ -219,9 +219,9 @@ void environment_display_step::execute()
     m_cubemap_data.model_matrix = mat4::Identity(); // TODO Paul!
     step_context->set_buffer_data(m_cubemap_data_buffer, 0, sizeof(m_cubemap_data), &m_cubemap_data);
 
-    m_cubemap_pass_pipeline->get_resource_mapping()->set("cubemap_data", m_cubemap_data_buffer);
-    m_cubemap_pass_pipeline->get_resource_mapping()->set("texture_environment_cubemap", m_current_cubemap);
-    m_cubemap_pass_pipeline->get_resource_mapping()->set("sampler_environment_cubemap", m_cubemap_sampler);
+    m_cubemap_pass_pipeline->get_resource_mapping()->set_buffer("cubemap_data", m_cubemap_data_buffer, ivec2(0, sizeof(m_cubemap_data)));
+    m_cubemap_pass_pipeline->get_resource_mapping()->set_texture("texture_environment_cubemap", m_current_cubemap);
+    m_cubemap_pass_pipeline->get_resource_mapping()->set_sampler("sampler_environment_cubemap", m_cubemap_sampler);
 
     step_context->submit_pipeline_state_resources();
 

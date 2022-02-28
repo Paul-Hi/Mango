@@ -416,31 +416,6 @@ namespace mango
         int32 index_offset;
     };
 
-    //! \brief Mapping to get, set and submit shader resources.
-    class shader_resource_mapping
-    {
-      public:
-        //! \brief Checks whether resource with correct access exists, returns a pointer to fill.
-        //! \details Can also be an array of resources.
-        //! \param[in] variable_name The variable name.
-        //! \param[in] resource A \a gfx_handle of the resource to set.
-        //! \return True on success, else false.
-        virtual bool set(const string variable_name, gfx_handle<const gfx_device_object> resource) = 0;
-
-        //! \brief The pair of an integer binding and a \a shader_resource_type.
-        using binding_pair = std::pair<int32, gfx_shader_resource_type>;
-        //! \brief Mapping of resource names to \a binding_pairs.
-        std::unordered_map<string, binding_pair> m_name_to_binding_pair;
-
-        //! \brief Status bit to describe static and dynamic resources.
-        //! \details 0 = invalid, 1 = dynamic, 2 = static unset, 3 = static set.
-        using status_bit = uint8; // TODO Should be done better.
-
-        //! \brief The pair of \a gfx_handle of a shader resources and a \a status_bit.
-        template <typename T>
-        using resource_pair = std::pair<gfx_handle<T>, status_bit>;
-    };
-
     //! \brief An uninitialized \a gfx_device_object.
     class gfx_uninitialized_device_object : public gfx_device_object
     {
@@ -451,6 +426,8 @@ namespace mango
             return -1;
         };
     };
+
+    class shader_resource_mapping;
 
     //! \brief A big structure containing most of the relevant state for drawing or computing everything on and with the graphics card.
     class gfx_pipeline : public gfx_device_object
@@ -543,6 +520,49 @@ namespace mango
         {
             return 6;
         };
+    };
+
+    //! \brief Mapping to get, set and submit shader resources.
+    class shader_resource_mapping
+    {
+      public:
+        //! \brief Sets a buffer for binding.
+        //! \param[in] variable_name The buffer name in the shader.
+        //! \param[in] resource A \a gfx_handle of the \a gfx_buffer to set.
+        //! \param[in] range The range to bind. First component is offset in bytes. Second component is size in bytes.
+        //! \return True on success, else false.
+        virtual bool set_buffer(const string variable_name, gfx_handle<const gfx_buffer> resource, ivec2 range) = 0;
+
+        //! \brief Sets a texture for binding.
+        //! \param[in] variable_name The texture name in the shader.
+        //! \param[in] resource A \a gfx_handle of the \a gfx_texture to set.
+        //! \return True on success, else false.
+        virtual bool set_texture(const string variable_name, gfx_handle<const gfx_texture> resource) = 0;
+
+        //! \brief Sets a sampler for binding.
+        //! \param[in] variable_name The sampler name in the shader.
+        //! \param[in] resource A \a gfx_handle of the \a gfx_sampler to set.
+        //! \return True on success, else false.
+        virtual bool set_sampler(const string variable_name, gfx_handle<const gfx_sampler> resource) = 0;
+
+        //! \brief Sets a image for binding.
+        //! \param[in] variable_name The image name in the shader.
+        //! \param[in] resource A \a gfx_handle of the \a gfx_image_texture_view to set.
+        //! \return True on success, else false.
+        virtual bool set_texture_image(const string variable_name, gfx_handle<const gfx_image_texture_view> resource) = 0;
+
+        //! \brief The pair of an integer binding and a \a shader_resource_type.
+        using binding_pair = std::pair<int32, gfx_shader_resource_type>;
+        //! \brief Mapping of resource names to \a binding_pairs.
+        std::unordered_map<string, binding_pair> m_name_to_binding_pair;
+
+        //! \brief Status bit to describe static and dynamic resources.
+        //! \details 0 = invalid, 1 = dynamic, 2 = static unset, 3 = static set.
+        using status_bit = uint8; // TODO Should be done better.
+
+        //! \brief The pair of \a gfx_handle of a shader resources and a \a status_bit.
+        template <typename T>
+        using resource_pair = std::pair<gfx_handle<T>, status_bit>;
     };
 } // namespace mango
 

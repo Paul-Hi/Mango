@@ -258,8 +258,8 @@ void skylight_builder::create_brdf_lookup()
     device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
 
     auto lut_view = graphics_device->create_image_texture_view(m_brdf_integration_lut);
-    m_brdf_integration_lut_pipeline->get_resource_mapping()->set("integration_lut_out", lut_view);
-    m_brdf_integration_lut_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generator_data_buffer);
+    m_brdf_integration_lut_pipeline->get_resource_mapping()->set_texture_image("integration_lut_out", lut_view);
+    m_brdf_integration_lut_pipeline->get_resource_mapping()->set_buffer("ibl_generation_data", m_ibl_generator_data_buffer, ivec2(0, sizeof(ibl_generator_data)));
 
     device_context->submit_pipeline_state_resources();
 
@@ -417,11 +417,11 @@ void skylight_builder::load_from_hdr(scene_impl* scene, const skylight& light, s
     m_current_ibl_generator_data.data     = vec2(0.0f, 0.0f); // unused here
     device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
 
-    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("texture_hdr_in", hdr_data->graphics_texture);
-    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("sampler_hdr_in", hdr_data->graphics_sampler);
+    m_equi_to_cubemap_pipeline->get_resource_mapping()->set_texture("texture_hdr_in", hdr_data->graphics_texture);
+    m_equi_to_cubemap_pipeline->get_resource_mapping()->set_sampler("sampler_hdr_in", hdr_data->graphics_sampler);
     auto cubemap_view = graphics_device->create_image_texture_view(render_data->cubemap);
-    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("cubemap_out", cubemap_view);
-    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generator_data_buffer);
+    m_equi_to_cubemap_pipeline->get_resource_mapping()->set_texture_image("cubemap_out", cubemap_view);
+    m_equi_to_cubemap_pipeline->get_resource_mapping()->set_buffer("ibl_generation_data", m_ibl_generator_data_buffer, ivec2(0, sizeof(ibl_generator_data)));
 
     device_context->submit_pipeline_state_resources();
 
@@ -499,11 +499,11 @@ void skylight_builder::calculate_ibl_maps(skylight_cache* render_data)
     m_current_ibl_generator_data.data     = vec2(0.0f, 0.0f); // unused here
     device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
 
-    m_build_irradiance_map_pipeline->get_resource_mapping()->set("texture_cubemap_in", render_data->cubemap);
-    m_build_irradiance_map_pipeline->get_resource_mapping()->set("sampler_cubemap_in", mipmapped_gen_sampler);
+    m_build_irradiance_map_pipeline->get_resource_mapping()->set_texture("texture_cubemap_in", render_data->cubemap);
+    m_build_irradiance_map_pipeline->get_resource_mapping()->set_sampler("sampler_cubemap_in", mipmapped_gen_sampler);
     auto irradiance_view = graphics_device->create_image_texture_view(render_data->irradiance_cubemap);
-    m_build_irradiance_map_pipeline->get_resource_mapping()->set("irradiance_map_out", irradiance_view);
-    m_build_irradiance_map_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generator_data_buffer);
+    m_build_irradiance_map_pipeline->get_resource_mapping()->set_texture_image("irradiance_map_out", irradiance_view);
+    m_build_irradiance_map_pipeline->get_resource_mapping()->set_buffer("ibl_generation_data", m_ibl_generator_data_buffer, ivec2(0, sizeof(ibl_generator_data)));
 
     device_context->submit_pipeline_state_resources();
 
@@ -516,8 +516,8 @@ void skylight_builder::calculate_ibl_maps(skylight_cache* render_data)
     // build prefiltered specular mipchain
     device_context->bind_pipeline(m_build_specular_prefiltered_map_pipeline);
 
-    m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set("texture_cubemap_in", render_data->cubemap);
-    m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set("sampler_cubemap_in", mipmapped_gen_sampler);
+    m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set_texture("texture_cubemap_in", render_data->cubemap);
+    m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set_sampler("sampler_cubemap_in", mipmapped_gen_sampler);
 
     for (int32 mip = 0; mip < specular_mip_count; ++mip)
     {
@@ -530,8 +530,8 @@ void skylight_builder::calculate_ibl_maps(skylight_cache* render_data)
         device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
 
         auto mip_view = graphics_device->create_image_texture_view(render_data->specular_prefiltered_cubemap, mip);
-        m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set("prefiltered_spec_out", mip_view);
-        m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generator_data_buffer);
+        m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set_texture_image("prefiltered_spec_out", mip_view);
+        m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set_buffer("ibl_generation_data", m_ibl_generator_data_buffer, ivec2(0, sizeof(ibl_generator_data)));
 
         device_context->submit_pipeline_state_resources();
 

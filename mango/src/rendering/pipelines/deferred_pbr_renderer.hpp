@@ -12,6 +12,7 @@
 #include <rendering/renderer_impl.hpp>
 #include <rendering/renderer_pipeline_cache.hpp>
 #include <rendering/steps/render_step.hpp>
+#include <rendering/ring_buffer_manager.hpp>
 
 namespace mango
 {
@@ -142,7 +143,11 @@ namespace mango
 
         gfx_handle<const gfx_buffer> m_indirect_buffer;
         draw_elements_indirect_command* m_indirect_buffer_mapping;
-        int32 m_indirect_offset;
+
+        ring_buffer_manager m_id_buffer_manager;
+        ring_buffer_manager m_model_buffer_manager;
+        ring_buffer_manager m_material_buffer_manager;
+        ring_buffer_manager m_indirect_buffer_manager;
 
         //! \brief True if the renderer should draw wireframe, else false.
         bool m_wireframe;
@@ -152,9 +157,6 @@ namespace mango
 
         //! \brief True if the renderer should cull primitives against camera and shadow frusta, else false.
         bool m_frustum_culling;
-
-        //! \brief The \a gfx_semaphore used to synchronize persistant mapped buffers.
-        gfx_handle<const gfx_semaphore> m_buffer_semaphore;
 
         float get_average_luminance() const override;
 

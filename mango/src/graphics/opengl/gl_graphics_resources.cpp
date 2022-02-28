@@ -61,7 +61,7 @@ gl_buffer gl_buffer::dummy()
 
 gl_buffer::~gl_buffer()
 {
-    if(m_buffer_gl_handle)
+    if (m_buffer_gl_handle)
         glDeleteBuffers(1, &m_buffer_gl_handle);
 }
 
@@ -112,7 +112,7 @@ gl_texture gl_texture::dummy()
 
 gl_texture::~gl_texture()
 {
-    if(m_texture_gl_handle)
+    if (m_texture_gl_handle)
         glDeleteTextures(1, &m_texture_gl_handle);
 }
 
@@ -151,7 +151,7 @@ gl_sampler gl_sampler::dummy()
 
 gl_sampler::~gl_sampler()
 {
-    if(m_sampler_gl_handle)
+    if (m_sampler_gl_handle)
         glDeleteSamplers(1, &m_sampler_gl_handle);
 }
 
@@ -171,7 +171,7 @@ gl_semaphore::~gl_semaphore()
         glDeleteSync(sync_object); // TODO Paul: Does this work?
 }
 
-bool gl_shader_resource_mapping::set(const string variable_name, gfx_handle<const gfx_device_object> resource)
+bool gl_shader_resource_mapping::set_buffer(const string variable_name, gfx_handle<const gfx_buffer> resource, ivec2 range)
 {
     auto query = m_name_to_binding_pair.find(variable_name);
     if (query == m_name_to_binding_pair.end())
@@ -182,95 +182,117 @@ bool gl_shader_resource_mapping::set(const string variable_name, gfx_handle<cons
 
     int32 binding               = query->second.first;
     gfx_shader_resource_type tp = query->second.second;
-
-    switch (tp)
+    if (!(tp == gfx_shader_resource_type::shader_resource_buffer_storage || tp == gfx_shader_resource_type::shader_resource_constant_buffer))
     {
-    case gfx_shader_resource_type::shader_resource_constant_buffer:
-    case gfx_shader_resource_type::shader_resource_buffer_storage:
+        MANGO_LOG_ERROR("{0} does not belong to a buffer resource!", variable_name);
+        return false;
+    }
+
+    auto& device_pair = m_buffers.at(binding);
+    auto& bind_range  = m_ranges.at(binding);
+    if (device_pair.second > 2)
     {
-        auto& device_pair = m_buffers.at(binding);
-        if (device_pair.second > 2)
-        {
-            MANGO_LOG_ERROR("Mapping for static binding {0} already set!", binding);
-            return false;
-        }
-        if (resource->get_type_id() != device_pair.first->get_type_id())
-        {
-            MANGO_LOG_ERROR("Type {0} does not fit for shader resource with type {1}!", resource->get_type_id(), tp);
-            return false;
-        }
-        if (device_pair.second == 2)
-            device_pair.second = 3;
-
-        device_pair.first = static_gfx_handle_cast<const gl_buffer>(resource);
-
-        break;
+        MANGO_LOG_ERROR("Mapping for static binding {0} already set!", binding);
+        return false;
     }
-    case gfx_shader_resource_type::shader_resource_image_storage:
+    if (device_pair.second == 2)
+        device_pair.second = 3;
+
+    device_pair.first = static_gfx_handle_cast<const gl_buffer>(resource);
+    bind_range        = range;
+
+    return true;
+}
+
+bool gl_shader_resource_mapping::set_texture(const string variable_name, gfx_handle<const gfx_texture> resource)
+{
+    auto query = m_name_to_binding_pair.find(variable_name);
+    if (query == m_name_to_binding_pair.end())
     {
-        auto& device_pair = m_texture_images.at(binding);
-        if (device_pair.second > 2)
-        {
-            MANGO_LOG_ERROR("Mapping for static binding {0} already set!", binding);
-            return false;
-        }
-        if (resource->get_type_id() != device_pair.first->get_type_id())
-        {
-            MANGO_LOG_ERROR("Type {0} does not fit for shader resource with type {1}!", resource->get_type_id(), tp);
-            return false;
-        }
-        if (device_pair.second == 2)
-            device_pair.second = 3;
-
-        device_pair.first = static_gfx_handle_cast<const gl_image_texture_view>(resource);
-
-        break;
+        MANGO_LOG_ERROR("Mapping for {0} does not exist!", variable_name);
+        return false;
     }
-    case gfx_shader_resource_type::shader_resource_texture:
-    case gfx_shader_resource_type::shader_resource_input_attachment:
+
+    int32 binding               = query->second.first;
+    gfx_shader_resource_type tp = query->second.second;
+    if (!(tp == gfx_shader_resource_type::shader_resource_texture || tp == gfx_shader_resource_type::shader_resource_input_attachment))
     {
-        auto& device_pair = m_textures.at(binding);
-        if (device_pair.second > 2)
-        {
-            MANGO_LOG_ERROR("Mapping for static binding {0} already set!", binding);
-            return false;
-        }
-        if (resource->get_type_id() != device_pair.first->get_type_id())
-        {
-            MANGO_LOG_ERROR("Type {0} does not fit for shader resource with type {1}!", resource->get_type_id(), tp);
-            return false;
-        }
-        if (device_pair.second == 2)
-            device_pair.second = 3;
-
-        device_pair.first = static_gfx_handle_cast<const gl_texture>(resource);
-
-        break;
+        MANGO_LOG_ERROR("{0} does not belong to a texture resource!", variable_name);
+        return false;
     }
-    case gfx_shader_resource_type::shader_resource_sampler:
+
+    auto& device_pair = m_textures.at(binding);
+    if (device_pair.second > 2)
     {
-        auto& device_pair = m_samplers.at(binding);
-        if (device_pair.second > 2)
-        {
-            MANGO_LOG_ERROR("Mapping for static binding {0} already set!", binding);
-            return false;
-        }
-        if (resource->get_type_id() != device_pair.first->get_type_id())
-        {
-            MANGO_LOG_ERROR("Type {0} does not fit for shader resource with type {1}!", resource->get_type_id(), tp);
-            return false;
-        }
-        if (device_pair.second == 2)
-            device_pair.second = 3;
-
-        device_pair.first = static_gfx_handle_cast<const gl_sampler>(resource);
-
-        break;
+        MANGO_LOG_ERROR("Mapping for static binding {0} already set!", binding);
+        return false;
     }
-    default:
-        MANGO_ASSERT(false, "Shader resource type is unknown!", tp);
-        break;
+    if (device_pair.second == 2)
+        device_pair.second = 3;
+
+    device_pair.first = static_gfx_handle_cast<const gl_texture>(resource);
+
+    return true;
+}
+
+bool gl_shader_resource_mapping::set_sampler(const string variable_name, gfx_handle<const gfx_sampler> resource)
+{
+    auto query = m_name_to_binding_pair.find(variable_name);
+    if (query == m_name_to_binding_pair.end())
+    {
+        MANGO_LOG_ERROR("Mapping for {0} does not exist!", variable_name);
+        return false;
     }
+
+    int32 binding               = query->second.first;
+    gfx_shader_resource_type tp = query->second.second;
+    if (tp != gfx_shader_resource_type::shader_resource_sampler)
+    {
+        MANGO_LOG_ERROR("{0} does not belong to a sampler resource!", variable_name);
+        return false;
+    }
+
+    auto& device_pair = m_samplers.at(binding);
+    if (device_pair.second > 2)
+    {
+        MANGO_LOG_ERROR("Mapping for static binding {0} already set!", binding);
+        return false;
+    }
+    if (device_pair.second == 2)
+        device_pair.second = 3;
+
+    device_pair.first = static_gfx_handle_cast<const gl_sampler>(resource);
+
+    return true;
+}
+
+bool gl_shader_resource_mapping::set_texture_image(const string variable_name, gfx_handle<const gfx_image_texture_view> resource)
+{
+    auto query = m_name_to_binding_pair.find(variable_name);
+    if (query == m_name_to_binding_pair.end())
+    {
+        MANGO_LOG_ERROR("Mapping for {0} does not exist!", variable_name);
+        return false;
+    }
+
+    int32 binding               = query->second.first;
+    gfx_shader_resource_type tp = query->second.second;
+    if (tp != gfx_shader_resource_type::shader_resource_image_storage)
+    {
+        MANGO_LOG_ERROR("{0} does not belong to a texture image resource!", variable_name);
+        return false;
+    }
+
+    auto& device_pair = m_texture_images.at(binding);
+    if (device_pair.second > 2)
+    {
+        MANGO_LOG_ERROR("Mapping for static binding {0} already set!", binding);
+        return false;
+    }
+    if (device_pair.second == 2)
+        device_pair.second = 3;
+
+    device_pair.first = static_gfx_handle_cast<const gl_image_texture_view>(resource);
 
     return true;
 }
@@ -349,11 +371,15 @@ gl_graphics_pipeline::gl_graphics_pipeline(const graphics_pipeline_create_info& 
             device_pair.first  = make_gfx_handle<gl_buffer>(gl_buffer::dummy());
             device_pair.second = status;
             if (static_cast<int32>(m_mapping->m_buffers.size()) < b.binding + array_size_out)
+            {
                 m_mapping->m_buffers.resize(b.binding + array_size_out);
+                m_mapping->m_ranges.resize(b.binding + array_size_out);
+            }
             if (array_size_out == 1)
             {
                 m_mapping->m_name_to_binding_pair.insert({ name, { b.binding, b.type } });
                 m_mapping->m_buffers.at(b.binding) = device_pair;
+                m_mapping->m_ranges.at(b.binding)  = ivec2(0, 0);
             }
             else
             {
@@ -363,6 +389,7 @@ gl_graphics_pipeline::gl_graphics_pipeline(const graphics_pipeline_create_info& 
                     indexed_name = string(name) + "[" + std::to_string(c) + "]";
                     m_mapping->m_name_to_binding_pair.insert({ indexed_name.c_str(), { b.binding + c, b.type } });
                     m_mapping->m_buffers.at(b.binding + c) = device_pair;
+                    m_mapping->m_ranges.at(b.binding + c)  = ivec2(0, 0);
                 }
             }
             break;
@@ -504,11 +531,15 @@ gl_compute_pipeline::gl_compute_pipeline(const compute_pipeline_create_info& inf
             device_pair.first  = make_gfx_handle<gl_buffer>(gl_buffer::dummy());
             device_pair.second = status;
             if (static_cast<int32>(m_mapping->m_buffers.size()) < b.binding + array_size_out)
+            {
                 m_mapping->m_buffers.resize(b.binding + array_size_out);
+                m_mapping->m_ranges.resize(b.binding + array_size_out);
+            }
             if (array_size_out == 1)
             {
                 m_mapping->m_name_to_binding_pair.insert({ name, { b.binding, b.type } });
                 m_mapping->m_buffers.at(b.binding) = device_pair;
+                m_mapping->m_ranges.at(b.binding)  = ivec2(0, 0);
             }
             else
             {
@@ -518,6 +549,7 @@ gl_compute_pipeline::gl_compute_pipeline(const compute_pipeline_create_info& inf
                     indexed_name = string(name) + "[" + std::to_string(c) + "]";
                     m_mapping->m_name_to_binding_pair.insert({ indexed_name.c_str(), { b.binding + c, b.type } });
                     m_mapping->m_buffers.at(b.binding + c) = device_pair;
+                    m_mapping->m_ranges.at(b.binding + c)  = ivec2(0, 0);
                 }
             }
             break;
@@ -615,12 +647,13 @@ void gl_pipeline::submit_pipeline_resources(gfx_handle<gfx_graphics_state> share
     for (int32 b = 0; b < buffers_count; ++b)
     {
         auto& buffer = m_mapping->m_buffers[b];
+        auto& range  = m_mapping->m_ranges[b];
         if (buffer.second == 0 || buffer.first->m_buffer_gl_handle == 0)
             continue;
-        if (shared_graphics_state->is_buffer_bound(buffer.first->m_info.buffer_target, b, buffer.first->native_handle()))
+        if (shared_graphics_state->is_buffer_bound(buffer.first->m_info.buffer_target, b, buffer.first->native_handle(), range))
             continue;
-        glBindBufferBase(gfx_buffer_target_to_gl(buffer.first->m_info.buffer_target), b, buffer.first->m_buffer_gl_handle);
-        shared_graphics_state->record_buffer_binding(buffer.first->m_info.buffer_target, b, buffer.first->native_handle());
+        glBindBufferRange(gfx_buffer_target_to_gl(buffer.first->m_info.buffer_target), b, buffer.first->m_buffer_gl_handle, range.x(), range.y());
+        shared_graphics_state->record_buffer_binding(buffer.first->m_info.buffer_target, b, buffer.first->native_handle(), range);
     }
 
     std::vector<gl_handle> gl_handles;

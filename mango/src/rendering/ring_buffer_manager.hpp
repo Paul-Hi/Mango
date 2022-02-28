@@ -17,7 +17,8 @@ namespace mango
       public:
         inline void create(int32 buffer_count)
         {
-            m_buffer_count = buffer_count;
+            m_buffer_count   = buffer_count;
+            m_current_offset = 0;
         }
 
         inline void lock_range(int32 start, int32 end, const graphics_device_context_handle& context)
@@ -46,6 +47,10 @@ namespace mango
                 {
                     context->client_wait(block.semaphore);
                     it = m_blocks.erase(it);
+                }
+                else
+                {
+                    it++;
                 }
             }
             return start;

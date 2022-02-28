@@ -24,7 +24,7 @@ namespace mango
 
         void generate_buffers(const graphics_device_handle& graphics_device);
 
-        void bind_buffers(const graphics_device_context_handle& frame_context, const gfx_handle<const gfx_buffer> id_buffer) const;
+        void bind_buffers(const graphics_device_context_handle& frame_context, const gfx_handle<const gfx_buffer> id_buffer, int32 id_offset) const;
 
         inline int32 get_vertex_count() const
         {

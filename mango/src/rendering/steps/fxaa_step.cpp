@@ -167,9 +167,9 @@ void fxaa_step::execute()
     m_fxaa_data.inverse_screen_size[1] = 1.0f / m_fxaa_data.inverse_screen_size[1];
     step_context->set_buffer_data(m_fxaa_data_buffer, 0, sizeof(m_fxaa_data), &m_fxaa_data);
 
-    m_fxaa_pass_pipeline->get_resource_mapping()->set("fxaa_data", m_fxaa_data_buffer);
-    m_fxaa_pass_pipeline->get_resource_mapping()->set("texture_input", m_texture_input);
-    m_fxaa_pass_pipeline->get_resource_mapping()->set("sampler_input", m_sampler_input);
+    m_fxaa_pass_pipeline->get_resource_mapping()->set_buffer("fxaa_data", m_fxaa_data_buffer, ivec2(0, sizeof(m_fxaa_data)));
+    m_fxaa_pass_pipeline->get_resource_mapping()->set_texture("texture_input", m_texture_input);
+    m_fxaa_pass_pipeline->get_resource_mapping()->set_sampler("sampler_input", m_sampler_input);
 
     step_context->submit_pipeline_state_resources();
 

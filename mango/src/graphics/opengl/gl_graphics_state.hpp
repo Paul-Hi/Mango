@@ -101,45 +101,72 @@ namespace mango
         {
             //! \brief List of \a gl_handles of the currently bound uniform buffers.
             std::array<gl_handle, 128> uniform_buffers; // TODO Paul: See shader_stage_create_info in graphics_resources -> Should be queried.
+            //! \brief List of ranges of the currently bound uniform buffer ranges.
+            std::array<ivec2, 128> uniform_buffer_ranges; // TODO Paul: See shader_stage_create_info in graphics_resources -> Should be queried.
 
             //! \brief List of \a gl_handles of the currently bound shader storage buffers.
             std::array<gl_handle, 128> shader_storage_buffers; // TODO Paul: See shader_stage_create_info in graphics_resources -> Should be queried.
+            //! \brief List of ranges of the currently bound shader storage buffer ranges.
+            std::array<ivec2, 128> shader_storage_buffer_ranges; // TODO Paul: See shader_stage_create_info in graphics_resources -> Should be queried.
 
             //! \brief List of \a gl_handles of the currently bound texture buffers.
             std::array<gl_handle, 128> texture_buffers; // TODO Paul: See shader_stage_create_info in graphics_resources -> Should be queried.
+            //! \brief List of ranges of the currently bound texture buffer ranges.
+            std::array<ivec2, 128> texture_buffer_ranges; // TODO Paul: See shader_stage_create_info in graphics_resources -> Should be queried.
 
         } resources; //!< Cache data for resources.
 
-        bool is_buffer_bound(gfx_buffer_target target, int32 idx, void* native_handle) override
+        bool is_buffer_bound(gfx_buffer_target target, int32 idx, void* native_handle, ivec2 range) override
         {
             MANGO_ASSERT(idx < 128, "Index does exceed maximum binding!");
             switch (target)
             {
             case gfx_buffer_target::buffer_target_uniform:
-                return resources.uniform_buffers[idx] == static_cast<gl_handle>((uintptr)native_handle);
+            {
+                bool buf = resources.uniform_buffers[idx] == static_cast<gl_handle>((uintptr)native_handle);
+                if (!buf)
+                    return false;
+                ivec2& stored_range = resources.uniform_buffer_ranges[idx];
+                return (stored_range.x() == range.x()) && (stored_range.y() == range.y());
+            }
             case gfx_buffer_target::buffer_target_shader_storage:
-                return resources.shader_storage_buffers[idx] == static_cast<gl_handle>((uintptr)native_handle);
+            {
+                bool buf = resources.shader_storage_buffers[idx] == static_cast<gl_handle>((uintptr)native_handle);
+                if (!buf)
+                    return false;
+                ivec2& stored_range = resources.shader_storage_buffer_ranges[idx];
+                return (stored_range.x() == range.x()) && (stored_range.y() == range.y());
+            }
             case gfx_buffer_target::buffer_target_texture:
-                return resources.texture_buffers[idx] == static_cast<gl_handle>((uintptr)native_handle);
+            {
+                bool buf = resources.texture_buffers[idx] == static_cast<gl_handle>((uintptr)native_handle);
+                if (!buf)
+                    return false;
+                ivec2& stored_range = resources.texture_buffer_ranges[idx];
+                return (stored_range.x() == range.x()) && (stored_range.y() == range.y());
+            }
             default:
                 MANGO_ASSERT(false, "Buffer target is not a valid resource!");
                 break;
             }
             return false;
         }
-        void record_buffer_binding(gfx_buffer_target target, int32 idx, void* native_handle) override
+        void record_buffer_binding(gfx_buffer_target target, int32 idx, void* native_handle, ivec2 range) override
         {
             MANGO_ASSERT(idx < 128, "Index does exceed maximum binding!");
             switch (target)
             {
             case gfx_buffer_target::buffer_target_uniform:
-                resources.uniform_buffers[idx] = static_cast<gl_handle>((uintptr)native_handle);
+                resources.uniform_buffers[idx]       = static_cast<gl_handle>((uintptr)native_handle);
+                resources.uniform_buffer_ranges[idx] = range;
                 break;
             case gfx_buffer_target::buffer_target_shader_storage:
-                resources.shader_storage_buffers[idx] = static_cast<gl_handle>((uintptr)native_handle);
+                resources.shader_storage_buffers[idx]       = static_cast<gl_handle>((uintptr)native_handle);
+                resources.shader_storage_buffer_ranges[idx] = range;
                 break;
             case gfx_buffer_target::buffer_target_texture:
-                resources.texture_buffers[idx] = static_cast<gl_handle>((uintptr)native_handle);
+                resources.texture_buffers[idx]       = static_cast<gl_handle>((uintptr)native_handle);
+                resources.texture_buffer_ranges[idx] = range;
                 break;
             default:
                 MANGO_ASSERT(false, "Buffer target is not a valid resource!");

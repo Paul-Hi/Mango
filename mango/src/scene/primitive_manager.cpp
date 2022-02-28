@@ -143,14 +143,14 @@ void primitive_manager::generate_buffers(const graphics_device_handle& graphics_
     }
 }
 
-void primitive_manager::bind_buffers(const graphics_device_context_handle& frame_context, const gfx_handle<const gfx_buffer> id_buffer) const
+void primitive_manager::bind_buffers(const graphics_device_context_handle& frame_context, const gfx_handle<const gfx_buffer> id_buffer, int32 id_offset) const
 {
     frame_context->set_index_buffer(m_index_buffer, gfx_format::t_unsigned_int); // unsigned int is unified
 
     // vertex buffers and layout are unified
     gfx_handle<const gfx_buffer> vbs[5] = { m_position_buffer, m_normal_buffer, m_uv_buffer, m_tangent_buffer, id_buffer };
     int32 bindings[5]                   = { 0, 1, 2, 3, 4 };
-    int32 offsets[5]                    = { 0, 0, 0, 0, 0 };
+    int32 offsets[5]                    = { 0, 0, 0, 0, id_offset * sizeof(ivec2) };
 
     frame_context->set_vertex_buffers(5, vbs, bindings, offsets);
 }

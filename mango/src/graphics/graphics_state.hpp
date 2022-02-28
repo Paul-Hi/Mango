@@ -18,13 +18,16 @@ namespace mango
         //! \param[in] target The \a gfx_buffer_target to check.
         //! \param[in] idx The binding index to check.
         //! \param[in] native_handle The native handle of the buffer to check.
-        virtual bool is_buffer_bound(gfx_buffer_target target, int32 idx, void* native_handle) = 0;
+        //! \param[in] range The bound range. First component is offset in bytes. Second component is size in bytes.
+        //! \return True if buffer range is bound else false.
+        virtual bool is_buffer_bound(gfx_buffer_target target, int32 idx, void* native_handle, ivec2 range) = 0;
 
         //! \brief Records a certain binding of a buffer.
         //! \param[in] target The \a gfx_buffer_target to record.
         //! \param[in] idx The binding index to record.
         //! \param[in] native_handle The native handle of the buffer to record.
-        virtual void record_buffer_binding(gfx_buffer_target target, int32 idx, void* native_handle) = 0;
+        //! \param[in] range The range to bind. First component is offset in bytes. Second component is size in bytes.
+        virtual void record_buffer_binding(gfx_buffer_target target, int32 idx, void* native_handle, ivec2 range) = 0;
 
         // TODO Paul: More improvements!
         /*

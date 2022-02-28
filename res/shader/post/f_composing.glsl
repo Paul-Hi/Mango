@@ -33,6 +33,6 @@ vec4 tonemap_with_gamma_correction(in vec4 color)
     const float W = 11.2;
     vec3 outcol = uncharted2_tonemap(color.rgb * camera_exposure * 2.0);
     outcol /= uncharted2_tonemap(vec3(W));
-    // outcol = adjust_contrast(outcol, 0.05);
+    outcol = adjust_contrast(outcol, 0.05);
     return linear_to_srgb(vec4(outcol, color.a)); // gamma correction.
 }
