@@ -23,12 +23,14 @@ namespace mango
 #define MODEL_DATA_BUFFER_BINDING_POINT 2
     //! \brief The binding point for the \a material_data buffer.
 #define MATERIAL_DATA_BUFFER_BINDING_POINT 3
+    //! \brief The binding point for the \a draw_instance_data buffer.
+#define DRAW_INSTANCE_DATA_BUFFER_BINDING_POINT 4
     //! \brief The binding point for the \a light_data buffer.
-#define LIGHT_DATA_BUFFER_BINDING_POINT 4
+#define LIGHT_DATA_BUFFER_BINDING_POINT 5
     //! \brief The binding point for the \a shadow_data buffer.
-#define SHADOW_DATA_BUFFER_BINDING_POINT 5
+#define SHADOW_DATA_BUFFER_BINDING_POINT 6
     //! \brief The binding point for the \a luminance_data buffer.
-#define LUMINANCE_DATA_BUFFER_BINDING_POINT 6
+#define LUMINANCE_DATA_BUFFER_BINDING_POINT 7
 
     //! \brief The vertex input binding point for the position vertex attribute.
 #define VERTEX_INPUT_POSITION 0
@@ -143,6 +145,12 @@ namespace mango
         std140_bool has_tangents;  //!< Specifies if the mesh has tangents as a vertex attribute.
         std140_float padding0;     //!< Padding.
         std140_float padding1;     //!< Padding.
+    };
+
+    struct draw_instance_data
+    {
+        std140_int model_index;
+        std140_int material_index;
     };
 
     //! \brief Uniform buffer struct for material data.

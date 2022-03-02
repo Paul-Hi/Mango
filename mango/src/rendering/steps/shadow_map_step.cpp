@@ -98,9 +98,11 @@ bool shadow_map_step::create_step_resources()
         shader_info.stage         = gfx_shader_stage_type::shader_stage_vertex;
         shader_info.shader_source = source_desc;
 
-        shader_info.resource_count = 1;
+        shader_info.resource_count = 2;
 
-        shader_info.resources = { { { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, "model_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 } } };
+        shader_info.resources = { { { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, "model_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+                                    { gfx_shader_stage_type::shader_stage_vertex, DRAW_INSTANCE_DATA_BUFFER_BINDING_POINT, "draw_instance_data",
+                                      gfx_shader_resource_type::shader_resource_buffer_storage, 1 } } };
 
         m_shadow_pass_vertex = graphics_device->create_shader_stage(shader_info);
         if (!check_creation(m_shadow_pass_vertex.get(), "shadow pass vertex shader"))
@@ -142,10 +144,11 @@ bool shadow_map_step::create_step_resources()
         shader_info.stage         = gfx_shader_stage_type::shader_stage_fragment;
         shader_info.shader_source = source_desc;
 
-        shader_info.resource_count = 3;
+        shader_info.resource_count = 4;
 
         shader_info.resources = { {
             { gfx_shader_stage_type::shader_stage_fragment, MATERIAL_DATA_BUFFER_BINDING_POINT, "material_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, DRAW_INSTANCE_DATA_BUFFER_BINDING_POINT, "draw_instance_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
 
             { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, "texture_base_color", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, "sampler_base_color", gfx_shader_resource_type::shader_resource_sampler, 1 },
@@ -163,14 +166,19 @@ bool shadow_map_step::create_step_resources()
         auto shadow_pass_pipeline_layout        = graphics_device->create_pipeline_resource_layout({
             { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
               gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_vertex, DRAW_INSTANCE_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+              gfx_shader_resource_access::shader_access_dynamic },
 
             { gfx_shader_stage_type::shader_stage_geometry, SHADOW_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
               gfx_shader_resource_access::shader_access_dynamic },
 
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, gfx_shader_resource_type::shader_resource_input_attachment,
+              gfx_shader_resource_access::shader_access_dynamic },
             { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
 
             { gfx_shader_stage_type::shader_stage_fragment, MATERIAL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+              gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_fragment, DRAW_INSTANCE_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
               gfx_shader_resource_access::shader_access_dynamic },
         });
 

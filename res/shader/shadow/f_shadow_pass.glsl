@@ -1,6 +1,7 @@
 #include <../include/common_constants_and_functions.glsl>
 
 #define BIND_MATERIAL_DATA_BUFFER
+#define BIND_INSTANCE_DRAW_DATA_BUFFER
 
 #include <../include/binding_data.glsl>
 
@@ -9,14 +10,14 @@ layout(location = GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR) uniform sampler2D sampler
 in shared_data
 {
     vec2 texcoord;
-    flat ivec2 draw_id; // (model_data index, material_data index)
+    flat uint draw_id;
 } fs_in;
 
 out float depth;
 
 void main()
 {
-    int material_id = fs_in.draw_id.y;
+    int material_id = instance_data_array[fs_in.draw_id].model_index;
     per_material_data data = material_data_array[material_id];
 
     vec4 color = data.base_color_texture ? texture(sampler_base_color, fs_in.texcoord) : data.base_color;

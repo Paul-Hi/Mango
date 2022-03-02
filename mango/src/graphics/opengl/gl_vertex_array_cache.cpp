@@ -72,10 +72,6 @@ gl_handle gl_vertex_array_cache::get_vertex_array(const vertex_array_data_descri
 
     cache.insert({ key, created });
 
-    static int count = 0;
-    MANGO_LOG_INFO("VAO: {0}", count++);
-    // TODO NEXT: Too many VAOs ... Draw Id ringbuffer has to be done better (maybe use always fixed size jumps)
-
     return created;
 }
 

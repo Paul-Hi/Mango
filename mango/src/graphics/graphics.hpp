@@ -200,11 +200,11 @@ namespace mango
             5,
             { vertex_input_binding_description{ 0, sizeof(vec3), gfx_vertex_input_rate::per_vertex }, vertex_input_binding_description{ 1, sizeof(vec3), gfx_vertex_input_rate::per_vertex },
               vertex_input_binding_description{ 2, sizeof(vec2), gfx_vertex_input_rate::per_vertex }, vertex_input_binding_description{ 3, sizeof(vec4), gfx_vertex_input_rate::per_vertex },
-              vertex_input_binding_description{ 4, sizeof(ivec2), gfx_vertex_input_rate::per_instance } },
+              vertex_input_binding_description{ 4, sizeof(draw_elements_indirect_command), gfx_vertex_input_rate::per_instance } },
             5,
             { vertex_input_attribute_description{ 0, 0, gfx_format::rgb32f, 0 }, vertex_input_attribute_description{ 1, 1, gfx_format::rgb32f, 0 },
               vertex_input_attribute_description{ 2, 2, gfx_format::rg32f, 0 }, vertex_input_attribute_description{ 3, 3, gfx_format::rgba32f, 0 },
-              vertex_input_attribute_description{ 4, 4, gfx_format::rg32i, 0 } }
+              vertex_input_attribute_description{ 4, 4, gfx_format::r32ui, offsetof(draw_elements_indirect_command, base_instance) } }
         };
 
         //! \brief Unified input assembly used to batch draw calls.

@@ -49,7 +49,7 @@ struct per_model_data
     bool  has_tangents;  // Specifies if the mesh has tangents as a vertex attribute.
 };
 
-layout(binding = MODEL_DATA_BUFFER_BINDING_POINT, std140) buffer model_data
+layout(std430, binding = MODEL_DATA_BUFFER_BINDING_POINT) buffer model_data
 {
     per_model_data model_data_array[]; // List of per_model_data
 };
@@ -75,12 +75,27 @@ struct per_material_data
     float alpha_cutoff;               // Specifies the alpha cutoff value to render the material with.
 };
 
-layout(binding = MATERIAL_DATA_BUFFER_BINDING_POINT, std140) buffer material_data
+layout(std430, binding = MATERIAL_DATA_BUFFER_BINDING_POINT) buffer material_data
 {
     per_material_data material_data_array[]; // List of per_material_data
 };
 
 #endif // BIND_MATERIAL_DATA_BUFFER
+
+#ifdef BIND_INSTANCE_DRAW_DATA_BUFFER
+
+struct per_instance_data
+{
+    int model_index;
+    int material_index;
+};
+
+layout(std430, binding = DRAW_INSTANCE_DATA_BUFFER_BINDING_POINT) buffer instance_data
+{
+    per_instance_data instance_data_array[]; // List of per_instance_data
+};
+
+#endif // BIND_INSTANCE_DRAW_DATA_BUFFER
 
 #ifdef BIND_LIGHT_DATA_BUFFER
 

@@ -111,7 +111,7 @@ void primitive_manager::generate_buffers(const graphics_device_handle& graphics_
         NAMED_PROFILE_ZONE("Megabuffer Creation");
         for (auto data_id : m_internal_data)
         {
-            managed_data& data = m_internal_data.at(data_id);
+            managed_data& data               = m_internal_data.at(data_id);
             data.draw_call_desc.index_count  = data.index_data.size();
             data.draw_call_desc.index_offset = global_index_count;
             data.draw_call_desc.base_vertex  = global_vertex_count;
@@ -137,20 +137,20 @@ void primitive_manager::generate_buffers(const graphics_device_handle& graphics_
     device_context->end();
     device_context->submit();
 
-    if(!sucess)
+    if (!sucess)
     {
         MANGO_LOG_ERROR("Unmapping failed. Rendering might not work!");
     }
 }
 
-void primitive_manager::bind_buffers(const graphics_device_context_handle& frame_context, const gfx_handle<const gfx_buffer> id_buffer, int32 id_offset) const
+void primitive_manager::bind_buffers(const graphics_device_context_handle& frame_context, const gfx_handle<const gfx_buffer> indirect_buffer, int32 indirect_buffer_offset) const
 {
     frame_context->set_index_buffer(m_index_buffer, gfx_format::t_unsigned_int); // unsigned int is unified
 
     // vertex buffers and layout are unified
-    gfx_handle<const gfx_buffer> vbs[5] = { m_position_buffer, m_normal_buffer, m_uv_buffer, m_tangent_buffer, id_buffer };
+    gfx_handle<const gfx_buffer> vbs[5] = { m_position_buffer, m_normal_buffer, m_uv_buffer, m_tangent_buffer, indirect_buffer };
     int32 bindings[5]                   = { 0, 1, 2, 3, 4 };
-    int32 offsets[5]                    = { 0, 0, 0, 0, id_offset * sizeof(ivec2) };
+    int32 offsets[5]                    = { 0, 0, 0, 0, indirect_buffer_offset * sizeof(draw_elements_indirect_command) };
 
     frame_context->set_vertex_buffers(5, vbs, bindings, offsets);
 }

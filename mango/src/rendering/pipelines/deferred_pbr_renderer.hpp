@@ -11,8 +11,8 @@
 #include <rendering/light_stack.hpp>
 #include <rendering/renderer_impl.hpp>
 #include <rendering/renderer_pipeline_cache.hpp>
-#include <rendering/steps/render_step.hpp>
 #include <rendering/ring_buffer_manager.hpp>
+#include <rendering/steps/render_step.hpp>
 
 namespace mango
 {
@@ -133,18 +133,18 @@ namespace mango
         luminance_data* m_luminance_data_mapping;
 
         // Batch buffers
-        gfx_handle<const gfx_buffer> m_id_buffer;
+        gfx_handle<const gfx_buffer> m_draw_instance_data_buffer;
         gfx_handle<const gfx_buffer> m_model_data_buffer;
         gfx_handle<const gfx_buffer> m_material_data_buffer;
 
-        ivec2* m_id_buffer_mapping;
+        draw_instance_data* m_draw_instance_data_buffer_mapping;
         model_data* m_model_data_buffer_mapping;
         material_data* m_material_data_buffer_mapping;
 
         gfx_handle<const gfx_buffer> m_indirect_buffer;
         draw_elements_indirect_command* m_indirect_buffer_mapping;
 
-        ring_buffer_manager m_id_buffer_manager;
+        ring_buffer_manager m_instance_buffer_manager;
         ring_buffer_manager m_model_buffer_manager;
         ring_buffer_manager m_material_buffer_manager;
         ring_buffer_manager m_indirect_buffer_manager;

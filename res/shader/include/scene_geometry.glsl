@@ -10,7 +10,7 @@ layout(location = VERTEX_INPUT_POSITION) in vec3 vertex_data_position;
 layout(location = VERTEX_INPUT_NORMAL) in vec3 vertex_data_normal;
 layout(location = VERTEX_INPUT_TEXCOORD) in vec2 vertex_data_texcoord;
 layout(location = VERTEX_INPUT_TANGENT) in vec4 vertex_data_tangent;
-layout(location = VERTEX_INPUT_DRAW_ID) in ivec2 vertex_data_draw_id;
+layout(location = VERTEX_INPUT_DRAW_ID) in uint vertex_data_draw_id;
 
 out shared_data
 {
@@ -19,17 +19,18 @@ out shared_data
     vec3 normal;
     vec3 tangent;
     vec3 bitangent;
-    flat ivec2 draw_id; // (model_data index, material_data index)
+    flat uint draw_id;
 } vs_out;
 
 #define BIND_CAMERA_DATA_BUFFER
 #define BIND_MODEL_DATA_BUFFER
+#define BIND_INSTANCE_DRAW_DATA_BUFFER
 
 #include <binding_data.glsl>
 
 per_model_data get_draw_model_data()
 {
-    int model_id = vertex_data_draw_id.x;
+    int model_id = instance_data_array[vertex_data_draw_id].model_index;
     per_model_data data = model_data_array[model_id];
     return data;
 }
@@ -74,7 +75,7 @@ in shared_data
     vec3 normal;
     vec3 tangent;
     vec3 bitangent;
-    flat ivec2 draw_id; // (model_data index, material_data index)
+    flat uint draw_id;
 } fs_in;
 
 layout(binding = GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR) uniform sampler2D sampler_base_color; // texture "texture_base_color"
@@ -85,19 +86,20 @@ layout(binding = GEOMETRY_TEXTURE_SAMPLER_EMISSIVE_COLOR) uniform sampler2D samp
 
 #define BIND_MODEL_DATA_BUFFER
 #define BIND_MATERIAL_DATA_BUFFER
+#define BIND_INSTANCE_DRAW_DATA_BUFFER
 
 #include <binding_data.glsl>
 
 per_model_data get_draw_model_data()
 {
-    int model_id = fs_in.draw_id.x;
+    int model_id = instance_data_array[fs_in.draw_id].model_index;
     per_model_data data = model_data_array[model_id];
     return data;
 }
 
 per_material_data get_draw_material_data()
 {
-    int material_id = fs_in.draw_id.y;
+    int material_id = instance_data_array[fs_in.draw_id].material_index;
     per_material_data data = material_data_array[material_id];
     return data;
 }
@@ -176,7 +178,7 @@ in shared_data
     vec3 normal;
     vec3 tangent;
     vec3 bitangent;
-    flat ivec2 draw_id; // (model_data index, material_data index)
+    flat uint draw_id;
 } fs_in;
 
 out vec4 frag_color;
@@ -198,6 +200,7 @@ layout(binding = SAMPLER_SHADOW_MAP) uniform sampler2DArray sampler_shadow_map; 
 #define BIND_CAMERA_DATA_BUFFER
 #define BIND_MODEL_DATA_BUFFER
 #define BIND_MATERIAL_DATA_BUFFER
+#define BIND_INSTANCE_DRAW_DATA_BUFFER
 #define BIND_LIGHT_DATA_BUFFER
 #define BIND_SHADOW_DATA_BUFFER
 
@@ -205,14 +208,14 @@ layout(binding = SAMPLER_SHADOW_MAP) uniform sampler2DArray sampler_shadow_map; 
 
 per_model_data get_draw_model_data()
 {
-    int model_id = fs_in.draw_id.x;
+    int model_id = instance_data_array[fs_in.draw_id].model_index;
     per_model_data data = model_data_array[model_id];
     return data;
 }
 
 per_material_data get_draw_material_data()
 {
-    int material_id = fs_in.draw_id.y;
+    int material_id = instance_data_array[fs_in.draw_id].material_index;
     per_material_data data = material_data_array[material_id];
     return data;
 }

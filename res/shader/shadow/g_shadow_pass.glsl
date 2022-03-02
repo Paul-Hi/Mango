@@ -8,13 +8,13 @@ layout(triangle_strip, max_vertices = 3) out;
 in shared_data
 {
     vec2 texcoord;
-    flat ivec2 draw_id; // (model_data index, material_data index)
+    flat uint draw_id;
 } gs_in[];
 
 out shared_data
 {
     vec2 texcoord;
-    flat ivec2 draw_id; // (model_data index, material_data index)
+    flat uint draw_id;
 } gs_out;
 
 void main()
