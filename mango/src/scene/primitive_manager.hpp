@@ -7,10 +7,10 @@
 #ifndef MANGO_PRIMITIVE_MANAGER_HPP
 #define MANGO_PRIMITIVE_MANAGER_HPP
 
+#include <mango/packed_freelist.hpp>
 #include <mango/types.hpp>
 #include <resources/primitive_builder.hpp>
 #include <scene/scene_structures_internal.hpp>
-#include <mango/packed_freelist.hpp>
 
 namespace mango
 {
@@ -19,7 +19,7 @@ namespace mango
       public:
         primitive_manager();
 
-        primitive_gpu_data add_primitive(primitive_builder& builder);
+        primitive_gpu_data add_primitive(primitive_builder& builder, uid material_id);
         void remove_primitive(uid manager_id);
 
         void generate_buffers(const graphics_device_handle& graphics_device);
@@ -67,6 +67,8 @@ namespace mango
             std::vector<vec4> tangent_data;
             //! \brief The index buffer data. Always blown up to uint32.
             std::vector<uint32> index_data;
+            //! \brief The \a uid of the material;
+            uid material_id;
             //! \brief The \a draw_call_description providing information to schedule a draw call for this \a primitive_gpu_data.
             draw_call_description draw_call_desc;
         };

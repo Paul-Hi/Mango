@@ -17,7 +17,7 @@ out float depth;
 
 void main()
 {
-    int material_id = instance_data_array[fs_in.draw_id].model_index;
+    int material_id = instance_data_array[fs_in.draw_id].material_index;
     per_material_data data = material_data_array[material_id];
 
     vec4 color = data.base_color_texture ? texture(sampler_base_color, fs_in.texcoord) : data.base_color;

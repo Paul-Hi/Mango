@@ -1845,7 +1845,7 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
         if (!builder.has_tangent_data())
             builder.calculate_tangents();
 
-        primitive_gpu_data p_data = m_primitive_manager.add_primitive(builder);
+        primitive_gpu_data p_data = m_primitive_manager.add_primitive(builder, prim.material);
 
         uid prim_gpu_data_id = m_primitive_gpu_data.emplace(p_data);
         prim.gpu_data        = prim_gpu_data_id;

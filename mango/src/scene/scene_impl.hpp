@@ -122,8 +122,8 @@ namespace mango
         //! \return The optional \a camera_gpu_data referenced from the active \a camera.
         optional<camera_gpu_data&> get_active_camera_gpu_data();
 
-        //! \brief Retrieves a list of loaded \a model \a uids from the \a scene.
-        //! \return A list of loaded \a model \a uids from the \a scene.
+        //! \brief Retrieves a list of loaded \a models from the \a scene.
+        //! \return A list of loaded \a models from the \a scene.
         inline const packed_freelist<model, 16>& get_imported_models()
         {
             return m_models;

@@ -15,7 +15,7 @@ primitive_manager::primitive_manager()
 {
 }
 
-primitive_gpu_data primitive_manager::add_primitive(primitive_builder& builder)
+primitive_gpu_data primitive_manager::add_primitive(primitive_builder& builder, uid material_id)
 {
     managed_data data;
     builder.build();
@@ -24,6 +24,7 @@ primitive_gpu_data primitive_manager::add_primitive(primitive_builder& builder)
     data.uv_data                       = builder.get_uvs();
     data.tangent_data                  = builder.get_tangents();
     data.index_data                    = builder.get_indices();
+    data.material_id                   = material_id;
     data.draw_call_desc.vertex_count   = data.position_data.size();
     data.draw_call_desc.index_count    = data.index_data.size();
     data.draw_call_desc.instance_count = 1;
@@ -55,12 +56,19 @@ void primitive_manager::generate_buffers(const graphics_device_handle& graphics_
     m_vertices = 0;
     m_indices  = 0;
 
+    // TODO Paul: Is this really clean? :D
+    std::vector<managed_data*> sorted_compact_data;
+
     for (auto data_id : m_internal_data)
     {
-        const managed_data& data = m_internal_data.at(data_id);
+        managed_data& data = m_internal_data.at(data_id);
         m_vertices += data.position_data.size();
         m_indices += data.index_data.size();
+        sorted_compact_data.push_back(&data);
     }
+
+    auto sorting_function = [this](managed_data* a, managed_data* b) { return a->material_id < b->material_id; };
+    std::sort(sorted_compact_data.begin(), sorted_compact_data.end(), sorting_function);
 
     buffer_create_info buffer_info;
     buffer_info.buffer_target = gfx_buffer_target::buffer_target_vertex;
@@ -109,22 +117,21 @@ void primitive_manager::generate_buffers(const graphics_device_handle& graphics_
         int32 global_vertex_count = 0;
         int32 global_index_count  = 0;
         NAMED_PROFILE_ZONE("Megabuffer Creation");
-        for (auto data_id : m_internal_data)
+        for (auto* data : sorted_compact_data)
         {
-            managed_data& data               = m_internal_data.at(data_id);
-            data.draw_call_desc.index_count  = data.index_data.size();
-            data.draw_call_desc.index_offset = global_index_count;
-            data.draw_call_desc.base_vertex  = global_vertex_count;
+            data->draw_call_desc.index_count  = data->index_data.size();
+            data->draw_call_desc.index_offset = global_index_count;
+            data->draw_call_desc.base_vertex  = global_vertex_count;
 
-            std::copy(data.index_data.begin(), data.index_data.end(), m_index_buffer_mapping + global_index_count);
+            std::copy(data->index_data.begin(), data->index_data.end(), m_index_buffer_mapping + global_index_count);
 
-            std::copy(data.position_data.begin(), data.position_data.end(), m_position_buffer_mapping + global_vertex_count);
-            std::copy(data.normal_data.begin(), data.normal_data.end(), m_normal_buffer_mapping + global_vertex_count);
-            std::copy(data.uv_data.begin(), data.uv_data.end(), m_uv_buffer_mapping + global_vertex_count);
-            std::copy(data.tangent_data.begin(), data.tangent_data.end(), m_tangent_buffer_mapping + global_vertex_count);
+            std::copy(data->position_data.begin(), data->position_data.end(), m_position_buffer_mapping + global_vertex_count);
+            std::copy(data->normal_data.begin(), data->normal_data.end(), m_normal_buffer_mapping + global_vertex_count);
+            std::copy(data->uv_data.begin(), data->uv_data.end(), m_uv_buffer_mapping + global_vertex_count);
+            std::copy(data->tangent_data.begin(), data->tangent_data.end(), m_tangent_buffer_mapping + global_vertex_count);
 
-            global_index_count += data.index_data.size();
-            global_vertex_count += data.position_data.size();
+            global_index_count += data->index_data.size();
+            global_vertex_count += data->position_data.size();
         }
     }
 

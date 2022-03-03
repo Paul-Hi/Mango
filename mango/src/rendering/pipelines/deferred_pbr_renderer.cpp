@@ -1032,10 +1032,11 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             if (other.material_id < material_id)
                 return false;
 
-            if (view_depth < other.view_depth)
-                return transparent ? true : false;
-            if (other.view_depth < view_depth)
-                return transparent ? false : true;
+            // TODO NEXT: This does somehow break everything - But we'll have to ditch that anyway, since we want to do GPU culling ... We'll have to implement OIT!
+            //if (view_depth < other.view_depth)
+            //    return transparent ? true : false;
+            //if (other.view_depth < view_depth)
+            //    return transparent ? false : true;
 
             if (primitive_gpu_data_id < other.primitive_gpu_data_id)
                 return true;
@@ -1128,21 +1129,21 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     struct batch // ATM only stuff with same material is batched...
     {
         std::vector<axis_aligned_bounding_box> bounds;
-        int32 first_call;
+        int64 first_call;
         int32 drawcount;
 
         uid material_id;
+        std::vector<uid> primitive_gpu_data_ids;
         axis_aligned_bounding_box bb;
+
+        std::vector<int32> model_data_indices;
+        int32 material_data_index;
     };
 
-    uid current_material = invalid_uid;
-    batch current_batch;
-
-    std::vector<batch> batches;
-    int32 model_data_index    = -1;
+    std::vector<batch> opaque_batches;
+    std::vector<batch> blended_batches;
+    std::vector<uid> model_data_ids;
     int32 material_data_index = 0;
-    int32 instance_data_index = 0;
-    int32 indirect_data_index = 0;
 
     const primitive_manager& primitive_manager = scene->get_primitive_manager();
 
@@ -1151,72 +1152,22 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     int32 material_offset      = m_material_buffer_manager.wait_for_range(draws.size(), m_frame_context);
     int32 indirect_offset      = m_indirect_buffer_manager.wait_for_range(draws.size(), m_frame_context);
 
-    int32 opaque_count     = 0;
-    int32 opaque_instances = 0;
-    uid last_mesh_gpu_data_id;
+    int32 instance_count = 0;
     {
         NAMED_PROFILE_ZONE("Batch Creation");
+        uint32 drawcount = 0;
         for (uint32 c = 0; c < draws.size(); ++c)
         {
             auto& dc = draws[c];
 
-            if (current_material != dc.material_id)
+            int32 model_data_index = 0;
+            auto md_it             = std::find(model_data_ids.begin(), model_data_ids.end(), dc.mesh_gpu_data_id);
+            if (md_it != model_data_ids.end())
             {
-                if (current_material.is_valid())
-                {
-                    optional<material&> mat                   = scene->get_material(current_material);
-                    optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
-                    if (!mat || !mat_gpu_data)
-                    {
-                        warn_missing_draw("Material");
-                        continue;
-                    }
-
-                    batches.push_back(current_batch);
-                    opaque_count += !(mat->alpha_mode > material_alpha_mode::mode_mask);
-                    opaque_instances += mat->alpha_mode > material_alpha_mode::mode_mask ? 0 : current_batch.drawcount;
-
-                    material_data* md = m_material_data_buffer_mapping + material_offset + material_data_index;
-                    *md               = mat_gpu_data->per_material_data;
-
-                    material_data_index++;
-                }
-                current_material          = dc.material_id;
-                current_batch.material_id = dc.material_id;
-                current_batch.bounds.clear();
-                current_batch.drawcount  = 0;
-                current_batch.first_call = indirect_data_index;
-                current_batch.bb         = dc.bounding_box;
+                model_data_index = std::distance(model_data_ids.begin(), md_it);
             }
             else
-                current_batch.bb.expand(dc.bounding_box);
-            current_batch.drawcount++;
-
-            optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(dc.primitive_gpu_data_id);
-            if (!prim_gpu_data)
             {
-                warn_missing_draw("Primitive gpu data");
-                continue;
-            }
-
-            // get stuff from primitive manager
-            int64 index_offset;
-            int32 index_count, vertex_count, base_vertex;
-            primitive_manager.get_draw_parameters(prim_gpu_data->manager_id, &index_offset, &index_count, &vertex_count, &base_vertex);
-            current_batch.bounds.push_back(dc.bounding_box);
-
-            draw_elements_indirect_command* cmd = m_indirect_buffer_mapping + indirect_offset + indirect_data_index;
-            cmd->count                          = index_count;
-            cmd->first_index                    = index_offset;
-            cmd->base_vertex                    = base_vertex;
-            cmd->instance_count                 = 1;
-            cmd->base_instance                  = c;
-            indirect_data_index++;
-
-            bool add_mesh_data = (last_mesh_gpu_data_id != dc.mesh_gpu_data_id);
-            if (add_mesh_data)
-            {
-                model_data_index++;
                 optional<mesh_gpu_data&> m_gpu_data = scene->get_mesh_gpu_data(dc.mesh_gpu_data_id);
                 if (!m_gpu_data)
                 {
@@ -1228,37 +1179,122 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 m_gpu_data->per_mesh_data.has_normals  = true;
                 m_gpu_data->per_mesh_data.has_tangents = true;
 
-                model_data* md = m_model_data_buffer_mapping + model_offset + model_data_index;
-                *md            = m_gpu_data->per_mesh_data;
+                model_data_index = model_data_ids.size();
+                model_data* md   = m_model_data_buffer_mapping + model_offset + model_data_index;
+                *md              = m_gpu_data->per_mesh_data;
 
-                last_mesh_gpu_data_id = dc.mesh_gpu_data_id;
+                model_data_ids.push_back(dc.mesh_gpu_data_id);
             }
 
-            draw_instance_data* did = m_draw_instance_data_buffer_mapping + draw_instance_offset + instance_data_index;
-            *did                    = draw_instance_data{ model_data_index, material_data_index };
-            instance_data_index++;
-        }
-
-        if (current_material.is_valid())
-        {
-            optional<material&> mat                   = scene->get_material(current_material);
-            optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
-            if (!mat || !mat_gpu_data)
+            // check for batch
+            auto batch_it = std::find_if(opaque_batches.begin(), opaque_batches.end(), [&dc](const batch& b) { return b.material_id == dc.material_id; });
+            auto end      = opaque_batches.end();
+            if (batch_it == end)
             {
-                warn_missing_draw("Material");
+                batch_it = std::find_if(blended_batches.begin(), blended_batches.end(), [&dc](const batch& b) { return b.material_id == dc.material_id; });
+                end      = blended_batches.end();
+            }
+
+            // Found existing batch, add call to that batch
+            if (batch_it != end)
+            {
+                batch_it->bb.expand(dc.bounding_box);
+                batch_it->bounds.push_back(dc.bounding_box);
+                batch_it->primitive_gpu_data_ids.push_back(dc.primitive_gpu_data_id);
+                batch_it->model_data_indices.push_back(model_data_index);
+                batch_it->drawcount++;
             }
             else
             {
-                batches.push_back(current_batch);
-                opaque_count += !(mat->alpha_mode > material_alpha_mode::mode_mask);
-                opaque_instances += mat->alpha_mode > material_alpha_mode::mode_mask ? 0 : current_batch.drawcount;
-
+                optional<material&> mat                   = scene->get_material(dc.material_id);
+                optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
+                if (!mat || !mat_gpu_data)
+                {
+                    warn_missing_draw("Material");
+                    continue;
+                }
                 material_data* md = m_material_data_buffer_mapping + material_offset + material_data_index;
                 *md               = mat_gpu_data->per_material_data;
 
-                material_data_index++;
+                batch new_batch;
+                new_batch.bb = dc.bounding_box;
+                new_batch.bounds.push_back(dc.bounding_box);
+                new_batch.primitive_gpu_data_ids.push_back(dc.primitive_gpu_data_id);
+                new_batch.model_data_indices.push_back(model_data_index);
+                new_batch.drawcount           = 1;
+                new_batch.first_call          = drawcount;
+                new_batch.material_id         = dc.material_id;
+                new_batch.material_data_index = material_data_index++;
+
+                bool opaque = mat->alpha_mode <= material_alpha_mode::mode_mask;
+                if (opaque)
+                    opaque_batches.push_back(new_batch);
+                else
+                    blended_batches.push_back(new_batch);
+            }
+            drawcount++;
+        }
+
+        int32 base_instance = 0;
+        for (auto& batch : opaque_batches)
+        {
+            for (int32 i = 0; i < batch.primitive_gpu_data_ids.size(); ++i)
+            {
+                uid prim_gpu_data_id                        = batch.primitive_gpu_data_ids[i];
+                optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(prim_gpu_data_id);
+                if (!prim_gpu_data)
+                {
+                    warn_missing_draw("Primitive gpu data");
+                    continue;
+                }
+
+                // get stuff from primitive manager
+                int64 index_offset;
+                int32 index_count, vertex_count, base_vertex;
+                primitive_manager.get_draw_parameters(prim_gpu_data->manager_id, &index_offset, &index_count, &vertex_count, &base_vertex);
+
+                draw_elements_indirect_command* cmd = m_indirect_buffer_mapping + indirect_offset + base_instance;
+                cmd->count                          = index_count;
+                cmd->first_index                    = index_offset;
+                cmd->base_vertex                    = base_vertex;
+                cmd->instance_count                 = 1;
+                cmd->base_instance                  = base_instance;
+
+                draw_instance_data* did = m_draw_instance_data_buffer_mapping + draw_instance_offset + base_instance;
+                *did                    = draw_instance_data{ batch.model_data_indices[i], batch.material_data_index };
+                base_instance++;
             }
         }
+        for (auto& batch : blended_batches)
+        {
+            for (int32 i = 0; i < batch.primitive_gpu_data_ids.size(); ++i)
+            {
+                uid prim_gpu_data_id                        = batch.primitive_gpu_data_ids[i];
+                optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(prim_gpu_data_id);
+                if (!prim_gpu_data)
+                {
+                    warn_missing_draw("Primitive gpu data");
+                    continue;
+                }
+
+                // get stuff from primitive manager
+                int64 index_offset;
+                int32 index_count, vertex_count, base_vertex;
+                primitive_manager.get_draw_parameters(prim_gpu_data->manager_id, &index_offset, &index_count, &vertex_count, &base_vertex);
+
+                draw_elements_indirect_command* cmd = m_indirect_buffer_mapping + indirect_offset + base_instance;
+                cmd->count                          = index_count;
+                cmd->first_index                    = index_offset;
+                cmd->base_vertex                    = base_vertex;
+                cmd->instance_count                 = 1;
+                cmd->base_instance                  = base_instance;
+
+                draw_instance_data* did = m_draw_instance_data_buffer_mapping + draw_instance_offset + base_instance;
+                *did                    = draw_instance_data{ batch.model_data_indices[i], batch.material_data_index };
+                base_instance++;
+            }
+        }
+        instance_count = base_instance;
     }
 
     const light_stack& ls = scene->get_light_stack();
@@ -1280,9 +1316,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             m_frame_context->set_render_targets(0, nullptr, shadow_pass->get_shadow_maps_texture());
             gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(shadow_pass->resolution()), static_cast<float>(shadow_pass->resolution()) };
             m_frame_context->set_viewport(0, 1, &shadow_viewport);
-            dc_pipeline->get_resource_mapping()->set_buffer("model_data", m_model_data_buffer, ivec2(model_offset, model_data_index + 1) * sizeof(model_data));
+            dc_pipeline->get_resource_mapping()->set_buffer("model_data", m_model_data_buffer, ivec2(model_offset, model_data_ids.size()) * sizeof(model_data));
             dc_pipeline->get_resource_mapping()->set_buffer("material_data", m_material_data_buffer, ivec2(material_offset, material_data_index) * sizeof(material_data));
-            dc_pipeline->get_resource_mapping()->set_buffer("draw_instance_data", m_draw_instance_data_buffer, ivec2(draw_instance_offset, instance_data_index) * sizeof(draw_instance_data));
+            dc_pipeline->get_resource_mapping()->set_buffer("draw_instance_data", m_draw_instance_data_buffer, ivec2(draw_instance_offset, instance_count) * sizeof(draw_instance_data));
             for (auto sc : shadow_casters)
             {
                 shadow_pass->update_cascades(dt, active_camera_data->per_camera_data.camera_near, active_camera_data->per_camera_data.camera_far,
@@ -1319,10 +1355,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                         m_debug_drawer.add(corners[5], corners[7]);
                     }
 
-                    for (uint32 c = 0; c < opaque_count; ++c)
+                    for (auto& btch : opaque_batches)
                     {
-                        auto& btch = batches[c];
-
                         if (m_frustum_culling)
                         {
                             if (!cascade_frustum.intersects(btch.bb))
@@ -1377,14 +1411,12 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
                                       static_cast<float>(m_renderer_info.canvas.height) };
         m_frame_context->set_viewport(0, 1, &window_viewport);
-        dc_pipeline->get_resource_mapping()->set_buffer("model_data", m_model_data_buffer, ivec2(model_offset, model_data_index + 1) * sizeof(model_data));
+        dc_pipeline->get_resource_mapping()->set_buffer("model_data", m_model_data_buffer, ivec2(model_offset, model_data_ids.size()) * sizeof(model_data));
         dc_pipeline->get_resource_mapping()->set_buffer("material_data", m_material_data_buffer, ivec2(material_offset, material_data_index) * sizeof(material_data));
-        dc_pipeline->get_resource_mapping()->set_buffer("draw_instance_data", m_draw_instance_data_buffer, ivec2(draw_instance_offset, instance_data_index) * sizeof(draw_instance_data));
+        dc_pipeline->get_resource_mapping()->set_buffer("draw_instance_data", m_draw_instance_data_buffer, ivec2(draw_instance_offset, instance_count) * sizeof(draw_instance_data));
         dc_pipeline->get_resource_mapping()->set_buffer("camera_data", active_camera_data->camera_data_buffer, ivec2(0, sizeof(camera_data)));
-        for (int32 c = 0; c < opaque_count; ++c)
+        for (auto& btch : opaque_batches)
         {
-            auto& btch = batches[c];
-
             if (m_frustum_culling)
             {
                 auto& bb = btch.bb;
@@ -1593,7 +1625,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     }
 
     // transparent pass
-    if (opaque_count < batches.size())
+    if (!blended_batches.empty())
     {
         GL_NAMED_PROFILE_ZONE("Transparent Pass");
         NAMED_PROFILE_ZONE("Transparent Pass");
@@ -1603,16 +1635,14 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
                                       static_cast<float>(m_renderer_info.canvas.height) };
         m_frame_context->set_viewport(0, 1, &window_viewport);
-        dc_pipeline->get_resource_mapping()->set_buffer("model_data", m_model_data_buffer, ivec2(model_offset, model_data_index + 1) * sizeof(model_data));
+        dc_pipeline->get_resource_mapping()->set_buffer("model_data", m_model_data_buffer, ivec2(model_offset, model_data_ids.size()) * sizeof(model_data));
         dc_pipeline->get_resource_mapping()->set_buffer("material_data", m_material_data_buffer, ivec2(material_offset, material_data_index) * sizeof(material_data));
-        dc_pipeline->get_resource_mapping()->set_buffer("draw_instance_data", m_draw_instance_data_buffer, ivec2(draw_instance_offset, instance_data_index) * sizeof(draw_instance_data));
+        dc_pipeline->get_resource_mapping()->set_buffer("draw_instance_data", m_draw_instance_data_buffer, ivec2(draw_instance_offset, instance_count) * sizeof(draw_instance_data));
         dc_pipeline->get_resource_mapping()->set_buffer("camera_data", active_camera_data->camera_data_buffer, ivec2(0, sizeof(camera_data)));
         dc_pipeline->get_resource_mapping()->set_buffer("renderer_data", m_renderer_data_buffer, ivec2(0, sizeof(renderer_data)));
         dc_pipeline->get_resource_mapping()->set_buffer("light_data", light_data.light_data_buffer, ivec2(0, sizeof(light_data)));
-        for (uint32 c = opaque_count; c < batches.size(); ++c)
+        for (auto& btch : blended_batches)
         {
-            auto& btch = batches[c];
-
             if (m_frustum_culling)
             {
                 auto& bb = btch.bb;
@@ -1765,10 +1795,10 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         }
     }
 
-    m_instance_buffer_manager.lock_range(draw_instance_offset, draw_instance_offset + draw_instance_offset - 1, m_frame_context);
-    m_model_buffer_manager.lock_range(model_offset, model_offset + model_data_index, m_frame_context);
-    m_material_buffer_manager.lock_range(material_offset, material_offset + material_data_index - 1, m_frame_context);
-    m_indirect_buffer_manager.lock_range(indirect_offset, indirect_offset + indirect_data_index - 1, m_frame_context);
+    m_instance_buffer_manager.lock_range(draw_instance_offset, draw_instance_offset + instance_count, m_frame_context);
+    m_model_buffer_manager.lock_range(model_offset, model_offset + model_data_ids.size(), m_frame_context);
+    m_material_buffer_manager.lock_range(material_offset, material_offset + material_data_index, m_frame_context);
+    m_indirect_buffer_manager.lock_range(indirect_offset, indirect_offset + instance_count, m_frame_context);
     m_debug_drawer.update_buffer();
 
     // auto exposure

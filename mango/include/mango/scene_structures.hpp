@@ -469,6 +469,9 @@ namespace mango
         //! \brief The full file path of the loaded model.
         string file_path;
 
+        //! \brief The \a uid of the model.
+        uid unique_id;
+
         //! \brief List of \a uids referencing all scenarios in the \a model.
         std::vector<uid> scenarios;
         //! \brief Index in the list of scenarios providing the default \a scenario of the \a model.

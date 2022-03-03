@@ -226,6 +226,14 @@ namespace mango
             return lookup_id < other.lookup_id;
         }
 
+        //! \brief Comparison operator less or equal.
+        //! \param other The other \a uid.
+        //! \return True if other \a uid is less or equal then the current one, else false.
+        bool operator<=(const uid& other) const
+        {
+            return lookup_id <= other.lookup_id;
+        }
+
         //! \brief Returns if the \a uid is valid or not.
         //! \return True if the \a uid is valid else false.
         const bool is_valid() const
