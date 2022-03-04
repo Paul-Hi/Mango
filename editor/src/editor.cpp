@@ -44,7 +44,6 @@ bool editor::create()
         .set_cascade_interpolation_range(0.25f);
     renderer_config.enable_shadow_maps(shs);
     fxaa_settings fs;
-    fs.set_quality_preset(fxaa_quality_preset::medium_quality);
     renderer_config.enable_fxaa(fs);
 
     m_main_renderer = mango_context->create_renderer(renderer_config);

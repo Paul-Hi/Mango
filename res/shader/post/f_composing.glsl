@@ -9,7 +9,9 @@ void main()
 
     bool no_correction = debug_view_enabled; // TODO Paul: This is weird.
 
-    frag_color = no_correction ? texture(sampler_hdr_input, texcoord) : tonemap_with_gamma_correction(texture(sampler_hdr_input, texcoord));
+    vec4 color = no_correction ? texture(sampler_hdr_input, texcoord) : tonemap_with_gamma_correction(texture(sampler_hdr_input, texcoord));
+
+    frag_color = color;
 }
 
 vec3 uncharted2_tonemap(in vec3 color)

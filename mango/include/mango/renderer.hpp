@@ -349,36 +349,16 @@ namespace mango
       public:
         //! \brief Default constructor to set some default values.
         fxaa_settings()
-            : m_quality(fxaa_quality_preset::medium_quality)
-            , m_subpixel_filter(0.0f)
+            : m_subpixel_filter(0.75f)
         {
         }
 
         //! \brief Constructs a \a fxaa_settings with specific values.
-        //! \param[in] quality The  \a fxaa_quality_preset to render the fxaa with.
         //! \param[in] subpixel_filter The  subpixel filter value to render the fxaa with.
-        fxaa_settings(fxaa_quality_preset quality, float subpixel_filter)
-            : m_quality(quality)
-            , m_subpixel_filter(subpixel_filter)
+        fxaa_settings(float subpixel_filter)
+            : m_subpixel_filter(subpixel_filter)
         {
         }
-
-        //! \brief Sets the \a fxaa_quality_preset to render the fxaa with.
-        //! \param[in] quality The \a fxaa_quality_preset to render the fxaa with.
-        //! \return A reference to the modified \a fxaa_settings.
-        inline fxaa_settings& set_quality_preset(fxaa_quality_preset quality)
-        {
-            m_quality = quality;
-            return *this;
-        }
-
-        //! \brief Retrieves and returns the \a fxaa_quality_preset to render the fxaa with.
-        //! \return The  \a fxaa_quality_preset to render the fxaa with.
-        inline fxaa_quality_preset get_quality_preset() const
-        {
-            return m_quality;
-        }
-
         //! \brief Sets the  subpixel filter value to render the fxaa with.
         //! \param[in] subpixel_filter The  subpixel filter value to render the fxaa with.
         //! \return A reference to the modified \a fxaa_settings.
@@ -396,8 +376,6 @@ namespace mango
         }
 
       private:
-        //! \brief The \a fxaa_quality_preset.
-        fxaa_quality_preset m_quality;
         //!\brief The filter value for subpixels.
         float m_subpixel_filter;
     };

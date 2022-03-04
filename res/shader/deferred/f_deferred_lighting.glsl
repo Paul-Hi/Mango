@@ -51,5 +51,5 @@ void main()
 
     lighting *= cascade_color;
 
-    frag_color = vec4(lighting * base_color.a, base_color.a); // Premultiplied alpha?
+    frag_color = vec4(lighting * base_color.a, 1.0);
 }

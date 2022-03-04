@@ -68,8 +68,7 @@ namespace mango
         struct fxaa_data
         {
             std140_vec2 inverse_screen_size;     //!< The inverse screen size.
-            std140_int quality_preset    = 0;    //!< The fxaa_quality_preset.
-            std140_float subpixel_filter = 0.0f; //!< The filter value for subpixels.
+            std140_float subpixel_filter = 0.75f; //!< The filter value for subpixels.
         };
         //! \brief The current \a fxaa_data.
         fxaa_data m_fxaa_data;
