@@ -17,7 +17,6 @@ fxaa_step::fxaa_step(const fxaa_settings& settings)
     : m_settings(settings)
 {
     m_fxaa_data.subpixel_filter = m_settings.get_subpixel_filter();
-    m_fxaa_data.quality_preset  = static_cast<uint8>(m_settings.get_quality_preset());
 }
 
 fxaa_step::~fxaa_step() {}
@@ -38,8 +37,8 @@ bool fxaa_step::create_step_resources()
 
     // sampler
     sampler_create_info sampler_info;
-    sampler_info.sampler_min_filter      = gfx_sampler_filter::sampler_filter_linear;
-    sampler_info.sampler_max_filter      = gfx_sampler_filter::sampler_filter_linear;
+    sampler_info.sampler_min_filter      = gfx_sampler_filter::sampler_filter_linear_mipmap_linear;
+    sampler_info.sampler_max_filter      = gfx_sampler_filter::sampler_filter_linear_mipmap_linear;
     sampler_info.enable_comparison_mode  = false;
     sampler_info.comparison_operator     = gfx_compare_operator::compare_operator_always;
     sampler_info.edge_value_wrap_u       = gfx_sampler_edge_wrap::sampler_edge_wrap_clamp_to_edge;
@@ -188,13 +187,9 @@ void fxaa_step::on_ui_widget()
 {
     ImGui::PushID("fxaa_step");
 
-    // Quality Preset
-    const char* presets[3] = { "Medium Quality", "High Quality", "Extreme Quality" };
-    bool changed           = combo("FXAA Mode", presets, 3, m_fxaa_data.quality_preset, 1);
-
     float default_value = 0.0f;
     float spf           = m_fxaa_data.subpixel_filter;
-    changed |= slider_float_n("Subpixel Filter", &spf, 1, &default_value, 0.0f, 1.0f);
+    bool changed = slider_float_n("Subpixel Filter", &spf, 1, &default_value, 0.0f, 1.0f);
     m_fxaa_data.subpixel_filter = spf;
 
     ImGui::PopID();

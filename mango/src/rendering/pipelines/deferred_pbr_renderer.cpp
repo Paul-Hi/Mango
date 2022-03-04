@@ -977,7 +977,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     m_renderer_info.last_frame.materials  = 0;
 
     m_frame_context->begin();
-    float clear_color[4] = { 0.1f, 0.1f, 0.1f, 1.0f }; // TODO Paul: member or dynamic?
+    float clear_color[4] = { 1.0f, 0.0f, 0.0f, 1.0f }; // TODO Paul: member or dynamic?
     auto swap_buffer     = m_graphics_device->get_swap_chain_render_target();
 
     auto shadow_pass = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_pipeline_step::shadow_map]);
@@ -2017,7 +2017,7 @@ void deferred_pbr_renderer::on_ui_widget()
         {
             if (has_fxaa)
             {
-                auto step_fxaa = std::make_shared<fxaa_step>(fxaa_settings(fxaa_quality_preset::medium_quality, 0.0f));
+                auto step_fxaa = std::make_shared<fxaa_step>(fxaa_settings(0.75f));
                 step_fxaa->attach(m_shared_context);
                 step_fxaa->set_output_targets(m_output_target, m_ouput_depth_target);
                 m_pipeline_steps[mango::render_pipeline_step::fxaa] = std::static_pointer_cast<render_step>(step_fxaa);
