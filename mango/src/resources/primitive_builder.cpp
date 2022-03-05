@@ -178,6 +178,7 @@ primitive_builder& primitive_builder::calculate_face_normals()
         MANGO_LOG_WARN("Can not work on non unified data!");
         return *this;
     }
+    MANGO_LOG_INFO("Calculating Face Normals!");
 
     remove_doubles();
 
@@ -228,16 +229,20 @@ primitive_builder& primitive_builder::calculate_vertex_normals()
         MANGO_LOG_WARN("Can not work on non unified data!");
         return *this;
     }
+    MANGO_LOG_INFO("Calculating Vertex Normals!");
 
     m_normals.resize(m_positions.size());
     std::fill(m_normals.begin(), m_normals.end(), make_vec3(0.0));
 
-    for (int32 index = 0; index < m_indices.size(); index += 3)
+    for (int32 i = 0; i < m_indices.size(); i += 3)
     {
-        vec3 normal = (m_positions[index + 1] - m_positions[index]).cross(m_positions[index + 2] - m_positions[index]);
-        m_normals[index] += normal;
-        m_normals[index + 1] += normal;
-        m_normals[index + 2] += normal;
+        uint32 i0   = m_indices[i];
+        uint32 i1   = m_indices[i + 1];
+        uint32 i2   = m_indices[i + 2];
+        vec3 normal = (m_positions[i1] - m_positions[i0]).cross(m_positions[i2] - m_positions[i0]);
+        m_normals[i0] += normal;
+        m_normals[i1] += normal;
+        m_normals[i2] += normal;
     }
 
     for (vec3& normal : m_normals)
@@ -256,30 +261,38 @@ primitive_builder& primitive_builder::calculate_tangents()
         MANGO_LOG_WARN("Can not work on non unified data!");
         return *this;
     }
+    MANGO_LOG_INFO("Calculating Tangents!");
 
     m_tangents.clear();
+    m_tangents.resize(m_positions.size());
 
-    for (int32 i = 0; i < m_positions.size() - 3; i += 3)
+    for (int32 i = 0; i < m_indices.size() - 3; i += 3)
     {
-        const vec3& p0 = m_positions[i];
-        const vec3& p1 = m_positions[i + 1];
-        const vec3& p2 = m_positions[i + 2];
+        uint32 i0      = m_indices[i];
+        uint32 i1      = m_indices[i + 1];
+        uint32 i2      = m_indices[i + 2];
+        const vec3& p0 = m_positions[i0];
+        const vec3& p1 = m_positions[i1];
+        const vec3& p2 = m_positions[i2];
 
         // This algorithm does not work, if uvs are zeroed -.-
-        const vec2& uv0 = m_uvs[i];
-        const vec2& uv1 = m_uvs[i + 1];
-        const vec2& uv2 = m_uvs[i + 2];
+        const vec2& uv0 = m_uvs[i0];
+        const vec2& uv1 = m_uvs[i1];
+        const vec2& uv2 = m_uvs[i2];
 
         const vec3 delta_p0  = p1 - p0;
         const vec3 delta_p1  = p2 - p0;
         const vec2 delta_uv0 = uv1 - uv0;
         const vec2 delta_uv1 = uv2 - uv0;
 
-        float r            = 1.0f / (delta_uv0.x() * delta_uv1.y() - delta_uv0.y() * delta_uv1.x() + 1e-5);
+        float r            = 1.0f / (delta_uv0.x() * delta_uv1.y() - delta_uv0.y() * delta_uv1.x() + 1e-5f);
         const vec4 tangent = ((delta_p0 * delta_uv1.y() - delta_p1 * delta_uv0.y()) * r).homogeneous(); // homogeneous works here, since it only appends a 1.0
-        m_tangents.push_back(tangent);
-        m_tangents.push_back(tangent);
-        m_tangents.push_back(tangent);
+        m_tangents[i0] += tangent;
+        m_tangents[i1] += tangent;
+        m_tangents[i2] += tangent;
+        m_tangents[i0].w() = 1.0f;
+        m_tangents[i1].w() = 1.0f;
+        m_tangents[i2].w() = 1.0f;
     }
     m_has_tangents = true;
 

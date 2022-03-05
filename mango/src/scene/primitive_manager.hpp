@@ -19,7 +19,7 @@ namespace mango
       public:
         primitive_manager();
 
-        primitive_gpu_data add_primitive(primitive_builder& builder, uid material_id);
+        primitive_gpu_data add_primitive(primitive_builder& builder, uid material_id, uid mesh_gpu_data_id);
         void remove_primitive(uid manager_id);
 
         void generate_buffers(const graphics_device_handle& graphics_device);
@@ -69,6 +69,8 @@ namespace mango
             std::vector<uint32> index_data;
             //! \brief The \a uid of the material;
             uid material_id;
+            //! \brief The \a uid of the mesh_gpu_data;
+            uid mesh_gpu_data_id;
             //! \brief The \a draw_call_description providing information to schedule a draw call for this \a primitive_gpu_data.
             draw_call_description draw_call_desc;
         };

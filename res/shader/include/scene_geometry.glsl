@@ -48,13 +48,11 @@ void get_normal_tangent_bitangent(out vec3 normal, out vec3 tangent, out vec3 bi
         normal = data.normal_matrix * normalize(vertex_data_normal);
     if(data.has_tangents)
     {
-        tangent = data.normal_matrix * normalize(vertex_data_tangent.xyz);
+        tangent = data.normal_matrix * vertex_data_tangent.xyz;
 
         if(data.has_normals)
         {
-            bitangent = cross(normal, tangent);
-            if(vertex_data_tangent.w == -1.0)
-                bitangent *= -1.0;
+            bitangent = cross(normal, tangent) * vertex_data_tangent.w;
         }
     }
 }
@@ -107,7 +105,7 @@ per_material_data get_draw_material_data()
 vec4 get_base_color()
 {
     per_material_data data = get_draw_material_data();
-    vec4 color = data.base_color_texture ? texture(sampler_base_color, fs_in.texcoord) : data.base_color;
+    vec4 color = (data.base_color_texture ? texture(sampler_base_color, fs_in.texcoord) : vec4(1.0)) * data.base_color;
     if(data.alpha_mode == 2 && color.a <= data.alpha_cutoff)
         discard;
 
@@ -120,13 +118,13 @@ vec4 get_base_color()
 vec3 get_emissive()
 {
     per_material_data data = get_draw_material_data();
-    return data.emissive_intensity * (data.emissive_color_texture ? texture(sampler_emissive_color, fs_in.texcoord).rgb : data.emissive_color.rgb) * data.emissive_intensity;
+    return data.emissive_intensity * (data.emissive_color_texture ? texture(sampler_emissive_color, fs_in.texcoord).rgb : vec3(1.0)) * data.emissive_color.rgb * data.emissive_intensity;
 }
 
 vec3 get_occlusion_roughness_metallic()
 {
     per_material_data data = get_draw_material_data();
-    vec3 o_r_m = data.roughness_metallic_texture ? texture(sampler_roughness_metallic, fs_in.texcoord).rgb : vec3(1.0, data.roughness, data.metallic);
+    vec3 o_r_m = (data.roughness_metallic_texture ? texture(sampler_roughness_metallic, fs_in.texcoord).rgb : vec3(1.0)) * vec3(1.0, data.roughness, data.metallic);
     if(data.packed_occlusion)
         return o_r_m;
 
@@ -223,7 +221,7 @@ per_material_data get_draw_material_data()
 vec4 get_base_color()
 {
     per_material_data data = get_draw_material_data();
-    vec4 color = data.base_color_texture ? texture(sampler_base_color, fs_in.texcoord) : data.base_color;
+    vec4 color = (data.base_color_texture ? texture(sampler_base_color, fs_in.texcoord) : vec4(1.0)) * data.base_color;
     if(data.alpha_mode == 2 && color.a <= data.alpha_cutoff)
         discard;
 
@@ -236,13 +234,13 @@ vec4 get_base_color()
 vec3 get_emissive()
 {
     per_material_data data = get_draw_material_data();
-    return data.emissive_intensity * (data.emissive_color_texture ? texture(sampler_emissive_color, fs_in.texcoord).rgb : data.emissive_color.rgb) * data.emissive_intensity;
+    return data.emissive_intensity * (data.emissive_color_texture ? texture(sampler_emissive_color, fs_in.texcoord).rgb : vec3(1.0)) * data.emissive_color.rgb * data.emissive_intensity;
 }
 
 vec3 get_occlusion_roughness_metallic()
 {
     per_material_data data = get_draw_material_data();
-    vec3 o_r_m = data.roughness_metallic_texture ? texture(sampler_roughness_metallic, fs_in.texcoord).rgb : vec3(1.0, data.roughness, data.metallic);
+    vec3 o_r_m = (data.roughness_metallic_texture ? texture(sampler_roughness_metallic, fs_in.texcoord).rgb : vec3(1.0)) * vec3(1.0, data.roughness, data.metallic);
     if(data.packed_occlusion)
         return o_r_m;
 
@@ -318,12 +316,12 @@ void draw_debug_views()
     }
     if(base_color_debug_view)
     {
-        frag_color = vec4(vec3(1.0 - metallic) * base_color.rgb, 1.0);
+        frag_color = vec4(vec3(1.0 - metallic) * base_color.rgb, base_color.a);
         return;
     }
     if(reflection_color_debug_view)
     {
-        frag_color = vec4(vec3(metallic) * base_color.rgb, 1.0);
+        frag_color = vec4(vec3(metallic) * base_color.rgb, base_color.a);
         return;
     }
     if(occlusion_debug_view)

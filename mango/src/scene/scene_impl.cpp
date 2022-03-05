@@ -1681,6 +1681,8 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
     mesh.name    = t_mesh.name;
     mesh.node_id = node_id;
     mesh_gpu_data data;
+    // Is completely filled in update()
+    mesh.gpu_data = m_mesh_gpu_data.emplace(data);
 
     for (int32 i = 0; i < static_cast<int32>(t_mesh.primitives.size()); ++i)
     {
@@ -1845,18 +1847,13 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
         if (!builder.has_tangent_data())
             builder.calculate_tangents();
 
-        primitive_gpu_data p_data = m_primitive_manager.add_primitive(builder, prim.material);
+        primitive_gpu_data p_data = m_primitive_manager.add_primitive(builder, prim.material, mesh.gpu_data);
 
         uid prim_gpu_data_id = m_primitive_gpu_data.emplace(p_data);
         prim.gpu_data        = prim_gpu_data_id;
         uid prim_id          = m_primitives.emplace(prim);
         mesh.primitives.push_back(prim_id);
     }
-
-    // data.per_mesh_data.model_matrix is updated in update()
-    // data.per_mesh_data.normal_matrix is updated in update()
-
-    mesh.gpu_data = m_mesh_gpu_data.emplace(data);
 
     mesh.changed = false; // No update needed, since this is only storage.
 
@@ -1900,12 +1897,9 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
     texture tex;
     tex.file_path = "from_gltf"; // TODO Paul: This could be problematic, when user tries to reload this one.
 
-    if (pbr.baseColorTexture.index < 0)
-    {
-        auto col                = pbr.baseColorFactor;
-        new_material.base_color = color_rgba((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
-    }
-    else
+    auto col                = pbr.baseColorFactor;
+    new_material.base_color = color_rgba((float)col[0], (float)col[1], (float)col[2], (float)col[3]);
+    if (pbr.baseColorTexture.index >= 0)
     {
         // base color
         const tinygltf::Texture& base_col = m.textures.at(pbr.baseColorTexture.index);
@@ -1967,12 +1961,9 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
     }
 
     // metallic / roughness
-    if (pbr.metallicRoughnessTexture.index < 0)
-    {
-        new_material.metallic  = static_cast<float>(pbr.metallicFactor);
-        new_material.roughness = static_cast<float>(pbr.roughnessFactor);
-    }
-    else
+    new_material.metallic  = static_cast<float>(pbr.metallicFactor);
+    new_material.roughness = static_cast<float>(pbr.roughnessFactor);
+    if (pbr.metallicRoughnessTexture.index >= 0)
     {
         const tinygltf::Texture& o_r_m_t = m.textures.at(pbr.metallicRoughnessTexture.index);
 
@@ -2164,12 +2155,9 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
     }
 
     // emissive
-    if (primitive_material.emissiveTexture.index < 0)
-    {
-        auto col                    = primitive_material.emissiveFactor;
-        new_material.emissive_color = color_rgb((float)col[0], (float)col[1], (float)col[2]);
-    }
-    else
+    col                         = primitive_material.emissiveFactor;
+    new_material.emissive_color = color_rgb((float)col[0], (float)col[1], (float)col[2]);
+    if (primitive_material.emissiveTexture.index >= 0)
     {
         const tinygltf::Texture& emissive = m.textures.at(primitive_material.emissiveTexture.index);
 
@@ -2261,7 +2249,7 @@ uid scene_impl::default_material()
     material default_material;
     default_material.name = "Default";
     // Some defaults
-    default_material.base_color = vec4(0.9f, 0.9f, 0.9f, 1.0f);
+    default_material.base_color = make_vec4(1.0f);
     default_material.metallic   = 0.0f;
     default_material.roughness  = 1.0f;
 
@@ -2624,7 +2612,7 @@ void scene_impl::draw_scene_hierarchy(uid& selected)
     std::vector<uid> to_remove = draw_scene_hierarchy_internal(m_root_node, invalid_uid, selected);
     for (auto n : to_remove)
         remove_node(n);
-    if(!to_remove.empty())
+    if (!to_remove.empty())
         m_primitive_manager.generate_buffers(m_scene_graphics_device);
 }
 

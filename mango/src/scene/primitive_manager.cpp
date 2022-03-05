@@ -15,7 +15,7 @@ primitive_manager::primitive_manager()
 {
 }
 
-primitive_gpu_data primitive_manager::add_primitive(primitive_builder& builder, uid material_id)
+primitive_gpu_data primitive_manager::add_primitive(primitive_builder& builder, uid material_id, uid mesh_gpu_data_id)
 {
     managed_data data;
     builder.build();
@@ -25,6 +25,7 @@ primitive_gpu_data primitive_manager::add_primitive(primitive_builder& builder, 
     data.tangent_data                  = builder.get_tangents();
     data.index_data                    = builder.get_indices();
     data.material_id                   = material_id;
+    data.mesh_gpu_data_id              = mesh_gpu_data_id;
     data.draw_call_desc.vertex_count   = data.position_data.size();
     data.draw_call_desc.index_count    = data.index_data.size();
     data.draw_call_desc.instance_count = 1;
@@ -67,7 +68,16 @@ void primitive_manager::generate_buffers(const graphics_device_handle& graphics_
         sorted_compact_data.push_back(&data);
     }
 
-    auto sorting_function = [this](managed_data* a, managed_data* b) { return a->material_id < b->material_id; };
+    auto sorting_function = [this](managed_data* a, managed_data* b)
+    {
+        if (a->material_id < b->material_id)
+            return true;
+        else if (a->material_id > b->material_id)
+            return false;
+        if (a->mesh_gpu_data_id < b->mesh_gpu_data_id)
+            return true;
+        return false;
+    };
     std::sort(sorted_compact_data.begin(), sorted_compact_data.end(), sorting_function);
 
     buffer_create_info buffer_info;
