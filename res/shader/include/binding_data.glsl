@@ -39,6 +39,50 @@ layout(binding = CAMERA_DATA_BUFFER_BINDING_POINT, std140) uniform camera_data
 
 #endif // BIND_CAMERA_DATA_BUFFER
 
+#ifdef BIND_INDIRECT_COMMANDS_BUFFER
+
+struct draw_elements_indirect_command
+{
+    uint count;
+    uint instance_count;
+    uint first_index;
+    uint base_vertex;
+    uint base_instance;
+};
+
+layout(std430, binding = INDIRECT_COMMANDS_BUFFER_BINDING_POINT) buffer indirect_commands
+{
+    draw_elements_indirect_command indirect_draws[]; // List of draw_elements_indirect_command
+};
+
+#endif // BIND_INDIRECT_COMMANDS_BUFFER
+
+#ifdef BIND_CULL_DATA_BUFFER
+
+layout(binding = CULL_DATA_BUFFER_BINDING_POINT, std140) uniform cull_data
+{
+    vec4 cull_camera_frustum_planes[6];
+    int cull_draws_offset;
+    int cull_draw_count;
+};
+
+#endif // BIND_CULL_DATA_BUFFER
+
+#ifdef BIND_AABB_DATA_BUFFER
+
+struct aabb
+{
+    vec3 center;
+    vec3 extents;
+};
+
+layout(std430, binding = AABB_DATA_BUFFER_BINDING_POINT) readonly buffer aabb_data
+{
+    aabb cull_aabbs[]; // List of aabb
+};
+
+#endif // BIND_AABB_DATA_BUFFER
+
 #ifdef BIND_MODEL_DATA_BUFFER
 
 struct per_model_data
@@ -49,7 +93,7 @@ struct per_model_data
     bool  has_tangents;  // Specifies if the mesh has tangents as a vertex attribute.
 };
 
-layout(std430, binding = MODEL_DATA_BUFFER_BINDING_POINT) buffer model_data
+layout(std430, binding = MODEL_DATA_BUFFER_BINDING_POINT) readonly buffer model_data
 {
     per_model_data model_data_array[]; // List of per_model_data
 };
@@ -75,7 +119,7 @@ struct per_material_data
     float alpha_cutoff;               // Specifies the alpha cutoff value to render the material with.
 };
 
-layout(std430, binding = MATERIAL_DATA_BUFFER_BINDING_POINT) buffer material_data
+layout(std430, binding = MATERIAL_DATA_BUFFER_BINDING_POINT) readonly buffer material_data
 {
     per_material_data material_data_array[]; // List of per_material_data
 };
@@ -90,7 +134,7 @@ struct per_instance_data
     int material_index;
 };
 
-layout(std430, binding = DRAW_INSTANCE_DATA_BUFFER_BINDING_POINT) buffer instance_data
+layout(std430, binding = DRAW_INSTANCE_DATA_BUFFER_BINDING_POINT) readonly buffer instance_data
 {
     per_instance_data instance_data_array[]; // List of per_instance_data
 };

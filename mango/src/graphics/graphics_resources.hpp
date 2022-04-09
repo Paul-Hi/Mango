@@ -530,8 +530,9 @@ namespace mango
         //! \param[in] variable_name The buffer name in the shader.
         //! \param[in] resource A \a gfx_handle of the \a gfx_buffer to set.
         //! \param[in] range The range to bind. First component is offset in bytes. Second component is size in bytes.
+        //! \param[in] bind_target The \a gfx_buffer_target to bind to. Has to be one of the targets spezified on buffer creation.
         //! \return True on success, else false.
-        virtual bool set_buffer(const string variable_name, gfx_handle<const gfx_buffer> resource, ivec2 range) = 0;
+        virtual bool set_buffer(const string variable_name, gfx_handle<const gfx_buffer> resource, ivec2 range, gfx_buffer_target bind_target) = 0;
 
         //! \brief Sets a texture for binding.
         //! \param[in] variable_name The texture name in the shader.

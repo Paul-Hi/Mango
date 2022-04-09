@@ -15,31 +15,38 @@ namespace mango
     class ring_buffer_manager
     {
       public:
-        inline void create(int32 buffer_count)
+        inline void create(int32 byte_size)
         {
-            m_buffer_count   = buffer_count;
+            m_byte_size      = byte_size;
             m_current_offset = 0;
         }
 
-        inline void lock_range(int32 start, int32 end, const graphics_device_context_handle& context)
+        inline void lock_range(int32 start, int32 end, int32 next_offset, const graphics_device_context_handle& context)
         {
             range_block block;
             block.start     = start;
             block.end       = end;
             block.semaphore = context->fence(semaphore_create_info());
             m_blocks.push_back(block);
-            m_current_offset = end + 1;
+
+            m_current_offset = end + next_offset;
+
+            // align current offset to at least 64
+            // TODO Paul: This has to be done better!s
+            int32 mask         = 64 - 2;
+            int32 misalignment = m_current_offset & mask;
+            m_current_offset =  m_current_offset + (64 - misalignment);
         }
 
-        inline int32 wait_for_range(int32 count, const graphics_device_context_handle& context)
+        inline int32 wait_for_range(int32 byte_size, const graphics_device_context_handle& context)
         {
-            MANGO_ASSERT(count <= m_buffer_count, "Waiting for range bigger then buffer!");
+            MANGO_ASSERT(byte_size <= m_byte_size, "Waiting for range bigger then buffer!");
             int32 start = m_current_offset;
-            if (m_current_offset + count > m_buffer_count)
+            if (m_current_offset + byte_size > m_byte_size)
             {
                 start = 0;
             }
-            int end = start + count;
+            int end = start + byte_size;
             for (auto it = m_blocks.begin(); it != m_blocks.end();)
             {
                 auto& block = *it;
@@ -65,7 +72,7 @@ namespace mango
         };
 
         std::vector<range_block> m_blocks;
-        int32 m_buffer_count;
+        int32 m_byte_size;
 
         int32 m_current_offset;
     };

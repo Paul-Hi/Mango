@@ -1718,7 +1718,7 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
         }
 
         uid material_id;
-        bool double_sided = m.materials[t_primitive.material].doubleSided; // For later
+        bool double_sided = t_primitive.material >= 0 ? m.materials[t_primitive.material].doubleSided : false; // For later
         // check if material with gltf index is alread loaded
         auto cached = m_material_index_to_uid.find(t_primitive.material);
         if (cached != m_material_index_to_uid.end())

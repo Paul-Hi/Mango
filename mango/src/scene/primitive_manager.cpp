@@ -167,7 +167,7 @@ void primitive_manager::bind_buffers(const graphics_device_context_handle& frame
     // vertex buffers and layout are unified
     gfx_handle<const gfx_buffer> vbs[5] = { m_position_buffer, m_normal_buffer, m_uv_buffer, m_tangent_buffer, indirect_buffer };
     int32 bindings[5]                   = { 0, 1, 2, 3, 4 };
-    int32 offsets[5]                    = { 0, 0, 0, 0, indirect_buffer_offset * sizeof(draw_elements_indirect_command) };
+    int32 offsets[5]                    = { 0, 0, 0, 0, indirect_buffer_offset };
 
     frame_context->set_vertex_buffers(5, vbs, bindings, offsets);
 }

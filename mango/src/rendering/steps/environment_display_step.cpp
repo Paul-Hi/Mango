@@ -99,9 +99,9 @@ bool environment_display_step::create_step_resources()
         shader_info.resource_count = 3;
 
         shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_vertex, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_vertex, 3, "cubemap_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_vertex, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_vertex, 3, "cubemap_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
         } };
 
         m_cubemap_pass_vertex = graphics_device->create_shader_stage(shader_info);
@@ -125,12 +125,12 @@ bool environment_display_step::create_step_resources()
         shader_info.resource_count = 6;
 
         shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, "light_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, "light_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, 0, "texture_environment_cubemap", gfx_shader_resource_type::shader_resource_texture, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, 0, "sampler_environment_cubemap", gfx_shader_resource_type::shader_resource_sampler, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, 3, "cubemap_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, 3, "cubemap_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
         } };
 
         m_cubemap_pass_fragment = graphics_device->create_shader_stage(shader_info);
@@ -142,15 +142,15 @@ bool environment_display_step::create_step_resources()
 
     graphics_pipeline_create_info cubemap_pass_info = graphics_device->provide_graphics_pipeline_create_info();
     auto cubemap_pass_pipeline_layout               = graphics_device->create_pipeline_resource_layout({
-        { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_vertex, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_vertex, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
+        { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
+        { gfx_shader_stage_type::shader_stage_vertex, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
+        { gfx_shader_stage_type::shader_stage_vertex, 3, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
 
-        { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+        { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
+        { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
           gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_fragment, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
+        { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
+        { gfx_shader_stage_type::shader_stage_fragment, 3, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
 
         { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
         { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
@@ -219,7 +219,7 @@ void environment_display_step::execute()
     m_cubemap_data.model_matrix = mat4::Identity(); // TODO Paul!
     step_context->set_buffer_data(m_cubemap_data_buffer, 0, sizeof(m_cubemap_data), &m_cubemap_data);
 
-    m_cubemap_pass_pipeline->get_resource_mapping()->set_buffer("cubemap_data", m_cubemap_data_buffer, ivec2(0, sizeof(m_cubemap_data)));
+    m_cubemap_pass_pipeline->get_resource_mapping()->set_buffer("cubemap_data", m_cubemap_data_buffer, ivec2(0, sizeof(m_cubemap_data)), gfx_buffer_target::buffer_target_uniform);
     m_cubemap_pass_pipeline->get_resource_mapping()->set_texture("texture_environment_cubemap", m_current_cubemap);
     m_cubemap_pass_pipeline->get_resource_mapping()->set_sampler("sampler_environment_cubemap", m_cubemap_sampler);
 

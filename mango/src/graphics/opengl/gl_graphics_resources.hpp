@@ -183,6 +183,8 @@ namespace mango
         std::vector<resource_pair<const gl_buffer>> m_buffers;
         //! \brief List of buffer ranges.
         std::vector<ivec2> m_ranges;
+        //! \brief List of buffer targets.
+        std::vector<gfx_buffer_target> m_targets;
         //! \brief List of \a gl_textures.
         std::vector<resource_pair<const gl_texture>> m_textures;
         //! \brief List of \a gl_samplers.
@@ -190,7 +192,7 @@ namespace mango
         //! \brief List of \a gl_image_texture_views.
         std::vector<resource_pair<const gl_image_texture_view>> m_texture_images;
 
-        bool set_buffer(const string variable_name, gfx_handle<const gfx_buffer> resource, ivec2 range) override;
+        bool set_buffer(const string variable_name, gfx_handle<const gfx_buffer> resource, ivec2 range, gfx_buffer_target bind_target) override;
         bool set_texture(const string variable_name, gfx_handle<const gfx_texture> resource) override;
         bool set_sampler(const string variable_name, gfx_handle<const gfx_sampler> resource) override;
         bool set_texture_image(const string variable_name, gfx_handle<const gfx_image_texture_view> resource) override;

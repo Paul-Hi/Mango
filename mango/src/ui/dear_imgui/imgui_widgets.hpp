@@ -738,10 +738,7 @@ namespace mango
         {
             optional<primitive&> prim = application_scene->get_primitive(object);
             MANGO_ASSERT(prim, "Primitive to inspect does not exist!");
-            details::draw_component("Primitive",
-                                    [&prim]()
-                                    {
-                                    });
+            details::draw_component("Primitive", [&prim]() {});
         }
 
         //! \brief Draws ui for a given \a scene_material.
@@ -760,6 +757,8 @@ namespace mango
                     const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding;
 
                     bool any_change = false;
+
+                    // TODO CHECK: +1 We remove textures everywhere by mistake - we also forget to setup the material gpu data after making changes!
 
                     // base color
 
@@ -783,18 +782,23 @@ namespace mango
                                 application_scene->remove_texture(mat->base_color_texture);
                             auto uid_pair                    = details::load_texture_dialog(application_scene, true, false, filter, 4);
                             mat->base_color_texture          = uid_pair.first;
-                            mat->base_color_texture_gpu_data = uid_pair.first;
+                            mat->base_color_texture_gpu_data = uid_pair.second;
                         }
                         else if (changed)
-                            mat->base_color_texture = invalid_uid;
+                        {
+                            mat->base_color_texture          = invalid_uid;
+                            mat->base_color_texture_gpu_data = invalid_uid;
+                        }
 
                         any_change |= changed;
 
                         ImGui::Separator();
 
                         float default_value[3] = { 1.0f, 1.0f, 1.0f };
-                        if (mat->base_color_texture == invalid_uid)
-                            any_change |= color_edit("Color", &mat->base_color[0], 4, default_value);
+                        const char* label      = "Color";
+                        if (mat->base_color_texture != invalid_uid)
+                            label = "Color Multiplier";
+                        any_change |= color_edit(label, &mat->base_color[0], 4, default_value);
 
                         ImGui::Separator();
                         ImGui::PopID();
@@ -823,25 +827,29 @@ namespace mango
                                 application_scene->remove_texture(mat->metallic_roughness_texture);
                             auto uid_pair                            = details::load_texture_dialog(application_scene, false, false, filter, 4);
                             mat->metallic_roughness_texture          = uid_pair.first;
-                            mat->metallic_roughness_texture_gpu_data = uid_pair.first;
+                            mat->metallic_roughness_texture_gpu_data = uid_pair.second;
                         }
                         else if (changed)
-                            mat->metallic_roughness_texture = invalid_uid;
+                        {
+                            mat->metallic_roughness_texture          = invalid_uid;
+                            mat->metallic_roughness_texture_gpu_data = invalid_uid;
+                        }
 
                         any_change |= changed;
 
                         ImGui::Separator();
 
+                        const char* label0 = "Roughness";
+                        const char* label1 = "Metallic";
                         if (mat->metallic_roughness_texture != invalid_uid)
                         {
                             any_change |= checkbox("Has Packed AO", &mat->packed_occlusion, false);
+                            label0 = "Roughness Multiplier";
+                            label1 = "Metallic Multiplier";
                         }
-                        else
-                        {
-                            float default_value = 0.5f;
-                            any_change |= slider_float_n("Roughness", mat->roughness.type_data(), 1, &default_value, 0.0f, 1.0f);
-                            any_change |= slider_float_n("Metallic", mat->metallic.type_data(), 1, &default_value, 0.0f, 1.0f);
-                        }
+                        float default_value = 0.5f;
+                        any_change |= slider_float_n(label0, mat->roughness.type_data(), 1, &default_value, 0.0f, 1.0f);
+                        any_change |= slider_float_n(label1, mat->metallic.type_data(), 1, &default_value, 0.0f, 1.0f);
 
                         ImGui::Separator();
                         ImGui::PopID();
@@ -870,10 +878,13 @@ namespace mango
                                 application_scene->remove_texture(mat->normal_texture);
                             auto uid_pair                = details::load_texture_dialog(application_scene, false, false, filter, 4);
                             mat->normal_texture          = uid_pair.first;
-                            mat->normal_texture_gpu_data = uid_pair.first;
+                            mat->normal_texture_gpu_data = uid_pair.second;
                         }
                         else if (changed)
-                            mat->normal_texture = invalid_uid;
+                        {
+                            mat->normal_texture          = invalid_uid;
+                            mat->normal_texture_gpu_data = invalid_uid;
+                        }
 
                         any_change |= changed;
 
@@ -904,10 +915,13 @@ namespace mango
                                 application_scene->remove_texture(mat->occlusion_texture);
                             auto uid_pair                   = details::load_texture_dialog(application_scene, false, false, filter, 4);
                             mat->occlusion_texture          = uid_pair.first;
-                            mat->occlusion_texture_gpu_data = uid_pair.first;
+                            mat->occlusion_texture_gpu_data = uid_pair.second;
                         }
                         else if (changed)
-                            mat->occlusion_texture = invalid_uid;
+                        {
+                            mat->occlusion_texture          = invalid_uid;
+                            mat->occlusion_texture_gpu_data = invalid_uid;
+                        }
 
                         any_change |= changed;
 
@@ -938,10 +952,13 @@ namespace mango
                                 application_scene->remove_texture(mat->emissive_texture);
                             auto uid_pair                  = details::load_texture_dialog(application_scene, true, false, filter, 4);
                             mat->emissive_texture          = uid_pair.first;
-                            mat->emissive_texture_gpu_data = uid_pair.first;
+                            mat->emissive_texture_gpu_data = uid_pair.second;
                         }
                         else if (changed)
-                            mat->emissive_texture = invalid_uid;
+                        {
+                            mat->emissive_texture          = invalid_uid;
+                            mat->emissive_texture_gpu_data = invalid_uid;
+                        }
 
                         any_change |= changed;
 
@@ -952,10 +969,11 @@ namespace mango
                                                      default_emissive_intensity * 10.0f); // TODO Paul: Range?
 
                         float default_value[3] = { 1.0f, 1.0f, 1.0f };
-                        if (mat->emissive_texture == invalid_uid)
-                        {
-                            any_change |= color_edit("Color", &mat->emissive_color[0], 4, default_value);
-                        }
+                        const char* label = "Color";
+                        if (mat->emissive_texture != invalid_uid)
+                            label = "Color Multiplier";
+                        any_change |= color_edit(label, &mat->emissive_color[0], 4, default_value);
+
                         ImGui::Separator();
                         ImGui::PopID();
                     }

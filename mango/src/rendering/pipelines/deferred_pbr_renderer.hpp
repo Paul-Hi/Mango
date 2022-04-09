@@ -70,6 +70,9 @@ namespace mango
         //! \brief The graphics uniform buffer for uploading \a renderer_data.
         gfx_handle<const gfx_buffer> m_renderer_data_buffer;
 
+        //! \brief The compute \a shader_stage for the gpu culling pass.
+        gfx_handle<const gfx_shader_stage> m_gpu_culling_compute;
+
         //! \brief The vertex \a shader_stage for the deferred geometry pass.
         gfx_handle<const gfx_shader_stage> m_geometry_pass_vertex;
         //! \brief The fragment \a shader_stage for the deferred geometry pass.
@@ -88,6 +91,8 @@ namespace mango
         //! \brief The compute \a shader_stage for the luminance buffer reduction pass.
         gfx_handle<const gfx_shader_stage> m_luminance_reduction_compute;
 
+        //! \brief Compute pipeline executing gpu culling.
+        gfx_handle<const gfx_pipeline> m_gpu_culling_pipeline;
         //! \brief Graphics pipeline calculating the lighting for opaque geometry.
         gfx_handle<const gfx_pipeline> m_lighting_pass_pipeline;
         //! \brief Graphics pipeline composing everything, applying tonemapping and gamma correction.
@@ -132,14 +137,21 @@ namespace mango
         //! \brief The mapped luminance data from the data calculation.
         luminance_data* m_luminance_data_mapping;
 
+        //! \brief The current \a cull_data.
+        cull_data m_cull_data;
+        //! \brief The graphics uniform buffer for uploading \a cull_data.
+        gfx_handle<const gfx_buffer> m_cull_data_buffer;
+
         // Batch buffers
         gfx_handle<const gfx_buffer> m_draw_instance_data_buffer;
         gfx_handle<const gfx_buffer> m_model_data_buffer;
         gfx_handle<const gfx_buffer> m_material_data_buffer;
+        gfx_handle<const gfx_buffer> m_aabb_buffer;
 
         draw_instance_data* m_draw_instance_data_buffer_mapping;
         model_data* m_model_data_buffer_mapping;
         material_data* m_material_data_buffer_mapping;
+        gpu_aabb* m_aabb_buffer_mapping;
 
         gfx_handle<const gfx_buffer> m_indirect_buffer;
         draw_elements_indirect_command* m_indirect_buffer_mapping;
@@ -147,6 +159,7 @@ namespace mango
         ring_buffer_manager m_instance_buffer_manager;
         ring_buffer_manager m_model_buffer_manager;
         ring_buffer_manager m_material_buffer_manager;
+        ring_buffer_manager m_aabb_buffer_manager;
         ring_buffer_manager m_indirect_buffer_manager;
 
         //! \brief True if the renderer should draw wireframe, else false.

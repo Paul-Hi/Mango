@@ -98,7 +98,7 @@ bool bounding_frustum::intersects(const axis_aligned_bounding_box& other) const
     for (int32 i = 0; i < 6; ++i)
     {
         bool inside = false;
-        for (int j = 0; j < 8; ++j)
+        for (int32 j = 0; j < 8; ++j)
         {
             if (planes[i].dot(vec4(corners[j].x(), corners[j].y(), corners[j].z(), 1.0f)) >= 0.0f)
             {

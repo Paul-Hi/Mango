@@ -171,7 +171,7 @@ gl_semaphore::~gl_semaphore()
         glDeleteSync(sync_object); // TODO Paul: Does this work?
 }
 
-bool gl_shader_resource_mapping::set_buffer(const string variable_name, gfx_handle<const gfx_buffer> resource, ivec2 range)
+bool gl_shader_resource_mapping::set_buffer(const string variable_name, gfx_handle<const gfx_buffer> resource, ivec2 range, gfx_buffer_target bind_target)
 {
     auto query = m_name_to_binding_pair.find(variable_name);
     if (query == m_name_to_binding_pair.end())
@@ -190,6 +190,7 @@ bool gl_shader_resource_mapping::set_buffer(const string variable_name, gfx_hand
 
     auto& device_pair = m_buffers.at(binding);
     auto& bind_range  = m_ranges.at(binding);
+    auto& target      = m_targets.at(binding);
     if (device_pair.second > 2)
     {
         MANGO_LOG_ERROR("Mapping for static binding {0} already set!", binding);
@@ -199,7 +200,15 @@ bool gl_shader_resource_mapping::set_buffer(const string variable_name, gfx_hand
         device_pair.second = 3;
 
     device_pair.first = static_gfx_handle_cast<const gl_buffer>(resource);
+
+    if ((device_pair.first->m_info.buffer_target & bind_target) == gfx_buffer_target::buffer_target_unknown)
+    {
+        MANGO_LOG_ERROR("{0} can not be bound to that target!", variable_name);
+        return false;
+    }
+
     bind_range        = range;
+    target            = bind_target;
 
     return true;
 }
@@ -374,12 +383,14 @@ gl_graphics_pipeline::gl_graphics_pipeline(const graphics_pipeline_create_info& 
             {
                 m_mapping->m_buffers.resize(b.binding + array_size_out);
                 m_mapping->m_ranges.resize(b.binding + array_size_out);
+                m_mapping->m_targets.resize(b.binding + array_size_out);
             }
             if (array_size_out == 1)
             {
                 m_mapping->m_name_to_binding_pair.insert({ name, { b.binding, b.type } });
                 m_mapping->m_buffers.at(b.binding) = device_pair;
                 m_mapping->m_ranges.at(b.binding)  = ivec2(0, 0);
+                m_mapping->m_targets.at(b.binding) = gfx_buffer_target::buffer_target_unknown;
             }
             else
             {
@@ -390,6 +401,7 @@ gl_graphics_pipeline::gl_graphics_pipeline(const graphics_pipeline_create_info& 
                     m_mapping->m_name_to_binding_pair.insert({ indexed_name.c_str(), { b.binding + c, b.type } });
                     m_mapping->m_buffers.at(b.binding + c) = device_pair;
                     m_mapping->m_ranges.at(b.binding + c)  = ivec2(0, 0);
+                    m_mapping->m_targets.at(b.binding)     = gfx_buffer_target::buffer_target_unknown;
                 }
             }
             break;
@@ -534,12 +546,14 @@ gl_compute_pipeline::gl_compute_pipeline(const compute_pipeline_create_info& inf
             {
                 m_mapping->m_buffers.resize(b.binding + array_size_out);
                 m_mapping->m_ranges.resize(b.binding + array_size_out);
+                m_mapping->m_targets.resize(b.binding + array_size_out);
             }
             if (array_size_out == 1)
             {
                 m_mapping->m_name_to_binding_pair.insert({ name, { b.binding, b.type } });
                 m_mapping->m_buffers.at(b.binding) = device_pair;
                 m_mapping->m_ranges.at(b.binding)  = ivec2(0, 0);
+                m_mapping->m_targets.at(b.binding) = gfx_buffer_target::buffer_target_unknown;
             }
             else
             {
@@ -550,6 +564,7 @@ gl_compute_pipeline::gl_compute_pipeline(const compute_pipeline_create_info& inf
                     m_mapping->m_name_to_binding_pair.insert({ indexed_name.c_str(), { b.binding + c, b.type } });
                     m_mapping->m_buffers.at(b.binding + c) = device_pair;
                     m_mapping->m_ranges.at(b.binding + c)  = ivec2(0, 0);
+                    m_mapping->m_targets.at(b.binding)     = gfx_buffer_target::buffer_target_unknown;
                 }
             }
             break;
@@ -648,12 +663,13 @@ void gl_pipeline::submit_pipeline_resources(gfx_handle<gfx_graphics_state> share
     {
         auto& buffer = m_mapping->m_buffers[b];
         auto& range  = m_mapping->m_ranges[b];
+        auto& target  = m_mapping->m_targets[b];
         if (buffer.second == 0 || buffer.first->m_buffer_gl_handle == 0)
             continue;
-        if (shared_graphics_state->is_buffer_bound(buffer.first->m_info.buffer_target, b, buffer.first->native_handle(), range))
+        if (shared_graphics_state->is_buffer_bound(target, b, buffer.first->native_handle(), range))
             continue;
-        glBindBufferRange(gfx_buffer_target_to_gl(buffer.first->m_info.buffer_target), b, buffer.first->m_buffer_gl_handle, range.x(), range.y());
-        shared_graphics_state->record_buffer_binding(buffer.first->m_info.buffer_target, b, buffer.first->native_handle(), range);
+        glBindBufferRange(gfx_buffer_target_to_gl(target), b, buffer.first->m_buffer_gl_handle, range.x(), range.y());
+        shared_graphics_state->record_buffer_binding(target, b, buffer.first->native_handle(), range);
     }
 
     std::vector<gl_handle> gl_handles;

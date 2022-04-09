@@ -875,7 +875,8 @@ void gl_graphics_device_context::multi_draw_indirect(gfx_handle<const gfx_buffer
     MANGO_ASSERT(std::dynamic_pointer_cast<const gl_buffer>(indirect_buffer), "indirect_buffer is not a gl_buffer");
 
     gfx_handle<const gl_buffer> buf = static_gfx_handle_cast<const gl_buffer>(indirect_buffer);
-    glBindBuffer(gfx_buffer_target_to_gl(buf->m_info.buffer_target), buf->m_buffer_gl_handle);
+    MANGO_ASSERT((buf->m_info.buffer_target & gfx_buffer_target::buffer_target_indirect_draw) != gfx_buffer_target::buffer_target_unknown, "Buffer can not be bound to that draw indirect target");
+    glBindBuffer(gfx_buffer_target_to_gl(gfx_buffer_target::buffer_target_indirect_draw), buf->m_buffer_gl_handle);
 
     // draw elements
     glMultiDrawElementsIndirect(gfx_primitive_topology_to_gl(mode), gfx_format_to_gl(index_type), (const void* const*)indirect_offset, drawcount, stride);

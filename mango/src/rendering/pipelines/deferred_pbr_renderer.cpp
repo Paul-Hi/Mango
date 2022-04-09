@@ -305,6 +305,11 @@ bool deferred_pbr_renderer::create_buffers()
     if (!check_creation(m_renderer_data_buffer.get(), "renderer data buffer"))
         return false;
 
+    buffer_info.size   = sizeof(cull_data);
+    m_cull_data_buffer = m_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(m_cull_data_buffer.get(), "cull data buffer"))
+        return false;
+
     buffer_info.buffer_target = gfx_buffer_target::buffer_target_shader_storage;
     buffer_info.buffer_access = gfx_buffer_access::buffer_access_mapped_access_read_write | gfx_buffer_access::buffer_access_persistent_map | gfx_buffer_access::buffer_access_dynamic_storage;
     buffer_info.size          = sizeof(luminance_data);
@@ -329,35 +334,44 @@ bool deferred_pbr_renderer::create_buffers()
     m_model_data_buffer = m_graphics_device->create_buffer(buffer_info);
     if (!check_creation(m_model_data_buffer.get(), "model data buffer"))
         return false;
-    m_model_buffer_manager.create(maximum_per_frame_meshes * 2);
+    m_model_buffer_manager.create(maximum_per_frame_meshes * 2 * sizeof(model_data));
 
     buffer_info.size       = sizeof(material_data) * maximum_per_frame_materials * 2;
     m_material_data_buffer = m_graphics_device->create_buffer(buffer_info);
     if (!check_creation(m_material_data_buffer.get(), "material data buffer"))
         return false;
-    m_material_buffer_manager.create(maximum_per_frame_materials * 2);
+    m_material_buffer_manager.create(maximum_per_frame_materials * 2 * sizeof(material_data));
+
+    buffer_info.size = sizeof(material_data) * maximum_per_frame_materials * 2;
+    m_aabb_buffer    = m_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(m_aabb_buffer.get(), "aab data buffer"))
+        return false;
+    m_aabb_buffer_manager.create(maximum_per_frame_materials * 2 * sizeof(gpu_aabb));
 
     buffer_info.size            = sizeof(draw_instance_data) * maximum_per_frame_materials * 2;
     m_draw_instance_data_buffer = m_graphics_device->create_buffer(buffer_info);
     if (!check_creation(m_draw_instance_data_buffer.get(), "draw instance data buffer"))
         return false;
-    m_instance_buffer_manager.create(maximum_per_frame_materials * 2);
+    m_instance_buffer_manager.create(maximum_per_frame_materials * 2 * sizeof(draw_instance_data));
 
-    buffer_info.buffer_target = gfx_buffer_target::buffer_target_indirect_draw;
+    buffer_info.buffer_target = gfx_buffer_target::buffer_target_indirect_draw | gfx_buffer_target::buffer_target_shader_storage;
     buffer_info.size          = sizeof(draw_elements_indirect_command) * maximum_per_frame_materials * 5;
     m_indirect_buffer         = m_graphics_device->create_buffer(buffer_info);
     if (!check_creation(m_indirect_buffer.get(), "indirect buffer"))
         return false;
-    m_indirect_buffer_manager.create(maximum_per_frame_materials * 5);
+    m_indirect_buffer_manager.create(maximum_per_frame_materials * 5 * sizeof(draw_elements_indirect_command));
 
     m_draw_instance_data_buffer_mapping = nullptr;
     m_model_data_buffer_mapping         = nullptr;
     m_material_data_buffer_mapping      = nullptr;
+    m_aabb_buffer_mapping               = nullptr;
+    m_indirect_buffer_mapping           = nullptr;
     device_context->begin();
     m_draw_instance_data_buffer_mapping =
         static_cast<draw_instance_data*>(device_context->map_buffer_data(m_draw_instance_data_buffer, 0, sizeof(draw_instance_data) * maximum_per_frame_materials * 2));
     m_model_data_buffer_mapping    = static_cast<model_data*>(device_context->map_buffer_data(m_model_data_buffer, 0, sizeof(model_data) * maximum_per_frame_meshes * 2));
     m_material_data_buffer_mapping = static_cast<material_data*>(device_context->map_buffer_data(m_material_data_buffer, 0, sizeof(material_data) * maximum_per_frame_materials * 2));
+    m_aabb_buffer_mapping          = static_cast<gpu_aabb*>(device_context->map_buffer_data(m_aabb_buffer, 0, sizeof(gpu_aabb) * maximum_per_frame_materials * 2));
     m_indirect_buffer_mapping =
         static_cast<draw_elements_indirect_command*>(device_context->map_buffer_data(m_indirect_buffer, 0, sizeof(draw_elements_indirect_command) * maximum_per_frame_materials * 5));
     device_context->end();
@@ -367,6 +381,8 @@ bool deferred_pbr_renderer::create_buffers()
     if (!check_mapping(m_model_data_buffer_mapping, "model data buffer mapping"))
         return false;
     if (!check_mapping(m_material_data_buffer_mapping, "material data buffer mapping"))
+        return false;
+    if (!check_mapping(m_aabb_buffer_mapping, "aabb buffer mapping"))
         return false;
     if (!check_mapping(m_indirect_buffer_mapping, "indirect buffer mapping"))
         return false;
@@ -381,6 +397,33 @@ bool deferred_pbr_renderer::create_shader_stages()
     shader_resource_resource_description res_resource_desc;
     shader_source_description source_desc;
 
+    // GPU Culling Compute Stage
+    {
+        res_resource_desc.path = "res/shader/culling_compute/c_scene_culling.glsl";
+        res_resource_desc.defines.push_back({ "COMPUTE", "" });
+        const shader_resource* source = internal_resources->acquire(res_resource_desc);
+
+        source_desc.entry_point = "main";
+        source_desc.source      = source->source.c_str();
+        source_desc.size        = static_cast<int32>(source->source.size());
+
+        shader_info.stage         = gfx_shader_stage_type::shader_stage_compute;
+        shader_info.shader_source = source_desc;
+
+        shader_info.resource_count = 3;
+
+        shader_info.resources = { {
+            { gfx_shader_stage_type::shader_stage_compute, INDIRECT_COMMANDS_BUFFER_BINDING_POINT, "indirect_commands", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, CULL_DATA_BUFFER_BINDING_POINT, "cull_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, AABB_DATA_BUFFER_BINDING_POINT, "aabb_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+        } };
+
+        m_gpu_culling_compute = m_graphics_device->create_shader_stage(shader_info);
+        if (!check_creation(m_gpu_culling_compute.get(), "gpu culling compute shader"))
+            return false;
+
+        res_resource_desc.defines.clear();
+    }
     // Geometry Pass Vertex Stage
     {
         res_resource_desc.path = "res/shader/forward/v_scene_gltf.glsl";
@@ -397,7 +440,7 @@ bool deferred_pbr_renderer::create_shader_stages()
         shader_info.resource_count = 3;
 
         shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
             { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, "model_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
             { gfx_shader_stage_type::shader_stage_vertex, DRAW_INSTANCE_DATA_BUFFER_BINDING_POINT, "draw_instance_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
         } };
@@ -467,11 +510,11 @@ bool deferred_pbr_renderer::create_shader_stages()
         shader_info.resources = { {
             { gfx_shader_stage_type::shader_stage_fragment, MATERIAL_DATA_BUFFER_BINDING_POINT, "material_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, DRAW_INSTANCE_DATA_BUFFER_BINDING_POINT, "draw_instance_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, MODEL_DATA_BUFFER_BINDING_POINT, "model_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, "light_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, "shadow_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, "light_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, "shadow_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
 
             { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, "texture_base_color", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, "sampler_base_color", gfx_shader_resource_type::shader_resource_sampler, 1 },
@@ -545,10 +588,10 @@ bool deferred_pbr_renderer::create_shader_stages()
         shader_info.resource_count = 24;
 
         shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, "light_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, "shadow_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, "light_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, "shadow_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
 
             { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET0, "texture_gbuffer_c0", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET0, "sampler_gbuffer_c0", gfx_shader_resource_type::shader_resource_sampler, 1 },
@@ -603,8 +646,8 @@ bool deferred_pbr_renderer::create_shader_stages()
         shader_info.resource_count = 6;
 
         shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
 
             { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, "texture_hdr_input", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, "sampler_hdr_input", gfx_shader_resource_type::shader_resource_sampler, 1 },
@@ -675,11 +718,31 @@ bool deferred_pbr_renderer::create_shader_stages()
 
 bool deferred_pbr_renderer::create_pipeline_resources()
 {
+    // GPU Culling Pipeline
+    {
+        compute_pipeline_create_info culling_pass_info = m_graphics_device->provide_compute_pipeline_create_info();
+        auto culling_pass_pipeline_layout              = m_graphics_device->create_pipeline_resource_layout({
+            { gfx_shader_stage_type::shader_stage_compute, INDIRECT_COMMANDS_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+              gfx_shader_resource_access::shader_access_dynamic },
+
+            { gfx_shader_stage_type::shader_stage_compute, CULL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+              gfx_shader_resource_access::shader_access_dynamic },
+
+            { gfx_shader_stage_type::shader_stage_compute, AABB_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+              gfx_shader_resource_access::shader_access_dynamic },
+        });
+
+        culling_pass_info.pipeline_layout = culling_pass_pipeline_layout;
+
+        culling_pass_info.shader_stage_descriptor.compute_shader_stage = m_gpu_culling_compute;
+
+        m_gpu_culling_pipeline = m_graphics_device->create_compute_pipeline(culling_pass_info);
+    }
     // Geometry Pass Pipeline
     {
         graphics_pipeline_create_info geometry_pass_info = m_graphics_device->provide_graphics_pipeline_create_info();
         auto geometry_pass_pipeline_layout               = m_graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+            { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
               gfx_shader_resource_access::shader_access_dynamic },
             { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
               gfx_shader_resource_access::shader_access_dynamic },
@@ -736,7 +799,7 @@ bool deferred_pbr_renderer::create_pipeline_resources()
     {
         graphics_pipeline_create_info transparent_pass_info = m_graphics_device->provide_graphics_pipeline_create_info();
         auto transparent_pass_pipeline_layout               = m_graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+            { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
               gfx_shader_resource_access::shader_access_dynamic },
             { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
               gfx_shader_resource_access::shader_access_dynamic },
@@ -747,15 +810,15 @@ bool deferred_pbr_renderer::create_pipeline_resources()
               gfx_shader_resource_access::shader_access_dynamic },
             { gfx_shader_stage_type::shader_stage_fragment, DRAW_INSTANCE_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
               gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
               gfx_shader_resource_access::shader_access_dynamic },
             { gfx_shader_stage_type::shader_stage_fragment, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
               gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
               gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
               gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+            { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
               gfx_shader_resource_access::shader_access_dynamic },
 
             { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, gfx_shader_resource_type::shader_resource_input_attachment,
@@ -827,13 +890,13 @@ bool deferred_pbr_renderer::create_pipeline_resources()
     {
         graphics_pipeline_create_info lighting_pass_info = m_graphics_device->provide_graphics_pipeline_create_info();
         auto lighting_pass_pipeline_layout               = m_graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
               gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
               gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
               gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+            { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
               gfx_shader_resource_access::shader_access_dynamic },
 
             { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET0, gfx_shader_resource_type::shader_resource_input_attachment,
@@ -896,9 +959,9 @@ bool deferred_pbr_renderer::create_pipeline_resources()
     {
         graphics_pipeline_create_info composing_pass_info = m_graphics_device->provide_graphics_pipeline_create_info();
         auto composing_pass_pipeline_layout               = m_graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
               gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
               gfx_shader_resource_access::shader_access_dynamic },
 
             { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
@@ -1127,16 +1190,20 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     int32 material_data_index = 0;
 
     // TODO NEXT: Frustum Culling in compute shader - Weighted OIT - Bistro Repair, because some objects do not seem to have correct transparency/blending
+    // TODO NEXT: Some offets in the shadow stuff seems to be wrong - bistro is renering wrong, when shadows enabled -> Also there are framedrops!
     const primitive_manager& primitive_manager = scene->get_primitive_manager();
 
-    int32 draw_instance_offset = m_instance_buffer_manager.wait_for_range(draws.size(), m_frame_context);
-    int32 model_offset         = m_model_buffer_manager.wait_for_range(draws.size(), m_frame_context);
-    int32 material_offset      = m_material_buffer_manager.wait_for_range(draws.size(), m_frame_context);
-    int32 indirect_offset      = m_indirect_buffer_manager.wait_for_range(draws.size(), m_frame_context);
+    int32 draw_instance_offset = m_instance_buffer_manager.wait_for_range(draws.size() * sizeof(draw_instance_data), m_frame_context);
+    int32 model_offset         = m_model_buffer_manager.wait_for_range(draws.size() * sizeof(model_data), m_frame_context);
+    int32 material_offset      = m_material_buffer_manager.wait_for_range(draws.size() * sizeof(material_data), m_frame_context);
+    int32 aabb_offset          = m_aabb_buffer_manager.wait_for_range(draws.size() * sizeof(gpu_aabb), m_frame_context);
 
     uid last_material_id;
-    batch* current_batch = nullptr;
-    int32 instance_count = 0;
+    batch* current_batch      = nullptr;
+    int32 instance_count      = 0;
+    int32 draw_indirect_count = 0;
+    std::vector<draw_elements_indirect_command> scene_commands, shadow_commands;
+
     {
         NAMED_PROFILE_ZONE("Batch Creation");
         std::vector<batch> batches;
@@ -1165,12 +1232,15 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 m_gpu_data->per_mesh_data.has_tangents = true;
 
                 model_data_index = model_data_ids.size();
-                model_data* md   = m_model_data_buffer_mapping + model_offset + model_data_index;
+                model_data* md   = reinterpret_cast<model_data*>(reinterpret_cast<uint8*>(m_model_data_buffer_mapping) + model_offset) + model_data_index;
                 *md              = m_gpu_data->per_mesh_data;
 
                 model_data_ids.push_back(dc.mesh_gpu_data_id);
             }
 
+            gpu_aabb* aabb = reinterpret_cast<gpu_aabb*>(reinterpret_cast<uint8*>(m_aabb_buffer_mapping) + aabb_offset) + c;
+            aabb->center   = dc.bounding_box.center;
+            aabb->extents  = dc.bounding_box.extents;
             // Found existing batch, add call to that batch
             if (dc.material_id == last_material_id)
             {
@@ -1190,7 +1260,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                     warn_missing_draw("Material");
                     continue;
                 }
-                material_data* md = m_material_data_buffer_mapping + material_offset + material_data_index;
+                material_data* md = reinterpret_cast<material_data*>(reinterpret_cast<uint8*>(m_material_data_buffer_mapping) + material_offset) + material_data_index;
                 *md               = mat_gpu_data->per_material_data;
 
                 bool opaque = mat->alpha_mode != material_alpha_mode::mode_blend;
@@ -1232,14 +1302,27 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 int32 index_count, vertex_count, base_vertex;
                 primitive_manager.get_draw_parameters(prim_gpu_data->manager_id, &index_offset, &index_count, &vertex_count, &base_vertex);
 
-                draw_elements_indirect_command* cmd = m_indirect_buffer_mapping + indirect_offset + base_instance;
-                cmd->count                          = index_count;
-                cmd->first_index                    = index_offset;
-                cmd->base_vertex                    = base_vertex;
-                cmd->instance_count                 = 1;
-                cmd->base_instance                  = base_instance;
+                draw_elements_indirect_command cmd;
+                cmd.count          = index_count;
+                cmd.first_index    = index_offset;
+                cmd.base_vertex    = base_vertex;
+                cmd.instance_count = m_frustum_culling ? 0 : 1; // will be increased in culling shader
+                cmd.base_instance  = base_instance;
+                scene_commands.push_back(cmd);
+                if (!batch.blended)
+                {
+                    // can also cast shadows
+                    shadow_commands.push_back(cmd);
+                }
+                else
+                {
+                    // TODO Paul: This is not optimal
+                    // can not cast shadows, but we need to fill the space with anything, so this is if-els is just to remember me of this :D
+                    // This means at the moment, we also frustum cull objects we do not render later anyway :(
+                    shadow_commands.push_back(cmd);
+                }
 
-                draw_instance_data* did = m_draw_instance_data_buffer_mapping + draw_instance_offset + base_instance;
+                draw_instance_data* did = reinterpret_cast<draw_instance_data*>(reinterpret_cast<uint8*>(m_draw_instance_data_buffer_mapping) + draw_instance_offset) + base_instance;
                 *did                    = draw_instance_data{ batch.model_data_indices[i], batch.material_data_index };
                 base_instance++;
             }
@@ -1248,11 +1331,101 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             else
                 opaque_batches.push_back(batch);
         }
+
         instance_count = base_instance;
     }
 
-    const light_stack& ls = scene->get_light_stack();
-    auto light_data       = scene->get_light_gpu_data();
+    const light_stack& ls   = scene->get_light_stack();
+    auto light_data         = scene->get_light_gpu_data();
+    int32 shadow_pass_count = 0;
+    int32 indirect_offset   = 0;
+
+    std::vector<shadow_map_step::shadow_data> light_casters_shadow_data;
+    std::vector<bounding_frustum> light_casters_frusta;
+
+    // Cascade Updates
+    if (shadow_pass)
+    {
+        NAMED_PROFILE_ZONE("Shadow Cascade Updates");
+        auto shadow_casters = ls.get_shadow_casters(); // currently only directional.
+        for (auto sc : shadow_casters)
+        {
+            shadow_pass->update_cascades(dt, active_camera_data->per_camera_data.camera_near, active_camera_data->per_camera_data.camera_far,
+                                         active_camera_data->per_camera_data.view_projection_matrix.to_mat4(), sc.direction);
+            auto& data = shadow_pass->get_shadow_data();
+
+            for (int32 casc = 0; casc < data.cascade_count; ++casc)
+            {
+                auto& cascade_frustum = shadow_pass->get_cascade_frustum(casc);
+                data.cascade          = casc;
+
+                light_casters_shadow_data.push_back(data);
+                light_casters_frusta.push_back(cascade_frustum);
+            }
+
+            shadow_pass_count += data.cascade_count;
+        }
+    }
+
+    {
+        NAMED_PROFILE_ZONE("Command Copy");
+        draw_indirect_count = shadow_commands.size() * shadow_pass_count + scene_commands.size();
+        indirect_offset     = m_indirect_buffer_manager.wait_for_range(draw_indirect_count * sizeof(draw_elements_indirect_command), m_frame_context);
+
+        draw_elements_indirect_command* start = reinterpret_cast<draw_elements_indirect_command*>(reinterpret_cast<uint8*>(m_indirect_buffer_mapping) + indirect_offset);
+
+        for (int32 i = 0; i < shadow_pass_count; ++i)
+        {
+            std::copy(shadow_commands.begin(), shadow_commands.end(), start + i * shadow_commands.size());
+        }
+        std::copy(scene_commands.begin(), scene_commands.end(), start + shadow_commands.size() * shadow_pass_count);
+    }
+
+    // culling
+    if (m_frustum_culling)
+    {
+        GL_NAMED_PROFILE_ZONE("GPU Culling");
+        NAMED_PROFILE_ZONE("GPU Culling");
+
+        m_frame_context->bind_pipeline(m_gpu_culling_pipeline);
+        m_gpu_culling_pipeline->get_resource_mapping()->set_buffer("indirect_commands", m_indirect_buffer, ivec2(indirect_offset, draw_indirect_count * sizeof(draw_elements_indirect_command)),
+                                                                   gfx_buffer_target::buffer_target_shader_storage);
+        m_gpu_culling_pipeline->get_resource_mapping()->set_buffer("aabb_data", m_aabb_buffer, ivec2(aabb_offset, draws.size() * sizeof(gpu_aabb)), gfx_buffer_target::buffer_target_shader_storage);
+
+        for (int32 i = 0; i < shadow_pass_count; ++i)
+        {
+            m_cull_data.cull_draw_count   = shadow_commands.size();
+            m_cull_data.cull_draws_offset = shadow_commands.size() * i;
+            auto& planes                  = light_casters_frusta[i].get_planes();
+            for (int j = 0; j < planes.size(); ++j)
+            {
+                m_cull_data.cull_camera_frustum_planes[j] = planes[j];
+            }
+            m_frame_context->set_buffer_data(m_cull_data_buffer, 0, sizeof(m_cull_data), &m_cull_data);
+            m_gpu_culling_pipeline->get_resource_mapping()->set_buffer("cull_data", m_cull_data_buffer, ivec2(0, sizeof(cull_data)), gfx_buffer_target::buffer_target_uniform);
+            m_frame_context->submit_pipeline_state_resources();
+
+            m_frame_context->dispatch(shadow_commands.size(), 1, 1);
+        }
+
+        // Only for main scene drawing
+        m_cull_data.cull_draw_count   = scene_commands.size();
+        m_cull_data.cull_draws_offset = shadow_commands.size() * shadow_pass_count;
+        auto& planes = bounding_frustum::bounding_frustum(active_camera_data->per_camera_data.view_matrix.to_mat4(), active_camera_data->per_camera_data.projection_matrix.to_mat4()).get_planes();
+        for (int j = 0; j < planes.size(); ++j)
+        {
+            m_cull_data.cull_camera_frustum_planes[j] = planes[j];
+        }
+        m_frame_context->set_buffer_data(m_cull_data_buffer, 0, sizeof(m_cull_data), &m_cull_data);
+        m_gpu_culling_pipeline->get_resource_mapping()->set_buffer("cull_data", m_cull_data_buffer, ivec2(0, sizeof(cull_data)), gfx_buffer_target::buffer_target_uniform);
+        m_frame_context->submit_pipeline_state_resources();
+
+        m_frame_context->dispatch(scene_commands.size(), 1, 1);
+
+        barrier_description bd;
+        bd.barrier_bit = gfx_barrier_bit::command_barrier_bit | gfx_barrier_bit::shader_storage_barrier_bit;
+        m_frame_context->barrier(bd);
+    }
 
     primitive_manager.bind_buffers(m_frame_context, m_indirect_buffer, indirect_offset);
 
@@ -1270,85 +1443,81 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             m_frame_context->set_render_targets(0, nullptr, shadow_pass->get_shadow_maps_texture());
             gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(shadow_pass->resolution()), static_cast<float>(shadow_pass->resolution()) };
             m_frame_context->set_viewport(0, 1, &shadow_viewport);
-            dc_pipeline->get_resource_mapping()->set_buffer("model_data", m_model_data_buffer, ivec2(model_offset, model_data_ids.size()) * sizeof(model_data));
-            dc_pipeline->get_resource_mapping()->set_buffer("material_data", m_material_data_buffer, ivec2(material_offset, material_data_index) * sizeof(material_data));
-            dc_pipeline->get_resource_mapping()->set_buffer("draw_instance_data", m_draw_instance_data_buffer, ivec2(draw_instance_offset, instance_count) * sizeof(draw_instance_data));
-            for (auto sc : shadow_casters)
+            dc_pipeline->get_resource_mapping()->set_buffer("model_data", m_model_data_buffer, ivec2(model_offset, model_data_ids.size() * sizeof(model_data)),
+                                                            gfx_buffer_target::buffer_target_shader_storage);
+            dc_pipeline->get_resource_mapping()->set_buffer("material_data", m_material_data_buffer, ivec2(material_offset, material_data_index * sizeof(material_data)),
+                                                            gfx_buffer_target::buffer_target_shader_storage);
+            dc_pipeline->get_resource_mapping()->set_buffer("draw_instance_data", m_draw_instance_data_buffer, ivec2(draw_instance_offset, instance_count * sizeof(draw_instance_data)),
+                                                            gfx_buffer_target::buffer_target_shader_storage);
+            auto& shadow_data_buffer = shadow_pass->get_shadow_data_buffer();
+            for (int32 i = 0; i < shadow_pass_count; ++i)
             {
-                shadow_pass->update_cascades(dt, active_camera_data->per_camera_data.camera_near, active_camera_data->per_camera_data.camera_far,
-                                             active_camera_data->per_camera_data.view_projection_matrix.to_mat4(), sc.direction);
-                auto& shadow_data_buffer = shadow_pass->get_shadow_data_buffer();
-                auto& data               = shadow_pass->get_shadow_data();
+                auto& data            = light_casters_shadow_data[i];
+                auto& cascade_frustum = light_casters_frusta[i];
+                m_frame_context->set_buffer_data(shadow_data_buffer, 0, sizeof(shadow_map_step::shadow_data), &(data));
+                dc_pipeline->get_resource_mapping()->set_buffer("shadow_data", shadow_data_buffer, ivec2(0, sizeof(shadow_map_step::shadow_data)), gfx_buffer_target::buffer_target_uniform);
 
-                for (int32 casc = 0; casc < data.cascade_count; ++casc)
+                if (m_debug_bounds)
                 {
-                    auto& cascade_frustum = shadow_pass->get_cascade_frustum(casc);
+                    auto corners = bounding_frustum::get_corners(data.view_projection_matrices[data.cascade].to_mat4());
+                    m_debug_drawer.set_color(color_rgb(0.5f));
+                    m_debug_drawer.add(corners[0], corners[1]);
+                    m_debug_drawer.add(corners[1], corners[3]);
+                    m_debug_drawer.add(corners[3], corners[2]);
+                    m_debug_drawer.add(corners[2], corners[6]);
+                    m_debug_drawer.add(corners[6], corners[4]);
+                    m_debug_drawer.add(corners[4], corners[0]);
+                    m_debug_drawer.add(corners[0], corners[2]);
 
-                    data.cascade = casc;
-                    m_frame_context->set_buffer_data(shadow_data_buffer, 0, sizeof(shadow_map_step::shadow_data), &(data));
-                    dc_pipeline->get_resource_mapping()->set_buffer("shadow_data", shadow_data_buffer, ivec2(0, sizeof(shadow_map_step::shadow_data)));
+                    m_debug_drawer.add(corners[5], corners[4]);
+                    m_debug_drawer.add(corners[4], corners[6]);
+                    m_debug_drawer.add(corners[6], corners[7]);
+                    m_debug_drawer.add(corners[7], corners[3]);
+                    m_debug_drawer.add(corners[3], corners[1]);
+                    m_debug_drawer.add(corners[1], corners[5]);
+                    m_debug_drawer.add(corners[5], corners[7]);
+                }
 
-                    if (m_debug_bounds)
+                int32 pass_offset = shadow_commands.size() * i;
+                for (auto& btch : opaque_batches)
+                {
+                    if (m_frustum_culling)
                     {
-                        auto corners = bounding_frustum::get_corners(data.view_projection_matrices[casc].to_mat4());
-                        m_debug_drawer.set_color(color_rgb(0.5f));
-                        m_debug_drawer.add(corners[0], corners[1]);
-                        m_debug_drawer.add(corners[1], corners[3]);
-                        m_debug_drawer.add(corners[3], corners[2]);
-                        m_debug_drawer.add(corners[2], corners[6]);
-                        m_debug_drawer.add(corners[6], corners[4]);
-                        m_debug_drawer.add(corners[4], corners[0]);
-                        m_debug_drawer.add(corners[0], corners[2]);
-
-                        m_debug_drawer.add(corners[5], corners[4]);
-                        m_debug_drawer.add(corners[4], corners[6]);
-                        m_debug_drawer.add(corners[6], corners[7]);
-                        m_debug_drawer.add(corners[7], corners[3]);
-                        m_debug_drawer.add(corners[3], corners[1]);
-                        m_debug_drawer.add(corners[1], corners[5]);
-                        m_debug_drawer.add(corners[5], corners[7]);
-                    }
-
-                    for (auto& btch : opaque_batches)
-                    {
-                        if (m_frustum_culling)
+                        if (!cascade_frustum.intersects(btch.bb))
                         {
-                            if (!cascade_frustum.intersects(btch.bb))
-                            {
-                                continue;
-                            }
-                        }
-
-                        optional<material&> mat                   = scene->get_material(btch.material_id);
-                        optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
-                        if (!mat || !mat_gpu_data)
-                        {
-                            warn_missing_draw("Material");
                             continue;
                         }
-
-                        if (mat_gpu_data->per_material_data.base_color_texture)
-                        {
-                            optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
-                            if (!tex)
-                            {
-                                warn_missing_draw("Base Color Texture");
-                                continue;
-                            }
-                            dc_pipeline->get_resource_mapping()->set_texture("texture_base_color", tex->graphics_texture);
-                            dc_pipeline->get_resource_mapping()->set_sampler("sampler_base_color", tex->graphics_sampler);
-                        }
-                        else
-                        {
-                            dc_pipeline->get_resource_mapping()->set_texture("texture_base_color", default_texture_2D);
-                        }
-
-                        m_frame_context->submit_pipeline_state_resources();
-
-                        m_renderer_info.last_frame.draw_calls++;
-                        m_frame_context->multi_draw_indirect(m_indirect_buffer, gfx_primitive_topology::primitive_topology_triangle_list, gfx_format::t_unsigned_int,
-                                                             btch.first_call * sizeof(draw_elements_indirect_command), btch.drawcount, 0);
                     }
+
+                    optional<material&> mat                   = scene->get_material(btch.material_id);
+                    optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
+                    if (!mat || !mat_gpu_data)
+                    {
+                        warn_missing_draw("Material");
+                        continue;
+                    }
+
+                    if (mat_gpu_data->per_material_data.base_color_texture)
+                    {
+                        optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
+                        if (!tex)
+                        {
+                            warn_missing_draw("Base Color Texture");
+                            continue;
+                        }
+                        dc_pipeline->get_resource_mapping()->set_texture("texture_base_color", tex->graphics_texture);
+                        dc_pipeline->get_resource_mapping()->set_sampler("sampler_base_color", tex->graphics_sampler);
+                    }
+                    else
+                    {
+                        dc_pipeline->get_resource_mapping()->set_texture("texture_base_color", default_texture_2D);
+                    }
+
+                    m_frame_context->submit_pipeline_state_resources();
+
+                    m_renderer_info.last_frame.draw_calls++;
+                    m_frame_context->multi_draw_indirect(m_indirect_buffer, gfx_primitive_topology::primitive_topology_triangle_list, gfx_format::t_unsigned_int,
+                                                         indirect_offset + (pass_offset + btch.first_call) * sizeof(draw_elements_indirect_command), btch.drawcount, 0);
                 }
             }
         }
@@ -1365,10 +1534,15 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
                                       static_cast<float>(m_renderer_info.canvas.height) };
         m_frame_context->set_viewport(0, 1, &window_viewport);
-        dc_pipeline->get_resource_mapping()->set_buffer("model_data", m_model_data_buffer, ivec2(model_offset, model_data_ids.size()) * sizeof(model_data));
-        dc_pipeline->get_resource_mapping()->set_buffer("material_data", m_material_data_buffer, ivec2(material_offset, material_data_index) * sizeof(material_data));
-        dc_pipeline->get_resource_mapping()->set_buffer("draw_instance_data", m_draw_instance_data_buffer, ivec2(draw_instance_offset, instance_count) * sizeof(draw_instance_data));
-        dc_pipeline->get_resource_mapping()->set_buffer("camera_data", active_camera_data->camera_data_buffer, ivec2(0, sizeof(camera_data)));
+        dc_pipeline->get_resource_mapping()->set_buffer("model_data", m_model_data_buffer, ivec2(model_offset, model_data_ids.size() * sizeof(model_data)),
+                                                        gfx_buffer_target::buffer_target_shader_storage);
+        dc_pipeline->get_resource_mapping()->set_buffer("material_data", m_material_data_buffer, ivec2(material_offset, material_data_index * sizeof(material_data)),
+                                                        gfx_buffer_target::buffer_target_shader_storage);
+        dc_pipeline->get_resource_mapping()->set_buffer("draw_instance_data", m_draw_instance_data_buffer, ivec2(draw_instance_offset, instance_count * sizeof(draw_instance_data)),
+                                                        gfx_buffer_target::buffer_target_shader_storage);
+        dc_pipeline->get_resource_mapping()->set_buffer("camera_data", active_camera_data->camera_data_buffer, ivec2(0, sizeof(camera_data)), gfx_buffer_target::buffer_target_uniform);
+
+        int32 pass_offset = shadow_commands.size() * shadow_pass_count;
         for (auto& btch : opaque_batches)
         {
             if (m_frustum_culling)
@@ -1490,7 +1664,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
             m_renderer_info.last_frame.draw_calls++;
             m_frame_context->multi_draw_indirect(m_indirect_buffer, gfx_primitive_topology::primitive_topology_triangle_list, gfx_format::t_unsigned_int,
-                                                 btch.first_call * sizeof(draw_elements_indirect_command), btch.drawcount, 0);
+                                                 indirect_offset + (pass_offset + btch.first_call) * sizeof(draw_elements_indirect_command), btch.drawcount, 0);
         }
     }
 
@@ -1508,9 +1682,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
         m_frame_context->set_render_targets(static_cast<int32>(m_hdr_buffer_render_targets.size()) - 1, m_hdr_buffer_render_targets.data(), m_hdr_buffer_render_targets.back());
 
-        m_lighting_pass_pipeline->get_resource_mapping()->set_buffer("camera_data", active_camera_data->camera_data_buffer, ivec2(0, sizeof(camera_data)));
-        m_lighting_pass_pipeline->get_resource_mapping()->set_buffer("renderer_data", m_renderer_data_buffer, ivec2(0, sizeof(renderer_data)));
-        m_lighting_pass_pipeline->get_resource_mapping()->set_buffer("light_data", light_data.light_data_buffer, ivec2(0, sizeof(light_data)));
+        m_lighting_pass_pipeline->get_resource_mapping()->set_buffer("camera_data", active_camera_data->camera_data_buffer, ivec2(0, sizeof(camera_data)), gfx_buffer_target::buffer_target_uniform);
+        m_lighting_pass_pipeline->get_resource_mapping()->set_buffer("renderer_data", m_renderer_data_buffer, ivec2(0, sizeof(renderer_data)), gfx_buffer_target::buffer_target_uniform);
+        m_lighting_pass_pipeline->get_resource_mapping()->set_buffer("light_data", light_data.light_data_buffer, ivec2(0, sizeof(light_data)), gfx_buffer_target::buffer_target_uniform);
         // m_lighting_pass_pipeline->get_resource_mapping()->set_buffer("shadow_data", , ); // Set in shadow step -- // TODO Paul: Fishy -.-
 
         m_lighting_pass_pipeline->get_resource_mapping()->set_texture("texture_gbuffer_c0", m_gbuffer_render_targets[0]);
@@ -1589,12 +1763,17 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
                                       static_cast<float>(m_renderer_info.canvas.height) };
         m_frame_context->set_viewport(0, 1, &window_viewport);
-        dc_pipeline->get_resource_mapping()->set_buffer("model_data", m_model_data_buffer, ivec2(model_offset, model_data_ids.size()) * sizeof(model_data));
-        dc_pipeline->get_resource_mapping()->set_buffer("material_data", m_material_data_buffer, ivec2(material_offset, material_data_index) * sizeof(material_data));
-        dc_pipeline->get_resource_mapping()->set_buffer("draw_instance_data", m_draw_instance_data_buffer, ivec2(draw_instance_offset, instance_count) * sizeof(draw_instance_data));
-        dc_pipeline->get_resource_mapping()->set_buffer("camera_data", active_camera_data->camera_data_buffer, ivec2(0, sizeof(camera_data)));
-        dc_pipeline->get_resource_mapping()->set_buffer("renderer_data", m_renderer_data_buffer, ivec2(0, sizeof(renderer_data)));
-        dc_pipeline->get_resource_mapping()->set_buffer("light_data", light_data.light_data_buffer, ivec2(0, sizeof(light_data)));
+        dc_pipeline->get_resource_mapping()->set_buffer("model_data", m_model_data_buffer, ivec2(model_offset, model_data_ids.size() * sizeof(model_data)),
+                                                        gfx_buffer_target::buffer_target_shader_storage);
+        dc_pipeline->get_resource_mapping()->set_buffer("material_data", m_material_data_buffer, ivec2(material_offset, material_data_index * sizeof(material_data)),
+                                                        gfx_buffer_target::buffer_target_shader_storage);
+        dc_pipeline->get_resource_mapping()->set_buffer("draw_instance_data", m_draw_instance_data_buffer, ivec2(draw_instance_offset, instance_count * sizeof(draw_instance_data)),
+                                                        gfx_buffer_target::buffer_target_shader_storage);
+        dc_pipeline->get_resource_mapping()->set_buffer("camera_data", active_camera_data->camera_data_buffer, ivec2(0, sizeof(camera_data)), gfx_buffer_target::buffer_target_uniform);
+        dc_pipeline->get_resource_mapping()->set_buffer("renderer_data", m_renderer_data_buffer, ivec2(0, sizeof(renderer_data)), gfx_buffer_target::buffer_target_uniform);
+        dc_pipeline->get_resource_mapping()->set_buffer("light_data", light_data.light_data_buffer, ivec2(0, sizeof(light_data)), gfx_buffer_target::buffer_target_uniform);
+
+        int32 pass_offset = shadow_commands.size() * shadow_pass_count;
         for (auto& btch : blended_batches)
         {
             if (m_frustum_culling)
@@ -1745,14 +1924,15 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
             m_renderer_info.last_frame.draw_calls++;
             m_frame_context->multi_draw_indirect(m_indirect_buffer, gfx_primitive_topology::primitive_topology_triangle_list, gfx_format::t_unsigned_int,
-                                                 btch.first_call * sizeof(draw_elements_indirect_command), btch.drawcount, 0);
+                                                 indirect_offset + (pass_offset + btch.first_call) * sizeof(draw_elements_indirect_command), btch.drawcount, 0);
         }
     }
 
-    m_instance_buffer_manager.lock_range(draw_instance_offset, draw_instance_offset + instance_count, m_frame_context);
-    m_model_buffer_manager.lock_range(model_offset, model_offset + model_data_ids.size(), m_frame_context);
-    m_material_buffer_manager.lock_range(material_offset, material_offset + material_data_index, m_frame_context);
-    m_indirect_buffer_manager.lock_range(indirect_offset, indirect_offset + instance_count, m_frame_context);
+    m_instance_buffer_manager.lock_range(draw_instance_offset, draw_instance_offset + instance_count * sizeof(draw_instance_data), sizeof(draw_instance_data), m_frame_context);
+    m_model_buffer_manager.lock_range(model_offset, model_offset + model_data_ids.size() * sizeof(model_data), sizeof(model_data), m_frame_context);
+    m_material_buffer_manager.lock_range(material_offset, material_offset + material_data_index * sizeof(material_data), sizeof(material_data), m_frame_context);
+    m_aabb_buffer_manager.lock_range(aabb_offset, aabb_offset + draws.size() * sizeof(gpu_aabb), sizeof(gpu_aabb), m_frame_context);
+    m_indirect_buffer_manager.lock_range(indirect_offset, indirect_offset + draw_indirect_count * sizeof(draw_elements_indirect_command), sizeof(draw_elements_indirect_command), m_frame_context);
     m_debug_drawer.update_buffer();
 
     // auto exposure
@@ -1786,7 +1966,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_luminance_data_mapping->params = vec4(-8.0f, 1.0f / 31.0f, time_coefficient, hr_width * hr_height); // min -8.0, max +23.0
 
         m_luminance_construction_pipeline->get_resource_mapping()->set_texture_image("image_hdr_color", hdr_view);
-        m_luminance_construction_pipeline->get_resource_mapping()->set_buffer("luminance_data", m_luminance_data_buffer, ivec2(0, sizeof(luminance_data)));
+        m_luminance_construction_pipeline->get_resource_mapping()->set_buffer("luminance_data", m_luminance_data_buffer, ivec2(0, sizeof(luminance_data)),
+                                                                              gfx_buffer_target::buffer_target_shader_storage);
         m_frame_context->submit_pipeline_state_resources();
 
         m_frame_context->dispatch(hr_width / 16, hr_height / 16, 1);
@@ -1796,7 +1977,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
         m_frame_context->bind_pipeline(m_luminance_reduction_pipeline);
 
-        m_luminance_reduction_pipeline->get_resource_mapping()->set_buffer("luminance_data", m_luminance_data_buffer, ivec2(0, sizeof(luminance_data)));
+        m_luminance_reduction_pipeline->get_resource_mapping()->set_buffer("luminance_data", m_luminance_data_buffer, ivec2(0, sizeof(luminance_data)),
+                                                                           gfx_buffer_target::buffer_target_shader_storage);
         m_frame_context->submit_pipeline_state_resources();
 
         m_frame_context->dispatch(1, 1, 1);
@@ -1823,8 +2005,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         else
             m_frame_context->set_render_targets(1, &m_output_target, m_ouput_depth_target);
 
-        m_composing_pass_pipeline->get_resource_mapping()->set_buffer("camera_data", active_camera_data->camera_data_buffer, ivec2(0, sizeof(camera_data)));
-        m_composing_pass_pipeline->get_resource_mapping()->set_buffer("renderer_data", m_renderer_data_buffer, ivec2(0, sizeof(renderer_data)));
+        m_composing_pass_pipeline->get_resource_mapping()->set_buffer("camera_data", active_camera_data->camera_data_buffer, ivec2(0, sizeof(camera_data)), gfx_buffer_target::buffer_target_uniform);
+        m_composing_pass_pipeline->get_resource_mapping()->set_buffer("renderer_data", m_renderer_data_buffer, ivec2(0, sizeof(renderer_data)), gfx_buffer_target::buffer_target_uniform);
         m_composing_pass_pipeline->get_resource_mapping()->set_texture("texture_hdr_input", m_hdr_buffer_render_targets[0]);
         m_composing_pass_pipeline->get_resource_mapping()->set_sampler("sampler_hdr_input", m_nearest_sampler);
         m_composing_pass_pipeline->get_resource_mapping()->set_texture("texture_geometry_depth_input", m_hdr_buffer_render_targets.back());

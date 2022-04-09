@@ -87,6 +87,13 @@ namespace mango
         //! \return True, if the \a bounding_frustum and the \a axis_aligned_bounding_box intersect, else false.
         bool intersects(const axis_aligned_bounding_box& other) const;
 
+        //! \brief Retrieves frustum bounding planes.
+        //! \return The six frustum bounding planes.
+        inline std::array<vec4, 6>& get_planes()
+        {
+            return planes;
+        }
+
         //! \brief Planes of the frustum.
         //! \details Planes are: x,y,z = normal pointing inwards / w = offset to (0,0,0).
         std::array<vec4, 6> planes;

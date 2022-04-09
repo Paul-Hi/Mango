@@ -31,6 +31,12 @@ namespace mango
 #define SHADOW_DATA_BUFFER_BINDING_POINT 6
     //! \brief The binding point for the \a luminance_data buffer.
 #define LUMINANCE_DATA_BUFFER_BINDING_POINT 7
+    //! \brief The binding point for the indirect draw buffer when used as shader storage buffer.
+#define INDIRECT_COMMANDS_BUFFER_BINDING_POINT 8
+    //! \brief The binding point for the \a cull_data buffer.
+#define CULL_DATA_BUFFER_BINDING_POINT 9
+    //! \brief The binding point for the \a axis_aligned_bounding_box buffer.
+#define AABB_DATA_BUFFER_BINDING_POINT 10
 
     //! \brief The vertex input binding point for the position vertex attribute.
 #define VERTEX_INPUT_POSITION 0
@@ -145,6 +151,21 @@ namespace mango
         std140_bool has_tangents;  //!< Specifies if the mesh has tangents as a vertex attribute.
         std140_float padding0;     //!< Padding.
         std140_float padding1;     //!< Padding.
+    };
+
+    struct cull_data
+    {
+        std140_vec4 cull_camera_frustum_planes[6];
+        std140_int cull_draws_offset;
+        std140_int cull_draw_count;
+        std140_float padding0;     //!< Padding.
+        std140_float padding1;     //!< Padding.
+    };
+
+    struct gpu_aabb
+    {
+        std140_vec3 center;
+        std140_vec3 extents;
     };
 
     struct draw_instance_data

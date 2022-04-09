@@ -535,6 +535,7 @@ namespace mango
         buffer_target_indirect_draw,
         buffer_target_last = buffer_target_indirect_draw
     };
+    MANGO_ENABLE_BITMASK_OPERATIONS(gfx_buffer_target)
 
     //! \brief Bit specification providing access information for buffers.
     enum class gfx_buffer_access : uint8

@@ -10,7 +10,7 @@ in vec2 texcoord;
 
 layout(binding = GBUFFER_TEXTURE_SAMPLER_TARGET0) uniform sampler2D sampler_gbuffer_c0; // base color rgba (rgba8) // texture "texture_gbuffer_c0"
 layout(binding = GBUFFER_TEXTURE_SAMPLER_TARGET1) uniform sampler2D sampler_gbuffer_c1; // normal rgb, alpha unused (rgb10a2) // texture "texture_gbuffer_c1"
-layout(binding = GBUFFER_TEXTURE_SAMPLER_TARGET2) uniform sampler2D sampler_gbuffer_c2; // emissive rgb, alpha unused (rgba8) // texture "texture_gbuffer_c2"
+layout(binding = GBUFFER_TEXTURE_SAMPLER_TARGET2) uniform sampler2D sampler_gbuffer_c2; // emissive rgb, alpha unused (rgba32f) // texture "texture_gbuffer_c2"
 layout(binding = GBUFFER_TEXTURE_SAMPLER_TARGET3) uniform sampler2D sampler_gbuffer_c3; // occlusion r, roughness g, metallic b, alpha unutexture_sed (rgba8) // texture "texture_gbuffer_c3"
 layout(binding = GBUFFER_TEXTURE_SAMPLER_DEPTH) uniform sampler2D sampler_gbuffer_depth; // depth (d32) // texture "texture_gbuffer_depth"
 

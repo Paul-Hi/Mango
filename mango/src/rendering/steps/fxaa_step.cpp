@@ -37,8 +37,8 @@ bool fxaa_step::create_step_resources()
 
     // sampler
     sampler_create_info sampler_info;
-    sampler_info.sampler_min_filter      = gfx_sampler_filter::sampler_filter_linear_mipmap_linear;
-    sampler_info.sampler_max_filter      = gfx_sampler_filter::sampler_filter_linear_mipmap_linear;
+    sampler_info.sampler_min_filter      = gfx_sampler_filter::sampler_filter_linear;
+    sampler_info.sampler_max_filter      = gfx_sampler_filter::sampler_filter_linear;
     sampler_info.enable_comparison_mode  = false;
     sampler_info.comparison_operator     = gfx_compare_operator::compare_operator_always;
     sampler_info.edge_value_wrap_u       = gfx_sampler_edge_wrap::sampler_edge_wrap_clamp_to_edge;
@@ -95,7 +95,7 @@ bool fxaa_step::create_step_resources()
         shader_info.resources = { {
             { gfx_shader_stage_type::shader_stage_fragment, 0, "texture_input", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, 0, "sampler_input", gfx_shader_resource_type::shader_resource_sampler, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, 1, "fxaa_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, 1, "fxaa_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
         } };
 
         m_fxaa_pass_fragment = graphics_device->create_shader_stage(shader_info);
@@ -111,7 +111,7 @@ bool fxaa_step::create_step_resources()
             { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
             { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
 
-            { gfx_shader_stage_type::shader_stage_fragment, 1, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_fragment, 1, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
         });
 
         fxaa_pass_info.pipeline_layout = fxaa_pass_pipeline_layout;
@@ -166,7 +166,7 @@ void fxaa_step::execute()
     m_fxaa_data.inverse_screen_size[1] = 1.0f / m_fxaa_data.inverse_screen_size[1];
     step_context->set_buffer_data(m_fxaa_data_buffer, 0, sizeof(m_fxaa_data), &m_fxaa_data);
 
-    m_fxaa_pass_pipeline->get_resource_mapping()->set_buffer("fxaa_data", m_fxaa_data_buffer, ivec2(0, sizeof(m_fxaa_data)));
+    m_fxaa_pass_pipeline->get_resource_mapping()->set_buffer("fxaa_data", m_fxaa_data_buffer, ivec2(0, sizeof(m_fxaa_data)), gfx_buffer_target::buffer_target_uniform);
     m_fxaa_pass_pipeline->get_resource_mapping()->set_texture("texture_input", m_texture_input);
     m_fxaa_pass_pipeline->get_resource_mapping()->set_sampler("sampler_input", m_sampler_input);
 
