@@ -21,6 +21,7 @@ bool intersect_frustum_aabb(vec4 cull_camera_frustum_planes[6], aabb bounds) {
 
     for (int i = 0; i < 6; ++i)
     {
+        /*
         bool inside = false;
         for (int j = 0; j < 8; ++j)
         {
@@ -33,6 +34,18 @@ bool intersect_frustum_aabb(vec4 cull_camera_frustum_planes[6], aabb bounds) {
 
         if (!inside)
             return false;
+        */
+
+        int outside = 0;
+        outside += (dot(cull_camera_frustum_planes[i], vec4(corners[0].xyz, 1.0)) < 0.0) ? 1 : 0;
+        outside += (dot(cull_camera_frustum_planes[i], vec4(corners[1].xyz, 1.0)) < 0.0) ? 1 : 0;
+        outside += (dot(cull_camera_frustum_planes[i], vec4(corners[2].xyz, 1.0)) < 0.0) ? 1 : 0;
+        outside += (dot(cull_camera_frustum_planes[i], vec4(corners[3].xyz, 1.0)) < 0.0) ? 1 : 0;
+        outside += (dot(cull_camera_frustum_planes[i], vec4(corners[4].xyz, 1.0)) < 0.0) ? 1 : 0;
+        outside += (dot(cull_camera_frustum_planes[i], vec4(corners[5].xyz, 1.0)) < 0.0) ? 1 : 0;
+        outside += (dot(cull_camera_frustum_planes[i], vec4(corners[6].xyz, 1.0)) < 0.0) ? 1 : 0;
+        outside += (dot(cull_camera_frustum_planes[i], vec4(corners[7].xyz, 1.0)) < 0.0) ? 1 : 0;
+        if(outside == 8) return false;
     }
 
     return true;

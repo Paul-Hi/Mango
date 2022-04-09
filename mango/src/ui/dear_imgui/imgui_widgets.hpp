@@ -60,15 +60,22 @@ namespace mango
             static float frametimes[60];
             frametimes[idx] = 1.0f / frametime;
             float* ft       = frametimes;
-            int32 idx_      = idx;
             idx++;
             idx %= 60;
+            float avg    = 0.0f;
+            float* first = frametimes;
+            float* last  = frametimes + 60;
+            for (; first != last; ++first)
+            {
+                avg = std::move(avg) + *first;
+            }
+            avg /= 60.0f;
             float max = shared_context->get_renderer()->is_vsync_enabled() ? 75.0f : 650.0f;
             custom_info("Frame Rate:",
-                        [ft, idx_, max]()
+                        [ft, avg, max]()
                         {
                             ImGui::AlignTextToFramePadding();
-                            ImGui::Text("%.2f fps", ft[idx_]);
+                            ImGui::Text("%.2f fps", avg);
                             ImGui::PlotLines("", ft, 60, 0, "", 0.0f, max, ImVec2(0, 64));
                         });
         }
@@ -969,7 +976,7 @@ namespace mango
                                                      default_emissive_intensity * 10.0f); // TODO Paul: Range?
 
                         float default_value[3] = { 1.0f, 1.0f, 1.0f };
-                        const char* label = "Color";
+                        const char* label      = "Color";
                         if (mat->emissive_texture != invalid_uid)
                             label = "Color Multiplier";
                         any_change |= color_edit(label, &mat->emissive_color[0], 4, default_value);
