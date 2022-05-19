@@ -31,8 +31,8 @@ namespace mango
         int32 stencil_target_count;
         //! \brief The number of currently attached depth stencil render targets.
         int32 depth_stencil_target_count;
-        //! \brief The \a gfx_handles of the \a gl_textures currently set as render targets.
-        gfx_handle<const gl_texture> set_render_targets[8 + 1]; // TODO Paul: Query max attachments.
+        //! \brief The \a gfx_handles of the \a gl_textures including levels currently set as render targets.
+        std::pair<gfx_handle<const gl_texture>, int32> set_render_targets[8 + 1]; // TODO Paul: Query max attachments.
 
         //! \brief The number of currently bound vertex buffers.
         int32 vertex_buffer_count;

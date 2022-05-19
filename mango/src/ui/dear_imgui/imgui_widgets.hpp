@@ -60,7 +60,7 @@ namespace mango
             static float frametimes[60];
             frametimes[idx] = 1.0f / frametime;
             float* ft       = frametimes;
-            idx++;
+            ++idx;
             idx %= 60;
             float avg    = 0.0f;
             float* first = frametimes;
@@ -1082,7 +1082,7 @@ namespace mango
                             {
                                 ImGui::PopStyleColor();
                             }
-                            scenario_nr++;
+                            ++scenario_nr;
                             ImGui::EndMenu();
                         }
                     }

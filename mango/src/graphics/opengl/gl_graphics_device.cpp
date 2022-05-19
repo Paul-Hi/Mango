@@ -171,9 +171,9 @@ gfx_handle<const gfx_texture> gl_graphics_device::create_texture(const texture_c
     return make_gfx_handle<const gl_texture>(std::forward<const texture_create_info&>(info));
 }
 
-gfx_handle<const gfx_image_texture_view> gl_graphics_device::create_image_texture_view(gfx_handle<const gfx_texture> texture, int32 level) const
+gfx_handle<const gfx_texture_view> gl_graphics_device::create_texture_view(gfx_handle<const gfx_texture> texture, int32 level) const
 {
-    return make_gfx_handle<const gl_image_texture_view>(std::forward<gfx_handle<const gfx_texture>>(texture), std::forward<int32>(level));
+    return make_gfx_handle<const gl_texture_view>(std::forward<gfx_handle<const gfx_texture>>(texture), std::forward<int32>(level));
 }
 
 gfx_handle<const gfx_sampler> gl_graphics_device::create_sampler(const sampler_create_info& info) const

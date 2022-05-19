@@ -1812,11 +1812,11 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
                     graphics::get_attribute_format_for_component_info(static_cast<gfx_format>(accessor.componentType), get_attrib_component_count_from_tinygltf_types(accessor.type));
                 attrib_desc.location = attrib_location;
 
-                vertex_buffer_binding++;
+                ++vertex_buffer_binding;
                 // The layout is potentially ignored later on, but we fill the original stuff here.
                 vertex_layout.binding_descriptions[description_index]   = binding_desc;
                 vertex_layout.attribute_descriptions[description_index] = attrib_desc;
-                description_index++;
+                ++description_index;
 
                 // AABB
                 if (attrib_location == 0)
@@ -2357,7 +2357,7 @@ void scene_impl::update_scene_graph(uid node_id, uid parent_id, bool force_updat
         if (c.is_valid())
         {
             update_scene_graph(c, node_id, force_update);
-            it++;
+            ++it;
         }
         else
         {

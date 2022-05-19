@@ -29,14 +29,16 @@ namespace mango
 #define LIGHT_DATA_BUFFER_BINDING_POINT 5
     //! \brief The binding point for the \a shadow_data buffer.
 #define SHADOW_DATA_BUFFER_BINDING_POINT 6
-    //! \brief The binding point for the \a luminance_data buffer.
-#define LUMINANCE_DATA_BUFFER_BINDING_POINT 7
     //! \brief The binding point for the indirect draw buffer when used as shader storage buffer.
-#define INDIRECT_COMMANDS_BUFFER_BINDING_POINT 8
+#define INDIRECT_COMMANDS_BUFFER_BINDING_POINT 7
     //! \brief The binding point for the \a cull_data buffer.
-#define CULL_DATA_BUFFER_BINDING_POINT 9
+#define CULL_DATA_BUFFER_BINDING_POINT 8
     //! \brief The binding point for the \a axis_aligned_bounding_box buffer.
-#define AABB_DATA_BUFFER_BINDING_POINT 10
+#define AABB_DATA_BUFFER_BINDING_POINT 9
+    //! \brief The binding point for the \a luminance_data buffer.
+#define LUMINANCE_DATA_BUFFER_BINDING_POINT 2
+    //! \brief The binding point for the \a hierachical_z_data buffer.
+#define HIERARCHICAL_Z_DATA_BUFFER_BINDING_POINT 3
 
     //! \brief The vertex input binding point for the position vertex attribute.
 #define VERTEX_INPUT_POSITION 0
@@ -99,6 +101,9 @@ namespace mango
     //! \brief The image binding point for the output target color hdr attachment to compute the average luminance for.
 #define HDR_IMAGE_LUMINANCE_COMPUTE 0
 
+//! \brief The sampler and texture binding point for the input depth target to compute the Hi-Z chain for.
+#define DEPTH_REDUCTION_TEXTURE_SAMPLER 0
+
     //! \brief The buffer binding point for the ibl generation data used to generate image based lighting convolution textures.
 #define IBL_GENERATION_DATA_BUFFER_BINDING_POINT 3
     //! \brief The image binding point for the lookup image used to generate image based lighting convolution textures.
@@ -109,7 +114,6 @@ namespace mango
 #define IBL_IMAGE_CUBE_OUT 1
 
     //! \brief Uniform buffer struct for renderer data.
-    //! \details Bound once per frame to binding point 0.
     struct renderer_data
     {
         std140_bool shadow_step_enabled;         //!< True, if the shadow map step is enabled and shadows can be calculated.
@@ -127,7 +131,6 @@ namespace mango
     };
 
     //! \brief Uniform buffer struct for camera data.
-    //! \details Bound once per camera (at the moment per frame since there is only one camera) to binding point 1.
     struct camera_data
     {
         std140_mat4 view_matrix;             //!< The view matrix.
@@ -142,7 +145,6 @@ namespace mango
     };
 
     //! \brief Uniform buffer struct for model data.
-    //! \details Bound once per model to binding point 2.
     struct model_data
     {
         std140_mat4 model_matrix;  //!< The model matrix.
@@ -155,11 +157,12 @@ namespace mango
 
     struct cull_data
     {
-        std140_vec4 cull_camera_frustum_planes[6];
+        std140_mat4 cull_view_projection_matrix;
         std140_int cull_draws_offset;
         std140_int cull_draw_count;
-        std140_float padding0;     //!< Padding.
-        std140_float padding1;     //!< Padding.
+        std140_bool cull_frustum;
+        std140_bool cull_occlusion;
+        std140_vec4 data; // xy = depth input texture size, z = depth input texture max lod
     };
 
     struct gpu_aabb
@@ -174,8 +177,17 @@ namespace mango
         std140_int material_index;
     };
 
+    //! \brief Structure to store data for the generation of the hierarchical depth buffer.
+    struct hierarchical_z_data
+    {
+        std140_vec4 sizes;     //!< Size of the current (xy) output size and the last mips (zw) output size.
+        std140_int last_mip;   //!< The index of the last mipmap.
+        std140_float padding0; //!< Padding.
+        std140_float padding1; //!< Padding.
+        std140_float padding2; //!< Padding.
+    };
+
     //! \brief Uniform buffer struct for material data.
-    //! \details Bound once per material to binding point 3.
     struct material_data
     {
         std140_vec4 base_color;                 //!< The base color (rgba). Also used as reflection color for metallic surfaces.
@@ -195,7 +207,6 @@ namespace mango
     };
 
     //! \brief Structure to store data for light data.
-    //! \details Bound to binding point 4.
     struct light_data
     {
         //! \brief Directional lights data.
@@ -221,7 +232,6 @@ namespace mango
     };
 
     //! \brief Structure to store data for adaptive exposure.
-    //! \details Bound to binding point 6.
     struct luminance_data
     {
         std140_int histogram[256]; //!< The histogram data

@@ -66,7 +66,7 @@ namespace mango
             //! \return The iterator.
             iterator& operator++()
             {
-                m_current++;
+                ++m_current;
                 return *this;
             }
 
@@ -141,7 +141,7 @@ namespace mango
 
             // add element to the end ... always
             look.element_index = static_cast<uint16>(m_size);
-            m_size++;
+            ++m_size;
             MANGO_ASSERT(m_size <= max_elements, "Element array out of bounds!");
 
             element* obj = m_element_array + look.element_index; // at the end of the array
@@ -163,7 +163,7 @@ namespace mango
 
             // add element to the end ... always
             look.element_index = m_size;
-            m_size++;
+            ++m_size;
             MANGO_ASSERT(m_size <= max_elements, "Element array out of bounds!");
 
             element* obj = m_element_array + look.element_index; // at the end of the array
@@ -186,7 +186,7 @@ namespace mango
 
             // add element to the end ... always
             look.element_index = static_cast<uint16>(m_size);
-            m_size++;
+            ++m_size;
             MANGO_ASSERT(m_size <= max_elements, "Element array out of bounds!");
 
             element* obj = m_element_array + look.element_index; // at the end of the array
@@ -261,7 +261,7 @@ namespace mango
                 m_lookup_array[m_reverse_id_array[look.element_index].lookup_id & id_index_mask].element_index = look.element_index;
             }
 
-            m_size--;
+            --m_size;
 
             m_lookup_array[m_free_id_enqueue].next = look.id.lookup_id & id_index_mask;
             m_free_id_enqueue                      = look.id.lookup_id & id_index_mask;

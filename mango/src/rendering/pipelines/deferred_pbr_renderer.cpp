@@ -207,6 +207,7 @@ bool deferred_pbr_renderer::create_textures_and_samplers()
     attachment_info.texture_format = gfx_format::rgba8;
     m_gbuffer_render_targets.push_back(m_graphics_device->create_texture(attachment_info));
     attachment_info.texture_format = gfx_format::depth_component32f;
+    attachment_info.miplevels      = graphics::calculate_mip_count(w, h);
     m_gbuffer_render_targets.push_back(m_graphics_device->create_texture(attachment_info));
 
     for (auto rt : m_gbuffer_render_targets)
@@ -261,7 +262,7 @@ bool deferred_pbr_renderer::create_textures_and_samplers()
     }
 
     sampler_create_info sampler_info;
-    sampler_info.sampler_min_filter      = gfx_sampler_filter::sampler_filter_nearest;
+    sampler_info.sampler_min_filter      = gfx_sampler_filter::sampler_filter_nearest_mipmap_nearest;
     sampler_info.sampler_max_filter      = gfx_sampler_filter::sampler_filter_nearest;
     sampler_info.enable_comparison_mode  = false;
     sampler_info.comparison_operator     = gfx_compare_operator::compare_operator_always;
@@ -308,6 +309,11 @@ bool deferred_pbr_renderer::create_buffers()
     buffer_info.size   = sizeof(cull_data);
     m_cull_data_buffer = m_graphics_device->create_buffer(buffer_info);
     if (!check_creation(m_cull_data_buffer.get(), "cull data buffer"))
+        return false;
+
+    buffer_info.size             = sizeof(hierarchical_z_data);
+    m_hierarchical_z_data_buffer = m_graphics_device->create_buffer(buffer_info);
+    if (!check_creation(m_hierarchical_z_data_buffer.get(), "hierarchical z data buffer"))
         return false;
 
     buffer_info.buffer_target = gfx_buffer_target::buffer_target_shader_storage;
@@ -410,12 +416,15 @@ bool deferred_pbr_renderer::create_shader_stages()
         shader_info.stage         = gfx_shader_stage_type::shader_stage_compute;
         shader_info.shader_source = source_desc;
 
-        shader_info.resource_count = 3;
+        shader_info.resource_count = 5;
 
         shader_info.resources = { {
             { gfx_shader_stage_type::shader_stage_compute, INDIRECT_COMMANDS_BUFFER_BINDING_POINT, "indirect_commands", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
             { gfx_shader_stage_type::shader_stage_compute, CULL_DATA_BUFFER_BINDING_POINT, "cull_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
             { gfx_shader_stage_type::shader_stage_compute, AABB_DATA_BUFFER_BINDING_POINT, "aabb_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, DEPTH_REDUCTION_TEXTURE_SAMPLER, "depth_buffer_texture_in", gfx_shader_resource_type::shader_resource_texture, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, DEPTH_REDUCTION_TEXTURE_SAMPLER, "depth_buffer_sampler_in", gfx_shader_resource_type::shader_resource_sampler, 1 },
+
         } };
 
         m_gpu_culling_compute = m_graphics_device->create_shader_stage(shader_info);
@@ -713,6 +722,33 @@ bool deferred_pbr_renderer::create_shader_stages()
         res_resource_desc.defines.clear();
     }
 
+    // Hierarchical Z Generation Fragment Stage
+    {
+        res_resource_desc.path        = "res/shader/f_hierarchical_z.glsl";
+        const shader_resource* source = internal_resources->acquire(res_resource_desc);
+
+        source_desc.entry_point = "main";
+        source_desc.source      = source->source.c_str();
+        source_desc.size        = static_cast<int32>(source->source.size());
+
+        shader_info.stage         = gfx_shader_stage_type::shader_stage_fragment;
+        shader_info.shader_source = source_desc;
+
+        shader_info.resource_count = 3;
+
+        shader_info.resources = { {
+            { gfx_shader_stage_type::shader_stage_fragment, DEPTH_REDUCTION_TEXTURE_SAMPLER, "depth_buffer_texture_in", gfx_shader_resource_type::shader_resource_texture, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, DEPTH_REDUCTION_TEXTURE_SAMPLER, "depth_buffer_sampler_in", gfx_shader_resource_type::shader_resource_sampler, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, HIERARCHICAL_Z_DATA_BUFFER_BINDING_POINT, "hierarchical_z_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+        } };
+
+        m_build_hierarchical_z_fragment = m_graphics_device->create_shader_stage(shader_info);
+        if (!check_creation(m_build_hierarchical_z_fragment.get(), "build hierarchical z fragment shader"))
+            return false;
+
+        res_resource_desc.defines.clear();
+    }
+
     return true;
 }
 
@@ -730,6 +766,9 @@ bool deferred_pbr_renderer::create_pipeline_resources()
 
             { gfx_shader_stage_type::shader_stage_compute, AABB_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
               gfx_shader_resource_access::shader_access_dynamic },
+
+            { gfx_shader_stage_type::shader_stage_compute, DEPTH_REDUCTION_TEXTURE_SAMPLER, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_compute, DEPTH_REDUCTION_TEXTURE_SAMPLER, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
         });
 
         culling_pass_info.pipeline_layout = culling_pass_pipeline_layout;
@@ -1020,6 +1059,30 @@ bool deferred_pbr_renderer::create_pipeline_resources()
 
         m_luminance_reduction_pipeline = m_graphics_device->create_compute_pipeline(reduction_pass_info);
     }
+    // Hierarchical Z Generation Pipeline
+    {
+        graphics_pipeline_create_info hi_z_info = m_graphics_device->provide_graphics_pipeline_create_info();
+        auto hi_z_pass_pipeline_layout          = m_graphics_device->create_pipeline_resource_layout({
+            { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_fragment, HIERARCHICAL_Z_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
+              gfx_shader_resource_access::shader_access_dynamic },
+
+        });
+
+        hi_z_info.pipeline_layout = hi_z_pass_pipeline_layout;
+
+        hi_z_info.shader_stage_descriptor.vertex_shader_stage   = m_screen_space_triangle_vertex;
+        hi_z_info.shader_stage_descriptor.fragment_shader_stage = m_build_hierarchical_z_fragment;
+
+        // rasterization_state -> keep default
+        hi_z_info.depth_stencil_state.depth_compare_operator     = gfx_compare_operator::compare_operator_always;
+        hi_z_info.blend_state.blend_description.color_write_mask = gfx_color_component_flag_bits::component_none;
+
+        hi_z_info.dynamic_state.dynamic_states = gfx_dynamic_state_flag_bits::dynamic_state_viewport | gfx_dynamic_state_flag_bits::dynamic_state_scissor;
+
+        m_build_hierarchical_z_pipeline = m_graphics_device->create_graphics_pipeline(hi_z_info);
+    }
 
     return true; // TODO Paul: This is always true atm.
 }
@@ -1055,7 +1118,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             m_frame_context->clear_depth_stencil(gfx_clear_attachment_flag_bits::clear_flag_depth_buffer, 1.0f, 0);
         }
         m_frame_context->set_render_targets(static_cast<int32>(m_gbuffer_render_targets.size()) - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
-        m_frame_context->clear_depth_stencil(gfx_clear_attachment_flag_bits::clear_flag_depth_buffer, 1.0f, 0);
+        // m_frame_context->clear_depth_stencil(gfx_clear_attachment_flag_bits::clear_flag_depth_buffer, 1.0f, 0); -> is cleared later
         m_frame_context->clear_render_target(gfx_clear_attachment_flag_bits::clear_flag_all_draw_buffers, clear_color);
         m_frame_context->set_render_targets(static_cast<int32>(m_hdr_buffer_render_targets.size()) - 1, m_hdr_buffer_render_targets.data(), m_hdr_buffer_render_targets.back());
         m_frame_context->clear_depth_stencil(gfx_clear_attachment_flag_bits::clear_flag_depth_buffer, 1.0f, 0);
@@ -1131,11 +1194,11 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             MANGO_ASSERT(mesh, "Non existing mesh in instances!");
             a_draw.mesh_gpu_data_id = mesh->gpu_data;
 
-            m_renderer_info.last_frame.meshes++;
+            ++m_renderer_info.last_frame.meshes;
 
             for (auto p : mesh->primitives)
             {
-                m_renderer_info.last_frame.primitives++;
+                ++m_renderer_info.last_frame.primitives;
                 optional<primitive&> prim = scene->get_primitive(p);
                 MANGO_ASSERT(prim, "Non existing primitive in instances!");
                 optional<material&> mat = scene->get_material(prim->material);
@@ -1189,8 +1252,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     std::vector<uid> model_data_ids;
     int32 material_data_index = 0;
 
-    // TODO NEXT: Frustum Culling in compute shader - Weighted OIT - Bistro Repair, because some objects do not seem to have correct transparency/blending
-    // TODO NEXT: Some offets in the shadow stuff seems to be wrong - bistro is renering wrong, when shadows enabled -> Also there are framedrops!
+    // TODO NEXT: Redo HiZ and try Occlusion Culling in compute shader as well - Weighted OIT - Bistro Repair, because some objects do not seem to have correct transparency/blending
     const primitive_manager& primitive_manager = scene->get_primitive_manager();
 
     int32 draw_instance_offset = m_instance_buffer_manager.wait_for_range(draws.size() * sizeof(draw_instance_data), m_frame_context);
@@ -1241,6 +1303,29 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             gpu_aabb* aabb = reinterpret_cast<gpu_aabb*>(reinterpret_cast<uint8*>(m_aabb_buffer_mapping) + aabb_offset) + c;
             aabb->center   = dc.bounding_box.center;
             aabb->extents  = dc.bounding_box.extents;
+
+            if (m_debug_bounds)
+            {
+                auto& bb     = dc.bounding_box;
+                auto corners = bb.get_corners();
+                m_debug_drawer.set_color(color_rgb(1.0f, 0.0f, 0.0f));
+                m_debug_drawer.add(corners[0], corners[1]);
+                m_debug_drawer.add(corners[1], corners[3]);
+                m_debug_drawer.add(corners[3], corners[2]);
+                m_debug_drawer.add(corners[2], corners[6]);
+                m_debug_drawer.add(corners[6], corners[4]);
+                m_debug_drawer.add(corners[4], corners[0]);
+                m_debug_drawer.add(corners[0], corners[2]);
+
+                m_debug_drawer.add(corners[5], corners[4]);
+                m_debug_drawer.add(corners[4], corners[6]);
+                m_debug_drawer.add(corners[6], corners[7]);
+                m_debug_drawer.add(corners[7], corners[3]);
+                m_debug_drawer.add(corners[3], corners[1]);
+                m_debug_drawer.add(corners[1], corners[5]);
+                m_debug_drawer.add(corners[5], corners[7]);
+            }
+
             // Found existing batch, add call to that batch
             if (dc.material_id == last_material_id)
             {
@@ -1249,7 +1334,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 current_batch->bounds.push_back(dc.bounding_box);
                 current_batch->primitive_gpu_data_ids.push_back(dc.primitive_gpu_data_id);
                 current_batch->model_data_indices.push_back(model_data_index);
-                current_batch->drawcount++;
+                ++current_batch->drawcount;
             }
             else
             {
@@ -1278,10 +1363,10 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 batches.push_back(new_batch);
                 current_batch = &batches.back();
 
-                material_data_index++;
+                ++material_data_index;
                 last_material_id = dc.material_id;
             }
-            drawcount++;
+            ++drawcount;
         }
 
         int32 base_instance = 0;
@@ -1324,7 +1409,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
                 draw_instance_data* did = reinterpret_cast<draw_instance_data*>(reinterpret_cast<uint8*>(m_draw_instance_data_buffer_mapping) + draw_instance_offset) + base_instance;
                 *did                    = draw_instance_data{ batch.model_data_indices[i], batch.material_data_index };
-                base_instance++;
+                ++base_instance;
             }
             if (batch.blended)
                 blended_batches.push_back(batch);
@@ -1392,15 +1477,21 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                                                                    gfx_buffer_target::buffer_target_shader_storage);
         m_gpu_culling_pipeline->get_resource_mapping()->set_buffer("aabb_data", m_aabb_buffer, ivec2(aabb_offset, draws.size() * sizeof(gpu_aabb)), gfx_buffer_target::buffer_target_shader_storage);
 
+        // stuff for occlusion culling
+        m_gpu_culling_pipeline->get_resource_mapping()->set_texture("depth_buffer_texture_in", m_gbuffer_render_targets.back());
+        m_gpu_culling_pipeline->get_resource_mapping()->set_sampler("depth_buffer_sampler_in", m_nearest_sampler);
+
+        m_cull_data.data[0] = m_renderer_info.canvas.width;
+        m_cull_data.data[1] = m_renderer_info.canvas.height;
+        m_cull_data.data[2] = graphics::calculate_mip_count(m_cull_data.data[0], m_cull_data.data[1]) - 1;
+
         for (int32 i = 0; i < shadow_pass_count; ++i)
         {
-            m_cull_data.cull_draw_count   = shadow_commands.size();
-            m_cull_data.cull_draws_offset = shadow_commands.size() * i;
-            auto& planes                  = light_casters_frusta[i].get_planes();
-            for (int j = 0; j < planes.size(); ++j)
-            {
-                m_cull_data.cull_camera_frustum_planes[j] = planes[j];
-            }
+            m_cull_data.cull_draw_count             = shadow_commands.size();
+            m_cull_data.cull_draws_offset           = shadow_commands.size() * i;
+            m_cull_data.cull_frustum                = m_frustum_culling;
+            m_cull_data.cull_occlusion              = false; // not available here at the moment
+            m_cull_data.cull_view_projection_matrix = light_casters_shadow_data[i].view_projection_matrices[light_casters_shadow_data[i].cascade];
             m_frame_context->set_buffer_data(m_cull_data_buffer, 0, sizeof(m_cull_data), &m_cull_data);
             m_gpu_culling_pipeline->get_resource_mapping()->set_buffer("cull_data", m_cull_data_buffer, ivec2(0, sizeof(cull_data)), gfx_buffer_target::buffer_target_uniform);
             m_frame_context->submit_pipeline_state_resources();
@@ -1409,13 +1500,11 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         }
 
         // Only for main scene drawing
-        m_cull_data.cull_draw_count   = scene_commands.size();
-        m_cull_data.cull_draws_offset = shadow_commands.size() * shadow_pass_count;
-        auto& planes = bounding_frustum::bounding_frustum(active_camera_data->per_camera_data.view_matrix.to_mat4(), active_camera_data->per_camera_data.projection_matrix.to_mat4()).get_planes();
-        for (int j = 0; j < planes.size(); ++j)
-        {
-            m_cull_data.cull_camera_frustum_planes[j] = planes[j];
-        }
+        m_cull_data.cull_draw_count             = scene_commands.size();
+        m_cull_data.cull_draws_offset           = shadow_commands.size() * shadow_pass_count;
+        m_cull_data.cull_frustum                = m_frustum_culling;
+        m_cull_data.cull_occlusion              = m_frustum_culling;
+        m_cull_data.cull_view_projection_matrix = active_camera_data->per_camera_data.view_projection_matrix;
         m_frame_context->set_buffer_data(m_cull_data_buffer, 0, sizeof(m_cull_data), &m_cull_data);
         m_gpu_culling_pipeline->get_resource_mapping()->set_buffer("cull_data", m_cull_data_buffer, ivec2(0, sizeof(cull_data)), gfx_buffer_target::buffer_target_uniform);
         m_frame_context->submit_pipeline_state_resources();
@@ -1515,7 +1604,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
                     m_frame_context->submit_pipeline_state_resources();
 
-                    m_renderer_info.last_frame.draw_calls++;
+                    ++m_renderer_info.last_frame.draw_calls;
                     m_frame_context->multi_draw_indirect(m_indirect_buffer, gfx_primitive_topology::primitive_topology_triangle_list, gfx_format::t_unsigned_int,
                                                          indirect_offset + (pass_offset + btch.first_call) * sizeof(draw_elements_indirect_command), btch.drawcount, 0);
                 }
@@ -1528,9 +1617,10 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     {
         GL_NAMED_PROFILE_ZONE("GBuffer Pass");
         NAMED_PROFILE_ZONE("GBuffer Pass");
+        m_frame_context->set_render_targets(static_cast<int32>(m_gbuffer_render_targets.size()) - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
+        m_frame_context->clear_depth_stencil(gfx_clear_attachment_flag_bits::clear_flag_depth_buffer, 1.0f, 0);
         gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_opaque(graphics::UNIFIED_VERTEX_LAYOUT, graphics::UNIFIED_INPUT_ASSEMBLY, m_wireframe);
         m_frame_context->bind_pipeline(dc_pipeline);
-        m_frame_context->set_render_targets(static_cast<int32>(m_gbuffer_render_targets.size()) - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
         gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
                                       static_cast<float>(m_renderer_info.canvas.height) };
         m_frame_context->set_viewport(0, 1, &window_viewport);
@@ -1552,28 +1642,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 {
                     continue;
                 }
-            }
-
-            if (m_debug_bounds)
-            {
-                auto& bb     = btch.bb;
-                auto corners = bb.get_corners();
-                m_debug_drawer.set_color(color_rgb(1.0f, 0.0f, 0.0f));
-                m_debug_drawer.add(corners[0], corners[1]);
-                m_debug_drawer.add(corners[1], corners[3]);
-                m_debug_drawer.add(corners[3], corners[2]);
-                m_debug_drawer.add(corners[2], corners[6]);
-                m_debug_drawer.add(corners[6], corners[4]);
-                m_debug_drawer.add(corners[4], corners[0]);
-                m_debug_drawer.add(corners[0], corners[2]);
-
-                m_debug_drawer.add(corners[5], corners[4]);
-                m_debug_drawer.add(corners[4], corners[6]);
-                m_debug_drawer.add(corners[6], corners[7]);
-                m_debug_drawer.add(corners[7], corners[3]);
-                m_debug_drawer.add(corners[3], corners[1]);
-                m_debug_drawer.add(corners[1], corners[5]);
-                m_debug_drawer.add(corners[5], corners[7]);
             }
 
             optional<material&> mat                   = scene->get_material(btch.material_id);
@@ -1662,10 +1730,59 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
             m_frame_context->submit_pipeline_state_resources();
 
-            m_renderer_info.last_frame.draw_calls++;
+            ++m_renderer_info.last_frame.draw_calls;
             m_frame_context->multi_draw_indirect(m_indirect_buffer, gfx_primitive_topology::primitive_topology_triangle_list, gfx_format::t_unsigned_int,
                                                  indirect_offset + (pass_offset + btch.first_call) * sizeof(draw_elements_indirect_command), btch.drawcount, 0);
         }
+    }
+
+    // Hi-Z generation
+    {
+        const int32& w            = m_renderer_info.canvas.width;
+        const int32& h            = m_renderer_info.canvas.height;
+        int32 max_m               = graphics::calculate_mip_count(w, h);
+        uint32 last_mipmap_width  = w;
+        uint32 last_mipmap_height = h;
+        hierarchical_z_data hi_z_data;
+        //m_frame_context->calculate_mipmaps(m_gbuffer_render_targets.back());
+
+        m_frame_context->bind_pipeline(m_build_hierarchical_z_pipeline);
+
+        m_build_hierarchical_z_pipeline->get_resource_mapping()->set_texture("depth_buffer_texture_in", m_gbuffer_render_targets.back());
+        m_build_hierarchical_z_pipeline->get_resource_mapping()->set_sampler("depth_buffer_sampler_in", m_nearest_sampler);
+
+        for (int32 mip = 1; mip < max_m; ++mip)
+        {
+            const uint32 mipmap_width  = w >> mip;
+            const uint32 mipmap_height = h >> mip;
+
+            hi_z_data.sizes    = vec4(mipmap_width, mipmap_height, last_mipmap_width, last_mipmap_height);
+            hi_z_data.last_mip = mip - 1;
+
+            m_frame_context->set_buffer_data(m_hierarchical_z_data_buffer, 0, sizeof(hierarchical_z_data), &hi_z_data);
+
+            m_build_hierarchical_z_pipeline->get_resource_mapping()->set_buffer("hierarchical_z_data", m_hierarchical_z_data_buffer, ivec2(0, sizeof(hierarchical_z_data)),
+                                                                                gfx_buffer_target::buffer_target_uniform);
+
+            auto mip_view = m_graphics_device->create_texture_view(m_gbuffer_render_targets.back(), mip);
+            m_frame_context->set_render_targets(0, nullptr, mip_view);
+
+            m_frame_context->submit_pipeline_state_resources();
+
+            m_frame_context->set_index_buffer(nullptr, gfx_format::invalid);
+            m_frame_context->set_vertex_buffers(0, nullptr, nullptr, nullptr);
+
+            ++m_renderer_info.last_frame.draw_calls;
+            m_renderer_info.last_frame.vertices += 3;
+            m_frame_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in geometry shader.
+
+            last_mipmap_width  = mipmap_width;
+            last_mipmap_height = mipmap_height;
+        }
+
+        // barrier_description bd;
+        // bd.barrier_bit = gfx_barrier_bit::texture_fetch_barrier_bit;
+        // m_frame_context->barrier(bd);
     }
 
     auto irradiance = ls.get_skylight_irradiance_map();
@@ -1695,7 +1812,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_lighting_pass_pipeline->get_resource_mapping()->set_sampler("sampler_gbuffer_c2", m_nearest_sampler);
         m_lighting_pass_pipeline->get_resource_mapping()->set_texture("texture_gbuffer_c3", m_gbuffer_render_targets[3]);
         m_lighting_pass_pipeline->get_resource_mapping()->set_sampler("sampler_gbuffer_c3", m_nearest_sampler);
-        m_lighting_pass_pipeline->get_resource_mapping()->set_texture("texture_gbuffer_depth", m_gbuffer_render_targets[4]);
+        m_lighting_pass_pipeline->get_resource_mapping()->set_texture("texture_gbuffer_depth", m_gbuffer_render_targets.back());
         m_lighting_pass_pipeline->get_resource_mapping()->set_sampler("sampler_gbuffer_depth", m_nearest_sampler);
 
         if (irradiance && specular) // If this exists the rest has to exist too
@@ -1732,7 +1849,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_frame_context->set_index_buffer(nullptr, gfx_format::invalid);
         m_frame_context->set_vertex_buffers(0, nullptr, nullptr, nullptr);
 
-        m_renderer_info.last_frame.draw_calls++;
+        ++m_renderer_info.last_frame.draw_calls;
         m_renderer_info.last_frame.vertices += 3;
         m_frame_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in geometry shader.
     }
@@ -1746,7 +1863,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         if (environment_display_pass && specular)
         {
             environment_display_pass->set_cubemap(specular);
-            m_renderer_info.last_frame.draw_calls++;
+            ++m_renderer_info.last_frame.draw_calls;
             m_renderer_info.last_frame.vertices += 18;
             environment_display_pass->execute();
         }
@@ -1783,28 +1900,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 {
                     continue;
                 }
-            }
-
-            if (m_debug_bounds)
-            {
-                auto& bb     = btch.bb;
-                auto corners = bb.get_corners();
-                m_debug_drawer.set_color(color_rgb(1.0f, 0.0f, 0.0f));
-                m_debug_drawer.add(corners[0], corners[1]);
-                m_debug_drawer.add(corners[1], corners[3]);
-                m_debug_drawer.add(corners[3], corners[2]);
-                m_debug_drawer.add(corners[2], corners[6]);
-                m_debug_drawer.add(corners[6], corners[4]);
-                m_debug_drawer.add(corners[4], corners[0]);
-                m_debug_drawer.add(corners[0], corners[2]);
-
-                m_debug_drawer.add(corners[5], corners[4]);
-                m_debug_drawer.add(corners[4], corners[6]);
-                m_debug_drawer.add(corners[6], corners[7]);
-                m_debug_drawer.add(corners[7], corners[3]);
-                m_debug_drawer.add(corners[3], corners[1]);
-                m_debug_drawer.add(corners[1], corners[5]);
-                m_debug_drawer.add(corners[5], corners[7]);
             }
 
             optional<material&> mat                   = scene->get_material(btch.material_id);
@@ -1922,7 +2017,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
             m_frame_context->submit_pipeline_state_resources();
 
-            m_renderer_info.last_frame.draw_calls++;
+            ++m_renderer_info.last_frame.draw_calls;
             m_frame_context->multi_draw_indirect(m_indirect_buffer, gfx_primitive_topology::primitive_topology_triangle_list, gfx_format::t_unsigned_int,
                                                  indirect_offset + (pass_offset + btch.first_call) * sizeof(draw_elements_indirect_command), btch.drawcount, 0);
         }
@@ -1958,7 +2053,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         bd.barrier_bit = gfx_barrier_bit::shader_image_access_barrier_bit;
         m_frame_context->barrier(bd);
 
-        auto hdr_view = m_graphics_device->create_image_texture_view(m_hdr_buffer_render_targets[0], mip_level);
+        auto hdr_view = m_graphics_device->create_texture_view(m_hdr_buffer_render_targets[0], mip_level);
 
         // time coefficient with tau = 1.1;
         float tau                        = 1.1f;
@@ -2017,7 +2112,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_frame_context->set_index_buffer(nullptr, gfx_format::invalid);
         m_frame_context->set_vertex_buffers(0, nullptr, nullptr, nullptr);
 
-        m_renderer_info.last_frame.draw_calls++;
+        ++m_renderer_info.last_frame.draw_calls;
         m_renderer_info.last_frame.vertices += 3;
         m_frame_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in geometry shader.
     }
@@ -2025,7 +2120,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     // debug lines
     if (m_debug_bounds)
     {
-        m_renderer_info.last_frame.draw_calls++;
+        ++m_renderer_info.last_frame.draw_calls;
         m_renderer_info.last_frame.vertices += m_debug_drawer.vertex_count();
         // use the already set render targets ...
         m_debug_drawer.execute();
@@ -2038,7 +2133,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         if (fxaa_pass)
         {
             fxaa_pass->set_input_texture(m_post_render_targets[0]); // TODO Paul Hardcoded post targets -> meh.
-            m_renderer_info.last_frame.draw_calls++;
+            ++m_renderer_info.last_frame.draw_calls;
             m_renderer_info.last_frame.vertices += 3;
             fxaa_pass->execute();
         }

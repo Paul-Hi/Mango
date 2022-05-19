@@ -33,7 +33,7 @@ gl_handle gl_shader_program_cache::get_shader_program(const graphics_shader_stag
         auto vertex_shader                     = static_gfx_handle_cast<const gl_shader_stage>(desc.vertex_shader_stage);
         key.shader_stage_uids[key.stage_count] = vertex_shader->get_uid();
         key.stage_types[key.stage_count]       = gfx_shader_stage_type::shader_stage_vertex;
-        key.stage_count++;
+        ++key.stage_count;
 
         handles[0] = vertex_shader->m_shader_stage_gl_handle;
     }
@@ -44,7 +44,7 @@ gl_handle gl_shader_program_cache::get_shader_program(const graphics_shader_stag
         auto geometry_shader                   = static_gfx_handle_cast<const gl_shader_stage>(desc.geometry_shader_stage);
         key.shader_stage_uids[key.stage_count] = geometry_shader->get_uid();
         key.stage_types[key.stage_count]       = gfx_shader_stage_type::shader_stage_geometry;
-        key.stage_count++;
+        ++key.stage_count;
 
         handles[1] = geometry_shader->m_shader_stage_gl_handle;
     }
@@ -55,7 +55,7 @@ gl_handle gl_shader_program_cache::get_shader_program(const graphics_shader_stag
         auto fragment_shader                   = static_gfx_handle_cast<const gl_shader_stage>(desc.fragment_shader_stage);
         key.shader_stage_uids[key.stage_count] = fragment_shader->get_uid();
         key.stage_types[key.stage_count]       = gfx_shader_stage_type::shader_stage_fragment;
-        key.stage_count++;
+        ++key.stage_count;
 
         handles[2] = fragment_shader->m_shader_stage_gl_handle;
     }
@@ -89,7 +89,7 @@ gl_handle gl_shader_program_cache::get_shader_program(const compute_shader_stage
         auto compute_shader                    = static_gfx_handle_cast<const gl_shader_stage>(desc.compute_shader_stage);
         key.shader_stage_uids[key.stage_count] = compute_shader->get_uid();
         key.stage_types[key.stage_count]       = gfx_shader_stage_type::shader_stage_compute;
-        key.stage_count++;
+        ++key.stage_count;
 
         handle = compute_shader->m_shader_stage_gl_handle;
     }
@@ -119,7 +119,7 @@ gl_handle gl_shader_program_cache::create(int32 stage_count, gl_handle handles[m
         if (handles[i] > 0)
             glAttachShader(program, handles[i]);
         else
-            limit++;
+            ++limit;
     }
 
     glLinkProgram(program);

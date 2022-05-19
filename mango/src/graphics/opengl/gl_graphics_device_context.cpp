@@ -428,7 +428,9 @@ void gl_graphics_device_context::set_render_targets(int32 count, gfx_handle<cons
     {
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_texture>(render_targets[i]), "Texture is not a gl_texture!");
         auto tex                                       = static_gfx_handle_cast<const gl_texture>(render_targets[i]);
-        m_shared_graphics_state->set_render_targets[i] = tex;
+
+        m_shared_graphics_state->set_render_targets[i].first = tex;
+        m_shared_graphics_state->set_render_targets[i].second = 0;
     }
 
     if (depth_stencil_target != nullptr)
@@ -436,7 +438,8 @@ void gl_graphics_device_context::set_render_targets(int32 count, gfx_handle<cons
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_texture>(depth_stencil_target), "Texture is not a gl_texture!");
         auto tex = static_gfx_handle_cast<const gl_texture>(depth_stencil_target);
 
-        m_shared_graphics_state->set_render_targets[count] = tex;
+        m_shared_graphics_state->set_render_targets[count].first = tex;
+        m_shared_graphics_state->set_render_targets[count].second = 0;
 
         const gfx_format& internal = tex->m_info.texture_format;
 
@@ -445,13 +448,89 @@ void gl_graphics_device_context::set_render_targets(int32 count, gfx_handle<cons
         {
         case gfx_format::depth24_stencil8:
         case gfx_format::depth32f_stencil8:
-            m_shared_graphics_state->depth_stencil_target_count++;
+            ++m_shared_graphics_state->depth_stencil_target_count;
             break;
         case gfx_format::depth_component32f:
         case gfx_format::depth_component16:
         case gfx_format::depth_component24:
         case gfx_format::depth_component32:
-            m_shared_graphics_state->depth_target_count++;
+            ++m_shared_graphics_state->depth_target_count;
+            break;
+        default:
+            MANGO_ASSERT(false, "Depth Stencil Target has no valid format!");
+            break;
+        }
+    }
+}
+
+void gl_graphics_device_context::set_render_targets(int32 count, gfx_handle<const gfx_texture_view>* render_targets, gfx_handle<const gfx_texture_view> depth_stencil_target)
+{
+    if (!recording)
+    {
+        MANGO_LOG_WARN("Device context is not recording {0}!", __LINE__);
+        return;
+    }
+
+    if (depth_stencil_target)
+        MANGO_ASSERT(std::dynamic_pointer_cast<const gl_texture_view>(depth_stencil_target), "Depth Stencil target is not a gl_texture_view!");
+
+    bool default_framebuffer = false;
+    gl_handle framebuffer    = 0;
+    if (count == 1)
+    {
+        MANGO_ASSERT(std::dynamic_pointer_cast<const gl_texture_view>(render_targets[0]), "Render target is not a gl_texture_view!");
+        gfx_handle<const gl_texture_view> rt = static_gfx_handle_cast<const gl_texture_view>(render_targets[0]);
+        if (rt->m_texture->m_texture_gl_handle == 0)
+        {
+            MANGO_ASSERT(depth_stencil_target && (static_gfx_handle_cast<const gl_texture_view>(depth_stencil_target)->m_texture->m_texture_gl_handle == 0),
+                         "Default framebuffer can not use another texture as depth buffer!");
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            default_framebuffer = true;
+            framebuffer         = 0;
+        }
+    }
+
+    if (!default_framebuffer)
+    {
+        framebuffer = m_framebuffer_cache->get_framebuffer(count, render_targets, depth_stencil_target);
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    }
+
+    // Update the graphics state.
+    MANGO_ASSERT(count < 8, "Too many color targets!"); // TODO Paul: Query max attachments.
+    m_shared_graphics_state->internal.framebuffer_name = framebuffer;
+    m_shared_graphics_state->color_target_count        = count;
+    for (int32 i = 0; i < count; ++i)
+    {
+        MANGO_ASSERT(std::dynamic_pointer_cast<const gl_texture_view>(render_targets[i]), "Texture is not a gl_texture_view!");
+        auto view                                       = static_gfx_handle_cast<const gl_texture_view>(render_targets[i]);
+        m_shared_graphics_state->set_render_targets[i].first = view->m_texture;
+        m_shared_graphics_state->set_render_targets[i].second = view->m_level;
+    }
+
+    if (depth_stencil_target != nullptr)
+    {
+        MANGO_ASSERT(std::dynamic_pointer_cast<const gl_texture_view>(depth_stencil_target), "Texture is not a gl_texture_view!");
+        auto view = static_gfx_handle_cast<const gl_texture_view>(depth_stencil_target);
+
+        m_shared_graphics_state->set_render_targets[count].first = view->m_texture;
+        m_shared_graphics_state->set_render_targets[count].second = view->m_level;
+
+        const gfx_format& internal = view->m_texture->m_info.texture_format;
+
+        // TODO Paul: Pure stencil not supported.
+
+        switch (internal)
+        {
+        case gfx_format::depth24_stencil8:
+        case gfx_format::depth32f_stencil8:
+            ++m_shared_graphics_state->depth_stencil_target_count;
+            break;
+        case gfx_format::depth_component32f:
+        case gfx_format::depth_component16:
+        case gfx_format::depth_component24:
+        case gfx_format::depth_component32:
+            ++m_shared_graphics_state->depth_target_count;
             break;
         default:
             MANGO_ASSERT(false, "Depth Stencil Target has no valid format!");

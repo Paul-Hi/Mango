@@ -57,7 +57,7 @@ namespace mango
                 }
                 else
                 {
-                    it++;
+                    ++it;
                 }
             }
             return start;

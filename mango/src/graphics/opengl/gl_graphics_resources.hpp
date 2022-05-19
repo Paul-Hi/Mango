@@ -106,19 +106,19 @@ namespace mango
         gl_texture() = default;
     };
 
-    //! \brief An opengl \a gfx_image_texture_view.
-    class gl_image_texture_view : public gfx_image_texture_view
+    //! \brief An opengl \a gfx_texture_view.
+    class gl_texture_view : public gfx_texture_view
     {
       public:
-        //! \brief Constructs a \a gl_image_texture_view.
+        //! \brief Constructs a \a gl_texture_view.
         //! \param[in] texture The \a gfx_texture to create a view for.
         //! \param[in] level The level of the \a gfx_texture to create a view for.
-        gl_image_texture_view(gfx_handle<const gfx_texture> texture, int32 level = 0)
+        gl_texture_view(gfx_handle<const gfx_texture> texture, int32 level = 0)
             : m_texture(static_gfx_handle_cast<const gl_texture>(texture)) // TODO Paul!
             , m_level(level)
         {
         }
-        ~gl_image_texture_view() = default;
+        ~gl_texture_view() = default;
         void* native_handle() const override
         {
             return m_texture->native_handle();
@@ -189,13 +189,13 @@ namespace mango
         std::vector<resource_pair<const gl_texture>> m_textures;
         //! \brief List of \a gl_samplers.
         std::vector<resource_pair<const gl_sampler>> m_samplers;
-        //! \brief List of \a gl_image_texture_views.
-        std::vector<resource_pair<const gl_image_texture_view>> m_texture_images;
+        //! \brief List of \a gl_texture_views.
+        std::vector<resource_pair<const gl_texture_view>> m_texture_images;
 
         bool set_buffer(const string variable_name, gfx_handle<const gfx_buffer> resource, ivec2 range, gfx_buffer_target bind_target) override;
         bool set_texture(const string variable_name, gfx_handle<const gfx_texture> resource) override;
         bool set_sampler(const string variable_name, gfx_handle<const gfx_sampler> resource) override;
-        bool set_texture_image(const string variable_name, gfx_handle<const gfx_image_texture_view> resource) override;
+        bool set_texture_image(const string variable_name, gfx_handle<const gfx_texture_view> resource) override;
     };
 
     //! \brief An opengl \a pipeline_resource_layout.

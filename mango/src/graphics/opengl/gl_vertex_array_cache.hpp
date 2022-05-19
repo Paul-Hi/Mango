@@ -71,7 +71,7 @@ namespace mango
                             return false;
                         if (vertex_buffers[idx].offset != other.vertex_buffers[idx].offset)
                             return false;
-                        idx++;
+                        ++idx;
                     }
                     bb >>= 1;
                 }
@@ -103,7 +103,7 @@ namespace mango
                     {
                         res = res * 31 + std::hash<int64>()(k.vertex_buffers[idx].uid);
                         res = res * 31 + std::hash<int32>()(k.vertex_buffers[idx].offset);
-                        idx++;
+                        ++idx;
                     }
                     bb >>= 1;
                 }

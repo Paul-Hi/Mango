@@ -81,7 +81,7 @@ void light_stack::update(scene_impl* scene)
             it = m_light_cache.erase(it);
         }
         else
-            it++;
+            ++it;
     }
 
     m_directional_stack.clear();

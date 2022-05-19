@@ -91,6 +91,9 @@ namespace mango
         //! \brief The compute \a shader_stage for the luminance buffer reduction pass.
         gfx_handle<const gfx_shader_stage> m_luminance_reduction_compute;
 
+        //! \brief The fragmentn \a shader_stage for the hierarchical depth buffer generation pass.
+        gfx_handle<const gfx_shader_stage> m_build_hierarchical_z_fragment;
+
         //! \brief Compute pipeline executing gpu culling.
         gfx_handle<const gfx_pipeline> m_gpu_culling_pipeline;
         //! \brief Graphics pipeline calculating the lighting for opaque geometry.
@@ -101,6 +104,8 @@ namespace mango
         gfx_handle<const gfx_pipeline> m_luminance_construction_pipeline;
         //! \brief Compute pipeline reducing a luminance buffer and calculating an average luminance.
         gfx_handle<const gfx_pipeline> m_luminance_reduction_pipeline;
+        //! \brief Compute pipeline building a hierarchical depth buffer.
+        gfx_handle<const gfx_pipeline> m_build_hierarchical_z_pipeline;
 
         //! \brief The \a renderers \a renderer_pipeline_cache to create and cache \a gfx_pipelines for the geometry.
         renderer_pipeline_cache m_pipeline_cache;
@@ -136,6 +141,9 @@ namespace mango
 
         //! \brief The mapped luminance data from the data calculation.
         luminance_data* m_luminance_data_mapping;
+
+        //! \brief The graphics uniform buffer for uploading \a hierachical_z_data.
+        gfx_handle<const gfx_buffer> m_hierarchical_z_data_buffer;
 
         //! \brief The current \a cull_data.
         cull_data m_cull_data;

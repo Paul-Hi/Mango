@@ -61,9 +61,12 @@ layout(std430, binding = INDIRECT_COMMANDS_BUFFER_BINDING_POINT) buffer indirect
 
 layout(binding = CULL_DATA_BUFFER_BINDING_POINT, std140) uniform cull_data
 {
-    vec4 cull_camera_frustum_planes[6];
+    mat4 cull_view_projection_matrix;
     int cull_draws_offset;
     int cull_draw_count;
+    bool cull_frustum;
+    bool cull_occlusion;
+    vec4 data;
 };
 
 #endif // BIND_CULL_DATA_BUFFER
@@ -72,8 +75,8 @@ layout(binding = CULL_DATA_BUFFER_BINDING_POINT, std140) uniform cull_data
 
 struct aabb
 {
-    vec3 center;
-    vec3 extents;
+    vec4 center; // This is a vec3, but there are annoying bugs with some drivers.
+    vec4 extents; // This is a vec3, but there are annoying bugs with some drivers.
 };
 
 layout(std430, binding = AABB_DATA_BUFFER_BINDING_POINT) readonly buffer aabb_data
@@ -179,6 +182,17 @@ layout(binding = SHADOW_DATA_BUFFER_BINDING_POINT, std140) uniform shadow_data
 };
 
 #endif // BIND_SHADOW_DATA_BUFFER
+
+#ifdef BIND_HIERARCHICAL_Z_DATA_BUFFER
+
+layout(binding = DEPTH_REDUCTION_TEXTURE_SAMPLER) uniform sampler2D depth_buffer_sampler_in; // texture "depth_buffer_texture_in"
+layout(binding = HIERARCHICAL_Z_DATA_BUFFER_BINDING_POINT) uniform hierarchical_z_data
+{
+    vec4 sizes;   // Size of the current (xy) output size and the last mips (zw) output size.
+    int last_mip; // The index of the last mipmap.
+};
+
+#endif // BIND_HIERARCHICAL_Z_DATA_BUFFER
 
 #ifdef BIND_LUMINANCE_DATA_BUFFER
 

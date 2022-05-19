@@ -29,7 +29,7 @@ glfw_display::~glfw_display()
     if (m_glfw_display_data.native_handle)
     {
         glfwDestroyWindow(m_glfw_display_data.native_handle);
-        s_glfw_windows--;
+        --s_glfw_windows;
     }
     if (!s_glfw_windows)
         glfwTerminate();
@@ -334,7 +334,7 @@ bool glfw_display::create_glfw_opengl()
     MANGO_LOG_DEBUG("Display Position is ({0}, {1})", m_glfw_display_data.info.x, m_glfw_display_data.info.y);
     MANGO_LOG_DEBUG("Display Size is {0} x {1}", m_glfw_display_data.info.width, m_glfw_display_data.info.height);
 
-    s_glfw_windows++;
+    ++s_glfw_windows;
 
     return true;
 }

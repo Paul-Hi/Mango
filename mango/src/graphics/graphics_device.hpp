@@ -69,11 +69,11 @@ namespace mango
         //! \return A \a gfx_handle of the created \a gfx_texture.
         virtual gfx_handle<const gfx_texture> create_texture(const texture_create_info& info) const = 0;
 
-        //! \brief Creates a \a gfx_image_texture_view for a given \a gfx_texture.
+        //! \brief Creates a \a gfx_texture_view for a given \a gfx_texture.
         //! \param[in] texture The \a gfx_texture to create a view for.
         //! \param[in] level The level of the \a gfx_texture to create a view for.
-        //! \return A \a gfx_handle of the created \a gfx_image_texture_view.
-        virtual gfx_handle<const gfx_image_texture_view> create_image_texture_view(gfx_handle<const gfx_texture> texture, int32 level = 0) const = 0;
+        //! \return A \a gfx_handle of the created \a gfx_texture_view.
+        virtual gfx_handle<const gfx_texture_view> create_texture_view(gfx_handle<const gfx_texture> texture, int32 level = 0) const = 0;
 
         //! \brief Creates a \a gfx_sampler.
         //! \param[in] info The \a sampler_create_info providing info for creation.

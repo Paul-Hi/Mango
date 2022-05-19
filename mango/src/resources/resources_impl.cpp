@@ -44,7 +44,7 @@ void resources_impl::update(float)
             it = m_resource_cache.erase(it);
         }
         else
-            it++;
+            ++it;
     }
 
     // TODO Paul: Update resources on demand?
@@ -67,7 +67,7 @@ const image_resource* resources_impl::acquire(const image_resource_description& 
     else
     {
         image_resource* img = static_cast<image_resource*>(cached->second);
-        img->reference_count++;
+        ++img->reference_count;
         return img;
     }
 }
@@ -83,7 +83,7 @@ void resources_impl::release(const image_resource* resource)
     else
     {
         image_resource* img = static_cast<image_resource*>(cached->second);
-        img->reference_count--;
+        --img->reference_count;
         if (img->reference_count <= 0)
         {
             m_allocator.free_memory(static_cast<void*>(img->data));
@@ -111,7 +111,7 @@ const model_resource* resources_impl::acquire(const model_resource_description& 
     else
     {
         model_resource* m = static_cast<model_resource*>(cached->second);
-        m->reference_count++;
+        ++m->reference_count;
         return m;
     }
 }
@@ -127,7 +127,7 @@ void resources_impl::release(const model_resource* resource)
     else
     {
         model_resource* m = static_cast<model_resource*>(cached->second);
-        m->reference_count--;
+        --m->reference_count;
         if (m->reference_count <= 0)
         {
             m_allocator.free_memory(static_cast<void*>(m));
@@ -154,7 +154,7 @@ const shader_resource* resources_impl::acquire(const shader_resource_resource_de
     else
     {
         shader_resource* s = static_cast<shader_resource*>(cached->second);
-        s->reference_count++;
+        ++s->reference_count;
         return s;
     }
 }
@@ -170,7 +170,7 @@ void resources_impl::release(const shader_resource* resource)
     else
     {
         shader_resource* s = static_cast<shader_resource*>(cached->second);
-        s->reference_count--;
+        --s->reference_count;
         if (s->reference_count <= 0)
         {
             m_allocator.free_memory(static_cast<void*>(s));
@@ -349,7 +349,7 @@ string resources_impl::load_shader_string_from_file(const string path, bool recu
             }
 
             source_string += line + "\n";
-            line_nr++;
+            ++line_nr;
         }
 
         if (!recursive)

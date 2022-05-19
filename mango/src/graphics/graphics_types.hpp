@@ -89,7 +89,7 @@ namespace mango
 
             set_uid(uid_p0, 0);
 
-            uid_p0++;
+            ++uid_p0;
         }
 
         //! \brief Sets the unique identifier of the specific \a gfx_device_object.

@@ -45,6 +45,7 @@ namespace mango
         void set_stencil_compare_mask_and_reference(gfx_stencil_face_flag_bits face_mask, uint32 compare_mask, uint32 reference) override;
         void set_stencil_write_mask(gfx_stencil_face_flag_bits face_mask, uint32 write_mask) override;
         void set_render_targets(int32 count, gfx_handle<const gfx_texture>* render_targets, gfx_handle<const gfx_texture> depth_stencil_target) override;
+        void set_render_targets(int32 count, gfx_handle<const gfx_texture_view>* render_targets, gfx_handle<const gfx_texture_view> depth_stencil_target) override;
         void calculate_mipmaps(gfx_handle<const gfx_texture> texture_handle) override;
         void clear_render_target(gfx_clear_attachment_flag_bits color_attachment, float clear_color[4]) override;
         void clear_depth_stencil(gfx_clear_attachment_flag_bits depth_stencil, float clear_depth, int32 clear_stencil) override;

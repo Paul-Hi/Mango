@@ -480,7 +480,7 @@ namespace mango
 
     //! \brief A \a gfx_device_object representing a texture view.
     //! \details Image texture with binding level.
-    class gfx_image_texture_view : public gfx_device_object
+    class gfx_texture_view : public gfx_device_object
     {
       public:
         int32 get_type_id() const override
@@ -548,9 +548,9 @@ namespace mango
 
         //! \brief Sets a image for binding.
         //! \param[in] variable_name The image name in the shader.
-        //! \param[in] resource A \a gfx_handle of the \a gfx_image_texture_view to set.
+        //! \param[in] resource A \a gfx_handle of the \a gfx_texture_view to set.
         //! \return True on success, else false.
-        virtual bool set_texture_image(const string variable_name, gfx_handle<const gfx_image_texture_view> resource) = 0;
+        virtual bool set_texture_image(const string variable_name, gfx_handle<const gfx_texture_view> resource) = 0;
 
         //! \brief The pair of an integer binding and a \a shader_resource_type.
         using binding_pair = std::pair<int32, gfx_shader_resource_type>;

@@ -275,7 +275,7 @@ bool gl_shader_resource_mapping::set_sampler(const string variable_name, gfx_han
     return true;
 }
 
-bool gl_shader_resource_mapping::set_texture_image(const string variable_name, gfx_handle<const gfx_image_texture_view> resource)
+bool gl_shader_resource_mapping::set_texture_image(const string variable_name, gfx_handle<const gfx_texture_view> resource)
 {
     auto query = m_name_to_binding_pair.find(variable_name);
     if (query == m_name_to_binding_pair.end())
@@ -301,7 +301,7 @@ bool gl_shader_resource_mapping::set_texture_image(const string variable_name, g
     if (device_pair.second == 2)
         device_pair.second = 3;
 
-    device_pair.first = static_gfx_handle_cast<const gl_image_texture_view>(resource);
+    device_pair.first = static_gfx_handle_cast<const gl_texture_view>(resource);
 
     return true;
 }
@@ -408,8 +408,8 @@ gl_graphics_pipeline::gl_graphics_pipeline(const graphics_pipeline_create_info& 
         }
         case gfx_shader_resource_type::shader_resource_image_storage:
         {
-            gl_shader_resource_mapping::resource_pair<gl_image_texture_view> device_pair;
-            device_pair.first  = make_gfx_handle<gl_image_texture_view>(gl_image_texture_view(make_gfx_handle<gl_texture>(gl_texture::dummy()), 0));
+            gl_shader_resource_mapping::resource_pair<gl_texture_view> device_pair;
+            device_pair.first  = make_gfx_handle<gl_texture_view>(gl_texture_view(make_gfx_handle<gl_texture>(gl_texture::dummy()), 0));
             device_pair.second = status;
             if (static_cast<int32>(m_mapping->m_texture_images.size()) < b.binding + array_size_out)
                 m_mapping->m_texture_images.resize(b.binding + array_size_out);
@@ -571,8 +571,8 @@ gl_compute_pipeline::gl_compute_pipeline(const compute_pipeline_create_info& inf
         }
         case gfx_shader_resource_type::shader_resource_image_storage:
         {
-            gl_shader_resource_mapping::resource_pair<gl_image_texture_view> device_pair;
-            device_pair.first  = make_gfx_handle<gl_image_texture_view>(gl_image_texture_view(make_gfx_handle<gl_texture>(gl_texture::dummy()), 0));
+            gl_shader_resource_mapping::resource_pair<gl_texture_view> device_pair;
+            device_pair.first  = make_gfx_handle<gl_texture_view>(gl_texture_view(make_gfx_handle<gl_texture>(gl_texture::dummy()), 0));
             device_pair.second = status;
             if (static_cast<int32>(m_mapping->m_texture_images.size()) < b.binding + array_size_out)
                 m_mapping->m_texture_images.resize(b.binding + array_size_out);
@@ -704,23 +704,23 @@ void gl_pipeline::submit_pipeline_resources(gfx_handle<gfx_graphics_state> share
     // TODO Paul: Doing this for now, since there seemes to be a problem with cubemaps.
     for (int32 b = 0; b < texture_images_count; ++b)
     {
-        auto& image_texture_view = m_mapping->m_texture_images[b];
-        if (image_texture_view.second == 0)
+        auto& texture_view = m_mapping->m_texture_images[b];
+        if (texture_view.second == 0)
             continue;
 
-        auto internal = image_texture_view.first->m_texture->m_info.texture_format;
-        glBindImageTexture(b, image_texture_view.first->m_texture->m_texture_gl_handle, image_texture_view.first->m_level, GL_FALSE, 0, GL_READ_WRITE, gfx_format_to_gl(internal));
+        auto internal = texture_view.first->m_texture->m_info.texture_format;
+        glBindImageTexture(b, texture_view.first->m_texture->m_texture_gl_handle, texture_view.first->m_level, GL_FALSE, 0, GL_READ_WRITE, gfx_format_to_gl(internal));
     }
     /*
     gl_handles.reserve(texture_images_count);
     start_binding = 0;
     for (int32 b = 0; b < texture_images_count; ++b)
     {
-        auto& image_texture_view = m_mapping->m_texture_images[b];
-        if (image_texture_view.second == 0)
+        auto& texture_view = m_mapping->m_texture_images[b];
+        if (texture_view.second == 0)
             continue;
-        if (image_texture_view.first->m_texture->m_texture_gl_handle > 0 && image_texture_view.first->m_level == 0)
-            gl_handles.push_back(image_texture_view.first->m_texture->m_texture_gl_handle);
+        if (texture_view.first->m_texture->m_texture_gl_handle > 0 && texture_view.first->m_level == 0)
+            gl_handles.push_back(texture_view.first->m_texture->m_texture_gl_handle);
         else
         {
             if (gl_handles.size())
@@ -729,10 +729,10 @@ void gl_pipeline::submit_pipeline_resources(gfx_handle<gfx_graphics_state> share
                 gl_handles.clear();
             }
             start_binding = b + 1;
-            if (image_texture_view.first->m_texture->m_texture_gl_handle > 0 && image_texture_view.first->m_level > 0)
+            if (texture_view.first->m_texture->m_texture_gl_handle > 0 && texture_view.first->m_level > 0)
             {
-                auto internal = image_texture_view.first->m_texture->m_info.texture_format;
-                glBindImageTexture(b, image_texture_view.first->m_texture->m_texture_gl_handle, image_texture_view.first->m_level, GL_FALSE, 0, GL_READ_WRITE, gfx_format_to_gl(internal));
+                auto internal = texture_view.first->m_texture->m_info.texture_format;
+                glBindImageTexture(b, texture_view.first->m_texture->m_texture_gl_handle, texture_view.first->m_level, GL_FALSE, 0, GL_READ_WRITE, gfx_format_to_gl(internal));
             }
         }
     }

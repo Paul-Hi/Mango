@@ -61,7 +61,7 @@ vec2 sample_blocker(in vec2 shadow_uv, in float receiver_z, in int cascade_id, i
         if (z < receiver_z)
         {
             average_depth += z;
-            blocker_count++;
+            ++blocker_count;
         }
     }
 

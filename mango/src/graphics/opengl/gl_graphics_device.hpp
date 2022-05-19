@@ -34,7 +34,7 @@ namespace mango
         gfx_handle<const gfx_pipeline> create_compute_pipeline(const compute_pipeline_create_info& info) const override;
         gfx_handle<const gfx_buffer> create_buffer(const buffer_create_info& info) const override;
         gfx_handle<const gfx_texture> create_texture(const texture_create_info& info) const override;
-        gfx_handle<const gfx_image_texture_view> create_image_texture_view(gfx_handle<const gfx_texture> texture, int32 level) const override;
+        gfx_handle<const gfx_texture_view> create_texture_view(gfx_handle<const gfx_texture> texture, int32 level) const override;
         gfx_handle<const gfx_sampler> create_sampler(const sampler_create_info& info) const override;
 
         gfx_handle<const gfx_texture> get_swap_chain_render_target() override;
