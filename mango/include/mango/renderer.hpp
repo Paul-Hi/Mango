@@ -390,8 +390,8 @@ namespace mango
             : m_base_pipeline(render_pipeline::default_pbr)
             , m_vsync(true)
             , m_wireframe(false)
-            , m_frustum_culling(true)
             , m_debug_bounds(false)
+            , m_frustum_culling(true)
         {
             std::memset(m_render_steps, 0, render_pipeline_step::number_of_steps * sizeof(bool));
         }
@@ -406,8 +406,8 @@ namespace mango
             : m_base_pipeline(base_render_pipeline)
             , m_vsync(vsync)
             , m_wireframe(wireframe)
-            , m_frustum_culling(frustum_culling)
             , m_debug_bounds(draw_debug_bounds)
+            , m_frustum_culling(frustum_culling)
         {
             std::memset(m_render_steps, 0, render_pipeline_step::number_of_steps * sizeof(bool));
         }

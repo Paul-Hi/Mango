@@ -609,7 +609,7 @@ namespace mango
     template <typename T>
     constexpr const T& clamp(const T& v, const T& lo, const T& hi)
     {
-        return clamp(v, lo, hi, std::less<>());
+        return clamp(v, lo, hi, std::less<T>());
     }
 
     template <typename T, typename Compare>
