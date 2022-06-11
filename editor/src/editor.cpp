@@ -112,8 +112,8 @@ bool editor::create()
         //uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Cube/glTF/Cube.gltf");
         //uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
         //uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/FlightHelmet/glTF/FlightHelmet.gltf");
-        //uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/rendering-demo-scenes/Sponza/sponza.glb");
-        uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/rendering-demo-scenes/bistro/bistro.glb");
+        uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/rendering-demo-scenes/Sponza/sponza.glb");
+        //uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/rendering-demo-scenes/bistro/bistro.glb");
         //uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Downloads/Main/Main/NewSponza_Main_Blender_glTF.gltf");
         optional<mango::model&> mod = m_current_scene->get_model(bb);
         MANGO_ASSERT(mod, "Model not existent!");

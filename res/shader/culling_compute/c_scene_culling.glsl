@@ -70,7 +70,7 @@ bool is_occluded(vec4 corners[8]) {
         lod = lower_lod;
     }
 
-    if (lod < 2) return true; // Even when not occluded this thing is too small to get noticed
+    if (lod < 8) return true; // Even when not occluded this thing is too small to get noticed
 
     float d0 = textureLod(depth_buffer_sampler_in, box_uvs.xy, lod).r;
     float d1 = textureLod(depth_buffer_sampler_in, box_uvs.zy, lod).r;

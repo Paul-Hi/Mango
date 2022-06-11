@@ -114,6 +114,9 @@ namespace mango
             //! \brief List of ranges of the currently bound texture buffer ranges.
             std::array<ivec2, 128> texture_buffer_ranges; // TODO Paul: See shader_stage_create_info in graphics_resources -> Should be queried.
 
+            gl_handle indirect_buffer;
+            ivec2 indirect_buffer_range;
+
         } resources; //!< Cache data for resources.
 
         bool is_buffer_bound(gfx_buffer_target target, int32 idx, void* native_handle, ivec2 range) override
@@ -145,6 +148,15 @@ namespace mango
                 ivec2& stored_range = resources.texture_buffer_ranges[idx];
                 return (stored_range.x() == range.x()) && (stored_range.y() == range.y());
             }
+            case gfx_buffer_target::buffer_target_indirect_draw:
+            {
+                MANGO_ASSERT(idx == 0, "Only one indirect buffer is allowed!");
+                bool buf = resources.indirect_buffer == static_cast<gl_handle>((uintptr)native_handle);
+                if (!buf)
+                    return false;
+                ivec2& stored_range = resources.indirect_buffer_range;
+                return (stored_range.x() == range.x()) && (stored_range.y() == range.y());
+            }
             default:
                 MANGO_ASSERT(false, "Buffer target is not a valid resource!");
                 break;
@@ -167,6 +179,11 @@ namespace mango
             case gfx_buffer_target::buffer_target_texture:
                 resources.texture_buffers[idx]       = static_cast<gl_handle>((uintptr)native_handle);
                 resources.texture_buffer_ranges[idx] = range;
+                break;
+            case gfx_buffer_target::buffer_target_indirect_draw:
+                MANGO_ASSERT(idx == 0, "Only one indirect buffer is allowed!");
+                resources.indirect_buffer       = static_cast<gl_handle>((uintptr)native_handle);
+                resources.indirect_buffer_range = range;
                 break;
             default:
                 MANGO_ASSERT(false, "Buffer target is not a valid resource!");

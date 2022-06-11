@@ -1490,7 +1490,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             m_cull_data.cull_draw_count             = shadow_commands.size();
             m_cull_data.cull_draws_offset           = shadow_commands.size() * i;
             m_cull_data.cull_frustum                = m_frustum_culling;
-            m_cull_data.cull_occlusion              = false; // not available here at the moment
+            m_cull_data.cull_occlusion              = false; // TODO: Implement HiZ gen and occlusion culling for shadow maps as well.
             m_cull_data.cull_view_projection_matrix = light_casters_shadow_data[i].view_projection_matrices[light_casters_shadow_data[i].cascade];
             m_frame_context->set_buffer_data(m_cull_data_buffer, 0, sizeof(m_cull_data), &m_cull_data);
             m_gpu_culling_pipeline->get_resource_mapping()->set_buffer("cull_data", m_cull_data_buffer, ivec2(0, sizeof(cull_data)), gfx_buffer_target::buffer_target_uniform);
@@ -1503,7 +1503,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_cull_data.cull_draw_count             = scene_commands.size();
         m_cull_data.cull_draws_offset           = shadow_commands.size() * shadow_pass_count;
         m_cull_data.cull_frustum                = m_frustum_culling;
-        m_cull_data.cull_occlusion              = m_frustum_culling;
+        m_cull_data.cull_occlusion              = false; // TODO: Fix occlusion culling.
         m_cull_data.cull_view_projection_matrix = active_camera_data->per_camera_data.view_projection_matrix;
         m_frame_context->set_buffer_data(m_cull_data_buffer, 0, sizeof(m_cull_data), &m_cull_data);
         m_gpu_culling_pipeline->get_resource_mapping()->set_buffer("cull_data", m_cull_data_buffer, ivec2(0, sizeof(cull_data)), gfx_buffer_target::buffer_target_uniform);
@@ -2149,6 +2149,7 @@ void deferred_pbr_renderer::present()
     m_frame_context->present();
     m_frame_context->end();
     m_frame_context->submit();
+    glFinish();
 }
 
 void deferred_pbr_renderer::set_viewport(int32 x, int32 y, int32 width, int32 height)
