@@ -52,11 +52,13 @@ jobs:
             sudo apt install -y xorg-dev freeglut3-dev
             export CC=${{ matrix.config.cc }}
             export CXX=${{ matrix.config.cxx }}
-            python fetch_dependencies.py"
+            python fetch_dependencies.py
+            cmake -G ${{ matrix.config.cmake_gen }} --build ./build --config Release --target ALL_BUILD -j 18 --
       - name: Setup MSVC-Developer-Console For Windows With MSVC
         if: ${{ matrix.config.cc == 'cl' }}
         uses: ilammy/msvc-dev-cmd@v1 # To get nmake to find cl
       - name: Create Solution And Build For Windows
         if: ${{ matrix.config.os == 'windows-latest' }}
         run: |
-            python fetch_dependencies.py"
+            python fetch_dependencies.py
+            cmake -G ${{ matrix.config.cmake_gen }} --build ./build --config Release --target ALL_BUILD -j 18 --
