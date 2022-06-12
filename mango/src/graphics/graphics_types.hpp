@@ -8,6 +8,7 @@
 #define MANGO_GRAPHICS_TYPES_HPP
 
 #include <mango/types.hpp>
+#include <spdlog/fmt/bundled/format.h>
 
 namespace mango
 {
@@ -902,5 +903,41 @@ namespace mango
     };
 
 } // namespace mango
+
+template <>
+struct fmt::formatter<mango::gfx_shader_resource_type> : formatter<std::string>
+{
+    // parse is inherited from formatter<string_view>.
+    template <typename FormatContext>
+    auto format(mango::gfx_shader_resource_type type, FormatContext& ctx)
+    {
+        string name = "unknown";
+        switch (type)
+        {
+        case mango::gfx_shader_resource_type::shader_resource_unknown:
+            name = "shader_resource_unknown";
+            break;
+        case mango::gfx_shader_resource_type::shader_resource_constant_buffer:
+            name = "shader_resource_constant_buffer";
+            break;
+        case mango::gfx_shader_resource_type::shader_resource_texture:
+            name = "shader_resource_texture";
+            break;
+        case mango::gfx_shader_resource_type::shader_resource_image_storage:
+            name = "shader_resource_image_storage";
+            break;
+        case mango::gfx_shader_resource_type::shader_resource_buffer_storage:
+            name = "shader_resource_buffer_storage";
+            break;
+        case mango::gfx_shader_resource_type::shader_resource_sampler:
+            name = "shader_resource_sampler";
+            break;
+        case mango::gfx_shader_resource_type::shader_resource_input_attachment:
+            name = "shader_resource_input_attachment";
+            break;
+        }
+        return formatter<std::string>::format(name, ctx);
+    }
+};
 
 #endif // MANGO_GRAPHICS_TYPES_HPP
