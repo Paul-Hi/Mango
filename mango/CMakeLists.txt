@@ -175,12 +175,12 @@ target_link_libraries(mango
         tinyfd
         $<$<CONFIG:Release>:$<$<BOOL:${MANGO_PROFILE}>:tracy>>
         $<$<BOOL:${MANGO_BUILD_TESTS}>:glad>
-        tiny_gltf
+        tinygltf
     PRIVATE
         ${OPENGL_LIBRARIES}
         glad
         glfw
-        stb_image
+        stb
 )
 
 target_compile_definitions(mango

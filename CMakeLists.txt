@@ -75,16 +75,18 @@ message(STATUS "Added GLAD.")
 add_subdirectory(dependencies/spdlog)
 message(STATUS "Added spdlog.")
 
-add_subdirectory(dependencies/stb_image)
-message(STATUS "Added stb_image.")
+add_subdirectory(dependencies/stb)
+message(STATUS "Added stb.")
 
-add_subdirectory(dependencies/tiny_gltf)
-message(STATUS "Added tiny_gltf.")
+set(TINYGLTF_HEADER_ONLY ON CACHE INTERNAL "" FORCE)
+set(TINYGLTF_INSTALL OFF CACHE INTERNAL "" FORCE)
+add_subdirectory(dependencies/tinygltf)
+message(STATUS "Added tinygltf.")
 
 add_subdirectory(dependencies/imgui)
 message(STATUS "Added dear imgui.")
 
-add_subdirectory(dependencies/tinyfd)
+add_subdirectory(dependencies/libtinyfiledialogs)
 message(STATUS "Added tiny file dialogs.")
 
 if(MANGO_PROFILE)

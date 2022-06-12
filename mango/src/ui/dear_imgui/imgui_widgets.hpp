@@ -191,9 +191,9 @@ namespace mango
         //! \param[in] filter A list of file extensions to filter them.
         //! \param[in] num_filters The number of elements in filter.
         //! \return The \a uids referencing the created \a texture and \a texture_gpu_data.
-        std::pair<uid, uid> load_texture_dialog(const unique_ptr<scene_impl>& application_scene, bool standard_color_space, bool high_dynamic_range, const char* const* filter, int32 num_filters)
+        std::pair<uid, uid> load_texture_dialog(const unique_ptr<scene_impl>& application_scene, bool standard_color_space, bool high_dynamic_range,  char const * const * const filter, int32 num_filters)
         {
-            char* query_path = tinyfd_openFileDialog("", "res/", num_filters, filter, NULL, 0);
+            const char* query_path = tinyfd_openFileDialog(NULL, "res/", num_filters, filter, NULL, 0);
             if (query_path)
             {
                 string queried = string(query_path);
@@ -1024,7 +1024,7 @@ namespace mango
             {
                 char const* filter[2] = { "*.gltf", "*.glb" };
 
-                char* query_path = tinyfd_openFileDialog("", "res/", 2, filter, NULL, 0);
+                const char* query_path = tinyfd_openFileDialog("", "res/", 2, filter, NULL, 0);
                 if (query_path)
                 {
                     string queried = string(query_path);

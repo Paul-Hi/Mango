@@ -9,8 +9,6 @@ CMakeCache.txt
 # Build
 build/*
 install/*
-# Dependencies
-dependencies/*
 # Documentation
 /doc/Doxyfile
 /doc/extra_style.css

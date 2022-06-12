@@ -55,9 +55,8 @@ Also have a look at the [Website](https://paul-hi.github.io/Mango/)!
 
 ## Build
 
-For an easy build you (hopefully) just need to run the ```create_solution.py``` script.
-This will query all dependencies and populate the dependencies folder with the dependencies mentioned down below.
-The script should also run ```cmake``` and the correct ```make```.
+For an easy build you (hopefully) just need to run the ```fetch_dependencies.py``` script.
+This will init and update the submodules and populate the dependencies folder with the dependencies mentioned down below.
 
 There are a few extra options in the cmake configuration:
 * MANGO_BUILD_DOC (Default ON): This builds the documentation for mango.
@@ -65,8 +64,7 @@ There are a few extra options in the cmake configuration:
 * MANGO_ENABLE_HARD_WARNINGS (Default OFF): This enables some warning compiler flags. Attention: This could cause Mango to stop building.
 * MANGO_PROFILE (Default OFF): This enables profiling mode that can be used to profile Mango with Tracy. You will need to install the Tracy-0.7.0 Visual Profiler from [here](https://github.com/wolfpld/tracy/releases/tag/v0.7).
 
-If the dependency population fails, you might as well just try to populate the directory by yourself.
-If ```cmake``` or ```make``` fails, you might as well just try to build it manually like that:
+After that you can run```cmake``` and build Mango like that:
 
 ```console
 mkdir build
@@ -80,7 +78,7 @@ If you still have a problem just reach out to me on GitHub and I'll try to fix i
 
 ## Usage
 
-Just head into ```\build``` and run ```make install``` to install mango.
+Just head into ```\build``` and run ```make install``` to install Mango.
 There is a default install path ```install\mango\bin``` where the editor executable can be found. But you can also specify another one.
 As an alternative you could just go to ```\build\debug\bin``` or ```\build\release\bin``` and run the editor executable, but keep in mind that you'll have to copy the ```\res``` folder there to get it to work properly. Also there seem to be some slowdowns when the file dialog is opened with attached debugger.
 

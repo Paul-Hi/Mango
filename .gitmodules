@@ -1,0 +1,35 @@
+[submodule "dependencies/glfw"]
+	path = dependencies/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule "dependencies/glad"]
+	path = dependencies/glad
+	url = https://github.com/Dav1dde/glad.git
+[submodule "dependencies/googletest"]
+	path = dependencies/googletest
+	url = https://github.com/google/googletest.git
+[submodule "dependencies/spdlog"]
+	path = dependencies/spdlog
+	url = https://github.com/gabime/spdlog.git
+[submodule "dependencies/stb"]
+	path = dependencies/stb
+	url = https://github.com/nothings/stb.git
+[submodule "dependencies/eigen"]
+	path = dependencies/eigen
+	url = https://gitlab.com/libeigen/eigen.git
+	branch = 3.4
+[submodule "dependencies/tinygltf"]
+	path = dependencies/tinygltf
+	url = https://github.com/syoyo/tinygltf.git
+[submodule "dependencies/imgui"]
+	path = dependencies/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking
+[submodule "dependencies/libtinyfiledialogs"]
+	path = dependencies/libtinyfiledialogs
+	url = https://github.com/native-toolkit/libtinyfiledialogs.git
+[submodule "dependencies/tracy"]
+	path = dependencies/tracy
+	url = https://github.com/wolfpld/tracy.git
+[submodule "dependencies/optional"]
+	path = dependencies/optional
+	url = https://github.com/TartanLlama/optional.git
