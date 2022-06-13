@@ -911,7 +911,7 @@ struct fmt::formatter<mango::gfx_shader_resource_type> : formatter<std::string>
     template <typename FormatContext>
     auto format(mango::gfx_shader_resource_type type, FormatContext& ctx)
     {
-        string name = "unknown";
+        std::string name = "unknown";
         switch (type)
         {
         case mango::gfx_shader_resource_type::shader_resource_unknown:
