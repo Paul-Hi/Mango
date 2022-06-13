@@ -17,25 +17,21 @@ jobs:
               os: windows-latest
               cc: "cl"
               cxx: "cl"
-              cmake_gen: "NMake Makefiles"
             - name: "Windows Latest MinGW"
               artifact: "Windows-MinGW.tar.xz" # No artifacts at the moment
               os: windows-latest
               cc: "gcc"
               cxx: "g++"
-              cmake_gen: "MinGW Makefiles"
             - name: "Ubuntu Latest GCC"
               artifact: "Linux-GCC.tar.xz" # No artifacts at the moment
               os: ubuntu-latest
               cc: "gcc"
               cxx: "g++"
-              cmake_gen: "Unix Makefiles"
             - name: "Ubuntu Latest Clang"
               artifact: "Linux-Clang.tar.xz" # No artifacts at the moment
               os: ubuntu-latest
               cc: "clang"
               cxx: "clang++"
-              cmake_gen: "Unix Makefiles"
       name: ${{ matrix.config.name }}
       runs-on: ${{ matrix.config.os }}
       steps:
@@ -53,7 +49,7 @@ jobs:
             export CC=${{ matrix.config.cc }}
             export CXX=${{ matrix.config.cxx }}
             python fetch_dependencies.py
-            cmake -G "${{ matrix.config.cmake_gen }}" --build ./build --config Release --target ALL_BUILD
+            cmake --build ./build --config Release --target ALL_BUILD -j 18 --
       - name: Setup MSVC-Developer-Console For Windows With MSVC
         if: ${{ matrix.config.cc == 'cl' }}
         uses: ilammy/msvc-dev-cmd@v1 # To get nmake to find cl
@@ -61,4 +57,4 @@ jobs:
         if: ${{ matrix.config.os == 'windows-latest' }}
         run: |
             python fetch_dependencies.py
-            cmake -G "${{ matrix.config.cmake_gen }}" --build ./build --config Release --target ALL_BUILD
+            cmake --build ./build --config Release --target ALL_BUILD -j 18 --
