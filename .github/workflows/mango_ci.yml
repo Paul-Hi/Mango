@@ -49,6 +49,7 @@ jobs:
             export CC=${{ matrix.config.cc }}
             export CXX=${{ matrix.config.cxx }}
             python fetch_dependencies.py
+            mkdir build
             cmake --build ./build --config Release --target ALL_BUILD -j 18 --
       - name: Setup MSVC-Developer-Console For Windows With MSVC
         if: ${{ matrix.config.cc == 'cl' }}
@@ -57,4 +58,5 @@ jobs:
         if: ${{ matrix.config.os == 'windows-latest' }}
         run: |
             python fetch_dependencies.py
+            mkdir build
             cmake --build ./build --config Release --target ALL_BUILD -j 18 --
