@@ -307,8 +307,6 @@ shader_resource* resources_impl::load_shader_from_file(const shader_resource_res
     return s;
 }
 
-#include <unistd.h>
-
 string resources_impl::load_shader_string_from_file(const string path, bool recursive)
 {
     string source_string = "";
@@ -362,10 +360,6 @@ string resources_impl::load_shader_string_from_file(const string path, bool recu
     }
     else
     {
-        char cwd[PATH_MAX];
-        if (getcwd(cwd, sizeof(cwd)) != NULL) {
-            printf("Current working dir: %s\n", cwd);
-        }
         MANGO_LOG_ERROR("Opening shader file failed: {0} !", path);
         return source_string;
     }
