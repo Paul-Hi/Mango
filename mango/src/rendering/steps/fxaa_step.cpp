@@ -38,7 +38,7 @@ bool fxaa_step::create_step_resources()
     // sampler
     sampler_create_info sampler_info;
     sampler_info.sampler_min_filter      = gfx_sampler_filter::sampler_filter_linear_mipmap_linear;
-    sampler_info.sampler_max_filter      = gfx_sampler_filter::sampler_filter_linear_mipmap_linear;
+    sampler_info.sampler_max_filter      = gfx_sampler_filter::sampler_filter_linear;
     sampler_info.enable_comparison_mode  = false;
     sampler_info.comparison_operator     = gfx_compare_operator::compare_operator_always;
     sampler_info.edge_value_wrap_u       = gfx_sampler_edge_wrap::sampler_edge_wrap_clamp_to_edge;

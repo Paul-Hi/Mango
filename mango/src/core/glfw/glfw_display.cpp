@@ -188,8 +188,15 @@ bool glfw_display::create_glfw_opengl()
     // TODO Paul: Direct stbi_load call -.-
     GLFWimage images[1];
     images[0].pixels = stbi_load("res/textures/logo.png", &images[0].width, &images[0].height, 0, 4); // rgba channels
-    glfwSetWindowIcon(m_glfw_display_data.native_handle, 1, images);
-    stbi_image_free(images[0].pixels);
+    if (images[0].pixels != NULL)
+    {
+        glfwSetWindowIcon(m_glfw_display_data.native_handle, 1, images);
+        stbi_image_free(images[0].pixels);
+    }
+    else 
+    {
+        MANGO_LOG_WARN("Opening window icon file failed: {0} !", "res/textures/logo.png");
+    }
 
     // Event callback setup
     if (m_glfw_display_data.info.display_event_handler)

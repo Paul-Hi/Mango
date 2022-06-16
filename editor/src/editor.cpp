@@ -109,15 +109,16 @@ bool editor::create()
 
     // test settings comment in to have some example scene
     {
-        uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
+        uid bb = m_current_scene->load_model_from_gltf("res/models/WaterBottle/WaterBottle.glb");
+        // uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
         //uid bb                      = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/Bistro_v5_1/BistroExterior.gltf");
         optional<mango::model&> mod = m_current_scene->get_model(bb);
         MANGO_ASSERT(mod, "Model not existent!");
-        uid model_instance_root            = m_current_scene->add_node("Sponza");
+        uid model_instance_root            = m_current_scene->add_node("WaterBottle");
         m_current_scene->add_model_to_scene(bb, mod->scenarios.at(mod->default_scenario), model_instance_root);
         optional<transform&> mod_transform = m_current_scene->get_transform(model_instance_root);
         MANGO_ASSERT(mod_transform, "Model instance transform not existent!");
-        mod_transform->scale *= 0.5f;
+        mod_transform->scale *= 10.0f;
         mod_transform->changed = true;
 
         uid directional_light_node = m_current_scene->add_node("Directional Sun Light");
@@ -130,7 +131,7 @@ bool editor::create()
         directional_light_node      = m_current_scene->add_directional_light(dl, directional_light_node);
 
         uid skylight_node = m_current_scene->add_node("Venice Sunset Skylight");
-        m_current_scene->add_skylight_from_hdr("D:/Users/paulh/Documents/gltf_2_0_sample_models/HDRs/venice_sunset_4k.hdr", skylight_node);
+        m_current_scene->add_skylight_from_hdr("res/textures/venice_sunset_4k.hdr", skylight_node);
     }
     // test end
 
@@ -252,7 +253,8 @@ void editor::update(float dt)
         if (ui)
         {
             auto size   = ui->get_content_size();
-            cam->aspect = static_cast<float>(size.x()) / static_cast<float>(size.y());
+            if(size.y() > 0)
+                cam->aspect = static_cast<float>(size.x()) / static_cast<float>(size.y());
         }
     }
 }

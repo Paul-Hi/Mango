@@ -458,7 +458,7 @@ namespace mango
     //! \brief The default intensity of a skylight. Is approx. the intensity of a sunny sky.
     const float default_skylight_intensity = 30000.0f;
     //! \brief The default intensity of a emissive object. // TODO Paul: Make something more meaningful.
-    const float default_emissive_intensity = 3000.0f;
+    const float default_emissive_intensity = 300.0f;
 
     //! \brief The minimum valid value for the camera aperture.
     const float min_camera_aperture = 0.5f;

@@ -50,7 +50,7 @@ Also have a look at the [Website](https://paul-hi.github.io/Mango/)!
 
 * Python Version 3.x
 * minimum CMake Version 3.10
-* some c++11 compatible compiler
+* some c++14 compatible compiler
 * optional: Doxygen and Graphviz for generating the documentation (Make sure everything is in the PATH and functional)
 
 ## Build

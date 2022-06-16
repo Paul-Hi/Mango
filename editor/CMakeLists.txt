@@ -25,6 +25,10 @@ set_target_properties(editor
         VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
 )
 
+add_custom_command(TARGET editor POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy_directory
+                       ${CMAKE_SOURCE_DIR}/res ${CMAKE_BINARY_DIR}$<$<CONFIG:Debug>:/debug>$<$<CONFIG:Release>:/release>/bin/res)
+
 target_link_libraries(editor
     PUBLIC
         mango::mango

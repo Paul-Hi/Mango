@@ -2441,20 +2441,20 @@ void scene_impl::update(float dt)
                 // K is a light meter calibration constant
                 static const float K = 12.5f;
                 static const float S = 100.0f;
-                float target_ev      = log2(m_average_luminance * S / K);
+                float target_ev      = log2f(m_average_luminance * S / K);
 
                 // Compute the resulting ISO if we left both shutter and aperture here
-                iso                 = clamp(((ape * ape) * 100.0f) / (shu * exp2(target_ev)), min_camera_iso, max_camera_iso);
-                float unclamped_iso = (shu * exp2(target_ev));
+                iso                 = clamp(((ape * ape) * 100.0f) / (shu * exp2f(target_ev)), min_camera_iso, max_camera_iso);
+                float unclamped_iso = (shu * exp2f(target_ev));
                 MANGO_UNUSED(unclamped_iso);
 
                 // Apply half the difference in EV to the aperture
-                float ev_diff = target_ev - log2(((ape * ape) * 100.0f) / (shu * iso));
-                ape           = clamp(ape * pow(sqrt(2.0f), ev_diff * 0.5f), min_camera_aperture, max_camera_aperture);
+                float ev_diff = target_ev - log2f(((ape * ape) * 100.0f) / (shu * iso));
+                ape           = clamp(ape * powf(sqrtf(2.0f), ev_diff * 0.5f), min_camera_aperture, max_camera_aperture);
 
                 // Apply the remaining difference to the shutter speed
-                ev_diff = target_ev - log2(((ape * ape) * 100.0f) / (shu * iso));
-                shu     = clamp(shu * pow(2.0f, -ev_diff), min_camera_shutter_speed, max_camera_shutter_speed);
+                ev_diff = target_ev - log2f(((ape * ape) * 100.0f) / (shu * iso));
+                shu     = clamp(shu * powf(2.0f, -ev_diff), min_camera_shutter_speed, max_camera_shutter_speed);
             }
             else
             {
@@ -2512,20 +2512,20 @@ void scene_impl::update(float dt)
                 // K is a light meter calibration constant
                 static const float K = 12.5f;
                 static const float S = 100.0f;
-                float target_ev      = log2(m_average_luminance * S / K);
+                float target_ev      = log2f(m_average_luminance * S / K);
 
                 // Compute the resulting ISO if we left both shutter and aperture here
-                iso                 = clamp(((ape * ape) * 100.0f) / (shu * exp2(target_ev)), min_camera_iso, max_camera_iso);
+                iso                 = clamp(((ape * ape) * 100.0f) / (shu * exp2f(target_ev)), min_camera_iso, max_camera_iso);
                 float unclamped_iso = (shu * exp2(target_ev));
                 MANGO_UNUSED(unclamped_iso);
 
                 // Apply half the difference in EV to the aperture
-                float ev_diff = target_ev - log2(((ape * ape) * 100.0f) / (shu * iso));
-                ape           = clamp(ape * pow(sqrt(2.0f), ev_diff * 0.5f), min_camera_aperture, max_camera_aperture);
+                float ev_diff = target_ev - log2f(((ape * ape) * 100.0f) / (shu * iso));
+                ape           = clamp(ape * powf(sqrtf(2.0f), ev_diff * 0.5f), min_camera_aperture, max_camera_aperture);
 
                 // Apply the remaining difference to the shutter speed
-                ev_diff = target_ev - log2(((ape * ape) * 100.0f) / (shu * iso));
-                shu     = clamp(shu * pow(2.0f, -ev_diff), min_camera_shutter_speed, max_camera_shutter_speed);
+                ev_diff = target_ev - log2f(((ape * ape) * 100.0f) / (shu * iso));
+                shu     = clamp(shu * powf(2.0f, -ev_diff), min_camera_shutter_speed, max_camera_shutter_speed);
             }
             else
             {
