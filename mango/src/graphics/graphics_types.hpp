@@ -48,10 +48,10 @@ namespace mango
     }
 
     //! \brief A unique identifier for \a graphics_device_objects.
-    using gfx_uid = int64;
+    using gfx_key = int64;
 
-    //! \brief An invalid \a gfx_uid.
-    static const gfx_uid invalid_gfx_uid = -1;
+    //! \brief An invalid \a gfx_key.
+    static const gfx_key invalid_gfx_key = -1;
 
     //! \brief Interface for all objects on the gpu or interactong with the gpu.
     class gfx_device_object
@@ -66,53 +66,53 @@ namespace mango
 
         //! \brief Queries an unique identifier for the specific \a gfx_device_object.
         //! \return An unique identifier for the specific \a gfx_device_object.
-        gfx_uid get_uid() const
+        gfx_key get_key() const
         {
-            return uid;
+            return key;
         }
 
-        // void invalidate_uid()
+        // void invalidate_key()
         // {
-        //     int32 low  = get_uid_low();
-        //     int32 high = get_uid_high();
+        //     int32 low  = get_key_low();
+        //     int32 high = get_key_high();
         //
-        //     set_uid(low + 1, high);
+        //     set_key(low + 1, high);
         // }
 
       private:
         //! \brief The unique identifier of the specific \a gfx_device_object.
-        gfx_uid uid;
+        gfx_key key;
 
       protected:
         gfx_device_object()
         {
             static int32 uid_p0 = 0;
 
-            set_uid(uid_p0, 0);
+            set_key(uid_p0, 0);
 
             uid_p0++;
         }
 
         //! \brief Sets the unique identifier of the specific \a gfx_device_object.
-        //! \param[in] low The 32 least significant bits of the \a gfx_uid.
-        //! \param[in] high The 32 most significant bits of the \a gfx_uid.
-        void set_uid(int32 low, int32 high)
+        //! \param[in] low The 32 least significant bits of the \a gfx_key.
+        //! \param[in] high The 32 most significant bits of the \a gfx_key.
+        void set_key(int32 low, int32 high)
         {
-            uid = (((uint64_t)high) << 32) | ((uint64_t)low);
+            key = (((uint64_t)high) << 32) | ((uint64_t)low);
         }
 
-        //! \brief Gets the 32 most significant bits of the \a gfx_uid.
-        //! \return The 32 most significant bits of the \a gfx_uid.
-        int32 get_uid_high()
+        //! \brief Gets the 32 most significant bits of the \a gfx_key.
+        //! \return The 32 most significant bits of the \a gfx_key.
+        int32 get_key_high()
         {
-            return uid >> 32;
+            return key >> 32;
         }
 
-        //! \brief Gets the 32 least significant bits of the \a gfx_uid.
-        //! \return The 32 least significant bits of the \a gfx_uid.
-        int32 get_uid_low()
+        //! \brief Gets the 32 least significant bits of the \a gfx_key.
+        //! \return The 32 least significant bits of the \a gfx_key.
+        int32 get_key_low()
         {
-            return static_cast<int32>(uid);
+            return static_cast<int32>(key);
         }
     };
 

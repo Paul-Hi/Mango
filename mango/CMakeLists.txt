@@ -28,7 +28,7 @@ set(PUBLIC_HEADERS
     # Renderer
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/renderer.hpp
     # Utils
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/packed_freelist.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/slotmap.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mango/intersect.hpp
 )
 
@@ -187,7 +187,7 @@ target_compile_definitions(mango
     PUBLIC
         $<$<CONFIG:Debug>:MANGO_DEBUG>
         $<$<CXX_COMPILER_ID:MSVC>:MANGO_WINMAIN>
-        $<$<CXX_COMPILER_ID:Clang>:$<$<BOOL:{CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"}>:MANGO_WINMAIN>>
+        $<$<CXX_COMPILER_ID:Clang>:$<$<BOOL:{ CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC" }>:MANGO_WINMAIN>>
         $<$<BOOL:${MANGO_BUILD_TESTS}>:MANGO_TEST>
         $<$<BOOL:${MANGO_PROFILE}>:MANGO_PROFILE>
         $<$<CXX_COMPILER_ID:MSVC>: _CRT_SECURE_NO_WARNINGS>

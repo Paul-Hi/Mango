@@ -109,6 +109,9 @@ namespace mango
     //! \brief Type alias for a Eigen::Matrix4d.
     using dmat4 = Eigen::Matrix4d;
 
+    //! \brief A key for everything.
+    using key = uint64;
+
     //! \brief Create a \a vec3 from one value.
     //! \param[in] value The value to fill the \a vec3 with.
     //! \return The created \a vec3.
@@ -146,7 +149,7 @@ namespace mango
     using optional = tl::optional<T>;
 
 //! \brief Define for a tl::nullopt.
-#define NULL_OPTION tl::nullopt
+#define NONE tl::nullopt
 
     //! \brief  Create an object that is owned by a unique_ptr.
     //! \param[in]  args  Arguments for the \a T object's constructor.
@@ -166,6 +169,25 @@ namespace mango
         return unique_ptr<T>{ static_cast<T*>(old.release()) };
     }
 
+    //! \brief Typed handle base class.
+    template <typename T>
+    class handle
+    {
+      protected:
+        handle()
+            : id(NONE)
+        {
+        }
+        handle(key id)
+            : id(id)
+        {
+        }
+
+        optional<key> id;
+    };
+    // TODO NEXT: - convert pointer handles to real handles
+    // TODO NEXT: - cleanup some TODOs
+
 //! \brief Pi.
 #define PI 3.1415926535897932384626433832795
 //! \brief Pi times two.
@@ -178,93 +200,6 @@ namespace mango
 #define GLOBAL_FORWARD vec3(0.0f, 0.0f, -1.0f)
 //! \brief Define for the global unit vector.
 #define GLOBAL_UNIT vec3(1.0f)
-
-    //! \brief An uid used to index everything.
-    struct uid
-    {
-        //! \brief Retrieves the internal lookup id.
-        //! \return A constant reference to the internal lookup id.
-        inline const uint32& get() const
-        {
-            return lookup_id;
-        }
-
-        uid()
-            : lookup_id(0)
-            , valid(false){};
-        ~uid() = default;
-        //! \brief Copy constructor.
-        uid(const uid&) = default;
-        //! \brief Move constructor.
-        uid(uid&&) = default;
-        //! \brief Assignment operator.
-        uid& operator=(const uid&) = default;
-        //! \brief Move assignment operator.
-        uid& operator=(uid&&) = default;
-
-        //! \brief Comparison operator equal.
-        //! \param other The other \a uid.
-        //! \return True if other \a uid is equal to the current one, else false.
-        bool operator==(const uid& other) const
-        {
-            return lookup_id == other.lookup_id;
-        }
-
-        //! \brief Comparison operator not equal.
-        //! \param other The other \a uid.
-        //! \return True if other \a uid is not equal to the current one, else false.
-        bool operator!=(const uid& other) const
-        {
-            return lookup_id != other.lookup_id;
-        }
-
-        //! \brief Comparison operator less.
-        //! \param other The other \a uid.
-        //! \return True if other \a uid is less then the current one, else false.
-        bool operator<(const uid& other) const
-        {
-            return lookup_id < other.lookup_id;
-        }
-
-        //! \brief Returns if the \a uid is valid or not.
-        //! \return True if the \a uid is valid else false.
-        const bool is_valid() const
-        {
-            return valid;
-        }
-
-      private:
-        template <typename T, ptr_size C>
-        friend class packed_freelist;
-
-        //! \brief Id of the lookup.
-        //! \details 16 least significant bits = index of this lookup in a packed freelist lookup array / 16 most significant bits = usage count of this lookup.
-        uint32 lookup_id;
-
-        //! \brief True if \a uid is valid, else false.
-        bool valid;
-    };
-
-    //! \brief Invalid \a uid.
-    static const uid invalid_uid;
-
-    //! \brief Hash for the \a uid structure.
-    struct uid_hash
-    {
-        //! \brief Function call operator.
-        //! \details Hashes the \a uid.
-        //! \param[in] k The \a uid to hash.
-        //! \return The hash for the given \a uid.
-        std::size_t operator()(const uid& k) const
-        {
-            // https://stackoverflow.com/questions/1646807/quick-and-simple-hash-code-combinations/
-
-            size_t res = 17;
-            res        = res * 31 + std::hash<uint32>()(k.get());
-
-            return res;
-        };
-    };
 
     //! \brief A floating point type used to describe properties with a 0 to 1 range.
     struct normalized_float

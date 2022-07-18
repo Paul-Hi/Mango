@@ -201,7 +201,7 @@ void light_stack::update_skylights(scene_impl* scene)
     for (auto& s : m_skylight_stack)
     {
         int64 checksum = calculate_checksum(reinterpret_cast<uint8*>(&s.dynamic), sizeof(bool));
-        checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.hdr_texture), sizeof(uid));
+        checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.hdr_texture), sizeof(key));
         checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.intensity), sizeof(float));
         checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.local), sizeof(bool));
         checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.use_texture), sizeof(bool));

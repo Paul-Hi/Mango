@@ -61,28 +61,6 @@ bool editor::create()
                        [this](bool& enabled)
                        {
                            ImGui::Begin("Editor", &enabled);
-                           shared_ptr<context> mango_context = get_context().lock();
-                           MANGO_ASSERT(mango_context, "Context is expired!");
-                           scene_handle application_scene = mango_context->get_current_scene();
-                           uid main_cam                   = m_main_camera_node_id;
-                           mango::custom_info("Mango Editor Custom",
-                                              [&main_cam, &application_scene]()
-                                              {
-                                                  if (!main_cam.is_valid())
-                                                  {
-                                                      if (ImGui::Button("Create Editor Camera"))
-                                                      {
-                                                          perspective_camera editor_cam;
-                                                          editor_cam.aspect                 = 16.0f / 9.0f;
-                                                          editor_cam.z_near                 = 0.05f;
-                                                          editor_cam.z_far                  = 28.0f;
-                                                          editor_cam.vertical_field_of_view = deg_to_rad(45.0f);
-                                                          editor_cam.target                 = vec3(0.0f, 0.0f, 0.0f);
-                                                          main_cam                          = application_scene->add_perspective_camera(editor_cam, application_scene->get_root_node());
-                                                      }
-                                                  }
-                                              });
-                           m_main_camera_node_id = main_cam;
                            ImGui::End();
                        });
 
@@ -100,7 +78,7 @@ bool editor::create()
     editor_cam.z_far                   = 28.0f;
     editor_cam.vertical_field_of_view  = deg_to_rad(45.0f);
     editor_cam.target                  = vec3(0.0f, 0.0f, 0.0f);
-    m_current_scene->add_perspective_camera(editor_cam, m_main_camera_node_id);
+    m_current_scene->add_perspective_camera(editor_cam, m_main_camera_node_id).value(); // TODO: Error check
     optional<transform&> cam_transform = m_current_scene->get_transform(m_main_camera_node_id);
     MANGO_ASSERT(cam_transform, "Something is broken - Main camera does not have a transform!");
     cam_transform->position = vec3(0.0f, 2.5f, 5.0f);
@@ -109,28 +87,28 @@ bool editor::create()
 
     // test settings comment in to have some example scene
     {
-        uid bb = m_current_scene->load_model_from_gltf("res/models/WaterBottle/WaterBottle.glb");
-        // uid bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
-        //uid bb                      = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/Bistro_v5_1/BistroExterior.gltf");
+        key bb = m_current_scene->load_model_from_gltf("res/models/WaterBottle/WaterBottle.glb");
+        // key bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
+        //key bb                      = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/Bistro_v5_1/BistroExterior.gltf");
         optional<mango::model&> mod = m_current_scene->get_model(bb);
         MANGO_ASSERT(mod, "Model not existent!");
-        uid model_instance_root            = m_current_scene->add_node("WaterBottle");
-        m_current_scene->add_model_to_scene(bb, mod->scenarios.at(mod->default_scenario), model_instance_root);
+        key model_instance_root            = m_current_scene->add_node("WaterBottle");
+        m_current_scene->add_model_to_scene(mod.value(), mod->scenarios.at(mod->default_scenario), model_instance_root);
         optional<transform&> mod_transform = m_current_scene->get_transform(model_instance_root);
         MANGO_ASSERT(mod_transform, "Model instance transform not existent!");
         mod_transform->scale *= 10.0f;
         mod_transform->changed = true;
 
-        uid directional_light_node = m_current_scene->add_node("Directional Sun Light");
+        key directional_light_node = m_current_scene->add_node("Directional Sun Light");
         directional_light dl;
         dl.direction                = vec3(0.2f, 1.0f, 0.15f); // vec3(0.9f, 0.05f, 0.65f);
         dl.intensity                = default_directional_intensity;
         dl.color                    = mango::color_rgb(1.0f, 0.387f, 0.207f);
         dl.cast_shadows             = true;
         dl.contribute_to_atmosphere = false;
-        directional_light_node      = m_current_scene->add_directional_light(dl, directional_light_node);
+        m_current_scene->add_directional_light(dl, directional_light_node);
 
-        uid skylight_node = m_current_scene->add_node("Venice Sunset Skylight");
+        key skylight_node = m_current_scene->add_node("Venice Sunset Skylight");
         m_current_scene->add_skylight_from_hdr("res/textures/venice_sunset_4k.hdr", skylight_node);
     }
     // test end
@@ -216,7 +194,7 @@ void editor::update(float dt)
     shared_ptr<context> mango_context = get_context().lock();
 
     MANGO_ASSERT(mango_context, "Context is expired!");
-    if (m_main_camera_node_id == mango_context->get_current_scene()->get_active_camera_uid())
+    if (m_main_camera_node_id == mango_context->get_current_scene()->get_active_camera_key())
     {
         optional<perspective_camera&> cam  = mango_context->get_current_scene()->get_perspective_camera(m_main_camera_node_id);
         optional<transform&> cam_transform = mango_context->get_current_scene()->get_transform(m_main_camera_node_id);

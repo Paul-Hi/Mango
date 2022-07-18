@@ -302,7 +302,7 @@ void skylight_builder::build(scene_impl* scene, const skylight& light, skylight_
     // HDR Texture
     if (light.use_texture)
     {
-        if (light.hdr_texture == invalid_uid)
+        if (!light.hdr_texture.has_value())
         {
             clear(render_data);
             return;
@@ -381,6 +381,8 @@ void skylight_builder::capture(const command_buffer_ptr<min_key>& compute_comman
 void skylight_builder::load_from_hdr(scene_impl* scene, const skylight& light, skylight_cache* render_data)
 {
     PROFILE_ZONE;
+
+    MANGO_ASSERT(light.hdr_texture.has_value(), "Skylight with hdr texture does not have a texture attached!");
     auto& graphics_device = m_shared_context->get_graphics_device();
 
     texture_create_info texture_info;
@@ -401,7 +403,7 @@ void skylight_builder::load_from_hdr(scene_impl* scene, const skylight& light, s
     GL_NAMED_PROFILE_ZONE("Generating IBL Cubemap");
     // equirectangular to cubemap
     device_context->bind_pipeline(m_equi_to_cubemap_pipeline);
-    auto input_hdr = scene->get_texture(light.hdr_texture);
+    auto input_hdr = scene->get_texture(light.hdr_texture.value());
     if (!input_hdr)
     {
         MANGO_LOG_WARN("Hdr texture to build ibl does not exist.");

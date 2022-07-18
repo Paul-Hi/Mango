@@ -144,13 +144,13 @@ namespace mango
     //! \brief An internal structure holding data for rendering.
     struct render_instance
     {
-        //! \brief The \a uid of the \a scene_render_instances \a scene_node.
-        uid node_id;
+        //! \brief The \a key of the \a scene_render_instances \a scene_node.
+        key node_id;
 
         render_instance() = default;
         //! \brief Constructs a \a render_instance with a \a scene_node.
-        //! \param[in] node The \a uid of the \a scene_node to construct the \a render_instance with.
-        render_instance(const uid node)
+        //! \param[in] node The \a key of the \a scene_node to construct the \a render_instance with.
+        render_instance(const key node)
             : node_id(node)
         {
         }

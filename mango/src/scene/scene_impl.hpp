@@ -8,7 +8,7 @@
 #define MANGO_SCENE_IMPL_HPP
 
 #include <graphics/graphics.hpp>
-#include <mango/packed_freelist.hpp>
+#include <mango/slotmap.hpp>
 #include <mango/scene.hpp>
 #include <map>
 #include <queue>
@@ -29,98 +29,98 @@ namespace mango
         scene_impl(const string& name, const shared_ptr<context_impl>& context);
         ~scene_impl();
 
-        uid add_node(const string& name, uid parent_node = invalid_uid) override;
-        uid add_perspective_camera(perspective_camera& new_perspective_camera, uid node_id) override;
-        uid add_orthographic_camera(orthographic_camera& new_orthographic_camera, uid node_id) override;
-        uid add_directional_light(directional_light& new_directional_light, uid node_id) override;
-        uid add_skylight(skylight& new_skylight, uid node_id) override;
-        uid add_atmospheric_light(atmospheric_light& new_atmospheric_light, uid node_id) override;
+        key add_node(const string& name, optional<key> parent_node = NONE) override;
+        optional<key> add_perspective_camera(perspective_camera& new_perspective_camera, key node_id) override;
+        optional<key> add_orthographic_camera(orthographic_camera& new_orthographic_camera, key node_id) override;
+        optional<key> add_directional_light(directional_light& new_directional_light, key node_id) override;
+        optional<key> add_skylight(skylight& new_skylight, key node_id) override;
+        optional<key> add_atmospheric_light(atmospheric_light& new_atmospheric_light, key node_id) override;
 
-        uid build_material(material& new_material) override;
-        uid load_texture_from_image(const string& path, bool standard_color_space, bool high_dynamic_range) override;
+        optional<key> build_material(material& new_material) override;
+        key load_texture_from_image(const string& path, bool standard_color_space, bool high_dynamic_range) override;
 
-        uid load_model_from_gltf(const string& path) override;
-        void add_model_to_scene(uid model_to_add, uid scenario_id, uid node_id) override;
+        key load_model_from_gltf(const string& path) override;
+        void add_model_to_scene(model model_to_add, key scenario_id, key node_id) override;
 
-        uid add_skylight_from_hdr(const string& path, uid node_id) override;
+        optional<key> add_skylight_from_hdr(const string& path, key node_id) override;
 
-        void remove_node(uid node_id) override;
-        void remove_perspective_camera(uid node_id) override;
-        void remove_orthographic_camera(uid node_id) override;
-        void remove_mesh(uid node_id); // For now no override since we only add them internally as well...
-        void remove_directional_light(uid node_id) override;
-        void remove_skylight(uid node_id) override;
-        void remove_atmospheric_light(uid node_id) override;
-        void unload_gltf_model(uid model_id) override;
+        void remove_node(key node_id) override;
+        void remove_perspective_camera(key node_id) override;
+        void remove_orthographic_camera(key node_id) override;
+        void remove_mesh(key node_id); // For now no override since we only add them internally as well...
+        void remove_directional_light(key node_id) override;
+        void remove_skylight(key node_id) override;
+        void remove_atmospheric_light(key node_id) override;
+        void unload_gltf_model(key model_id) override;
 
-        optional<node&> get_node(uid node_id) override;
-        optional<transform&> get_transform(uid node_id) override;
-        optional<perspective_camera&> get_perspective_camera(uid node_id) override;
-        optional<orthographic_camera&> get_orthographic_camera(uid node_id) override;
-        optional<directional_light&> get_directional_light(uid node_id) override;
-        optional<skylight&> get_skylight(uid node_id) override;
-        optional<atmospheric_light&> get_atmospheric_light(uid node_id) override;
+        optional<node&> get_node(key node_id) override;
+        optional<transform&> get_transform(key node_id) override;
+        optional<perspective_camera&> get_perspective_camera(key node_id) override;
+        optional<orthographic_camera&> get_orthographic_camera(key node_id) override;
+        optional<directional_light&> get_directional_light(key node_id) override;
+        optional<skylight&> get_skylight(key node_id) override;
+        optional<atmospheric_light&> get_atmospheric_light(key node_id) override;
 
-        optional<model&> get_model(uid instance_id) override;
-        optional<mesh&> get_mesh(uid instance_id) override;
-        optional<material&> get_material(uid instance_id) override;
-        optional<texture&> get_texture(uid instance_id) override;
+        optional<model&> get_model(key instance_id) override;
+        optional<mesh&> get_mesh(key instance_id) override;
+        optional<material&> get_material(key instance_id) override;
+        optional<texture&> get_texture(key instance_id) override;
 
-        uid get_root_node() override;
-        uid get_active_camera_uid() override;
+        key get_root_node() override;
+        optional<key> get_active_camera_key() override;
 
-        void set_main_camera(uid node_id) override;
+        void set_main_camera(optional<key> node_id) override;
 
-        void attach(uid child_node, uid parent_node) override;
-        void detach(uid child_node, uid parent_node) override;
+        void attach(key child_node, key parent_node) override;
+        void detach(key child_node, key parent_node) override;
 
-        //! \brief Removes a \a texture for a given \a uid.
-        //! \param[in] instance_id The \a uid of the \a texture to remove for from the \a scene.
-        void remove_texture(uid texture_id);
+        //! \brief Removes a \a texture for a given \a key.
+        //! \param[in] instance_id The \a key of the \a texture to remove for from the \a scene.
+        void remove_texture(key texture_id);
 
         //! \brief Retrieves a \a primitive from the \a scene.
-        //! \param[in] instance_id The \a uid of the \a primitive to retrieve from the \a scene.
+        //! \param[in] instance_id The \a key of the \a primitive to retrieve from the \a scene.
         //! \return An optional \a primitive reference.
-        optional<primitive&> get_primitive(uid instance_id);
+        optional<primitive&> get_primitive(key instance_id);
 
         //! \brief Retrieves a global transformation matrix from the \a scene.
-        //! \param[in] instance_id The \a uid of the matrix to retrieve from the \a scene.
+        //! \param[in] instance_id The \a key of the matrix to retrieve from the \a scene.
         //! \return An optional matrix reference.
-        optional<mat4&> get_global_transformation_matrix(uid instance_id);
+        optional<mat4&> get_global_transformation_matrix(key instance_id);
 
         //! \brief Retrieves a \a texture_gpu_data from the \a scene.
-        //! \param[in] instance_id The \a uid of the \a texture_gpu_data to retrieve from the \a scene.
+        //! \param[in] instance_id The \a key of the \a texture_gpu_data to retrieve from the \a scene.
         //! \return An optional \a texture_gpu_data reference.
-        optional<texture_gpu_data&> get_texture_gpu_data(uid instance_id);
+        optional<texture_gpu_data&> get_texture_gpu_data(key instance_id);
 
         //! \brief Retrieves a \a material_gpu_data from the \a scene.
-        //! \param[in] instance_id The \a uid of the \a material_gpu_data to retrieve from the \a scene.
+        //! \param[in] instance_id The \a key of the \a material_gpu_data to retrieve from the \a scene.
         //! \return An optional \a material_gpu_data reference.
-        optional<material_gpu_data&> get_material_gpu_data(uid instance_id);
+        optional<material_gpu_data&> get_material_gpu_data(key instance_id);
 
         //! \brief Retrieves a \a primitive_gpu_data from the \a scene.
-        //! \param[in] instance_id The \a uid of the \a primitive_gpu_data to retrieve from the \a scene.
+        //! \param[in] instance_id The \a key of the \a primitive_gpu_data to retrieve from the \a scene.
         //! \return An optional \a primitive_gpu_data reference.
-        optional<primitive_gpu_data&> get_primitive_gpu_data(uid instance_id);
+        optional<primitive_gpu_data&> get_primitive_gpu_data(key instance_id);
 
         //! \brief Retrieves a \a mesh_gpu_data from the \a scene.
-        //! \param[in] instance_id The \a uid of the \a mesh_gpu_data to retrieve from the \a scene.
+        //! \param[in] instance_id The \a key of the \a mesh_gpu_data to retrieve from the \a scene.
         //! \return An optional \a mesh_gpu_data reference.
-        optional<mesh_gpu_data&> get_mesh_gpu_data(uid instance_id);
+        optional<mesh_gpu_data&> get_mesh_gpu_data(key instance_id);
 
         //! \brief Retrieves a \a camera_gpu_data from the \a scene.
-        //! \param[in] instance_id The \a uid of the \a camera_gpu_data to retrieve from the \a scene.
+        //! \param[in] instance_id The \a key of the \a camera_gpu_data to retrieve from the \a scene.
         //! \return An optional \a camera_gpu_data reference.
-        optional<camera_gpu_data&> get_camera_gpu_data(uid instance_id);
+        optional<camera_gpu_data&> get_camera_gpu_data(key instance_id);
 
         //! \brief Retrieves the \a light_gpu_data from the \a scene.
         //! \return The constant \a light_gpu_data reference.
         const light_gpu_data& get_light_gpu_data();
 
         //! \brief Retrieves a \a buffer_view from the \a scene.
-        //! \param[in] instance_id The \a uid of the \a buffer_view to retrieve from the \a scene.
+        //! \param[in] instance_id The \a key of the \a buffer_view to retrieve from the \a scene.
         //! \return An optional \a buffer_view reference.
-        optional<buffer_view&> get_buffer_view(uid instance_id);
+        optional<buffer_view&> get_buffer_view(key instance_id);
 
         //! \brief Retrieves the \a camera_gpu_data from the active \a camera from the \a scene.
         //! \return The optional \a camera_gpu_data referenced from the active \a camera.
@@ -128,7 +128,7 @@ namespace mango
 
         //! \brief Retrieves a list of loaded \a model \a uids from the \a scene.
         //! \return A list of loaded \a model \a uids from the \a scene.
-        inline const packed_freelist<model, 16>& get_imported_models()
+        inline const slotmap<model>& get_imported_models()
         {
             return m_models;
         }
@@ -146,9 +146,9 @@ namespace mango
         }
 
         //! \brief Draws the hierarchy of \a nodes in a ui widget.
-        //! \param[in,out] selected The \a uid of the selected node.
+        //! \param[in,out] selected The \a key of the selected node.
         //! \details Does not create an ImGui window, only draws contents.
-        void draw_scene_hierarchy(uid& selected);
+        void draw_scene_hierarchy(optional<key>& selected);
 
         //! \brief Sets the average luminance for camera auto exposure calculations.
         //! \param[in] avg_luminance The average luminance to use.
@@ -195,54 +195,54 @@ namespace mango
         //! \param[in] path The full path to the model to load.
         //! \param[out] default_scenario The default \a scenario in the loaded \a model.
         //! \return The list with \a uids of all \a scenarios in the model.
-        std::vector<uid> load_model_from_file(const string& path, int32& default_scenario);
+        std::vector<key> load_model_from_file(const string& path, int32& default_scenario);
 
         //! \brief Builds a \a node from a tinygltf model node.
         //! \param[in] m The loaded tinygltf model.
         //! \param[in] n The tinygltf model node.
         //! \param[in] buffer_view_ids The \a uids of all loaded \a buffer_views.
-        //! \return The \a uid of the created \a node.
-        uid build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<uid>& buffer_view_ids);
+        //! \return The \a key of the created \a node.
+        key build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<key>& buffer_view_ids);
 
         //! \brief Builds a \a camera from a tinygltf model camera.
         //! \param[in] t_camera The loaded tinygltf model camera.
-        //! \param[in] node_id The \a uid of the \a node the \a camera should be added to.
+        //! \param[in] node_id The \a key of the \a node the \a camera should be added to.
         //! \param[in] target The target vector of the \a camera to build.
         //! \param[out] out_type The \a camera_type of the imported \a camera.
-        //! \return The \a uid of the created \a camera.
-        uid build_model_camera(tinygltf::Camera& t_camera, uid node_id, const vec3& target, camera_type& out_type);
+        //! \return The \a key of the created \a camera.
+        key build_model_camera(tinygltf::Camera& t_camera, key node_id, const vec3& target, camera_type& out_type);
 
         //! \brief Builds a \a mesh from a tinygltf model mesh.
         //! \param[in] m The loaded tinygltf model.
         //! \param[in] t_mesh The loaded tinygltf model mesh.
-        //! \param[in] node_id The \a uid of the \a node the \a mesh should be added to.
+        //! \param[in] node_id The \a key of the \a node the \a mesh should be added to.
         //! \param[in] buffer_view_ids The \a uids of all loaded \a buffer_views.
-        //! \return The \a uid of the created \a mesh.
-        uid build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid node_id, const std::vector<uid>& buffer_view_ids);
+        //! \return The \a key of the created \a mesh or NONE on error.
+        optional<key> build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, key node_id, const std::vector<key>& buffer_view_ids);
 
         //! \brief Builds a \a material from a tinygltf model material.
         //! \param[in] primitive_material The loaded tinygltf model material.
         //! \param[in] m The loaded tinygltf model.
-        //! \return The \a uid of the created \a material.
-        uid load_material(const tinygltf::Material& primitive_material, tinygltf::Model& m);
+        //! \return The \a key of the created \a material.
+        optional<key> load_material(const tinygltf::Material& primitive_material, tinygltf::Model& m);
 
-        //! \brief Returns the \a uid of the default material and creates it if not already done.
-        uid default_material();
+        //! \brief Returns the \a key of the default material and creates it if not already done.
+        key default_material();
 
         //! \brief Instantiates some \a scene in the scene graph.
-        //! \param[in] node_id The \a scene \a node \a uid to instantiate.
-        //! \param[in] parent_id The parent \a node \a uid.
-        void instantiate_model_scene(uid node_id, uid parent_id);
+        //! \param[in] node_id The \a scene \a node \a key to instantiate.
+        //! \param[in] parent_id The parent \a node \a key.
+        void instantiate_model_scene(key node_id, key parent_id);
 
         //! \brief Removes a \a node belonging to a \a model.
-        //! \param[in] node_id The \a uid of the \a node to remove.
-        void remove_model_node(uid node_id);
+        //! \param[in] node_id The \a key of the \a node to remove.
+        void remove_model_node(key node_id);
 
         //! \brief Traverses a \a node and its children in the scene graph and updates the transformation if necessary; also creates render instances.
-        //! \param[in] node_id The \a uid of the node.
-        //! \param[in] parent_id The \a uid of the parent.
+        //! \param[in] node_id The \a key of the node.
+        //! \param[in] parent_id The \a key of the parent.
         //! \param[in] force_update Force the update (when the parent had to be updated).
-        void update_scene_graph(uid node_id, uid parent_id, bool force_update);
+        void update_scene_graph(key node_id, optional<key> parent_id, bool force_update);
 
         //! \brief Mangos internal context for shared usage in all \a scenes.
         shared_ptr<context_impl> m_shared_context;
@@ -251,60 +251,60 @@ namespace mango
         light_stack m_light_stack;
         //! \brief The \a light_gpu_data in the \a scene.
         light_gpu_data m_light_gpu_data;
-        //! \brief The \a packed_freelist for all \a models in the \a scene.
-        packed_freelist<model, 16> m_models;
-        //! \brief The \a packed_freelist for all \a scenarios in the \a scene.
-        packed_freelist<scenario, 32> m_scenarios;
-        //! \brief The \a packed_freelist for all \a nodes in the \a scene.
-        packed_freelist<node, 32768> m_nodes;
-        //! \brief The \a packed_freelist for all \a transforms in the \a scene.
-        packed_freelist<transform, 32768> m_transforms;
-        //! \brief The \a packed_freelist for all world transformations of the \a nodes in the \a scene.
-        packed_freelist<mat4, 32768> m_global_transformation_matrices;
+        //! \brief The \a slotmap for all \a models in the \a scene.
+        slotmap<model> m_models;
+        //! \brief The \a slotmap for all \a scenarios in the \a scene.
+        slotmap<scenario> m_scenarios;
+        //! \brief The \a slotmap for all \a nodes in the \a scene.
+        slotmap<node> m_nodes;
+        //! \brief The \a slotmap for all \a transforms in the \a scene.
+        slotmap<transform> m_transforms;
+        //! \brief The \a slotmap for all world transformations of the \a nodes in the \a scene.
+        slotmap<mat4> m_global_transformation_matrices;
 
-        //! \brief The \a packed_freelist for all \a meshes in the \a scene.
-        packed_freelist<mesh, 8192> m_meshes;
-        //! \brief The \a packed_freelist for all \a mesh_gpu_data in the \a scene.
-        packed_freelist<mesh_gpu_data, 8192> m_mesh_gpu_data;
-        //! \brief The \a packed_freelist for all \a primitives in the \a scene.
-        packed_freelist<primitive, 16384> m_primitives;
-        //! \brief The \a packed_freelist for all \a primitive_gpu_data in the \a scene.
-        packed_freelist<primitive_gpu_data, 16384> m_primitive_gpu_data;
-        //! \brief The \a packed_freelist for all \a materials in the \a scene.
-        packed_freelist<material, 16384> m_materials;
-        //! \brief The \a packed_freelist for all \a material_gpu_data in the \a scene.
-        packed_freelist<material_gpu_data, 16384> m_material_gpu_data;
-        //! \brief The \a packed_freelist for all \a textures in the \a scene.
-        packed_freelist<texture, 32768> m_textures;
-        //! \brief The \a packed_freelist for all \a texture_gpu_data in the \a scene.
-        packed_freelist<texture_gpu_data, 32768> m_texture_gpu_data;
+        //! \brief The \a slotmap for all \a meshes in the \a scene.
+        slotmap<mesh> m_meshes;
+        //! \brief The \a slotmap for all \a mesh_gpu_data in the \a scene.
+        slotmap<mesh_gpu_data> m_mesh_gpu_data;
+        //! \brief The \a slotmap for all \a primitives in the \a scene.
+        slotmap<primitive> m_primitives;
+        //! \brief The \a slotmap for all \a primitive_gpu_data in the \a scene.
+        slotmap<primitive_gpu_data> m_primitive_gpu_data;
+        //! \brief The \a slotmap for all \a materials in the \a scene.
+        slotmap<material> m_materials;
+        //! \brief The \a slotmap for all \a material_gpu_data in the \a scene.
+        slotmap<material_gpu_data> m_material_gpu_data;
+        //! \brief The \a slotmap for all \a textures in the \a scene.
+        slotmap<texture> m_textures;
+        //! \brief The \a slotmap for all \a texture_gpu_data in the \a scene.
+        slotmap<texture_gpu_data> m_texture_gpu_data;
 
-        //! \brief The \a packed_freelist for all \a perspective_cameras in the \a scene.
-        packed_freelist<perspective_camera, 32> m_perspective_cameras;
-        //! \brief The \a packed_freelist for all \a orthographic_cameras in the \a scene.
-        packed_freelist<orthographic_camera, 32> m_orthographic_cameras;
-        //! \brief The \a packed_freelist for all \a camera_gpu_data in the \a scene.
-        packed_freelist<camera_gpu_data, 64> m_camera_gpu_data;
+        //! \brief The \a slotmap for all \a perspective_cameras in the \a scene.
+        slotmap<perspective_camera> m_perspective_cameras;
+        //! \brief The \a slotmap for all \a orthographic_cameras in the \a scene.
+        slotmap<orthographic_camera> m_orthographic_cameras;
+        //! \brief The \a slotmap for all \a camera_gpu_data in the \a scene.
+        slotmap<camera_gpu_data> m_camera_gpu_data;
 
-        //! \brief The \a packed_freelist for all \a directional_lights in the \a scene.
-        packed_freelist<directional_light, 32> m_directional_lights;
-        //! \brief The \a packed_freelist for all \a skylights in the \a scene.
-        packed_freelist<skylight, 32> m_skylights;
-        //! \brief The \a packed_freelist for all \a atmospheric_lights in the \a scene.
-        packed_freelist<atmospheric_light, 32> m_atmospheric_lights;
+        //! \brief The \a slotmap for all \a directional_lights in the \a scene.
+        slotmap<directional_light> m_directional_lights;
+        //! \brief The \a slotmap for all \a skylights in the \a scene.
+        slotmap<skylight> m_skylights;
+        //! \brief The \a slotmap for all \a atmospheric_lights in the \a scene.
+        slotmap<atmospheric_light> m_atmospheric_lights;
 
-        //! \brief The \a packed_freelist for all \a buffer_views in the \a scene.
-        packed_freelist<buffer_view, 16384> m_buffer_views;
+        //! \brief The \a slotmap for all \a buffer_views in the \a scene.
+        slotmap<buffer_view> m_buffer_views;
 
         //! \brief Maps names of materials to already loaded \a material \a uids.
-        std::map<string, uid> material_name_to_uid;
+        std::map<string, key> material_name_to_key;
 
         //! \brief The internal recursive function to draw the hierarchy of \a nodes in a ui widget.
-        //! \param[in] current The current \a nodes \a uid to inspect and draw.
-        //! \param[in] parent The current \a nodes parent \a uid.
-        //! \param[in,out] selected The \a uid of the selected node.
+        //! \param[in] current The current \a nodes \a key to inspect and draw.
+        //! \param[in] parent The current \a nodes parent \a key.
+        //! \param[in,out] selected The \a key of the selected node.
         //! \return The list of \a uids of \a nodes that should be removed, after the hierarchy is drawn.
-        std::vector<uid> draw_scene_hierarchy_internal(uid current, uid parent, uid& selected);
+        std::vector<key> draw_scene_hierarchy_internal(key current, optional<key> parent, optional<key>& selected);
 
         //! \brief Returns a name for a \a node_type and a \a node name.
         //! \param[in] type The \a node_type of the \a node.
@@ -318,17 +318,17 @@ namespace mango
         //! \brief The current list if \a render_instances.
         std::vector<render_instance> m_render_instances;
 
-        //! \brief The \a uid of the root \a node.
-        uid m_root_node;
+        //! \brief The \a key of the root \a node.
+        key m_root_node;
 
-        //! \brief The \a uid of \a node of the current main \a camera.
-        uid m_main_camera_node;
+        //! \brief The \a key of \a node of the current main \a camera.
+        optional<key> m_main_camera_node;
 
-        //! \brief The \a uid of the \a node currently selected.
-        uid m_ui_selected_uid;
+        //! \brief The \a key of the \a node currently selected.
+        optional<key> m_ui_selected_key;
 
-        //! \brief The \a uid of the default material.
-        uid m_default_material;
+        //! \brief The \a key of the default material.
+        optional<key> m_default_material;
 
         //! \brief The average luminance (which can be set)
         float m_average_luminance = 1.0f;

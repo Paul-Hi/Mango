@@ -15,7 +15,7 @@ gl_shader_stage::gl_shader_stage(const shader_stage_create_info& info)
 {
     create_shader_from_source();
 
-    set_uid(get_uid_low(), m_shader_stage_gl_handle);
+    set_key(get_key_low(), m_shader_stage_gl_handle);
 }
 
 void gl_shader_stage::create_shader_from_source()
@@ -51,7 +51,7 @@ gl_buffer::gl_buffer(const buffer_create_info& info)
     glCreateBuffers(1, &m_buffer_gl_handle);
     glNamedBufferStorage(m_buffer_gl_handle, m_info.size, nullptr, gfx_buffer_access_to_gl(m_info.buffer_access));
 
-    set_uid(get_uid_low(), m_buffer_gl_handle);
+    set_key(get_key_low(), m_buffer_gl_handle);
 }
 
 gl_buffer gl_buffer::dummy()
@@ -101,7 +101,7 @@ gl_texture::gl_texture(const texture_create_info& info)
     glBindTexture(gfx_texture_type_to_gl(m_info.texture_type), m_texture_gl_handle);
     glBindTexture(gfx_texture_type_to_gl(m_info.texture_type), 0);
 
-    set_uid(get_uid_low(), m_texture_gl_handle);
+    set_key(get_key_low(), m_texture_gl_handle);
 }
 
 gl_texture gl_texture::dummy()
@@ -139,7 +139,7 @@ gl_sampler::gl_sampler(const sampler_create_info& info)
         MANGO_LOG_WARN("Can not enable seamless cubemaps per texture, enable it globally!"); // TODO Paul
 #endif                                                                                       // MANGO_DEBUG
 
-    set_uid(get_uid_low(), m_sampler_gl_handle);
+    set_key(get_key_low(), m_sampler_gl_handle);
 }
 
 gl_sampler gl_sampler::dummy()
@@ -157,7 +157,7 @@ gl_semaphore::gl_semaphore(const semaphore_create_info& info)
 {
     m_semaphore_gl_handle = static_cast<gl_sync>(glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0));
 
-    set_uid(get_uid_low(), static_cast<uint32>(reinterpret_cast<ptr_size>(m_semaphore_gl_handle))); // TODO Paul: Is that cast okay?
+    set_key(get_key_low(), static_cast<uint32>(reinterpret_cast<ptr_size>(m_semaphore_gl_handle))); // TODO Paul: Is that cast okay?
 }
 
 gl_semaphore::~gl_semaphore()
