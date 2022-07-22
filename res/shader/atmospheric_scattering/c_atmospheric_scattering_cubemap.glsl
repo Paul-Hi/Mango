@@ -8,7 +8,7 @@ layout(local_size_x = 32, local_size_y = 32) in;
 
 layout(binding = 0, rgba16f) uniform writeonly imageCube cubemap_out;
 
-layout(binding = 3) uniform ibl_generation_data
+layout(binding = 3, std140) uniform ibl_generation_data
 {
     vec2 out_size;
     vec2 data;

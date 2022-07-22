@@ -119,7 +119,6 @@ namespace mango
         std140_float camera_near;            //!< Camera near plane depth value.
         std140_float camera_far;             //!< Camera far plane depth value.
         std140_float camera_exposure;        //!< The exposure value of the camera.
-        std140_float padding;                //!< Padding.
     };
 
     //! \brief Uniform buffer struct for model data.
@@ -130,8 +129,6 @@ namespace mango
         std140_mat3 normal_matrix; //!< The normal matrix.
         std140_bool has_normals;   //!< Specifies if the mesh has normals as a vertex attribute.
         std140_bool has_tangents;  //!< Specifies if the mesh has tangents as a vertex attribute.
-        std140_float padding0;     //!< Padding.
-        std140_float padding1;     //!< Padding.
     };
 
     //! \brief Uniform buffer struct for material data.
@@ -151,7 +148,6 @@ namespace mango
         std140_float emissive_intensity;        //!< Specifies the intensity multiplier for the emissive value.
         std140_int alpha_mode;                  //!< Specifies the alpha mode to render the material with.
         std140_float alpha_cutoff;              //!< Specifies the alpha cutoff value to render the material with.
-        std140_float padding0;                  //!< Padding.
     };
 
     //! \brief Structure to store data for adaptive exposure.
@@ -167,26 +163,15 @@ namespace mango
     //! \details Bound to binding point 4.
     struct light_data
     {
-        //! \brief Directional lights data.
-        struct directional_light_buffer
-        {
-            std140_vec3 direction;    //!< The direction to the light.
-            std140_vec3 color;        //!< The light color.
-            std140_float intensity;   //!< The intensity of the directional light in lumen.
-            std140_bool cast_shadows; //!< True, if shadows can be casted.
-            std140_bool valid;        //!< True, if buffer is valid.
-        } directional_light;          //!< Data for the active directional light (max one atm)
+        std140_vec3 directional_light_direction;    //!< The direction to the light.
+        uint32 pad;
+        std140_vec3 directional_light_color;        //!< The light color.
+        std140_float directional_light_intensity;   //!< The intensity of the directional light in lumen.
+        std140_bool directional_light_cast_shadows; //!< True, if shadows can be casted.
+        std140_bool directional_light_valid;        //!< True, if buffer is valid.
 
-        //! \brief Skylights data.
-        struct skylight_buffer
-        {
-            std140_float intensity; //!< The intensity of the skylight in cd/m^2.
-            std140_bool valid;      //!< True, if buffer is valid. Does also guarantee that textures are bound.
-            // local, global and if local bounds for parallax correction ....
-        } skylight;            //!< Data for the active skylight (max one atm)
-        std140_float padding0; //!< Padding.
-        std140_float padding1; //!< Padding.
-        std140_float padding2; //!< Padding.
+        std140_float skylight_intensity; //!< The intensity of the skylight in cd/m^2.
+        std140_bool skylight_valid;      //!< True, if buffer is valid. Does also guarantee that textures are bound.
     };
 
     //! \brief The implementation of the \a renderer.

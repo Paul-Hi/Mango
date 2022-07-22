@@ -1606,7 +1606,6 @@ key scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
     model_node.transform_id = m_transforms.insert(tr);
     model_node.type         = node_type::hierarchy;
     key node_id             = m_nodes.insert(model_node);
-    node& node_ref          = m_nodes.back();
 
     if (n.mesh > -1)
     {
@@ -1615,8 +1614,8 @@ key scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
         auto loaded = build_model_mesh(m, m.meshes.at(n.mesh), node_id, buffer_view_ids);
         if(loaded.has_value())
         {
-            node_ref.mesh_id = loaded;
-            node_ref.type |= node_type::mesh;
+            m_nodes[node_id].mesh_id = loaded;
+            m_nodes[node_id].type |= node_type::mesh;
         }
     }
 
@@ -1629,8 +1628,8 @@ key scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
         vec3 target   = tr.rotation * GLOBAL_FORWARD; // TODO Paul: Check that!
         key camera_id = build_model_camera(m.cameras.at(n.camera), node_id, target, out_type);
 
-        node_ref.camera_ids[static_cast<uint8>(out_type)] = camera_id;
-        node_ref.type |= ((out_type == camera_type::perspective) ? node_type::perspective_camera : node_type::orthographic_camera);
+        m_nodes[node_id].camera_ids[static_cast<uint8>(out_type)] = camera_id;
+        m_nodes[node_id].type |= ((out_type == camera_type::perspective) ? node_type::perspective_camera : node_type::orthographic_camera);
     }
 
     // build child nodes
@@ -1639,7 +1638,7 @@ key scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
         MANGO_ASSERT(n.children[i] < static_cast<int32>(m.nodes.size()), "Invalid gltf node!");
 
         key child_id = build_model_node(m, m.nodes.at(n.children[i]), buffer_view_ids);
-        node_ref.children.push_back(child_id);
+        m_nodes[node_id].children.push_back(child_id);
     }
 
     return node_id;

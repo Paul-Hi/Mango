@@ -599,11 +599,12 @@ namespace mango
         std140_bool(const bool& b)
         {
             pad = 0;
-            v   = b ? 1 : 0;
+            v = b;
         }
         std140_bool()
-            : pad(0)
         {
+            pad = 0;
+            v = false;
         }
         operator bool&()
         {
@@ -616,11 +617,11 @@ namespace mango
         }
 
       private:
-        union
-        {
-            bool v;
-            int32 pad;
-        };
+      union
+      {
+        bool v;
+        uint32 pad;
+      };
         //! \endcond
     };
 
@@ -677,14 +678,14 @@ namespace mango
     };
 
     //! \brief A float in the glsl std140 layout for arrays.
-    struct std140_float_array
+    struct std140_array_float
     {
         //! \cond NO_COND
-        std140_float_array(const float& f)
+        std140_array_float(const float& f)
         {
             v = f;
         }
-        std140_float_array()
+        std140_array_float()
             : v(0)
         {
         }
@@ -698,10 +699,7 @@ namespace mango
         }
 
       private:
-        float v;
-        float p0 = 0.0f;
-        float p1 = 0.0f;
-        float p2 = 0.0f;
+        float v; uint32 pad0, pad1, pad2;
         //! \endcond
     };
 
@@ -725,7 +723,7 @@ namespace mango
         {
             v = o;
         }
-        float& operator[](int i)
+        float& operator[](uint32 i)
         {
             return v[i];
         }
@@ -755,14 +753,13 @@ namespace mango
         {
             v = o;
         }
-        float& operator[](int i)
+        float& operator[](uint32 i)
         {
             return v[i];
         }
 
       private:
         vec3 v;
-        float pad = 0.0f;
         //! \endcond
     };
 
@@ -786,7 +783,7 @@ namespace mango
         {
             v = o;
         }
-        float& operator[](int i)
+        float& operator[](uint32 i)
         {
             return v[i];
         }
@@ -818,7 +815,7 @@ namespace mango
             c1 = o.col(1);
             c2 = o.col(2);
         }
-        vec3& operator[](int i)
+        vec3& operator[](uint32 i)
         {
             switch (i)
             {
@@ -840,9 +837,9 @@ namespace mango
         }
 
       private:
-        std140_vec3 c0;
-        std140_vec3 c1;
-        std140_vec3 c2;
+        std140_vec3 c0; uint32 pad0;
+        std140_vec3 c1; uint32 pad1;
+        std140_vec3 c2; uint32 pad2;
         //! \endcond
     };
 
@@ -871,7 +868,7 @@ namespace mango
             c2 = o.col(2);
             c3 = o.col(3);
         }
-        vec4& operator[](int i)
+        vec4& operator[](uint32 i)
         {
             switch (i)
             {

@@ -95,7 +95,7 @@ bool fxaa_step::create_step_resources()
         shader_info.resources = { {
             { gfx_shader_stage_type::shader_stage_fragment, 0, "texture_input", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, 0, "sampler_input", gfx_shader_resource_type::shader_resource_sampler, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, 1, "fxaa_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, 1, "fxaa_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
         } };
 
         m_fxaa_pass_fragment = graphics_device->create_shader_stage(shader_info);
@@ -111,7 +111,7 @@ bool fxaa_step::create_step_resources()
             { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
             { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
 
-            { gfx_shader_stage_type::shader_stage_fragment, 1, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_fragment, 1, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
         });
 
         fxaa_pass_info.pipeline_layout = fxaa_pass_pipeline_layout;

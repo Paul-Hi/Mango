@@ -14,14 +14,14 @@ using namespace mango;
 light_stack::light_stack()
     : m_allocator(524288) // 0.5 MiB
 {
-    m_current_light_data.directional_light.direction    = vec3(0.5f, 0.5f, 0.5f);
-    m_current_light_data.directional_light.color        = make_vec3(1.0f);
-    m_current_light_data.directional_light.intensity    = default_directional_intensity;
-    m_current_light_data.directional_light.cast_shadows = false;
-    m_current_light_data.directional_light.valid        = false;
+    m_current_light_data.directional_light_direction    = vec3(0.5f, 0.5f, 0.5f);
+    m_current_light_data.directional_light_color        = make_vec3(1.0f);
+    m_current_light_data.directional_light_intensity    = default_directional_intensity;
+    m_current_light_data.directional_light_cast_shadows = false;
+    m_current_light_data.directional_light_valid        = false;
 
-    m_current_light_data.skylight.intensity = default_skylight_intensity;
-    m_current_light_data.skylight.valid     = false;
+    m_current_light_data.skylight_intensity = default_skylight_intensity;
+    m_current_light_data.skylight_valid     = false;
 }
 
 light_stack::~light_stack() {}
@@ -119,11 +119,11 @@ void light_stack::update_directional_lights()
         return;
     // atm there is only one directional light bound :D
     const auto& light                                   = m_directional_stack.back();
-    m_current_light_data.directional_light.valid        = true;
-    m_current_light_data.directional_light.direction    = light.direction;
-    m_current_light_data.directional_light.color        = light.color.as_vec3();
-    m_current_light_data.directional_light.intensity    = light.intensity;
-    m_current_light_data.directional_light.cast_shadows = light.cast_shadows;
+    m_current_light_data.directional_light_valid        = true;
+    m_current_light_data.directional_light_direction    = light.direction;
+    m_current_light_data.directional_light_color        = light.color.as_vec3();
+    m_current_light_data.directional_light_intensity    = light.intensity;
+    m_current_light_data.directional_light_cast_shadows = light.cast_shadows;
     if (light.cast_shadows)
         m_current_shadow_casters.push_back(light);
 }
@@ -246,8 +246,8 @@ void light_stack::update_skylights(scene_impl* scene)
         // atm there is only one skylight bound and ist has to be the global one :D
         if (!s.local)
         {
-            m_current_light_data.skylight.valid     = true;
-            m_current_light_data.skylight.intensity = s.intensity;
+            m_current_light_data.skylight_valid     = true;
+            m_current_light_data.skylight_intensity = s.intensity;
         }
     }
 }

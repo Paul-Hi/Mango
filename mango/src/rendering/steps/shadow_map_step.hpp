@@ -25,7 +25,7 @@ namespace mango
         {
             std140_mat4 view_projection_matrices[max_shadow_mapping_cascades]; //!< The view projection matrices.
             // TODO Paul: We really should not use arrays with that padding -.-
-            std140_float_array split_depth[max_shadow_mapping_cascades]; //!< The calculated split depths.
+            std140_array_float split_depth[max_shadow_mapping_cascades]; //!< The calculated split depths.
             std140_vec4 far_planes;                                      //!< The far planes of the shadow views.
             std140_int resolution                    = 2048;             //!< The shadow map resolution.
             std140_int cascade_count                 = 3;                //!< The number of cascades.

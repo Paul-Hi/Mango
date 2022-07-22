@@ -649,7 +649,7 @@ void gl_pipeline::submit_pipeline_resources(gfx_handle<gfx_graphics_state> share
     }
 
     int32 texture_images_count = static_cast<int32>(m_mapping->m_texture_images.size());
-    // TODO Paul: Doing this for now, since there seemes to be a problem with cubemaps.
+    // TODO Paul: Doing this for now, since we need to know if the image texture is a cubemap.
     for (int32 b = 0; b < texture_images_count; ++b)
     {
         auto& image_texture_view = m_mapping->m_texture_images[b];
@@ -657,7 +657,7 @@ void gl_pipeline::submit_pipeline_resources(gfx_handle<gfx_graphics_state> share
             continue;
 
         auto internal = image_texture_view.first->m_texture->m_info.texture_format;
-        glBindImageTexture(b, image_texture_view.first->m_texture->m_texture_gl_handle, image_texture_view.first->m_level, GL_FALSE, 0, GL_READ_WRITE, gfx_format_to_gl(internal));
+        glBindImageTexture(b, image_texture_view.first->m_texture->m_texture_gl_handle, image_texture_view.first->m_level, GL_TRUE, 0, GL_READ_WRITE, gfx_format_to_gl(internal));
     }
     /*
     gl_handles.reserve(texture_images_count);

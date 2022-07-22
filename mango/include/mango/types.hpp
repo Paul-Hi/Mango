@@ -185,6 +185,7 @@ namespace mango
 
         optional<key> id;
     };
+    // TODO NEXT: - create buffer glsl parser and generate structs with correct alignment for layout ...
     // TODO NEXT: - convert pointer handles to real handles
     // TODO NEXT: - cleanup some TODOs
 
