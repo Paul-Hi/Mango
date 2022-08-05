@@ -12,11 +12,11 @@ int compute_cascade_id(in float view_depth, out float interpolation_factor, out 
     int cascade_id = 0;
     for(int i = 0; i < shadow_cascade_count; ++i)
     {
-        float i_value = split_depth[i];
+        float i_value = shadow_split_depth[i];
         if(view_depth < i_value)
         {
             cascade_id = i;
-            float i_minus_one_value = i > 0 ? split_depth[i - 1] : camera_near;
+            float i_minus_one_value = i > 0 ? shadow_split_depth[i - 1] : camera_near;
             float mid = (i_value + i_minus_one_value) * 0.5;
             if(view_depth > mid && view_depth > i_value - shadow_cascade_interpolation_range)
             {
@@ -118,7 +118,7 @@ float directional_shadow(in vec3 world_position, in vec3 normal)
     float interpolation_factor;
     int cascade_id = compute_cascade_id(abs(view_pos.z), interpolation_factor, interpolation_mode);
 
-    vec3 light_dir = normalize(directional_direction.xyz);
+    vec3 light_dir = normalize(directional_light_direction.xyz);
     float n_dot_l = saturate(dot(normal, light_dir));
     vec3 bias = vec3(clamp(shadow_slope_bias * tan(acos(n_dot_l)), 0.0, shadow_slope_bias * 2.0)) + normal * shadow_normal_bias;
 

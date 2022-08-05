@@ -20,26 +20,6 @@ namespace mango
       public:
         //! \brief The maximum number of cascades.
         static const int32 max_shadow_mapping_cascades = 4; // TODO Paul: We should move this.
-        //! \brief Uniform buffer struct for shadow data.
-        struct shadow_data
-        {
-            std140_mat4 view_projection_matrices[max_shadow_mapping_cascades]; //!< The view projection matrices.
-            // TODO Paul: We really should not use arrays with that padding -.-
-            std140_array_float split_depth[max_shadow_mapping_cascades]; //!< The calculated split depths.
-            std140_vec4 far_planes;                                      //!< The far planes of the shadow views.
-            std140_int resolution                    = 2048;             //!< The shadow map resolution.
-            std140_int cascade_count                 = 3;                //!< The number of cascades.
-            std140_float cascade_interpolation_range = 0.5f;   //!< The range to use for interpolating the cascades. Larger values mean smoother transition, but less quality and performance impact.
-            std140_int sample_count                  = 16;     //!< The sample count. Larger values can look more natural, but may cause artefacts and performance drops.
-            std140_float slope_bias                  = 0.005f; //!< The slope bias.
-            std140_float normal_bias                 = 0.01f;  //!< The bias along the normal.
-            std140_int filter_mode                   = 0;      //!< shadow_filtering parameter.
-            std140_float shadow_width                = 1.0f;   //!< Width of the PCF shadow.
-            std140_float shadow_light_size           = 4.0f;   //!< Size of the light used for PCSS shadow.
-            std140_int cascade                       = 0;      //!< The currently rendered cascade. Only used in the rendering process, not required in th lookup while lighting is calculated.
-            std140_float pad1;                                 //!< Padding.
-            std140_float pad2;                                 //!< Padding.
-        };
 
         //! \brief Constructs a the \a shadow_map_step.
         //! \param[in] settings The \a shadow_settings to use.
@@ -96,7 +76,7 @@ namespace mango
         //! \return The resolution of the quadratic shadow map.
         inline int32 resolution()
         {
-            return m_shadow_data.resolution;
+            return m_shadow_data.shadow_resolution;
         }
 
         //! \brief Returns a \a bounding_frustum of a shadow map cascade.
@@ -113,8 +93,8 @@ namespace mango
         //! \param[in] camera_near The cameras near plane depth.
         //! \param[in] camera_far The cameras far plane depth.
         //! \param[in] camera_view_projection The cameras view projection matrix.
-        //! \param[in] directional_direction The direction to the light.
-        void update_cascades(float dt, float camera_near, float camera_far, const mat4& camera_view_projection, const vec3& directional_direction);
+        //! \param[in] directional_light_direction The direction to the light.
+        void update_cascades(float dt, float camera_near, float camera_far, const mat4& camera_view_projection, const vec3& directional_light_direction);
 
       private:
         bool create_step_resources() override;
@@ -155,7 +135,7 @@ namespace mango
         {
             float camera_near;                                    //!< The cameras near plane depth.
             float camera_far;                                     //!< The cameras far plane depth.
-            vec3 directional_direction;                           //!< The direction to the light.
+            vec3 directional_light_direction;                           //!< The direction to the light.
             float lambda;                                         //!< Lambda used to calculate split depths uniform <-> log.
             bounding_frustum frusta[max_shadow_mapping_cascades]; //!< List of current frusta.
         } m_cascade_data;                                         //!< Data required to calculate shadow cascades.

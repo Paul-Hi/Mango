@@ -9,6 +9,7 @@
 
 #include <mango/types.hpp>
 #include <spdlog/fmt/bundled/format.h>
+#include <shader_interop.hpp>
 
 namespace mango
 {
@@ -184,12 +185,14 @@ namespace mango
         t_short                       = 0x1402,
         t_unsigned_short              = 0x1403,
         t_half_float                  = 0x140b,
-        t_double                      = 0x140a,
         t_fixed                       = 0x140c,
         t_float                       = 0x1406,
         t_float_vec2                  = 0x8b50,
         t_float_vec3                  = 0x8b51,
         t_float_vec4                  = 0x8b52,
+        t_float_mat2                  = 0x8b5a,
+        t_float_mat3                  = 0x8b5b,
+        t_float_mat4                  = 0x8b5c,
         t_int                         = 0x1404,
         t_int_vec2                    = 0x8b53,
         t_int_vec3                    = 0x8b54,
@@ -198,6 +201,17 @@ namespace mango
         t_unsigned_int_vec2           = 0x8dc6,
         t_unsigned_int_vec3           = 0x8dc7,
         t_unsigned_int_vec4           = 0x8dc8,
+        t_bool                        = 0x8B56,
+        t_bool_vec2                   = 0x8b57,
+        t_bool_vec3                   = 0x8b58,
+        t_bool_vec4                   = 0x8b59,
+        t_double                      = 0x140a,
+        t_double_vec2                 = 0x8ffc,
+        t_double_vec3                 = 0x8ffd,
+        t_double_vec4                 = 0x8ffe,
+        t_double_mat2                 = 0x8f46,
+        t_double_mat3                 = 0x8f47,
+        t_double_mat4                 = 0x8f48,
         t_unsigned_byte_3_3_2         = 0x8032,
         t_unsigned_byte_2_3_3_rev     = 0x8362,
         t_unsigned_short_5_6_5        = 0x8363,
@@ -590,315 +604,6 @@ namespace mango
         sampler_edge_wrap_clamp_to_edge_mirrored,
         sampler_edge_wrap_last = sampler_edge_wrap_clamp_to_edge_mirrored
     };
-
-    // TODO Paul: Should these be in here?
-    //! \brief A boolean in the glsl std140 layout.
-    struct std140_bool
-    {
-        //! \cond NO_COND
-        std140_bool(const bool& b)
-        {
-            pad = 0;
-            v = b;
-        }
-        std140_bool()
-        {
-            pad = 0;
-            v = false;
-        }
-        operator bool&()
-        {
-            return v;
-        }
-        void operator=(const bool& o)
-        {
-            pad = 0;
-            v   = o;
-        }
-
-      private:
-      union
-      {
-        bool v;
-        uint32 pad;
-      };
-        //! \endcond
-    };
-
-    //! \brief An integer in the glsl std140 layout.
-    struct std140_int
-    {
-        //! \cond NO_COND
-        std140_int(const int& i)
-        {
-            v = i;
-        }
-        std140_int()
-            : v(0)
-        {
-        }
-        operator int32&()
-        {
-            return v;
-        }
-        void operator=(const int& o)
-        {
-            v = o;
-        }
-
-      private:
-        int32 v;
-        //! \endcond
-    };
-
-    //! \brief A float in the glsl std140 layout.
-    struct std140_float
-    {
-        //! \cond NO_COND
-        std140_float(const float& f)
-        {
-            v = f;
-        }
-        std140_float()
-            : v(0)
-        {
-        }
-        operator float&()
-        {
-            return v;
-        }
-        void operator=(const float& o)
-        {
-            v = o;
-        }
-
-      private:
-        float v;
-        //! \endcond
-    };
-
-    //! \brief A float in the glsl std140 layout for arrays.
-    struct std140_array_float
-    {
-        //! \cond NO_COND
-        std140_array_float(const float& f)
-        {
-            v = f;
-        }
-        std140_array_float()
-            : v(0)
-        {
-        }
-        operator float&()
-        {
-            return v;
-        }
-        void operator=(const float& o)
-        {
-            v = o;
-        }
-
-      private:
-        float v; uint32 pad0, pad1, pad2;
-        //! \endcond
-    };
-
-    //! \brief A vec2 in the glsl std140 layout.
-    struct std140_vec2
-    {
-        //! \cond NO_COND
-        std140_vec2(const vec2& vec)
-            : v(vec)
-        {
-        }
-        std140_vec2()
-            : v(vec2(0.0f, 0.0f))
-        {
-        }
-        vec2& values()
-        {
-            return v;
-        }
-        void operator=(const vec2& o)
-        {
-            v = o;
-        }
-        float& operator[](uint32 i)
-        {
-            return v[i];
-        }
-
-      private:
-        vec2 v;
-        //! \endcond
-    };
-
-    //! \brief A vec3 in the glsl std140 layout.
-    struct std140_vec3
-    {
-        //! \cond NO_COND
-        std140_vec3(const vec3& vec)
-            : v(vec)
-        {
-        }
-        std140_vec3()
-            : v(make_vec3(0.0f))
-        {
-        }
-        vec3& values()
-        {
-            return v;
-        }
-        void operator=(const vec3& o)
-        {
-            v = o;
-        }
-        float& operator[](uint32 i)
-        {
-            return v[i];
-        }
-
-      private:
-        vec3 v;
-        //! \endcond
-    };
-
-    //! \brief A vec4 in the glsl std140 layout.
-    struct std140_vec4
-    {
-        //! \cond NO_COND
-        std140_vec4(const vec4& vec)
-            : v(vec)
-        {
-        }
-        std140_vec4()
-            : v(make_vec4(0.0f))
-        {
-        }
-        vec4& values()
-        {
-            return v;
-        }
-        void operator=(const vec4& o)
-        {
-            v = o;
-        }
-        float& operator[](uint32 i)
-        {
-            return v[i];
-        }
-
-      private:
-        vec4 v;
-        //! \endcond
-    };
-
-    //! \brief A mat3 in the glsl std140 layout.
-    struct std140_mat3
-    {
-        //! \cond NO_COND
-        std140_mat3(const mat3& mat)
-            : c0(mat.col(0))
-            , c1(mat.col(1))
-            , c2(mat.col(2))
-        {
-        }
-        std140_mat3()
-            : c0()
-            , c1()
-            , c2()
-        {
-        }
-        void operator=(const mat3& o)
-        {
-            c0 = o.col(0);
-            c1 = o.col(1);
-            c2 = o.col(2);
-        }
-        vec3& operator[](uint32 i)
-        {
-            switch (i)
-            {
-            case 0:
-                return c0.values();
-            case 1:
-                return c1.values();
-            case 2:
-                return c2.values();
-            default:
-                MANGO_ASSERT(false, "3D Matrix has only 3 columns!"); // TODO Paul: Ouch!
-            }
-        }
-        mat3 to_mat3()
-        {
-            mat3 m = mat3::Identity();
-            m << c0.values(), c1.values(), c2.values();
-            return m;
-        }
-
-      private:
-        std140_vec3 c0; uint32 pad0;
-        std140_vec3 c1; uint32 pad1;
-        std140_vec3 c2; uint32 pad2;
-        //! \endcond
-    };
-
-    //! \brief A mat4 in the glsl std140 layout.
-    struct std140_mat4
-    {
-        //! \cond NO_COND
-        std140_mat4(const mat4& mat)
-            : c0(mat.col(0))
-            , c1(mat.col(1))
-            , c2(mat.col(2))
-            , c3(mat.col(3))
-        {
-        }
-        std140_mat4()
-            : c0()
-            , c1()
-            , c2()
-            , c3()
-        {
-        }
-        void operator=(const mat4& o)
-        {
-            c0 = o.col(0);
-            c1 = o.col(1);
-            c2 = o.col(2);
-            c3 = o.col(3);
-        }
-        vec4& operator[](uint32 i)
-        {
-            switch (i)
-            {
-            case 0:
-                return c0.values();
-            case 1:
-                return c1.values();
-            case 2:
-                return c2.values();
-            case 3:
-                return c3.values();
-            default:
-                MANGO_ASSERT(false, "4D Matrix has only 4 columns!"); // TODO Paul: Ouch!
-            }
-        }
-        mat4 to_mat4()
-        {
-            mat4 m = mat4::Identity();
-            m << c0.values(), c1.values(), c2.values(), c3.values();
-            return m;
-        }
-
-      private:
-        std140_vec4 c0;
-        std140_vec4 c1;
-        std140_vec4 c2;
-        std140_vec4 c3;
-        //! \endcond
-    };
-
 } // namespace mango
 
 template <>
@@ -931,6 +636,384 @@ struct fmt::formatter<mango::gfx_shader_resource_type> : formatter<std::string>
             break;
         case mango::gfx_shader_resource_type::shader_resource_input_attachment:
             name = "shader_resource_input_attachment";
+            break;
+        }
+        return formatter<std::string>::format(name, ctx);
+    }
+};
+
+template <>
+struct fmt::formatter<mango::gfx_format> : formatter<std::string>
+{
+    // parse is inherited from formatter<string_view>.
+    template <typename FormatContext>
+    auto format(mango::gfx_format format, FormatContext& ctx)
+    {
+        std::string name = "unknown";
+        switch (format)
+        {
+        case gfx_format::t_byte:
+            name = "t_byte";
+            break;
+        case gfx_format::t_unsigned_byte:
+            name = "t_unsigned_byte";
+            break;
+        case gfx_format::t_short:
+            name = "t_short";
+            break;
+        case gfx_format::t_unsigned_short:
+            name = "t_unsigned_short";
+            break;
+        case gfx_format::t_half_float:
+            name = "t_half_float";
+            break;
+        case gfx_format::t_fixed:
+            name = "t_fixed";
+            break;
+        case gfx_format::t_float:
+            name = "t_float";
+            break;
+        case gfx_format::t_float_vec2:
+            name = "t_float_vec2";
+            break;
+        case gfx_format::t_float_vec3:
+            name = "t_float_vec3";
+            break;
+        case gfx_format::t_float_vec4:
+            name = "t_float_vec4";
+            break;
+        case gfx_format::t_float_mat2:
+            name = "t_float_mat2";
+            break;
+        case gfx_format::t_float_mat3:
+            name = "t_float_mat3";
+            break;
+        case gfx_format::t_float_mat4:
+            name = "t_float_mat4";
+            break;
+        case gfx_format::t_int:
+            name = "t_int";
+            break;
+        case gfx_format::t_int_vec2:
+            name = "t_int_vec2";
+            break;
+        case gfx_format::t_int_vec3:
+            name = "t_int_vec3";
+            break;
+        case gfx_format::t_int_vec4:
+            name = "t_int_vec4";
+            break;
+        case gfx_format::t_unsigned_int:
+            name = "t_unsigned_int";
+            break;
+        case gfx_format::t_unsigned_int_vec2:
+            name = "t_unsigned_int_vec2";
+            break;
+        case gfx_format::t_unsigned_int_vec3:
+            name = "t_unsigned_int_vec3";
+            break;
+        case gfx_format::t_unsigned_int_vec4:
+            name = "t_unsigned_int_vec4";
+            break;
+        case gfx_format::t_bool:
+            name = "t_bool";
+            break;
+        case gfx_format::t_bool_vec2:
+            name = "t_bool_vec2";
+            break;
+        case gfx_format::t_bool_vec3:
+            name = "t_bool_vec3";
+            break;
+        case gfx_format::t_bool_vec4:
+            name = "t_bool_vec4";
+            break;
+        case gfx_format::t_double:
+            name = "t_double";
+            break;
+        case gfx_format::t_double_vec2:
+            name = "t_double_vec2";
+            break;
+        case gfx_format::t_double_vec3:
+            name = "t_double_vec3";
+            break;
+        case gfx_format::t_double_vec4:
+            name = "t_double_vec4";
+            break;
+        case gfx_format::t_double_mat2:
+            name = "t_double_mat2";
+            break;
+        case gfx_format::t_double_mat3:
+            name = "t_double_mat3";
+            break;
+        case gfx_format::t_double_mat4:
+            name = "t_double_mat4";
+            break;
+        case gfx_format::t_unsigned_byte_3_3_2:
+            name = "t_unsigned_byte_3_3_2";
+            break;
+        case gfx_format::t_unsigned_byte_2_3_3_rev:
+            name = "t_unsigned_byte_2_3_3_rev";
+            break;
+        case gfx_format::t_unsigned_short_5_6_5:
+            name = "t_unsigned_short_5_6_5";
+            break;
+        case gfx_format::t_unsigned_short_5_6_5_rev:
+            name = "t_unsigned_short_5_6_5_rev";
+            break;
+        case gfx_format::t_unsigned_short_4_4_4_4:
+            name = "t_unsigned_short_4_4_4_4";
+            break;
+        case gfx_format::t_unsigned_short_4_4_4_4_rev:
+            name = "t_unsigned_short_4_4_4_4_rev";
+            break;
+        case gfx_format::t_unsigned_short_5_5_5_1:
+            name = "t_unsigned_short_5_5_5_1";
+            break;
+        case gfx_format::t_unsigned_short_1_5_5_5_rev:
+            name = "t_unsigned_short_1_5_5_5_rev";
+            break;
+        case gfx_format::t_unsigned_int_8_8_8_8:
+            name = "t_unsigned_int_8_8_8_8";
+            break;
+        case gfx_format::t_unsigned_int_8_8_8_8_rev:
+            name = "t_unsigned_int_8_8_8_8_rev";
+            break;
+        case gfx_format::t_unsigned_int_10_10_10_2:
+            name = "t_unsigned_int_10_10_10_2";
+            break;
+        case gfx_format::t_unsigned_int_2_10_10_10_rev:
+            name = "t_unsigned_int_2_10_10_10_rev";
+            break;
+        case gfx_format::t_int_2_10_10_10_rev:
+            name = "t_int_2_10_10_10_rev";
+            break;
+        case gfx_format::r8:
+            name = "r8";
+            break;
+        case gfx_format::r16:
+            name = "r16";
+            break;
+        case gfx_format::r16f:
+            name = "r16f";
+            break;
+        case gfx_format::r32f:
+            name = "r32f";
+            break;
+        case gfx_format::r8i:
+            name = "r8i";
+            break;
+        case gfx_format::r16i:
+            name = "r16i";
+            break;
+        case gfx_format::r32i:
+            name = "r32i";
+            break;
+        case gfx_format::r8ui:
+            name = "r8ui";
+            break;
+        case gfx_format::r16ui:
+            name = "r16ui";
+            break;
+        case gfx_format::r32ui:
+            name = "r32ui";
+            break;
+        case gfx_format::rg8:
+            name = "rg8";
+            break;
+        case gfx_format::rg16:
+            name = "rg16";
+            break;
+        case gfx_format::rg16f:
+            name = "rg16f";
+            break;
+        case gfx_format::rg32f:
+            name = "rg32f";
+            break;
+        case gfx_format::rg8i:
+            name = "rg8i";
+            break;
+        case gfx_format::rg16i:
+            name = "rg16i";
+            break;
+        case gfx_format::rg32i:
+            name = "rg32i";
+            break;
+        case gfx_format::rg8ui:
+            name = "rg8ui";
+            break;
+        case gfx_format::rg16ui:
+            name = "rg16ui";
+            break;
+        case gfx_format::rg32ui:
+            name = "rg32ui";
+            break;
+        case gfx_format::rgb4:
+            name = "rgb4";
+            break;
+        case gfx_format::rgb5:
+            name = "rgb5";
+            break;
+        case gfx_format::rgb8:
+            name = "rgb8";
+            break;
+        case gfx_format::rgb10:
+            name = "rgb10";
+            break;
+        case gfx_format::rgb12:
+            name = "rgb12";
+            break;
+        case gfx_format::rgb16:
+            name = "rgb16";
+            break;
+        case gfx_format::srgb8:
+            name = "srgb8";
+            break;
+        case gfx_format::srgb8_alpha8:
+            name = "srgb8_alpha8";
+            break;
+        case gfx_format::rgb8ui:
+            name = "rgb8ui";
+            break;
+        case gfx_format::rgb8i:
+            name = "rgb8i";
+            break;
+        case gfx_format::rgb16f:
+            name = "rgb16f";
+            break;
+        case gfx_format::rgb16ui:
+            name = "rgb16ui";
+            break;
+        case gfx_format::rgb16i:
+            name = "rgb16i";
+            break;
+        case gfx_format::rgb32f:
+            name = "rgb32f";
+            break;
+        case gfx_format::rgb32i:
+            name = "rgb32i";
+            break;
+        case gfx_format::rgb32ui:
+            name = "rgb32ui";
+            break;
+        case gfx_format::rgba2:
+            name = "rgba2";
+            break;
+        case gfx_format::rgba4:
+            name = "rgba4";
+            break;
+        case gfx_format::rgb5_a1:
+            name = "rgb5_a1";
+            break;
+        case gfx_format::rgba8:
+            name = "rgba8";
+            break;
+        case gfx_format::rgb10_a2:
+            name = "rgb10_a2";
+            break;
+        case gfx_format::rgba12:
+            name = "rgba12";
+            break;
+        case gfx_format::rgba16:
+            name = "rgba16";
+            break;
+        case gfx_format::rgba16f:
+            name = "rgba16f";
+            break;
+        case gfx_format::rgba32f:
+            name = "rgba32f";
+            break;
+        case gfx_format::rgba8i:
+            name = "rgba8i";
+            break;
+        case gfx_format::rgba16i:
+            name = "rgba16i";
+            break;
+        case gfx_format::rgba32i:
+            name = "rgba32i";
+            break;
+        case gfx_format::rgba8ui:
+            name = "rgba8ui";
+            break;
+        case gfx_format::rgba16ui:
+            name = "rgba16ui";
+            break;
+        case gfx_format::rgba32ui:
+            name = "rgba32ui";
+            break;
+        case gfx_format::depth_component32f:
+            name = "depth_component32f";
+            break;
+        case gfx_format::depth_component16:
+            name = "depth_component16";
+            break;
+        case gfx_format::depth_component24:
+            name = "depth_component24";
+            break;
+        case gfx_format::depth_component32:
+            name = "depth_component32";
+            break;
+        case gfx_format::depth24_stencil8:
+            name = "depth24_stencil8";
+            break;
+        case gfx_format::depth32f_stencil8:
+            name = "depth32f_stencil8";
+            break;
+        case gfx_format::depth_component:
+            name = "depth_component";
+            break;
+        case gfx_format::stencil_index:
+            name = "stencil_index";
+            break;
+        case gfx_format::depth_stencil:
+            name = "depth_stencil";
+            break;
+        case gfx_format::red:
+            name = "red";
+            break;
+        case gfx_format::green:
+            name = "green";
+            break;
+        case gfx_format::blue:
+            name = "blue";
+            break;
+        case gfx_format::rg:
+            name = "rg";
+            break;
+        case gfx_format::rgb:
+            name = "rgb";
+            break;
+        case gfx_format::bgr:
+            name = "bgr";
+            break;
+        case gfx_format::rgba:
+            name = "rgba";
+            break;
+        case gfx_format::bgra:
+            name = "bgra";
+            break;
+        case gfx_format::red_integer:
+            name = "red_integer";
+            break;
+        case gfx_format::green_integer:
+            name = "green_integer";
+            break;
+        case gfx_format::blue_integer:
+            name = "blue_integer";
+            break;
+        case gfx_format::rg_integer:
+            name = "rg_integer";
+            break;
+        case gfx_format::rgb_integer:
+            name = "rgb_integer";
+            break;
+        case gfx_format::bgr_integer:
+            name = "bgr_integer";
+            break;
+        case gfx_format::rgba_integer:
+            name = "rgba_integer";
+            break;
+        case gfx_format::bgra_integer:
+            name = "bgra_integer";
             break;
         }
         return formatter<std::string>::format(name, ctx);

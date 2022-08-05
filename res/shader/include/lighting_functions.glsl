@@ -40,10 +40,10 @@ vec3 calculate_skylight(in vec3 base_color, in vec3 normal, in vec3 view, in flo
 
 vec3 calculate_directional_light(in vec3 base_color, in vec3 normal, in vec3 view, in float n_dot_v, in float perceptual_roughness, in float metallic, in vec3 f0, in float occlusion)
 {
-    if(!directional_valid || directional_intensity < 1e-5)
+    if(!directional_light_valid || directional_light_intensity < 1e-5)
         return vec3(0.0);
 
-    vec3 light_dir        = normalize(directional_direction.xyz);
+    vec3 light_dir        = normalize(directional_light_direction.xyz);
     float alpha           = (perceptual_roughness * perceptual_roughness);
 
     // adjust roughness to approximate small disk
@@ -71,7 +71,7 @@ vec3 calculate_directional_light(in vec3 base_color, in vec3 normal, in vec3 vie
     vec3 diffuse = n_dot_l * Fd;
     vec3 specular = n_dot_l * Fr;
 
-    lighting += (diffuse * occlusion + specular) * directional_color.rgb * directional_intensity;
+    lighting += (diffuse * occlusion + specular) * directional_light_color.rgb * directional_light_intensity;
 
     return lighting;
 }

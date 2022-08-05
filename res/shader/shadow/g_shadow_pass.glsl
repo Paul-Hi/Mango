@@ -15,8 +15,8 @@ out shared_data
 
 void main()
 {
-    gl_Layer = cascade;
-    mat4 view_projection_matrix = shadow_view_projection_matrices[cascade];
+    gl_Layer = shadow_cascade;
+    mat4 view_projection_matrix = shadow_view_projection_matrices[shadow_cascade];
     for(int i = 0; i < gl_in.length(); ++i)
     {
         vec4 pos = view_projection_matrix * gl_in[i].gl_Position;

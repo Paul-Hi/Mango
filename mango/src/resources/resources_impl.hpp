@@ -73,7 +73,7 @@ namespace mango
         //! \param[in] path The full path of the shader source.
         //! \param[in] recursive True if function is called recursive for included shader.
         //! \return The shader source string with all includes and defines.
-        string load_shader_string_from_file(const string path, bool recursive);
+        string load_shader_string_from_file(const string& path, bool recursive);
 
         //! \brief Cache for resources, mapping \a resource_ids to resource pointers.
         std::unordered_map<resource_id, void*> m_resource_cache;

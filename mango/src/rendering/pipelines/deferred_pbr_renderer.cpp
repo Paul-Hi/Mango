@@ -313,7 +313,7 @@ bool deferred_pbr_renderer::create_buffers()
     if (!check_mapping(m_luminance_data_mapping, "luminance data buffer"))
         return false;
 
-    memset(&m_luminance_data_mapping->histogram[0], 0, 256 * sizeof(int32));
+    memset(m_luminance_data_mapping, 0, 256 * sizeof(luminance_data));
     m_luminance_data_mapping->luminance = 1.0f;
 
     return true;
@@ -993,10 +993,10 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     bounding_frustum camera_frustum;
     if (m_frustum_culling)
     {
-        camera_frustum = bounding_frustum(active_camera_data->per_camera_data.view_matrix.to_mat4(), active_camera_data->per_camera_data.projection_matrix.to_mat4());
+        camera_frustum = bounding_frustum(active_camera_data->per_camera_data.view_matrix, active_camera_data->per_camera_data.projection_matrix);
         if (m_debug_bounds)
         {
-            auto corners = bounding_frustum::get_corners(active_camera_data->per_camera_data.view_projection_matrix.to_mat4());
+            auto corners = bounding_frustum::get_corners(active_camera_data->per_camera_data.view_projection_matrix);
             m_debug_drawer.set_color(color_rgb(0.0f, 1.0f, 0.0f));
             m_debug_drawer.add(corners[0], corners[1]);
             m_debug_drawer.add(corners[1], corners[3]);
@@ -1058,9 +1058,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 for (const vec3& corner : bb_corners)
                 {
                     if (!a_draw.transparent)
-                        a_draw.view_depth = min(a_draw.view_depth, (active_camera_data->per_camera_data.view_matrix.to_mat4() * vec4(corner.x(), corner.y(), corner.z(), 1.0f)).z());
+                        a_draw.view_depth = min(a_draw.view_depth, (active_camera_data->per_camera_data.view_matrix * vec4(corner.x(), corner.y(), corner.z(), 1.0f)).z());
                     else
-                        a_draw.view_depth = max(a_draw.view_depth, (active_camera_data->per_camera_data.view_matrix.to_mat4() * vec4(corner.x(), corner.y(), corner.z(), 1.0f)).z());
+                        a_draw.view_depth = max(a_draw.view_depth, (active_camera_data->per_camera_data.view_matrix * vec4(corner.x(), corner.y(), corner.z(), 1.0f)).z());
                 }
                 // MANGO_LOG_INFO("{0}", a_draw.view_depth);
 
@@ -1088,19 +1088,19 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             for (auto sc : shadow_casters)
             {
                 shadow_pass->update_cascades(dt, active_camera_data->per_camera_data.camera_near, active_camera_data->per_camera_data.camera_far,
-                                             active_camera_data->per_camera_data.view_projection_matrix.to_mat4(), sc.direction);
+                                             active_camera_data->per_camera_data.view_projection_matrix, sc.direction);
                 auto& shadow_data_buffer = shadow_pass->get_shadow_data_buffer();
                 m_frame_context->set_render_targets(0, nullptr, shadow_pass->get_shadow_maps_texture());
                 auto& data = shadow_pass->get_shadow_data();
-                for (int32 casc = 0; casc < data.cascade_count; ++casc)
+                for (int32 casc = 0; casc < data.shadow_cascade_count; ++casc)
                 {
                     auto& cascade_frustum = shadow_pass->get_cascade_frustum(casc);
 
-                    data.cascade = casc;
+                    data.shadow_cascade = casc;
 
                     if (m_debug_bounds)
                     {
-                        auto corners = bounding_frustum::get_corners(data.view_projection_matrices[casc].to_mat4());
+                        auto corners = bounding_frustum::get_corners(data.shadow_view_projection_matrices[casc]);
                         m_debug_drawer.set_color(color_rgb(0.5f));
                         m_debug_drawer.add(corners[0], corners[1]);
                         m_debug_drawer.add(corners[1], corners[3]);
@@ -1156,7 +1156,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                         gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(shadow_pass->resolution()), static_cast<float>(shadow_pass->resolution()) };
                         m_frame_context->set_viewport(0, 1, &shadow_viewport);
 
-                        m_frame_context->set_buffer_data(shadow_data_buffer, 0, sizeof(shadow_map_step::shadow_data), &(data));
+                        m_frame_context->set_buffer_data(shadow_data_buffer, 0, sizeof(shadow_data), &(data));
                         dc_pipeline->get_resource_mapping()->set("shadow_data", shadow_data_buffer);
 
                         dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);

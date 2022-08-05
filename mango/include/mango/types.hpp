@@ -49,7 +49,7 @@ namespace mango
     //! \brief Type alias for a size_t.
     using ptr_size = ::size_t;
 
-    //! \brief Type alias for an iintptr_t.
+    //! \brief Type alias for an intptr_t.
     using intptr = ::intptr_t;
 
     //! \brief Type alias for an uintptr_t.
@@ -66,6 +66,24 @@ namespace mango
 
     //! \brief Type alias for a Eigen::Vector4i.
     using ivec4 = Eigen::Vector4i;
+
+    //! \brief Type alias for a Eigen::Vector2<uint32>.
+    using uvec2 = Eigen::Vector2<uint32>;
+
+    //! \brief Type alias for a  Eigen::Vector3<uint32>.
+    using uvec3 = Eigen::Vector3<uint32>;
+
+    //! \brief Type alias for a Eigen::Vector4<uint32>.
+    using uvec4 = Eigen::Vector4<uint32>;
+
+    //! \brief Type alias for a Eigen::Vector2<bool>.
+    using bvec2 = Eigen::Vector2<bool>;
+
+    //! \brief Type alias for a  Eigen::Vector3<bool>.
+    using bvec3 = Eigen::Vector3<bool>;
+
+    //! \brief Type alias for a Eigen::Vector4<bool>.
+    using bvec4 = Eigen::Vector4<bool>;
 
     //! \brief Type alias for a Eigen::Vector2f.
     using vec2 = Eigen::Vector2f;

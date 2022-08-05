@@ -18,20 +18,20 @@ shadow_map_step::shadow_map_step(const shadow_settings& settings)
 {
     PROFILE_ZONE;
 
-    m_shadow_data.resolution                  = settings.get_resolution();
-    m_shadow_data.sample_count                = settings.get_sample_count();
+    m_shadow_data.shadow_resolution                  = settings.get_resolution();
+    m_shadow_data.shadow_sample_count                = settings.get_sample_count();
     m_shadow_data.shadow_width                = settings.get_shadow_width();
     m_shadow_map_offset                       = settings.get_offset();
-    m_shadow_data.cascade_count               = settings.get_cascade_count();
-    m_shadow_data.slope_bias                  = settings.get_slope_bias();
-    m_shadow_data.normal_bias                 = settings.get_normal_bias();
-    m_shadow_data.filter_mode                 = static_cast<int32>(settings.get_filter_mode());
+    m_shadow_data.shadow_cascade_count               = settings.get_cascade_count();
+    m_shadow_data.shadow_slope_bias                  = settings.get_slope_bias();
+    m_shadow_data.shadow_normal_bias                 = settings.get_normal_bias();
+    m_shadow_data.shadow_filter_mode                 = static_cast<int32>(settings.get_filter_mode());
     m_cascade_data.lambda                     = settings.get_split_lambda();
-    m_shadow_data.cascade_interpolation_range = settings.get_cascade_interpolation_range();
+    m_shadow_data.shadow_cascade_interpolation_range = settings.get_cascade_interpolation_range();
     m_shadow_data.shadow_light_size           = settings.get_light_size();
-    MANGO_ASSERT(m_shadow_data.resolution % 2 == 0, "Shadow Map Resolution has to be a multiple of 2!");
-    MANGO_ASSERT(m_shadow_data.sample_count >= 8 && m_shadow_data.sample_count <= 64, "Sample count is not in valid range 8 - 64!");
-    MANGO_ASSERT(m_shadow_data.cascade_count > 0 && m_shadow_data.cascade_count < 5, "Cascade count has to be between 1 and 4!");
+    MANGO_ASSERT(m_shadow_data.shadow_resolution % 2 == 0, "Shadow Map Resolution has to be a multiple of 2!");
+    MANGO_ASSERT(m_shadow_data.shadow_sample_count >= 8 && m_shadow_data.shadow_sample_count <= 64, "Sample count is not in valid range 8 - 64!");
+    MANGO_ASSERT(m_shadow_data.shadow_cascade_count > 0 && m_shadow_data.shadow_cascade_count < 5, "Cascade count has to be between 1 and 4!");
     MANGO_ASSERT(m_cascade_data.lambda > 0.0f && m_cascade_data.lambda < 1.0f, "Lambda has to be between 0.0 and 1.0!");
 }
 
@@ -205,8 +205,8 @@ bool shadow_map_step::create_shadow_map()
 
     texture_create_info shadow_map_info;
     shadow_map_info.texture_type   = gfx_texture_type::texture_type_2d_array;
-    shadow_map_info.width          = m_shadow_data.resolution;
-    shadow_map_info.height         = m_shadow_data.resolution;
+    shadow_map_info.width          = m_shadow_data.shadow_resolution;
+    shadow_map_info.height         = m_shadow_data.shadow_resolution;
     shadow_map_info.miplevels      = 1;
     shadow_map_info.array_layers   = max_shadow_mapping_cascades;
     shadow_map_info.texture_format = gfx_format::depth_component32;
@@ -227,7 +227,7 @@ void shadow_map_step::attach(const shared_ptr<context_impl>& context)
 
 void shadow_map_step::execute() {}
 
-void shadow_map_step::update_cascades(float dt, float camera_near, float camera_far, const mat4& camera_view_projection, const vec3& directional_direction)
+void shadow_map_step::update_cascades(float dt, float camera_near, float camera_far, const mat4& camera_view_projection, const vec3& directional_light_direction)
 {
     // Update only with 30 fps
     static float fps_lock = 0.0f;
@@ -238,7 +238,7 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
 
     m_cascade_data.camera_near           = camera_near;
     m_cascade_data.camera_far            = camera_far;
-    m_cascade_data.directional_direction = directional_direction;
+    m_cascade_data.directional_light_direction = directional_light_direction;
 
     const float& clip_near  = camera_near;
     const float& clip_far   = camera_far;
@@ -251,9 +251,9 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
     float cascade_splits[max_shadow_mapping_cascades];
 
     // Based on method presented in https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
-    for (int32 i = 0; i < m_shadow_data.cascade_count; ++i)
+    for (int32 i = 0; i < m_shadow_data.shadow_cascade_count; ++i)
     {
-        float p           = static_cast<float>(i + 1) / static_cast<float>(m_shadow_data.cascade_count);
+        float p           = static_cast<float>(i + 1) / static_cast<float>(m_shadow_data.shadow_cascade_count);
         float log         = min_z * std::pow(std::abs(ratio), p);
         float uniform     = min_z + range * p;
         float d           = m_cascade_data.lambda * (log - uniform) + uniform;
@@ -274,9 +274,9 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         frustum_corners[i] = inv.head<3>() / inv.w();
     }
 
-    float interpolation   = (m_shadow_data.cascade_interpolation_range - clip_near) / clip_range;
+    float interpolation   = (m_shadow_data.shadow_cascade_interpolation_range - clip_near) / clip_range;
     float last_split_dist = 0.0f;
-    for (int32 casc = 0; casc < m_shadow_data.cascade_count; ++casc)
+    for (int32 casc = 0; casc < m_shadow_data.shadow_cascade_count; ++casc)
     {
         vec3 center = make_vec3(0.0f);
         vec3 current_frustum_corners[8];
@@ -308,17 +308,17 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         mat4 projection;
         mat4 view;
         vec3 up             = GLOBAL_UP;
-        vec3 light_to_point = -m_cascade_data.directional_direction.normalized();
+        vec3 light_to_point = -m_cascade_data.directional_light_direction.normalized();
         if (up.dot(light_to_point) < 1e-5f)
             up = GLOBAL_RIGHT;
         view                           = lookAt(vec3(center - light_to_point * (-min_extends.z() + m_shadow_map_offset)), center, up);
         projection                     = ortho(min_extends.x(), max_extends.x(), min_extends.y(), max_extends.y(), 0.0f, (max_extends.z() - min_extends.z()) + m_shadow_map_offset);
-        m_shadow_data.far_planes[casc] = (max_extends.z() - min_extends.z()) + m_shadow_map_offset;
+        m_shadow_data.shadow_far_planes[casc] = (max_extends.z() - min_extends.z()) + m_shadow_map_offset;
 
         mat4 shadow_matrix = projection * view;
         vec4 origin        = vec4(0.0f, 0.0f, 0.0f, 1.0f);
         origin             = shadow_matrix * origin;
-        origin *= static_cast<float>(m_shadow_data.resolution) * 0.5f;
+        origin *= static_cast<float>(m_shadow_data.shadow_resolution) * 0.5f;
 
         vec4 rounded;
         rounded.x() = round(origin.x());
@@ -326,13 +326,13 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         rounded.z() = round(origin.z());
         rounded.w() = round(origin.w());
         vec4 offset = rounded - origin;
-        offset *= 2.0f / static_cast<float>(m_shadow_data.resolution);
+        offset *= 2.0f / static_cast<float>(m_shadow_data.shadow_resolution);
         offset.z() = 0.0f;
         offset.w() = 0.0f;
         projection.col(3) += offset;
 
-        m_shadow_data.split_depth[casc]              = (clip_near + split_dist * clip_range);
-        m_shadow_data.view_projection_matrices[casc] = projection * view;
+        m_shadow_data.shadow_split_depth[casc]              = (clip_near + split_dist * clip_range);
+        m_shadow_data.shadow_view_projection_matrices[casc] = projection * view;
         m_cascade_data.frusta[casc]                  = bounding_frustum(view, projection);
     }
 }
@@ -342,32 +342,32 @@ void shadow_map_step::on_ui_widget()
     ImGui::PushID("shadow_step");
     // Resolution 512, 1024, 2048, 4096
     const char* resolutions[4] = { "512", "1024", "2048", "4096" };
-    int32 r                    = m_shadow_data.resolution;
+    int32 r                    = m_shadow_data.shadow_resolution;
     int32 current              = r > 2048 ? 3 : (r > 1024 ? 2 : (r > 512 ? 1 : 0));
     combo("Shadow Map Resolution", resolutions, 4, current, 2);
-    m_shadow_data.resolution = 512 * static_cast<int32>(pow(2, current));
-    if (m_shadow_data.resolution != r)
+    m_shadow_data.shadow_resolution = 512 * static_cast<int32>(pow(2, current));
+    if (m_shadow_data.shadow_resolution != r)
         create_shadow_map();
 
     // Filter Type
     const char* filter[3] = { "Hard Shadows", "Soft Shadows", "PCCF Shadows" };
-    int32& current_filter = m_shadow_data.filter_mode;
+    int32& current_filter = m_shadow_data.shadow_filter_mode;
     combo("Shadow Filter Mode", filter, 3, current_filter, 1);
 
     int32 default_ivalue[1] = { 16 };
     float default_value[1]  = { 4.0f };
 
-    if (m_shadow_data.filter_mode == 1)
+    if (m_shadow_data.shadow_filter_mode == 1)
     {
-        int32& sample_count = m_shadow_data.sample_count;
+        int32& sample_count = m_shadow_data.shadow_sample_count;
         slider_int_n("Sample Count", &sample_count, 1, default_ivalue, 8, 64);
         float& width = m_shadow_data.shadow_width;
         slider_float_n("Shadow Width (px)", &width, 1, default_value, 1.0f, 16.0f);
     }
 
-    if (m_shadow_data.filter_mode == 2)
+    if (m_shadow_data.shadow_filter_mode == 2)
     {
-        int32& sample_count = m_shadow_data.sample_count;
+        int32& sample_count = m_shadow_data.shadow_sample_count;
         slider_int_n("Sample Count", &sample_count, 1, default_ivalue, 8, 64);
         float& l_size = m_shadow_data.shadow_light_size;
         slider_float_n("Light Size PCFF", &l_size, 1, default_value, 1.0f, 16.0f);
@@ -376,19 +376,19 @@ void shadow_map_step::on_ui_widget()
     // Offset 0.0 - 100.0
     slider_float_n("Shadow Map Offset", &m_shadow_map_offset, 1, default_value, 0.0f, 100.0f);
 
-    float& s_bias    = m_shadow_data.slope_bias;
+    float& s_bias    = m_shadow_data.shadow_slope_bias;
     default_value[0] = 0.005f;
     drag_float_n("Shadow Map Slope Bias", &s_bias, 1, default_value, 0.001f, 0.0f, 0.5f);
 
-    float& n_bias    = m_shadow_data.normal_bias;
+    float& n_bias    = m_shadow_data.shadow_normal_bias;
     default_value[0] = 0.01f;
     drag_float_n("Shadow Map Normal Bias", &n_bias, 1, default_value, 0.001f, 0.0f, 0.5f);
 
     // Cascades 1, 2, 3, 4
-    int32& shadow_cascades = m_shadow_data.cascade_count;
+    int32& shadow_cascades = m_shadow_data.shadow_cascade_count;
     default_ivalue[0]      = 3;
     slider_int_n("Number Of Shadow Cascades", &shadow_cascades, 1, default_ivalue, 1, 4);
-    float& interpolation_range = m_shadow_data.cascade_interpolation_range;
+    float& interpolation_range = m_shadow_data.shadow_cascade_interpolation_range;
     default_value[0]           = 0.5f;
     slider_float_n("Cascade Interpolation Range", &interpolation_range, 1, default_value, 0.0f, 10.0f);
     slider_float_n("Cascade Splits Lambda", &m_cascade_data.lambda, 1, default_value, 0.0f, 1.0f);

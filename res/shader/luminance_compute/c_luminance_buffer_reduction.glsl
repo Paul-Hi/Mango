@@ -1,14 +1,8 @@
 #include <../include/common_constants_and_functions.glsl>
 #include <../include/bindings.glsl>
+#include <../include/luminance.glsl>
 
 layout(local_size_x = 16, local_size_y = 16) in;
-
-layout(binding = LUMINANCE_DATA_BUFFER_BINDING_POINT, std430) buffer luminance_data
-{
-    uint histogram[256];
-    vec4 params; // min_log_luminance (x), inverse_log_luminance_range (y), time coefficient (z), pixel_count (w)
-    float luminance;
-};
 
 #define min_log_luminance params.x
 #define log_luminance_range (1.0 / params.y)

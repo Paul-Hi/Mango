@@ -48,7 +48,7 @@ void main()
         // vec3 sun = vec3(pow(smoothstep(0.997, 1.0, dot(ray_dir, sun_dir.xyz)), 16.0));
         // sun *= saturate(pow(smoothstep(0.0, ground_radius, abs(ground_intersect.x) - ground_intersect.y), 2.0));
 
-        // color += directional_color.rgb * directional_intensity * skylight_intensity * sun * 0.007;
+        // color += directional_light_color.rgb * directional_light_intensity * skylight_intensity * sun * 0.007;
     }
     else
         color = vec3(30000.0); // TODO Paul: Hardcoded -.-

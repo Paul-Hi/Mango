@@ -55,6 +55,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/input_impl.hpp
     # Resources
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resources_impl.hpp
+
     # Scene
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_structures_internal.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_impl.hpp
@@ -89,6 +90,9 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/debug_drawer.hpp
+
+    #generated
+    ${CMAKE_CURRENT_SOURCE_DIR}/gen/shader_interop.hpp
 )
 
 set(SOURCES
@@ -116,6 +120,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/graphics.cpp
     # Resources
     ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/resources_impl.cpp
+
     # Scene
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene/scene_helper.cpp
@@ -151,6 +156,7 @@ target_include_directories(mango
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/gen
 )
 
 target_include_directories(mango SYSTEM
