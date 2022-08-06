@@ -313,7 +313,7 @@ bool deferred_pbr_renderer::create_buffers()
     if (!check_mapping(m_luminance_data_mapping, "luminance data buffer"))
         return false;
 
-    memset(m_luminance_data_mapping, 0, 256 * sizeof(luminance_data));
+    memset(m_luminance_data_mapping, 0, sizeof(luminance_data));
     m_luminance_data_mapping->luminance = 1.0f;
 
     return true;

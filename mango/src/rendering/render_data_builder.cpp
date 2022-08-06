@@ -575,17 +575,17 @@ void atmosphere_builder::build(atmosphere_light* light, atmosphere_cache* render
 // buffer_ptr m_atmosphere_data_buffer;
 // struct atmosphere_ub_data
 // {
-//     std140_vec3 sun_dir;
-//     std140_vec3 rayleigh_scattering_coefficients;
-//     std140_vec3 ray_origin;
-//     std140_vec2 density_multiplier;
-//     std140_float sun_intensity;
-//     std140_float mie_scattering_coefficient;
-//     std140_float ground_radius;
-//     std140_float atmosphere_radius;
-//     std140_float mie_preferred_scattering_dir;
-//     std140_int scatter_points;
-//     std140_int scatter_points_second_ray;
+//     sl_vec3 sun_dir;
+//     sl_vec3 rayleigh_scattering_coefficients;
+//     sl_vec3 ray_origin;
+//     sl_vec2 density_multiplier;
+//     sl_float sun_intensity;
+//     sl_float mie_scattering_coefficient;
+//     sl_float ground_radius;
+//     sl_float atmosphere_radius;
+//     sl_float mie_preferred_scattering_dir;
+//     sl_int scatter_points;
+//     sl_int scatter_points_second_ray;
 // };
 // atmosphere_ub_data* m_atmosphere_data_mapping;
 

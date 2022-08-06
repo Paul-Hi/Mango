@@ -65,11 +65,11 @@ namespace mango
         //! \brief Uniform buffer struct for cubemap data.
         struct cubemap_data
         {
-            std140_mat4 model_matrix;  //!< Rotation and scale for the cubemap.
-            std140_float render_level; //!< The miplevel to render the cubemap with.
-            std140_float p0;           //!< Padding.
-            std140_float p1;           //!< Padding.
-            std140_float p2;           //!< Padding.
+            sl_mat4 model_matrix;  //!< Rotation and scale for the cubemap.
+            sl_float render_level; //!< The miplevel to render the cubemap with.
+            sl_float p0;           //!< Padding.
+            sl_float p1;           //!< Padding.
+            sl_float p2;           //!< Padding.
         } m_cubemap_data;              //!< Current cubemap_data.
     };
 } // namespace mango

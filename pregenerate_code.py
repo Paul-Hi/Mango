@@ -74,41 +74,43 @@ def po(n): return pow(2, ceil(log2(n)))
 def round_up(k, n): return ceil(n / k) * k
 
 
-def align_and_size_of(element: buffer_element, layout: str) -> Tuple[int, int]:
-
+def align_and_size_of_(comp_count, comp_size, rows, cols, array_size, layout):
     if layout == 'std140':
-        if element.array_size == 0:
-            if element.rows == 0:  # cols have to be 0 as well!
-                return po(element.comp_count * element.comp_size), element.comp_count * element.comp_size
+        if array_size == 0:
+            if rows == 0:  # cols have to be 0 as well!
+                return po(comp_count * comp_size), comp_count * comp_size
             else:
-                assert(element.rows == element.cols,
+                assert(rows == cols,
                        'Only quadratic matrices supported atm.')
-                align = round_up(16, element.rows * element.comp_size)
-                return align, align * element.cols
-        elif element.array_size > 0:
-            align_of_e = po(element.comp_count * element.comp_size)
-            size_of_e = element.comp_count * element.comp_size
+                align = round_up(16, rows * comp_size)
+                return align, align * cols
+        elif array_size > 0:
+            align_of_e, size_of_e = align_and_size_of_(
+                comp_count, comp_size, rows, cols, 0, layout)
             align = round_up(16, align_of_e)
-            return align, round_up(align, size_of_e * element.array_size)
+            return align, round_up(align, size_of_e * array_size)
         else:  # array_size == -1 -> dynamic
             raise NotImplementedError
     elif layout == 'std430':
-        if element.array_size == 0:
-            if element.rows == 0:  # cols have to be 0 as well!
-                return po(element.comp_count * element.comp_size), element.comp_count * element.comp_size
+        if array_size == 0:
+            if rows == 0:  # cols have to be 0 as well!
+                return po(comp_count * comp_size), comp_count * comp_size
             else:
-                assert(element.rows == element.cols,
+                assert(rows == cols,
                        'Only quadratic matrices supported atm.')
-                return po(element.rows * element.comp_size), element.comp_count * element.comp_size
-        elif element.array_size > 0:
-            align_of_e = po(element.comp_count * element.comp_size)
-            size_of_e = element.comp_count * element.comp_size
-            align = round_up(16, align_of_e)
-            return align_of_e, round_up(align, size_of_e * element.array_size)
+                return po(rows * comp_size), comp_count * comp_size
+        elif array_size > 0:
+            align_of_e, size_of_e = align_and_size_of_(
+                comp_count, comp_size, rows, cols, 0, layout)
+            return align_of_e, round_up(align_of_e, size_of_e * array_size)
         else:  # array_size == -1 -> dynamic
             raise NotImplementedError
     else:
         print('Error, unknown std layout', layout)
+
+
+def align_and_size_of(element: buffer_element, layout: str) -> Tuple[int, int]:
+    return align_and_size_of_(element.comp_count, element.comp_size, element.rows, element.cols, element.array_size, layout)
 
 
 def offset_of(element: buffer_element, current_offset: int) -> Tuple[int, int]:
@@ -118,14 +120,14 @@ def offset_of(element: buffer_element, current_offset: int) -> Tuple[int, int]:
 
 def cpp_type(type: str):
     if type == 'int':
-        return 'std140_int32'
+        return 'sl_int32'
     if type == 'uint':
-        return 'std140_uint32'
-    return 'std140_' + type
+        return 'sl_uint32'
+    return 'sl_' + type
 
 
-def cpp_array_type(type: str, n: int):
-    return 'std140_array<' + cpp_type(type) + ', ' + str(n) + '>'
+def cpp_array_type(type: str, n: int, layout: str):
+    return cpp_type(type) + '_array_' + layout + '<' + str(n) + '>'
 
 
 def parse_shader_buffers(files: List[str]) -> List[buffer]:
@@ -204,70 +206,72 @@ def parse_shader_buffers(files: List[str]) -> List[buffer]:
 
     return buffers
 
-# returns string std140 type, standard type
-def get_primitivestd140_type_data() -> List[Tuple[str, str]]:
+# returns string sl type, standard type
+
+
+def get_primitive_sl_type_data() -> List[Tuple[str, str]]:
     return [
-        ('std140_uint32', 'uint32'),
-        ('std140_int32', 'int32'),
-        ('std140_float', 'float'),
-        ('std140_double', 'double'),
-        ('std140_bool', 'bool'),
-        ('std140_vec2', 'vec2'),
-        ('std140_vec3', 'vec3'),
-        ('std140_vec4', 'vec4'),
-        ('std140_ivec2', 'ivec2'),
-        ('std140_ivec3', 'ivec3'),
-        ('std140_ivec4', 'ivec4'),
-        ('std140_uvec2', 'uvec2'),
-        ('std140_uvec3', 'uvec3'),
-        ('std140_uvec4', 'uvec4'),
-        ('std140_dvec2', 'dvec2'),
-        ('std140_dvec3', 'dvec3'),
-        ('std140_dvec4', 'dvec4'),
-        ('std140_bvec2', 'bvec2'),
-        ('std140_bvec3', 'bvec3'),
-        ('std140_bvec4', 'bvec4'),
-        ('std140_mat2', 'mat2'),
-        ('std140_mat3', 'mat3'),
-        ('std140_mat4', 'mat4'),
-        ('std140_dmat2', 'dmat2'),
-        ('std140_dmat3', 'dmat3'),
-        ('std140_dmat4', 'dmat4'),
+        ('sl_uint32', 'uint32'),
+        ('sl_int32', 'int32'),
+        ('sl_float', 'float'),
+        ('sl_double', 'double'),
+        ('sl_bool', 'bool'),
+        ('sl_vec2', 'vec2'),
+        ('sl_vec3', 'vec3'),
+        ('sl_vec4', 'vec4'),
+        ('sl_ivec2', 'ivec2'),
+        ('sl_ivec3', 'ivec3'),
+        ('sl_ivec4', 'ivec4'),
+        ('sl_uvec2', 'uvec2'),
+        ('sl_uvec3', 'uvec3'),
+        ('sl_uvec4', 'uvec4'),
+        ('sl_dvec2', 'dvec2'),
+        ('sl_dvec3', 'dvec3'),
+        ('sl_dvec4', 'dvec4'),
+        ('sl_bvec2', 'bvec2'),
+        ('sl_bvec3', 'bvec3'),
+        ('sl_bvec4', 'bvec4'),
+        ('sl_mat2', 'mat2'),
+        ('sl_mat3', 'mat3'),
+        ('sl_mat4', 'mat4'),
+        ('sl_dmat2', 'dmat2'),
+        ('sl_dmat3', 'dmat3'),
+        ('sl_dmat4', 'dmat4'),
     ]
 
 
 def write_type_defines(f: TextIOWrapper):
     # simple first
-    f.write('using std140_uint32 = uint32;' + '\n')
-    f.write('using std140_int32  = int32;' + '\n')
-    f.write('using std140_float  = float;' + '\n')
-    f.write('using std140_double = double;' + '\n')
-    f.write('using std140_vec2   = vec2;' + '\n')
-    f.write('using std140_vec3   = vec3;' + '\n')
-    f.write('using std140_vec4   = vec4;' + '\n')
-    f.write('using std140_ivec2  = ivec2;' + '\n')
-    f.write('using std140_ivec3  = ivec3;' + '\n')
-    f.write('using std140_ivec4  = ivec4;' + '\n')
-    f.write('using std140_uvec2  = uvec2;' + '\n')
-    f.write('using std140_uvec3  = uvec3;' + '\n')
-    f.write('using std140_uvec4  = uvec4;' + '\n')
-    f.write('using std140_dvec2  = dvec2;' + '\n')
-    f.write('using std140_dvec3  = dvec3;' + '\n')
-    f.write('using std140_dvec4  = dvec4;' + '\n')
-    f.write('using std140_mat2   = mat2;' + '\n')
-    f.write('using std140_mat4   = mat4;' + '\n')
-    f.write('using std140_dmat2  = dmat2;' + '\n')
-    f.write('using std140_dmat4  = dmat4;' + '\n')
+    f.write('using sl_uint32 = uint32;' + '\n')
+    f.write('using sl_int32  = int32;' + '\n')
+    f.write('using sl_float  = float;' + '\n')
+    f.write('using sl_double = double;' + '\n')
+    f.write('using sl_vec2   = vec2;' + '\n')
+    f.write('using sl_vec3   = vec3;' + '\n')
+    f.write('using sl_vec4   = vec4;' + '\n')
+    f.write('using sl_ivec2  = ivec2;' + '\n')
+    f.write('using sl_ivec3  = ivec3;' + '\n')
+    f.write('using sl_ivec4  = ivec4;' + '\n')
+    f.write('using sl_uvec2  = uvec2;' + '\n')
+    f.write('using sl_uvec3  = uvec3;' + '\n')
+    f.write('using sl_uvec4  = uvec4;' + '\n')
+    f.write('using sl_dvec2  = dvec2;' + '\n')
+    f.write('using sl_dvec3  = dvec3;' + '\n')
+    f.write('using sl_dvec4  = dvec4;' + '\n')
+    f.write('using sl_mat2   = mat2;' + '\n')
+    f.write('using sl_mat4   = mat4;' + '\n')
+    f.write('using sl_dmat2  = dmat2;' + '\n')
+    f.write('using sl_dmat4  = dmat4;' + '\n')
     f.write('\n')
-    # std140 bool has to be 4 bytes in size
-    f.write('struct std140_bool' + '\n')
+    # sl bool has to be 4 bytes in size
+    f.write('struct sl_bool' + '\n')
     f.write('{' + '\n')
-    f.write('    std140_bool(const bool& b)' + '\n')
+    f.write('    sl_bool(const bool& b)' + '\n')
     f.write('    {' + '\n')
     f.write('        pad = 0;' + '\n')
     f.write('        v   = b;' + '\n')
     f.write('    }' + '\n')
-    f.write('    std140_bool()' + '\n')
+    f.write('    sl_bool()' + '\n')
     f.write('    {' + '\n')
     f.write('        pad = 0;' + '\n')
     f.write('        v   = false;' + '\n')
@@ -290,19 +294,19 @@ def write_type_defines(f: TextIOWrapper):
     f.write('    };' + '\n')
     f.write('};' + '\n')
     f.write('\n')
-    f.write('using std140_bvec2 = Eigen::Vector2<std140_bool>;' + '\n')
-    f.write('using std140_bvec3 = Eigen::Vector3<std140_bool>;' + '\n')
-    f.write('using std140_bvec4 = Eigen::Vector4<std140_bool>;' + '\n')
+    f.write('using sl_bvec2 = Eigen::Vector2<sl_bool>;' + '\n')
+    f.write('using sl_bvec3 = Eigen::Vector3<sl_bool>;' + '\n')
+    f.write('using sl_bvec4 = Eigen::Vector4<sl_bool>;' + '\n')
     f.write('\n')
     f.write('template <typename T>' + '\n')
-    f.write('struct std140_matrix3' + '\n')
+    f.write('struct sl_matrix3' + '\n')
     f.write('{' + '\n')
-    f.write('    std140_matrix3(const Eigen::Matrix3<T>& mat)' + '\n')
+    f.write('    sl_matrix3(const Eigen::Matrix3<T>& mat)' + '\n')
     f.write('        : m(Eigen::Matrix3<T>::Zero())' + '\n')
     f.write('    {' + '\n')
     f.write('        m.block<0, 0>(3, 3) = mat;' + '\n')
     f.write('    }' + '\n')
-    f.write('    std140_matrix3()' + '\n')
+    f.write('    sl_matrix3()' + '\n')
     f.write('        : m(Eigen::Matrix<T, 4, 3>::Zero())' + '\n')
     f.write('    {' + '\n')
     f.write('    }' + '\n')
@@ -319,29 +323,18 @@ def write_type_defines(f: TextIOWrapper):
     f.write('    Eigen::Matrix<T, 4, 3> m;' + '\n')
     f.write('};' + '\n')
     f.write('\n')
-    f.write('using std140_mat3  = std140_matrix3<float>;' + '\n')
-    f.write('using std140_dmat3 = std140_matrix3<double>;' + '\n')
-# TODO: std430 differn for arrays ... -also naming needs to somehow reflect that ...
+    f.write('using sl_mat3  = sl_matrix3<float>;' + '\n')
+    f.write('using sl_dmat3 = sl_matrix3<double>;' + '\n')
 # TODO: Dynamic sized arrays in general (might do later, since we do not use them atm)
-# TODO: Include generated file and test under real conditions! :D
-    # base for std140_arrays constrained to the right types
-    primitivestd140_type_data = get_primitivestd140_type_data()
-    f.write('template <typename T, ptr_size N>' + '\n')
-    f.write('struct std140_array' + '\n')
-    f.write('{' + '\n')
-    f.write('    static_assert(' + '\n')
+    # base for sl_arrays constrained to the right types
+    primitive_sl_type_data = get_primitive_sl_type_data()
 
-    for tp in primitivestd140_type_data:
-        f.write('                  std::is_same<' +
-                tp[0] + ', T>::value ||' + '\n')
-    f.write('                  0' + '\n')
-    f.write('                  , "Type is not allowed.");' + '\n')
-    f.write('};' + '\n')
-    f.write('\n')
+    layouts = ["std140", "std430"]
 
-    for tp in primitivestd140_type_data:
+    # std140
+    for tp in primitive_sl_type_data:
         f.write('template <ptr_size N>' + '\n')
-        f.write('struct std140_array<' + tp[0] + ', N>' + '\n')
+        f.write('struct ' + tp[0] + '_array_' + layouts[0] + '\n')
         f.write('{' + '\n')
         f.write('    void fill_from_list(const ' +
                 tp[1] + '* list, uint32 count)' + '\n')
@@ -359,8 +352,10 @@ def write_type_defines(f: TextIOWrapper):
         f.write('        return data[i].value;' + '\n')
         f.write('    }' + '\n')
         f.write('\n')
-        f.write('    std140_array() = default;' + '\n')
-        f.write('    ~std140_array() = default;' + '\n')
+        f.write('    ' + tp[0] + '_array_' +
+                layouts[0] + '() = default;' + '\n')
+        f.write('    ~' + tp[0] + '_array_' +
+                layouts[0] + '() = default;' + '\n')
         f.write('\n')
         f.write('private:' + '\n')
         f.write('    struct internal_element' + '\n')
@@ -371,16 +366,66 @@ def write_type_defines(f: TextIOWrapper):
         f.write('            value = v;' + '\n')
         f.write('        };' + '\n')
         f.write('        ' + tp[0] + ' value;' + '\n')
-        comp_size, comp_count, _, _ = component_size_count_row_col(tp[1])
-        align_of_e = po(comp_count * comp_size)
-        size_of_e = comp_count * comp_size
+        comp_size, comp_count, rows, cols = component_size_count_row_col(tp[1])
+        align_of_e, size_of_e = align_and_size_of_(comp_count, comp_size, rows, cols, 0, layouts[0])
         array_align = round_up(16, align_of_e)
         stride = round_up(array_align, size_of_e)
         rest = stride - size_of_e
         assert(rest % 4 == 0)
         i = 0
         while rest > 0:
-            f.write('        std140_uint32 pad' + str(i) + ' = 0;' + '\n')
+            f.write('        sl_uint32 pad' + str(i) + ' = 0;' + '\n')
+            i += 1
+            rest -= 4
+        f.write('    };' + '\n')
+        f.write('\n')
+        f.write('    internal_element data[N];' + '\n')
+        f.write('};' + '\n')
+        f.write('\n')
+
+    # std430
+    for tp in primitive_sl_type_data:
+        f.write('template <ptr_size N>' + '\n')
+        f.write('struct ' + tp[0] + '_array_' + layouts[1] + '\n')
+        f.write('{' + '\n')
+        f.write('    void fill_from_list(const ' +
+                tp[1] + '* list, uint32 count)' + '\n')
+        f.write('    {' + '\n')
+        f.write('        MANGO_ASSERT(count == N, "List size not correct!");' + '\n')
+        f.write('        for (uint32 i = 0; i < N; ++i)' + '\n')
+        f.write('        {' + '\n')
+        f.write('            data[i] = internal_element(list[i]);' + '\n')
+        f.write('        }' + '\n')
+        f.write('    }' + '\n')
+        f.write('\n')
+        f.write('    ' + tp[1] + '& operator[](uint32 i)' + '\n')
+        f.write('    {' + '\n')
+        f.write('        MANGO_ASSERT(i < N, "Index out of bounds!");' + '\n')
+        f.write('        return data[i].value;' + '\n')
+        f.write('    }' + '\n')
+        f.write('\n')
+        f.write('    ' + tp[0] + '_array_' +
+                layouts[1] + '() = default;' + '\n')
+        f.write('    ~' + tp[0] + '_array_' +
+                layouts[1] + '() = default;' + '\n')
+        f.write('\n')
+        f.write('private:' + '\n')
+        f.write('    struct internal_element' + '\n')
+        f.write('    {' + '\n')
+        f.write('        internal_element() = default;' + '\n')
+        f.write('        internal_element(const ' + tp[0] + '& v)' + '\n')
+        f.write('        {' + '\n')
+        f.write('            value = v;' + '\n')
+        f.write('        };' + '\n')
+        f.write('        ' + tp[0] + ' value;' + '\n')
+        comp_size, comp_count, rows, cols = component_size_count_row_col(tp[1])
+        align_of_e, size_of_e = align_and_size_of_(comp_count, comp_size, rows, cols, 0, layouts[1])
+        stride = round_up(align_of_e, size_of_e)
+        rest = stride - size_of_e
+        assert(rest % 4 == 0)
+        i = 0
+        while rest > 0:
+            f.write('        sl_uint32 pad' + str(i) + ' = 0;' + '\n')
             i += 1
             rest -= 4
         f.write('    };' + '\n')
@@ -437,7 +482,7 @@ def generate_interop():
             padding_counter = 0
             for element in buffer.elements:
                 while current_end < element.buffer_offset:
-                    f.write('    std140_uint32 pad' +
+                    f.write('    sl_uint32 pad' +
                             str(padding_counter) + ';' + '\n')
                     padding_counter += 1
                     current_end += 4
@@ -446,8 +491,8 @@ def generate_interop():
                     f.write('    ' + cpp_type(element.type) + ' ' +
                             element.name + ';' + '\n')
                 elif element.array_size > 0:
-                    f.write('    ' + cpp_array_type(element.type,
-                            element.array_size) + ' ' + element.name + ';' + '\n')
+                    f.write('    ' + cpp_array_type(element.type, element.array_size,
+                            buffer.layout) + ' ' + element.name + ';' + '\n')
                 else:
                     raise NotImplementedError
                 current_end += element.byte_size

@@ -146,8 +146,8 @@ namespace mango
         //! \details Bound to binding point 3.
         struct ibl_generator_data
         {
-            std140_vec2 out_size; //!< The size of the output image.
-            std140_vec2 data;     //!< Data used for calculation - Specification in the shaders.
+            sl_vec2 out_size; //!< The size of the output image.
+            sl_vec2 data;     //!< Data used for calculation - Specification in the shaders.
         };
         //! \brief The current \a ibl_generator_data.
         ibl_generator_data m_current_ibl_generator_data;
