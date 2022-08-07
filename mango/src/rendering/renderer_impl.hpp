@@ -29,6 +29,12 @@ namespace mango
 #define SHADOW_DATA_BUFFER_BINDING_POINT 5
     //! \brief The binding point for the \a luminance_data buffer.
 #define LUMINANCE_DATA_BUFFER_BINDING_POINT 6
+    //! \brief The binding point for the \a ibl_generation_data buffer.
+#define IBL_GEN_DATA_BUFFER_BINDING_POINT 3
+    //! \brief The binding point for the \a cubemap_data buffer.
+#define CUBEMAP_DATA_BUFFER_BINDING_POINT 3
+    //! \brief The binding point for the \a fxaa_data buffer.
+#define FXAA_DATA_BUFFER_BINDING_POINT 1
 
     //! \brief The vertex input binding point for the position vertex attribute.
 #define VERTEX_INPUT_POSITION 0

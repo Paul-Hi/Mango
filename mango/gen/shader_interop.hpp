@@ -2043,6 +2043,24 @@ struct shadow_data
     sl_int32 shadow_cascade;
 };
 
+struct ibl_generation_data
+{
+    sl_vec2 out_size;
+    sl_vec2 data;
+};
+
+struct cubemap_data
+{
+    sl_mat4 model_matrix;
+    sl_float render_level;
+};
+
+struct fxaa_data
+{
+    sl_vec2 inverse_screen_size;
+    sl_float subpixel_filter;
+};
+
 struct luminance_data
 {
     sl_uint32_array_std430<256> histogram;

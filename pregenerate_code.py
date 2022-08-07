@@ -442,6 +442,9 @@ def generate_interop():
              './res/shader/include/model.glsl',
              './res/shader/include/renderer.glsl',
              './res/shader/include/shadow.glsl',
+             './res/shader/include/ibl_gen.glsl',
+             './res/shader/include/cubemap.glsl',
+             './res/shader/include/fxaa_data.glsl',
              './res/shader/include/luminance.glsl']
     buffers = parse_shader_buffers(files)
     # TODO: Organize missing reflected files!

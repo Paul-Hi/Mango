@@ -2,19 +2,13 @@
 #include <../include/camera.glsl>
 #include <../include/renderer.glsl>
 #include <../include/light.glsl>
+#include <../include/cubemap.glsl>
 
 out vec4 frag_color;
 
 in vec3 shared_texcoord;
 
 layout(binding = 0) uniform samplerCube sampler_environment_cubemap; // texture "texture_environment_cubemap"
-
-// Uniform Buffer Cubemap.
-layout(binding = 3, std140) uniform cubemap_data
-{
-    mat4 model_matrix;
-    float render_level;
-};
 
 // Uniform Buffer Atmosphere Compute.
 /*

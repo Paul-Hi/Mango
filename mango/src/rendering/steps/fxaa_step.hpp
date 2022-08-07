@@ -63,13 +63,6 @@ namespace mango
         //! \brief The fxaa data buffer.
         gfx_handle<const gfx_buffer> m_fxaa_data_buffer;
 
-    //! \brief Uniform buffer struct for fxaa data.
-    //! \details Bound to binding point 1.
-        struct fxaa_data
-        {
-            sl_vec2 inverse_screen_size;     //!< The inverse screen size.
-            sl_float subpixel_filter = 0.75f; //!< The filter value for subpixels.
-        };
         //! \brief The current \a fxaa_data.
         fxaa_data m_fxaa_data;
 

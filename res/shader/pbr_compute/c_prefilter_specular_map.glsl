@@ -1,6 +1,7 @@
 
 #include <../include/common_constants_and_functions.glsl>
 #include <../include/pbr_functions.glsl>
+#include <../include/ibl_gen.glsl>
 
 const float width_sqr = 2048.0 * 2048.0; // TODO Paul: Hardcoded and random since higher is better -.-
 const uint sample_count = 512 - 32;
@@ -9,12 +10,6 @@ layout(local_size_x = 32, local_size_y = 32) in;
 
 layout(binding = 0) uniform samplerCube sampler_cubemap_in; // texture "texture_cubemap_in"
 layout(binding = 1, rgba16f) uniform writeonly imageCube prefiltered_spec_out;
-
-layout(binding = 3, std140) uniform ibl_generation_data
-{
-    vec2 out_size;
-    vec2 data; // x -> perceptual roughness
-};
 
 void main()
 {
