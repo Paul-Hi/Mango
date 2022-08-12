@@ -1039,11 +1039,11 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             {
                 optional<primitive&> prim = scene->get_primitive(p);
                 MANGO_ASSERT(prim, "Non existing primitive in instances!");
-                optional<material&> mat = scene->get_material(prim->material);
+                optional<material&> mat = scene->get_material(prim->primitive_material);
                 MANGO_ASSERT(mat, "Non existing material in instances!");
 
                 a_draw.primitive_gpu_data_id = prim->gpu_data;
-                a_draw.material_hnd          = prim->material;
+                a_draw.material_hnd          = prim->primitive_material;
 
                 a_draw.transparent = mat->alpha_mode > material_alpha_mode::mode_mask;
                 opaque_count += a_draw.transparent ? 0 : 1;

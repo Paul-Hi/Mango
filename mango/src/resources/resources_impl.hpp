@@ -29,6 +29,23 @@ namespace mango
             auto name  = string(description.path).substr(start, string(description.path).find_last_of(".") - start);
             return djb2_string_hash::hash(name.c_str());
         }
+
+        //! \brief Returns a \a resource_id for a given \a shader_resource_resource_description.
+        //! \param[in] description The \a resource_description.
+        static inline resource_id get_id(const shader_resource_resource_description& description)
+        {
+            auto start = string(description.path).find_last_of("\\/") + 1;
+            auto name  = string(description.path).substr(start, string(description.path).find_last_of(".") - start);
+            auto r_hash = djb2_string_hash::hash(name.c_str());
+
+            for (auto define : description.defines)
+            {
+                r_hash += djb2_string_hash::hash(define.name); // TODO: Overflow?
+                r_hash += djb2_string_hash::hash(define.value); // TODO: Overflow?
+            }
+
+            return r_hash;
+        }
     };
 
     //! \brief The \a resources of mango.

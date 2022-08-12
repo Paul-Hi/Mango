@@ -74,9 +74,9 @@ template <typename T>
 struct sl_matrix3
 {
     sl_matrix3(const Eigen::Matrix3<T>& mat)
-        : m(Eigen::Matrix3<T>::Zero())
+        : m(Eigen::Matrix<T, 4, 3>::Zero())
     {
-        m.block<0, 0>(3, 3) = mat;
+        m.template block<3, 3>(0, 0) = mat;
     }
     sl_matrix3()
         : m(Eigen::Matrix<T, 4, 3>::Zero())
@@ -84,11 +84,11 @@ struct sl_matrix3
     }
     void operator=(const Eigen::Matrix3<T>& o)
     {
-        m.block<3, 3>(0, 0) = o;
+        m.template block<3, 3>(0, 0) = o;
     }
     operator Eigen::Matrix3<T>&()
     {
-        return m.block<3, 3>(0, 0);
+        return m.template block<3, 3>(0, 0);
     }
 
   private:

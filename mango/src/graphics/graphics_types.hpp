@@ -652,367 +652,367 @@ struct fmt::formatter<mango::gfx_format> : formatter<std::string>
         std::string name = "unknown";
         switch (format)
         {
-        case gfx_format::t_byte:
+        case mango::gfx_format::t_byte:
             name = "t_byte";
             break;
-        case gfx_format::t_unsigned_byte:
+        case mango::gfx_format::t_unsigned_byte:
             name = "t_unsigned_byte";
             break;
-        case gfx_format::t_short:
+        case mango::gfx_format::t_short:
             name = "t_short";
             break;
-        case gfx_format::t_unsigned_short:
+        case mango::gfx_format::t_unsigned_short:
             name = "t_unsigned_short";
             break;
-        case gfx_format::t_half_float:
+        case mango::gfx_format::t_half_float:
             name = "t_half_float";
             break;
-        case gfx_format::t_fixed:
+        case mango::gfx_format::t_fixed:
             name = "t_fixed";
             break;
-        case gfx_format::t_float:
+        case mango::gfx_format::t_float:
             name = "t_float";
             break;
-        case gfx_format::t_float_vec2:
+        case mango::gfx_format::t_float_vec2:
             name = "t_float_vec2";
             break;
-        case gfx_format::t_float_vec3:
+        case mango::gfx_format::t_float_vec3:
             name = "t_float_vec3";
             break;
-        case gfx_format::t_float_vec4:
+        case mango::gfx_format::t_float_vec4:
             name = "t_float_vec4";
             break;
-        case gfx_format::t_float_mat2:
+        case mango::gfx_format::t_float_mat2:
             name = "t_float_mat2";
             break;
-        case gfx_format::t_float_mat3:
+        case mango::gfx_format::t_float_mat3:
             name = "t_float_mat3";
             break;
-        case gfx_format::t_float_mat4:
+        case mango::gfx_format::t_float_mat4:
             name = "t_float_mat4";
             break;
-        case gfx_format::t_int:
+        case mango::gfx_format::t_int:
             name = "t_int";
             break;
-        case gfx_format::t_int_vec2:
+        case mango::gfx_format::t_int_vec2:
             name = "t_int_vec2";
             break;
-        case gfx_format::t_int_vec3:
+        case mango::gfx_format::t_int_vec3:
             name = "t_int_vec3";
             break;
-        case gfx_format::t_int_vec4:
+        case mango::gfx_format::t_int_vec4:
             name = "t_int_vec4";
             break;
-        case gfx_format::t_unsigned_int:
+        case mango::gfx_format::t_unsigned_int:
             name = "t_unsigned_int";
             break;
-        case gfx_format::t_unsigned_int_vec2:
+        case mango::gfx_format::t_unsigned_int_vec2:
             name = "t_unsigned_int_vec2";
             break;
-        case gfx_format::t_unsigned_int_vec3:
+        case mango::gfx_format::t_unsigned_int_vec3:
             name = "t_unsigned_int_vec3";
             break;
-        case gfx_format::t_unsigned_int_vec4:
+        case mango::gfx_format::t_unsigned_int_vec4:
             name = "t_unsigned_int_vec4";
             break;
-        case gfx_format::t_bool:
+        case mango::gfx_format::t_bool:
             name = "t_bool";
             break;
-        case gfx_format::t_bool_vec2:
+        case mango::gfx_format::t_bool_vec2:
             name = "t_bool_vec2";
             break;
-        case gfx_format::t_bool_vec3:
+        case mango::gfx_format::t_bool_vec3:
             name = "t_bool_vec3";
             break;
-        case gfx_format::t_bool_vec4:
+        case mango::gfx_format::t_bool_vec4:
             name = "t_bool_vec4";
             break;
-        case gfx_format::t_double:
+        case mango::gfx_format::t_double:
             name = "t_double";
             break;
-        case gfx_format::t_double_vec2:
+        case mango::gfx_format::t_double_vec2:
             name = "t_double_vec2";
             break;
-        case gfx_format::t_double_vec3:
+        case mango::gfx_format::t_double_vec3:
             name = "t_double_vec3";
             break;
-        case gfx_format::t_double_vec4:
+        case mango::gfx_format::t_double_vec4:
             name = "t_double_vec4";
             break;
-        case gfx_format::t_double_mat2:
+        case mango::gfx_format::t_double_mat2:
             name = "t_double_mat2";
             break;
-        case gfx_format::t_double_mat3:
+        case mango::gfx_format::t_double_mat3:
             name = "t_double_mat3";
             break;
-        case gfx_format::t_double_mat4:
+        case mango::gfx_format::t_double_mat4:
             name = "t_double_mat4";
             break;
-        case gfx_format::t_unsigned_byte_3_3_2:
+        case mango::gfx_format::t_unsigned_byte_3_3_2:
             name = "t_unsigned_byte_3_3_2";
             break;
-        case gfx_format::t_unsigned_byte_2_3_3_rev:
+        case mango::gfx_format::t_unsigned_byte_2_3_3_rev:
             name = "t_unsigned_byte_2_3_3_rev";
             break;
-        case gfx_format::t_unsigned_short_5_6_5:
+        case mango::gfx_format::t_unsigned_short_5_6_5:
             name = "t_unsigned_short_5_6_5";
             break;
-        case gfx_format::t_unsigned_short_5_6_5_rev:
+        case mango::gfx_format::t_unsigned_short_5_6_5_rev:
             name = "t_unsigned_short_5_6_5_rev";
             break;
-        case gfx_format::t_unsigned_short_4_4_4_4:
+        case mango::gfx_format::t_unsigned_short_4_4_4_4:
             name = "t_unsigned_short_4_4_4_4";
             break;
-        case gfx_format::t_unsigned_short_4_4_4_4_rev:
+        case mango::gfx_format::t_unsigned_short_4_4_4_4_rev:
             name = "t_unsigned_short_4_4_4_4_rev";
             break;
-        case gfx_format::t_unsigned_short_5_5_5_1:
+        case mango::gfx_format::t_unsigned_short_5_5_5_1:
             name = "t_unsigned_short_5_5_5_1";
             break;
-        case gfx_format::t_unsigned_short_1_5_5_5_rev:
+        case mango::gfx_format::t_unsigned_short_1_5_5_5_rev:
             name = "t_unsigned_short_1_5_5_5_rev";
             break;
-        case gfx_format::t_unsigned_int_8_8_8_8:
+        case mango::gfx_format::t_unsigned_int_8_8_8_8:
             name = "t_unsigned_int_8_8_8_8";
             break;
-        case gfx_format::t_unsigned_int_8_8_8_8_rev:
+        case mango::gfx_format::t_unsigned_int_8_8_8_8_rev:
             name = "t_unsigned_int_8_8_8_8_rev";
             break;
-        case gfx_format::t_unsigned_int_10_10_10_2:
+        case mango::gfx_format::t_unsigned_int_10_10_10_2:
             name = "t_unsigned_int_10_10_10_2";
             break;
-        case gfx_format::t_unsigned_int_2_10_10_10_rev:
+        case mango::gfx_format::t_unsigned_int_2_10_10_10_rev:
             name = "t_unsigned_int_2_10_10_10_rev";
             break;
-        case gfx_format::t_int_2_10_10_10_rev:
+        case mango::gfx_format::t_int_2_10_10_10_rev:
             name = "t_int_2_10_10_10_rev";
             break;
-        case gfx_format::r8:
+        case mango::gfx_format::r8:
             name = "r8";
             break;
-        case gfx_format::r16:
+        case mango::gfx_format::r16:
             name = "r16";
             break;
-        case gfx_format::r16f:
+        case mango::gfx_format::r16f:
             name = "r16f";
             break;
-        case gfx_format::r32f:
+        case mango::gfx_format::r32f:
             name = "r32f";
             break;
-        case gfx_format::r8i:
+        case mango::gfx_format::r8i:
             name = "r8i";
             break;
-        case gfx_format::r16i:
+        case mango::gfx_format::r16i:
             name = "r16i";
             break;
-        case gfx_format::r32i:
+        case mango::gfx_format::r32i:
             name = "r32i";
             break;
-        case gfx_format::r8ui:
+        case mango::gfx_format::r8ui:
             name = "r8ui";
             break;
-        case gfx_format::r16ui:
+        case mango::gfx_format::r16ui:
             name = "r16ui";
             break;
-        case gfx_format::r32ui:
+        case mango::gfx_format::r32ui:
             name = "r32ui";
             break;
-        case gfx_format::rg8:
+        case mango::gfx_format::rg8:
             name = "rg8";
             break;
-        case gfx_format::rg16:
+        case mango::gfx_format::rg16:
             name = "rg16";
             break;
-        case gfx_format::rg16f:
+        case mango::gfx_format::rg16f:
             name = "rg16f";
             break;
-        case gfx_format::rg32f:
+        case mango::gfx_format::rg32f:
             name = "rg32f";
             break;
-        case gfx_format::rg8i:
+        case mango::gfx_format::rg8i:
             name = "rg8i";
             break;
-        case gfx_format::rg16i:
+        case mango::gfx_format::rg16i:
             name = "rg16i";
             break;
-        case gfx_format::rg32i:
+        case mango::gfx_format::rg32i:
             name = "rg32i";
             break;
-        case gfx_format::rg8ui:
+        case mango::gfx_format::rg8ui:
             name = "rg8ui";
             break;
-        case gfx_format::rg16ui:
+        case mango::gfx_format::rg16ui:
             name = "rg16ui";
             break;
-        case gfx_format::rg32ui:
+        case mango::gfx_format::rg32ui:
             name = "rg32ui";
             break;
-        case gfx_format::rgb4:
+        case mango::gfx_format::rgb4:
             name = "rgb4";
             break;
-        case gfx_format::rgb5:
+        case mango::gfx_format::rgb5:
             name = "rgb5";
             break;
-        case gfx_format::rgb8:
+        case mango::gfx_format::rgb8:
             name = "rgb8";
             break;
-        case gfx_format::rgb10:
+        case mango::gfx_format::rgb10:
             name = "rgb10";
             break;
-        case gfx_format::rgb12:
+        case mango::gfx_format::rgb12:
             name = "rgb12";
             break;
-        case gfx_format::rgb16:
+        case mango::gfx_format::rgb16:
             name = "rgb16";
             break;
-        case gfx_format::srgb8:
+        case mango::gfx_format::srgb8:
             name = "srgb8";
             break;
-        case gfx_format::srgb8_alpha8:
+        case mango::gfx_format::srgb8_alpha8:
             name = "srgb8_alpha8";
             break;
-        case gfx_format::rgb8ui:
+        case mango::gfx_format::rgb8ui:
             name = "rgb8ui";
             break;
-        case gfx_format::rgb8i:
+        case mango::gfx_format::rgb8i:
             name = "rgb8i";
             break;
-        case gfx_format::rgb16f:
+        case mango::gfx_format::rgb16f:
             name = "rgb16f";
             break;
-        case gfx_format::rgb16ui:
+        case mango::gfx_format::rgb16ui:
             name = "rgb16ui";
             break;
-        case gfx_format::rgb16i:
+        case mango::gfx_format::rgb16i:
             name = "rgb16i";
             break;
-        case gfx_format::rgb32f:
+        case mango::gfx_format::rgb32f:
             name = "rgb32f";
             break;
-        case gfx_format::rgb32i:
+        case mango::gfx_format::rgb32i:
             name = "rgb32i";
             break;
-        case gfx_format::rgb32ui:
+        case mango::gfx_format::rgb32ui:
             name = "rgb32ui";
             break;
-        case gfx_format::rgba2:
+        case mango::gfx_format::rgba2:
             name = "rgba2";
             break;
-        case gfx_format::rgba4:
+        case mango::gfx_format::rgba4:
             name = "rgba4";
             break;
-        case gfx_format::rgb5_a1:
+        case mango::gfx_format::rgb5_a1:
             name = "rgb5_a1";
             break;
-        case gfx_format::rgba8:
+        case mango::gfx_format::rgba8:
             name = "rgba8";
             break;
-        case gfx_format::rgb10_a2:
+        case mango::gfx_format::rgb10_a2:
             name = "rgb10_a2";
             break;
-        case gfx_format::rgba12:
+        case mango::gfx_format::rgba12:
             name = "rgba12";
             break;
-        case gfx_format::rgba16:
+        case mango::gfx_format::rgba16:
             name = "rgba16";
             break;
-        case gfx_format::rgba16f:
+        case mango::gfx_format::rgba16f:
             name = "rgba16f";
             break;
-        case gfx_format::rgba32f:
+        case mango::gfx_format::rgba32f:
             name = "rgba32f";
             break;
-        case gfx_format::rgba8i:
+        case mango::gfx_format::rgba8i:
             name = "rgba8i";
             break;
-        case gfx_format::rgba16i:
+        case mango::gfx_format::rgba16i:
             name = "rgba16i";
             break;
-        case gfx_format::rgba32i:
+        case mango::gfx_format::rgba32i:
             name = "rgba32i";
             break;
-        case gfx_format::rgba8ui:
+        case mango::gfx_format::rgba8ui:
             name = "rgba8ui";
             break;
-        case gfx_format::rgba16ui:
+        case mango::gfx_format::rgba16ui:
             name = "rgba16ui";
             break;
-        case gfx_format::rgba32ui:
+        case mango::gfx_format::rgba32ui:
             name = "rgba32ui";
             break;
-        case gfx_format::depth_component32f:
+        case mango::gfx_format::depth_component32f:
             name = "depth_component32f";
             break;
-        case gfx_format::depth_component16:
+        case mango::gfx_format::depth_component16:
             name = "depth_component16";
             break;
-        case gfx_format::depth_component24:
+        case mango::gfx_format::depth_component24:
             name = "depth_component24";
             break;
-        case gfx_format::depth_component32:
+        case mango::gfx_format::depth_component32:
             name = "depth_component32";
             break;
-        case gfx_format::depth24_stencil8:
+        case mango::gfx_format::depth24_stencil8:
             name = "depth24_stencil8";
             break;
-        case gfx_format::depth32f_stencil8:
+        case mango::gfx_format::depth32f_stencil8:
             name = "depth32f_stencil8";
             break;
-        case gfx_format::depth_component:
+        case mango::gfx_format::depth_component:
             name = "depth_component";
             break;
-        case gfx_format::stencil_index:
+        case mango::gfx_format::stencil_index:
             name = "stencil_index";
             break;
-        case gfx_format::depth_stencil:
+        case mango::gfx_format::depth_stencil:
             name = "depth_stencil";
             break;
-        case gfx_format::red:
+        case mango::gfx_format::red:
             name = "red";
             break;
-        case gfx_format::green:
+        case mango::gfx_format::green:
             name = "green";
             break;
-        case gfx_format::blue:
+        case mango::gfx_format::blue:
             name = "blue";
             break;
-        case gfx_format::rg:
+        case mango::gfx_format::rg:
             name = "rg";
             break;
-        case gfx_format::rgb:
+        case mango::gfx_format::rgb:
             name = "rgb";
             break;
-        case gfx_format::bgr:
+        case mango::gfx_format::bgr:
             name = "bgr";
             break;
-        case gfx_format::rgba:
+        case mango::gfx_format::rgba:
             name = "rgba";
             break;
-        case gfx_format::bgra:
+        case mango::gfx_format::bgra:
             name = "bgra";
             break;
-        case gfx_format::red_integer:
+        case mango::gfx_format::red_integer:
             name = "red_integer";
             break;
-        case gfx_format::green_integer:
+        case mango::gfx_format::green_integer:
             name = "green_integer";
             break;
-        case gfx_format::blue_integer:
+        case mango::gfx_format::blue_integer:
             name = "blue_integer";
             break;
-        case gfx_format::rg_integer:
+        case mango::gfx_format::rg_integer:
             name = "rg_integer";
             break;
-        case gfx_format::rgb_integer:
+        case mango::gfx_format::rgb_integer:
             name = "rgb_integer";
             break;
-        case gfx_format::bgr_integer:
+        case mango::gfx_format::bgr_integer:
             name = "bgr_integer";
             break;
-        case gfx_format::rgba_integer:
+        case mango::gfx_format::rgba_integer:
             name = "rgba_integer";
             break;
-        case gfx_format::bgra_integer:
+        case mango::gfx_format::bgra_integer:
             name = "bgra_integer";
             break;
         }

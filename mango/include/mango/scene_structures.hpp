@@ -357,7 +357,7 @@ namespace mango
         bool has_tangents;
 
         //! \brief The \a handle of the \a primitives \a material.
-        handle<material> material;
+        handle<material> primitive_material;
 
         //! \brief The \a axis_aligned_bounding_box of this \a primitive.
         axis_aligned_bounding_box bounding_box;

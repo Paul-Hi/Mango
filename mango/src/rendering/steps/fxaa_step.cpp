@@ -61,6 +61,7 @@ bool fxaa_step::create_step_resources()
     // vertex stage
     {
         res_resource_desc.path        = "res/shader/v_screen_space_triangle.glsl";
+        res_resource_desc.defines.push_back({ "NOPERSPECTIVE", "" });
         const shader_resource* source = internal_resources->acquire(res_resource_desc);
 
         source_desc.entry_point = "main";

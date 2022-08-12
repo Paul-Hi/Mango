@@ -764,4 +764,18 @@ namespace mango
     }
 } // namespace mango
 
+template <typename T>
+struct fmt::formatter<mango::handle<T>> : formatter<std::string>
+{
+    // parse is inherited from formatter<string_view>.
+    template <typename FormatContext>
+    auto format(mango::handle<T> hnd, FormatContext& ctx)
+    {
+        if(hnd.valid())
+            return formatter<std::string>::format(std::to_string(hnd.id_unchecked()), ctx);
+
+        return formatter<std::string>::format("-", ctx);
+    }
+};
+
 #endif // MANGO_TYPES_HPP

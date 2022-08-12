@@ -448,7 +448,7 @@ namespace mango
                     {
                         optional<primitive&> prim = application_scene->get_primitive(p);
                         MANGO_ASSERT(prim, "Primitive referenced by mesh does not exist!");
-                        optional<material&> mat = application_scene->get_material(prim->material);
+                        optional<material&> mat = application_scene->get_material(prim->primitive_material);
                         MANGO_ASSERT(mat, "Material referenced by primitive does not exist!");
                         string selectable = "Primitive " + std::to_string(p.id_unchecked()) + " - Material: " + mat->name;
                         bool selected     = selected_primitive == p;
@@ -1158,7 +1158,7 @@ namespace mango
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 0.0f);
 
             details::inspect_primitive(selected_primitive, application_scene);
-            details::inspect_material(prim->material, application_scene);
+            details::inspect_material(prim->primitive_material, application_scene);
             ImGui::PopStyleVar();
             ImGui::PopID();
         }

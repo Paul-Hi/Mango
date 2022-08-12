@@ -103,7 +103,7 @@ handle<perspective_camera> scene_impl::add_perspective_camera(perspective_camera
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add perspective camera!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add perspective camera!", node_hnd);
         return NULL_HND<perspective_camera>;
     }
 
@@ -175,7 +175,7 @@ handle<orthographic_camera> scene_impl::add_orthographic_camera(orthographic_cam
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add orthographic camera!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add orthographic camera!", node_hnd);
         return NULL_HND<orthographic_camera>;
     }
 
@@ -247,7 +247,7 @@ handle<directional_light> scene_impl::add_directional_light(directional_light& n
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add directional light!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add directional light!", node_hnd);
         return NULL_HND<directional_light>;
     }
 
@@ -267,7 +267,7 @@ handle<skylight> scene_impl::add_skylight(skylight& new_skylight, handle<node> n
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add skylight!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add skylight!", node_hnd);
         return NULL_HND<skylight>;
     }
 
@@ -287,7 +287,7 @@ handle<atmospheric_light> scene_impl::add_atmospheric_light(atmospheric_light& n
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add atmospheric light!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add atmospheric light!", node_hnd);
         return NULL_HND<atmospheric_light>;
     }
 
@@ -397,7 +397,7 @@ handle<skylight> scene_impl::add_skylight_from_hdr(const string& path, handle<no
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add skylight!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add skylight!", node_hnd);
         return NULL_HND<skylight>;
     }
 
@@ -425,19 +425,19 @@ void scene_impl::add_model_to_scene(handle<model> model_to_add, handle<scenario>
 
     if (!model_to_add.valid() || !m_models.valid(model_to_add.id_unchecked()))
     {
-        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not add model to scene!", model_to_add.id);
+        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not add model to scene!", model_to_add);
         return;
     }
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add model to scene!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add model to scene!", node_hnd);
         return;
     }
 
     if (scenario_hnd.valid() && !m_scenarios.valid(scenario_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Scenario with ID {0} does not exist! Can not add model to scene!", scenario_hnd.id);
+        MANGO_LOG_WARN("Scenario with ID {0} does not exist! Can not add model to scene!", scenario_hnd);
         return;
     }
 
@@ -464,7 +464,7 @@ void scene_impl::remove_node(handle<node> node_hnd)
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove node!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove node!", node_hnd);
         return;
     }
 
@@ -506,7 +506,7 @@ void scene_impl::remove_perspective_camera(handle<node> node_hnd)
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove perspective camera!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove perspective camera!", node_hnd);
         return;
     }
 
@@ -523,7 +523,7 @@ void scene_impl::remove_perspective_camera(handle<node> node_hnd)
 
     if (!camera_hnd.valid() || !m_perspective_cameras.valid(camera_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not remove perspective camera!", camera_hnd.id);
+        MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not remove perspective camera!", camera_hnd);
         return;
     }
 
@@ -546,7 +546,7 @@ void scene_impl::remove_orthographic_camera(handle<node> node_hnd)
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove orthographic camera!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove orthographic camera!", node_hnd);
         return;
     }
 
@@ -563,7 +563,7 @@ void scene_impl::remove_orthographic_camera(handle<node> node_hnd)
 
     if (!camera_hnd.valid() || !m_orthographic_cameras.valid(camera_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Orthographic camera with ID {0} does not exist! Can not remove orthographic camera!", camera_hnd.id);
+        MANGO_LOG_WARN("Orthographic camera with ID {0} does not exist! Can not remove orthographic camera!", camera_hnd);
         return;
     }
 
@@ -586,7 +586,7 @@ void scene_impl::remove_mesh(handle<node> node_hnd)
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove mesh!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove mesh!", node_hnd);
         return;
     }
 
@@ -626,7 +626,7 @@ void scene_impl::remove_directional_light(handle<node> node_hnd)
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove directional light!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove directional light!", node_hnd);
         return;
     }
 
@@ -659,7 +659,7 @@ void scene_impl::remove_skylight(handle<node> node_hnd)
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove skylight!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove skylight!", node_hnd);
         return;
     }
 
@@ -700,7 +700,7 @@ void scene_impl::remove_atmospheric_light(handle<node> node_hnd)
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove atmospheric light!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove atmospheric light!", node_hnd);
         return;
     }
 
@@ -717,7 +717,7 @@ void scene_impl::remove_atmospheric_light(handle<node> node_hnd)
 
     if (!light_hnd.valid() || !m_atmospheric_lights.valid(light_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Atmospheric light with ID {0} does not exist! Can not remove atmospheric light!", light_hnd.id);
+        MANGO_LOG_WARN("Atmospheric light with ID {0} does not exist! Can not remove atmospheric light!", light_hnd);
         return;
     }
 
@@ -734,7 +734,7 @@ void scene_impl::unload_gltf_model(handle<model> model_hnd)
 
     if (!model_hnd.valid() || !m_models.valid(model_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not unload model!", model_hnd.id);
+        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not unload model!", model_hnd);
         return;
     }
 
@@ -745,7 +745,7 @@ void scene_impl::unload_gltf_model(handle<model> model_hnd)
     {
         if (!sc.valid() && !m_scenarios.valid(sc.id_unchecked()))
         {
-            MANGO_LOG_WARN("Scenario with ID {0} does not exist! Can not unload model!", sc.id);
+            MANGO_LOG_WARN("Scenario with ID {0} does not exist! Can not unload model!", sc);
             return;
         }
 
@@ -766,7 +766,7 @@ void scene_impl::instantiate_model_scene(handle<node> node_hnd, handle<node> par
 {
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not instantiate!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not instantiate!", node_hnd);
         return;
     }
 
@@ -889,7 +889,7 @@ optional<node&> scene_impl::get_node(handle<node> node_hnd)
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve node!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve node!", node_hnd);
         return NONE;
     }
 
@@ -902,7 +902,7 @@ optional<transform&> scene_impl::get_transform(handle<node> node_hnd)
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve transform!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve transform!", node_hnd);
         return NONE;
     }
 
@@ -923,7 +923,7 @@ optional<perspective_camera&> scene_impl::get_perspective_camera(handle<node> no
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve perspective camera!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve perspective camera!", node_hnd);
         return NONE;
     }
 
@@ -939,7 +939,7 @@ optional<perspective_camera&> scene_impl::get_perspective_camera(handle<node> no
 
     if (!camera_hnd.valid() || !m_perspective_cameras.valid(camera_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not retrieve perspective camera!", camera_hnd.id);
+        MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not retrieve perspective camera!", camera_hnd);
         return NONE;
     }
 
@@ -952,7 +952,7 @@ optional<orthographic_camera&> scene_impl::get_orthographic_camera(handle<node> 
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve orthographic camera!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve orthographic camera!", node_hnd);
         return NONE;
     }
 
@@ -968,7 +968,7 @@ optional<orthographic_camera&> scene_impl::get_orthographic_camera(handle<node> 
 
     if (!camera_hnd.valid() || !m_orthographic_cameras.valid(camera_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Orthographic camera with ID {0} does not exist! Can not retrieve orthographic camera!", camera_hnd.id);
+        MANGO_LOG_WARN("Orthographic camera with ID {0} does not exist! Can not retrieve orthographic camera!", camera_hnd);
         return NONE;
     }
 
@@ -981,7 +981,7 @@ optional<directional_light&> scene_impl::get_directional_light(handle<node> node
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve directional light!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve directional light!", node_hnd);
         return NONE;
     }
 
@@ -997,7 +997,7 @@ optional<directional_light&> scene_impl::get_directional_light(handle<node> node
 
     if (!light_hnd.valid() || !m_directional_lights.valid(light_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Directional light with ID {0} does not exist! Can not retrieve directional light!", light_hnd.id);
+        MANGO_LOG_WARN("Directional light with ID {0} does not exist! Can not retrieve directional light!", light_hnd);
         return NONE;
     }
 
@@ -1010,7 +1010,7 @@ optional<skylight&> scene_impl::get_skylight(handle<node> node_hnd)
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve skylight!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve skylight!", node_hnd);
         return NONE;
     }
 
@@ -1026,7 +1026,7 @@ optional<skylight&> scene_impl::get_skylight(handle<node> node_hnd)
 
     if (!light_hnd.valid() || !m_skylights.valid(light_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Skylight with ID {0} does not exist! Can not retrieve skylight!", light_hnd.id);
+        MANGO_LOG_WARN("Skylight with ID {0} does not exist! Can not retrieve skylight!", light_hnd);
         return NONE;
     }
 
@@ -1039,7 +1039,7 @@ optional<atmospheric_light&> scene_impl::get_atmospheric_light(handle<node> node
 
     if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve atmospheric light!", node_hnd.id);
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve atmospheric light!", node_hnd);
         return NONE;
     }
 
@@ -1055,7 +1055,7 @@ optional<atmospheric_light&> scene_impl::get_atmospheric_light(handle<node> node
 
     if (!light_hnd.valid() || !m_atmospheric_lights.valid(light_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Atmospheric light with ID {0} does not exist! Can not retrieve atmospheric light!", light_hnd.id);
+        MANGO_LOG_WARN("Atmospheric light with ID {0} does not exist! Can not retrieve atmospheric light!", light_hnd);
         return NONE;
     }
 
@@ -1068,7 +1068,7 @@ optional<model&> scene_impl::get_model(handle<model> instance_hnd)
 
     if (!instance_hnd.valid() || !m_models.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not retrieve model!", instance_hnd.id);
+        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not retrieve model!", instance_hnd);
         return NONE;
     }
 
@@ -1081,7 +1081,7 @@ optional<mesh&> scene_impl::get_mesh(handle<mesh> instance_hnd)
 
     if (!instance_hnd.valid() || !m_meshes.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Mesh with ID {0} does not exist! Can not retrieve mesh!", instance_hnd.id);
+        MANGO_LOG_WARN("Mesh with ID {0} does not exist! Can not retrieve mesh!", instance_hnd);
         return NONE;
     }
 
@@ -1094,7 +1094,7 @@ optional<material&> scene_impl::get_material(handle<material> instance_hnd)
 
     if (!instance_hnd.valid() || !m_materials.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Material with ID {0} does not exist! Can not retrieve material!", instance_hnd.id);
+        MANGO_LOG_WARN("Material with ID {0} does not exist! Can not retrieve material!", instance_hnd);
         return NONE;
     }
 
@@ -1107,7 +1107,7 @@ optional<texture&> scene_impl::get_texture(handle<texture> instance_hnd)
 
     if (!instance_hnd.valid() || !m_textures.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Texture with ID {0} does not exist! Can not retrieve texture!", instance_hnd.id);
+        MANGO_LOG_WARN("Texture with ID {0} does not exist! Can not retrieve texture!", instance_hnd);
         return NONE;
     }
 
@@ -1140,7 +1140,7 @@ handle<node> scene_impl::get_active_camera_node()
         return m_main_camera_node;
     }
 
-    MANGO_LOG_WARN("Active camera node with ID {0} does not contain any camera! Can not retrieve active camera data!", m_main_camera_node.value());
+    MANGO_LOG_WARN("Active camera node with ID {0} does not contain any camera! Can not retrieve active camera data!", m_main_camera_node.id_unchecked());
     return NULL_HND<node>;
 }
 
@@ -1174,12 +1174,12 @@ void scene_impl::attach(handle<node> child_node, handle<node> parent_node)
 
     if (!child_node.valid() || !m_nodes.valid(child_node.id_unchecked()))
     {
-        MANGO_LOG_WARN("Child node with ID {0} does not exist! Can not attach!", child_node.id);
+        MANGO_LOG_WARN("Child node with ID {0} does not exist! Can not attach!", child_node);
         return;
     }
     if (!parent_node.valid() || !m_nodes.valid(parent_node.id_unchecked()))
     {
-        MANGO_LOG_WARN("Parent node with ID {0} does not exist! Can not attach!", parent_node.id);
+        MANGO_LOG_WARN("Parent node with ID {0} does not exist! Can not attach!", parent_node);
         return;
     }
 
@@ -1203,12 +1203,12 @@ void scene_impl::detach(handle<node> child_node, handle<node> parent_node)
 
     if (!child_node.valid() || !m_nodes.valid(child_node.id_unchecked()))
     {
-        MANGO_LOG_WARN("Child node with ID {0} does not exist! Can not detach!", child_node.id);
+        MANGO_LOG_WARN("Child node with ID {0} does not exist! Can not detach!", child_node);
         return;
     }
     if (!parent_node.valid() || !m_nodes.valid(parent_node.id_unchecked()))
     {
-        MANGO_LOG_WARN("Parent node with ID {0} does not exist! Can not detach!", parent_node.id);
+        MANGO_LOG_WARN("Parent node with ID {0} does not exist! Can not detach!", parent_node);
         return;
     }
 
@@ -1230,7 +1230,7 @@ void scene_impl::remove_texture(handle<texture> instance_hnd)
 
     if (!instance_hnd.valid() || !m_textures.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Texture with ID {0} does not exist! Can not remove texture gpu data!", instance_hnd.id);
+        MANGO_LOG_WARN("Texture with ID {0} does not exist! Can not remove texture gpu data!", instance_hnd);
         return;
     }
 
@@ -1252,7 +1252,7 @@ optional<primitive&> scene_impl::get_primitive(handle<primitive> instance_hnd)
 
     if (!instance_hnd.valid() || !m_primitives.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Primitive with ID {0} does not exist! Can not retrieve primitive!", instance_hnd.id);
+        MANGO_LOG_WARN("Primitive with ID {0} does not exist! Can not retrieve primitive!", instance_hnd);
         return NONE;
     }
 
@@ -1265,7 +1265,7 @@ optional<mat4&> scene_impl::get_global_transformation_matrix(handle<mat4> instan
 
     if (!instance_hnd.valid() || !m_global_transformation_matrices.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Global transformation matrix with ID {0} does not exist! Can not retrieve global transformation matrix!", instance_hnd.id);
+        MANGO_LOG_WARN("Global transformation matrix with ID {0} does not exist! Can not retrieve global transformation matrix!", instance_hnd);
         return NONE;
     }
 
@@ -1348,7 +1348,7 @@ optional<buffer_view&> scene_impl::get_buffer_view(handle<buffer_view> instance_
 
     if (!instance_hnd.valid() || !m_buffer_views.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Buffer view with ID {0} does not exist! Can not retrieve buffer view!", instance_hnd.id);
+        MANGO_LOG_WARN("Buffer view with ID {0} does not exist! Can not retrieve buffer view!", instance_hnd);
         return NONE;
     }
 
@@ -1783,7 +1783,7 @@ handle<mesh> scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_
         else
             material_hnd = default_material();
 
-        prim.material = material_hnd;
+        prim.primitive_material = material_hnd;
 
         int32 vertex_buffer_binding = 0;
         int32 description_index     = 0;
@@ -2561,7 +2561,7 @@ void scene_impl::update(float dt)
 
                 // Compute the resulting ISO if we left both shutter and aperture here
                 iso                 = clamp(((ape * ape) * 100.0f) / (shu * exp2f(target_ev)), min_camera_iso, max_camera_iso);
-                float unclamped_iso = (shu * exp2(target_ev));
+                float unclamped_iso = (shu * exp2f(target_ev));
                 MANGO_UNUSED(unclamped_iso);
 
                 // Apply half the difference in EV to the aperture
