@@ -447,7 +447,6 @@ def generate_interop():
              './res/shader/include/fxaa_data.glsl',
              './res/shader/include/luminance.glsl']
     buffers = parse_shader_buffers(files)
-    # TODO: Organize missing reflected files!
 
     if not os.path.exists('./mango/gen'):
         os.mkdir('./mango/gen')

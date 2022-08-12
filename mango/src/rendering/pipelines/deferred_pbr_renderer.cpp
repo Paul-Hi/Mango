@@ -950,7 +950,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     {
         key primitive_gpu_data_id;
         key mesh_gpu_data_id;
-        key material_id;
+        handle<material> material_hnd;
         float view_depth;
         bool transparent;
         axis_aligned_bounding_box bounding_box; // Does not contribute to order.
@@ -967,9 +967,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             if (other.view_depth > view_depth)
                 return false;
 
-            if (material_id < other.material_id)
+            if (material_hnd < other.material_hnd)
                 return true;
-            if (other.material_id < material_id)
+            if (other.material_hnd < material_hnd)
                 return false;
 
             if (primitive_gpu_data_id < other.primitive_gpu_data_id)
@@ -1018,17 +1018,18 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
     for (auto instance : instances)
     {
-        optional<node&> node = scene->get_node(instance.node_id);
+        // we can assume the stuff exists - we also want to be fast
+        optional<node&> node = scene->get_node(instance.node_hnd);
         MANGO_ASSERT(node, "Non existing node in instances!");
-        optional<mat4&> global_transformation_matrix = scene->get_global_transformation_matrix(node->global_matrix_id);
+        optional<mat4&> global_transformation_matrix = scene->get_global_transformation_matrix(node->global_matrix_hnd);
         MANGO_ASSERT(global_transformation_matrix, "Non existing transformation matrix in instances!");
 
         if ((node->type & node_type::mesh) != node_type::hierarchy)
         {
             draw_key a_draw;
 
-            MANGO_ASSERT(node->mesh_id.has_value(), "Node with mesh has no mesh attached!");
-            optional<mesh&> mesh = scene->get_mesh(node->mesh_id.value());
+            MANGO_ASSERT(node->mesh_hnd.valid(), "Node with mesh has no mesh attached!");
+            optional<mesh&> mesh = scene->get_mesh(node->mesh_hnd);
             MANGO_ASSERT(mesh, "Non existing mesh in instances!");
             a_draw.mesh_gpu_data_id = mesh->gpu_data;
 
@@ -1042,7 +1043,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 MANGO_ASSERT(mat, "Non existing material in instances!");
 
                 a_draw.primitive_gpu_data_id = prim->gpu_data;
-                a_draw.material_id           = prim->material;
+                a_draw.material_hnd          = prim->material;
 
                 a_draw.transparent = mat->alpha_mode > material_alpha_mode::mode_mask;
                 opaque_count += a_draw.transparent ? 0 : 1;
@@ -1142,7 +1143,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                             warn_missing_draw("Mesh gpu data");
                             continue;
                         }
-                        optional<material&> mat                   = scene->get_material(dc.material_id);
+                        optional<material&> mat                   = scene->get_material(dc.material_hnd);
                         optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
                         if (!mat || !mat_gpu_data)
                         {
@@ -1264,7 +1265,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 warn_missing_draw("Mesh gpu data");
                 continue;
             }
-            optional<material&> mat                   = scene->get_material(dc.material_id);
+            optional<material&> mat                   = scene->get_material(dc.material_hnd);
             optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
             if (!mat || !mat_gpu_data)
             {
@@ -1333,7 +1334,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             }
             if (mat_gpu_data->per_material_data.normal_texture)
             {
-                MANGO_ASSERT(mat->normal_texture.has_value(), "Texture has no gpu data!");
+                MANGO_ASSERT(mat->normal_texture_gpu_data.has_value(), "Texture has no gpu data!");
                 optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->normal_texture_gpu_data.value());
                 if (!tex)
                 {
@@ -1526,7 +1527,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 warn_missing_draw("Mesh gpu data");
                 continue;
             }
-            optional<material&> mat                   = scene->get_material(dc.material_id);
+            optional<material&> mat                   = scene->get_material(dc.material_hnd);
             optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
             if (!mat || !mat_gpu_data)
             {

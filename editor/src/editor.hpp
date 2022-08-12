@@ -23,7 +23,7 @@ class editor : public mango::application
     }
 
   private:
-    mango::key m_main_camera_node_id;
+    mango::handle<mango::node> m_main_camera_node_hnd;
 
     mango::display_handle m_main_display;
     mango::renderer_handle m_main_renderer;

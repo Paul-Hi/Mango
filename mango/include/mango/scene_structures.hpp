@@ -15,12 +15,16 @@ namespace mango
 {
     //! \brief Macro to add some default operators and constructors to every scene structure.
 #define DECLARE_SCENE_STRUCTURE(c)    \
-    bool changed = true;              \
-    ~c()         = default;           \
-    c(const c&)  = default;           \
-    c(c&&)       = default;           \
+    bool changed           = true;    \
+    ~c()                   = default; \
+    c(const c&)            = default; \
+    c(c&&)                 = default; \
     c& operator=(const c&) = default; \
-    c& operator=(c&&) = default;
+    c& operator=(c&&)      = default;
+
+    // fwd
+    struct node;
+    struct texture;
 
     //! \brief Public structure holding transformation informations.
     //! \details Used to store position, rotation and scale for a node.
@@ -71,11 +75,11 @@ namespace mango
         //! \brief The target point of the \a perspective_camera.
         vec3 target;
 
+        //! \brief The \a handle of the \a node of the \a perspective_camera.
+        handle<node> node_hnd;
+
         //! \brief The \a key of the GPU data of the \a perspective_camera.
         key gpu_data;
-
-        //! \brief The \a key of the \a node of the \a perspective_camera.
-        key node_id;
 
         perspective_camera()
             : aspect(0.0f)
@@ -118,11 +122,11 @@ namespace mango
         //! \brief The target point of the \a orthographic_camera.
         vec3 target;
 
+        //! \brief The \a handle of the \a node of the \a orthographic_camera.
+        handle<node> node_hnd;
+
         //! \brief The \a key of the GPU data of the \a orthographic_camera.
         key gpu_data;
-
-        //! \brief The \a key of the \a node of the \a orthographic_camera.
-        key node_id;
 
         orthographic_camera()
             : x_mag(0.0f)
@@ -169,8 +173,8 @@ namespace mango
     //! \brief Public structure holding informations for a skylight.
     struct skylight
     {
-        //! \brief The \a key of the environment texture of the \a skylight.
-        optional<key> hdr_texture;
+        //! \brief The \a handle of the environment texture of the \a skylight.
+        handle<texture> hdr_texture;
         //! \brief The intensity of the \a skylight in cd/m^2.
         float intensity;
         //! \brief True if the \a skylight should use a texture, else false.
@@ -271,36 +275,26 @@ namespace mango
 
         //! \brief The base color of the \a material. Values between 0.0 and 1.0.
         color_rgba base_color;
-        //! \brief The optional \a key of the base color texture of the \a material. \a Texture should be in standard color space.
-        optional<key> base_color_texture;
-        //! \brief The optional \a key of the base color texture gpu data.
-        optional<key> base_color_texture_gpu_data;
+        //! \brief The \a handle of the base color texture of the \a material. \a Texture should be in standard color space.
+        handle<texture> base_color_texture;
         //! \brief The metallic property of the \a material. Value between 0.0 and 1.0.
         normalized_float metallic;
         //! \brief The roughness property of the \a material. Value between 0.0 and 1.0.
         normalized_float roughness;
-        //! \brief The optional \a key of the metallic and roughness texture of the \a material. \a Texture could also include an occlusion value in the blue component.
-        optional<key> metallic_roughness_texture;
-        //! \brief The optional \a key of the metallic and roughness texture gpu data.
-        optional<key> metallic_roughness_texture_gpu_data;
+        //! \brief The \a handle of the metallic and roughness texture of the \a material. \a Texture could also include an occlusion value in the blue component.
+        handle<texture> metallic_roughness_texture;
         //! \brief True if the metallic roughness texture of the \a material includes an occlusion value in the blue component, else false.
         bool packed_occlusion;
 
-        //! \brief The \a key of the normal texture of the \a material.
-        optional<key> normal_texture;
-        //! \brief The \a key of the normal texture gpu data.
-        optional<key> normal_texture_gpu_data;
-        //! \brief The \a key of the occlusion texture of the \a material.
-        optional<key> occlusion_texture;
-        //! \brief The \a key of the occlusion texture gpu data.
-        optional<key> occlusion_texture_gpu_data;
+        //! \brief The \a handle of the normal texture of the \a material.
+        handle<texture> normal_texture;
+        //! \brief The \a handle of the occlusion texture of the \a material.
+        handle<texture> occlusion_texture;
 
         //! \brief The emissive color of the \a material. Values between 0.0 and 1.0.
         color_rgb emissive_color;
-        //! \brief The \a key of the emissive color texture of the \a material. \a Texture should be in standard color space.
-        optional<key> emissive_texture;
-        //! \brief The \a key of the emissive texture gpu data.
-        optional<key> emissive_texture_gpu_data;
+        //! \brief The \a handle of the emissive color texture of the \a material. \a Texture should be in standard color space.
+        handle<texture> emissive_texture;
         //! \brief The emissive intensity of the \a material in lumen.
         float emissive_intensity;
 
@@ -310,6 +304,17 @@ namespace mango
         material_alpha_mode alpha_mode;
         //! \brief The alpha cutoff of the \a material. Value between 0.0 and 1.0.
         normalized_float alpha_cutoff;
+
+        //! \brief The optional \a key of the base color texture gpu data.
+        optional<key> base_color_texture_gpu_data;
+        //! \brief The optional \a key of the metallic and roughness texture gpu data.
+        optional<key> metallic_roughness_texture_gpu_data;
+        //! \brief The optional \a key of the normal texture gpu data.
+        optional<key> normal_texture_gpu_data;
+        //! \brief The optional \a key of the occlusion texture gpu data.
+        optional<key> occlusion_texture_gpu_data;
+        //! \brief The optional \a key of the emissive texture gpu data.
+        optional<key> emissive_texture_gpu_data;
 
         //! \brief The \a key of the GPU data of the \a material.
         key gpu_data;
@@ -351,14 +356,14 @@ namespace mango
         //! \brief True if the \a primitive has tangents in the vertex data, else false.
         bool has_tangents;
 
-        //! \brief The \a key of the \a primitives \a material.
-        key material;
-
-        //! \brief The \a key of the GPU data of the \a primitive.
-        key gpu_data;
+        //! \brief The \a handle of the \a primitives \a material.
+        handle<material> material;
 
         //! \brief The \a axis_aligned_bounding_box of this \a primitive.
         axis_aligned_bounding_box bounding_box;
+
+        //! \brief The \a key of the GPU data of the \a primitive.
+        key gpu_data;
 
         primitive()
             : type(primitive_type::custom)
@@ -377,18 +382,19 @@ namespace mango
         //! \brief The name of the \a mesh.
         string name;
 
-        //! \brief List of primitive \a uids of this mesh.
-        std::vector<key> primitives;
+        //! \brief List of primitive \a handles of this mesh.
+        std::vector<handle<primitive>> primitives;
+
+        //! \brief The \a handle of the \a node of the \a mesh.
+        handle<node> node_hnd;
 
         //! \brief The \a key of the GPU data of the \a mesh.
         key gpu_data;
 
-        //! \brief The \a key of the \a node of the \a mesh.
-        key node_id;
-
         mesh() = default;
         //! \brief \a Mesh is a scene structure.
         DECLARE_SCENE_STRUCTURE(mesh);
+
     };
 
     //! \brief The type of a \a scene_node.
@@ -413,39 +419,35 @@ namespace mango
         atmospheric
     };
 
-    //! \brief The type of a camera.
-    enum class camera_type : uint8
-    {
-        perspective = 0,
-        orthographic
-    };
-
     //! \brief Public structure holding informations for a node.
     struct node
     {
         //! \brief The name of the \a node.
         string name;
 
-        // TODO: Check if we need that optional ... atm this is used to mark them as deleted...
-        //! \brief List of \a uids referencing all children nodes.
-        std::vector<optional<key>> children;
+        //! \brief List of \a handles referencing all children \a nodes. NULL_HND -> marked as deleted
+        std::vector<handle<node>> children;
 
         //! \brief The type of the \a node.
         node_type type;
 
-        //! \brief The \a key of the nodes \a transform.
-        key transform_id;
-        //! \brief The \a key of the nodes \a mesh if node is one.
-        optional<key> mesh_id;
-        //! \brief The \a key of the nodes \a camera if node is one.
-        //! \details Ordered by camera_type: 0 = perspective_camera, 1 = orthographic_camera.
-        optional<key> camera_ids[2];
-        //! \brief The \a key of the nodes \a lights if node is one.
-        //! \details Ordered by light_type: 0 = directional, 1 = skylight, 2 = atmospheric_light.
-        optional<key> light_ids[3]; // Accessed via type.
+        //! \brief The \a handle of the nodes \a transform.
+        handle<transform> transform_hnd;
+        //! \brief The \a handle of the nodes \a mesh if \a node is one.
+        handle<mesh> mesh_hnd;
+        //! \brief The \a handle of the nodes \a perspective_camera if \a node is one.
+        handle<perspective_camera> perspective_camera_hnd;
+        //! \brief The \a handle of the nodes \a orthographic_camera if \a node is one.
+        handle<orthographic_camera> orthographic_camera_hnd;
+        //! \brief The \a handle of the nodes \a directional_light if \a node is one.
+        handle<directional_light> directional_light_hnd;
+        //! \brief The \a handle of the nodes \a skylight if \a node is one.
+        handle<skylight> skylight_hnd;
+        //! \brief The \a handle of the nodes \a atmospheric_light if \a node is one.
+        handle<atmospheric_light> atmospheric_light_hnd;
 
-        //! \brief The \a key of the nodes cached global transformation matrix.
-        key global_matrix_id;
+        //! \brief The \a handle of the \a nodes cached global transformation matrix.
+        handle<mat4> global_matrix_hnd;
 
         node() = default;
 
@@ -464,8 +466,8 @@ namespace mango
     {
         scenario() = default;
 
-        //! \brief List if \a uids referencing all root nodes in the \a scenario.
-        std::vector<key> root_nodes;
+        //! \brief List if \a handles referencing all root nodes in the \a scenario.
+        std::vector<handle<node>> root_nodes;
 
         //! \brief \a Scenario is a scene structure.
         DECLARE_SCENE_STRUCTURE(scenario);
@@ -477,8 +479,9 @@ namespace mango
         //! \brief The full file path of the loaded model.
         string file_path;
 
-        //! \brief List of \a uids referencing all scenarios in the \a model.
-        std::vector<key> scenarios;
+        //! \brief List of \a handles referencing all scenarios in the \a model.
+        std::vector<handle<scenario>> scenarios;
+
         //! \brief Index in the list of scenarios providing the default \a scenario of the \a model.
         int32 default_scenario;
 

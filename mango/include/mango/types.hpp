@@ -191,11 +191,55 @@ namespace mango
     template <typename T>
     class handle
     {
-      protected:
+      public:
         handle()
             : id(NONE)
         {
         }
+
+        inline bool valid() const
+        {
+            return id.has_value();
+        }
+
+        key id_unchecked() const
+        {
+            return id.value();
+        }
+
+        bool operator==(const handle<T>& other) const
+        {
+            return this->id == other.id;
+        }
+
+        bool operator!=(const handle<T> other) const
+        {
+            return (*this == other);
+        }
+
+        bool operator<(const handle<T> other) const
+        {
+            return this->id < other.id;
+        }
+
+        bool operator>(const handle<T> other) const
+        {
+            return (other < *this);
+        }
+
+        bool operator<=(const handle<T> other) const
+        {
+            return !(*this > other);
+        }
+
+        bool operator>=(const handle<T> other) const
+        {
+            return !(*this < other);
+        }
+
+      private:
+        friend class scene_impl; // TODO: I hate friend classes...
+
         handle(key id)
             : id(id)
         {
@@ -203,7 +247,8 @@ namespace mango
 
         optional<key> id;
     };
-    // TODO NEXT: - create buffer glsl parser and generate structs with correct alignment for layout ...
+    template <typename T>
+    handle<T> NULL_HND;
     // TODO NEXT: - convert pointer handles to real handles
     // TODO NEXT: - cleanup some TODOs
 

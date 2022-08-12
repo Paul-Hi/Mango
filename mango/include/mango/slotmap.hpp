@@ -201,6 +201,11 @@ namespace mango
             return m_data.cend();
         }
 
+        const std::vector<key>& keys()
+        {
+            return m_indices;
+        }
+
       private:
         std::vector<T> m_data;
         std::vector<key> m_indices{ {} };

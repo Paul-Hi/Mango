@@ -71,35 +71,35 @@ bool editor::create()
     MANGO_ASSERT(m_current_scene, "Scene creation failed!");
 
     // camera
-    m_main_camera_node_id = m_current_scene->add_node("Editor Camera");
+    m_main_camera_node_hnd = m_current_scene->add_node("Editor Camera");
     perspective_camera editor_cam;
-    editor_cam.aspect                  = 16.0f / 9.0f;
-    editor_cam.z_near                  = 0.05f;
-    editor_cam.z_far                   = 28.0f;
-    editor_cam.vertical_field_of_view  = deg_to_rad(45.0f);
-    editor_cam.target                  = vec3(0.0f, 0.0f, 0.0f);
-    m_current_scene->add_perspective_camera(editor_cam, m_main_camera_node_id).value(); // TODO: Error check
-    optional<transform&> cam_transform = m_current_scene->get_transform(m_main_camera_node_id);
+    editor_cam.aspect                 = 16.0f / 9.0f;
+    editor_cam.z_near                 = 0.05f;
+    editor_cam.z_far                  = 28.0f;
+    editor_cam.vertical_field_of_view = deg_to_rad(45.0f);
+    editor_cam.target                 = vec3(0.0f, 0.0f, 0.0f);
+    m_current_scene->add_perspective_camera(editor_cam, m_main_camera_node_hnd); // TODO: Error check
+    optional<transform&> cam_transform = m_current_scene->get_transform(m_main_camera_node_hnd);
     MANGO_ASSERT(cam_transform, "Something is broken - Main camera does not have a transform!");
     cam_transform->position = vec3(0.0f, 2.5f, 5.0f);
     cam_transform->changed  = true; // TODO Paul: This has to be called, but is forgotten too easy.
-    m_current_scene->set_main_camera(m_main_camera_node_id);
+    m_current_scene->set_main_camera_node(m_main_camera_node_hnd);
 
     // test settings comment in to have some example scene
     {
-        key bb = m_current_scene->load_model_from_gltf("res/models/WaterBottle/WaterBottle.glb");
-        // key bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
-        //key bb                      = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/Bistro_v5_1/BistroExterior.gltf");
+        handle<model> bb = m_current_scene->load_model_from_gltf("res/models/WaterBottle/WaterBottle.glb");
+        // handle<model> bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
+        // handle<model> bb                      = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/Bistro_v5_1/BistroExterior.gltf");
         optional<mango::model&> mod = m_current_scene->get_model(bb);
         MANGO_ASSERT(mod, "Model not existent!");
-        key model_instance_root            = m_current_scene->add_node("WaterBottle");
-        m_current_scene->add_model_to_scene(mod.value(), mod->scenarios.at(mod->default_scenario), model_instance_root);
+        handle<node> model_instance_root = m_current_scene->add_node("WaterBottle");
+        m_current_scene->add_model_to_scene(bb, mod->scenarios.at(mod->default_scenario), model_instance_root);
         optional<transform&> mod_transform = m_current_scene->get_transform(model_instance_root);
         MANGO_ASSERT(mod_transform, "Model instance transform not existent!");
         mod_transform->scale *= 10.0f;
         mod_transform->changed = true;
 
-        key directional_light_node = m_current_scene->add_node("Directional Sun Light");
+        handle<node> directional_light_node = m_current_scene->add_node("Directional Sun Light");
         directional_light dl;
         dl.direction                = vec3(0.2f, 1.0f, 0.15f); // vec3(0.9f, 0.05f, 0.65f);
         dl.intensity                = default_directional_intensity;
@@ -108,7 +108,7 @@ bool editor::create()
         dl.contribute_to_atmosphere = false;
         m_current_scene->add_directional_light(dl, directional_light_node);
 
-        key skylight_node = m_current_scene->add_node("Venice Sunset Skylight");
+        handle<node> skylight_node = m_current_scene->add_node("Venice Sunset Skylight");
         m_current_scene->add_skylight_from_hdr("res/textures/venice_sunset_4k.hdr", skylight_node);
     }
     // test end
@@ -125,7 +125,7 @@ bool editor::create()
         {
             shared_ptr<context> mango_context = get_context().lock();
             MANGO_ASSERT(mango_context, "Context is expired!");
-            optional<perspective_camera&> cam = mango_context->get_current_scene()->get_perspective_camera(m_main_camera_node_id);
+            optional<perspective_camera&> cam = mango_context->get_current_scene()->get_perspective_camera(m_main_camera_node_hnd);
             if (!cam)
                 return;
 
@@ -169,7 +169,7 @@ bool editor::create()
         {
             shared_ptr<context> mango_context = get_context().lock();
             MANGO_ASSERT(mango_context, "Context is expired!");
-            optional<perspective_camera&> cam = mango_context->get_current_scene()->get_perspective_camera(m_main_camera_node_id);
+            optional<perspective_camera&> cam = mango_context->get_current_scene()->get_perspective_camera(m_main_camera_node_hnd);
             if (!cam)
                 return;
 
@@ -194,10 +194,10 @@ void editor::update(float dt)
     shared_ptr<context> mango_context = get_context().lock();
 
     MANGO_ASSERT(mango_context, "Context is expired!");
-    if (m_main_camera_node_id == mango_context->get_current_scene()->get_active_camera_key())
+    if (m_main_camera_node_hnd == mango_context->get_current_scene()->get_active_camera_node())
     {
-        optional<perspective_camera&> cam  = mango_context->get_current_scene()->get_perspective_camera(m_main_camera_node_id);
-        optional<transform&> cam_transform = mango_context->get_current_scene()->get_transform(m_main_camera_node_id);
+        optional<perspective_camera&> cam  = mango_context->get_current_scene()->get_perspective_camera(m_main_camera_node_hnd);
+        optional<transform&> cam_transform = mango_context->get_current_scene()->get_transform(m_main_camera_node_hnd);
         if (!cam || !cam_transform)
             return;
 
@@ -225,13 +225,13 @@ void editor::update(float dt)
         cam_transform->position.x() = cam->target.x() + m_camera_radius * (sinf(m_camera_rotation.y()) * cosf(m_camera_rotation.x()));
         cam_transform->position.y() = cam->target.y() + m_camera_radius * (cosf(m_camera_rotation.y()));
         cam_transform->position.z() = cam->target.z() + m_camera_radius * (sinf(m_camera_rotation.y()) * sinf(m_camera_rotation.x()));
-        cam_transform->changed = true;
+        cam_transform->changed      = true;
 
         auto ui = mango_context->get_ui();
         if (ui)
         {
-            auto size   = ui->get_content_size();
-            if(size.y() > 0)
+            auto size = ui->get_content_size();
+            if (size.y() > 0)
                 cam->aspect = static_cast<float>(size.x()) / static_cast<float>(size.y());
         }
     }
