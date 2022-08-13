@@ -2669,14 +2669,14 @@ void scene_impl::update(float dt)
     }
 }
 
-void scene_impl::draw_scene_hierarchy(handle<node> selected)
+void scene_impl::draw_scene_hierarchy(handle<node>& selected)
 {
     std::vector<handle<node>> to_remove = draw_scene_hierarchy_internal(m_root_node, NULL_HND<node>, selected);
     for (auto n : to_remove)
         remove_node(n);
 }
 
-std::vector<handle<node>> scene_impl::draw_scene_hierarchy_internal(handle<node> current, handle<node> parent,handle<node> selected)
+std::vector<handle<node>> scene_impl::draw_scene_hierarchy_internal(handle<node> current, handle<node> parent, handle<node>& selected)
 {
     optional<node&> opt_node = get_node(current);
     MANGO_ASSERT(opt_node, "Something is broken - Can not draw hierarchy for a non existing node!");

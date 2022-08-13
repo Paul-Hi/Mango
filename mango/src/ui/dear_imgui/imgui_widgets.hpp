@@ -425,7 +425,7 @@ namespace mango
         //! \param[in] instance The \a handle of the \a mesh instance.
         //! \param[in] application_scene The current \a scene of the \a application.
         //! \param[in,out] selected_primitive The \a handle of the currently selected \a primitive.
-        void inspect_mesh(handle<node> node_hnd, handle<mesh> instance, const unique_ptr<scene_impl>& application_scene, handle<primitive> selected_primitive)
+        void inspect_mesh(handle<node> node_hnd, handle<mesh> instance, const unique_ptr<scene_impl>& application_scene, handle<primitive>& selected_primitive)
         {
             optional<mesh&> m = application_scene->get_mesh(instance);
             MANGO_ASSERT(m, "Mesh to inspect does not exist!");
@@ -1010,7 +1010,7 @@ namespace mango
     //! \param[in] application_scene The current \a scene of the \a application.
     //! \param[in,out] enabled True if the window is open, else false.
     //! \param[in,out] selected The \a handle of the currently selected \a node, can be updated by this function.
-    void scene_inspector_widget(const unique_ptr<scene_impl>& application_scene, bool& enabled, handle<node> selected)
+    void scene_inspector_widget(const unique_ptr<scene_impl>& application_scene, bool& enabled, handle<node>& selected)
     {
         ImGui::Begin("Scene Inspector", &enabled);
         if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered())
@@ -1087,7 +1087,7 @@ namespace mango
     //! \param[in] node_hnd The \a handle of the \a node that should be inspected.
     //! \param[in] viewport_size The size of the render_view, when enabled, else some base size.
     //! \param[in,out] selected_primitive The last selected primitive -> Should be updated by inspect_mesh().
-    void scene_object_component_inspector_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, handle<node> node_hnd, const ImVec2& viewport_size, handle<primitive> selected_primitive)
+    void scene_object_component_inspector_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, handle<node> node_hnd, const ImVec2& viewport_size, handle<primitive>& selected_primitive)
     {
         ImGui::Begin("Scene Object - Component Inspector", &enabled);
         if (node_hnd.valid())
@@ -1145,7 +1145,7 @@ namespace mango
     //! \param[in] shared_context The shared context of mango.
     //! \param[in,out] enabled True if the window is open, else false.
     //! \param[in] selected_primitive The selected primitive that should be inspected.
-    void primitive_material_inspector_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, handle<primitive> selected_primitive)
+    void primitive_material_inspector_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, handle<primitive>& selected_primitive)
     {
         ImGui::Begin("Primitive - Material Inspector", &enabled);
         if (selected_primitive.valid())

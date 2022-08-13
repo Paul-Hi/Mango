@@ -153,7 +153,7 @@ namespace mango
         //! \brief Draws the hierarchy of \a nodes in a ui widget.
         //! \param[in,out] selected The \a handle of the selected \a node.
         //! \details Does not create an ImGui window, only draws contents.
-        void draw_scene_hierarchy(handle<node> selected);
+        void draw_scene_hierarchy(handle<node>& selected);
 
         //! \brief Sets the average luminance for camera auto exposure calculations.
         //! \param[in] avg_luminance The average luminance to use.
@@ -307,7 +307,7 @@ namespace mango
         //! \param[in] parent The current \a nodes parent \a handle.
         //! \param[in,out] selected The \a handle of the selected node.
         //! \return The list of \a handles of \a nodes that should be removed, after the hierarchy is drawn.
-        std::vector<handle<node>> draw_scene_hierarchy_internal(handle<node> current, handle<node> parent, handle<node> selected);
+        std::vector<handle<node>> draw_scene_hierarchy_internal(handle<node> current, handle<node> parent, handle<node>& selected);
 
         //! \brief Returns a name for a \a node_type and a \a node name.
         //! \param[in] type The \a node_type of the \a node.
