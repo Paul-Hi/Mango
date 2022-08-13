@@ -214,7 +214,7 @@ namespace mango
 
         bool operator!=(const handle<T> other) const
         {
-            return (*this == other);
+            return !(*this == other);
         }
 
         bool operator<(const handle<T> other) const

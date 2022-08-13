@@ -45,19 +45,19 @@ namespace mango
     {
         axis_aligned_bounding_box a1, a2;
 
-        a1.center  = vec3(0.0f);
-        a1.extents = vec3(1.0f);
+        a1.center  = make_vec3(0.0f);
+        a1.extents = make_vec3(1.0f);
 
         a2.center  = vec3(1.0f, 0.0f, 0.0f);
-        a2.extents = vec3(1.0f);
+        a2.extents = make_vec3(1.0f);
 
         ASSERT_TRUE(a1.intersects(a2));
 
         a1.center  = vec3(0.0f, -1.0f, 0.0f);
-        a1.extents = vec3(1.0f);
+        a1.extents = make_vec3(1.0f);
 
         a2.center  = vec3(0.0f, 1.0f, 0.0f);
-        a2.extents = vec3(1.0f);
+        a2.extents = make_vec3(1.0f);
 
         ASSERT_TRUE(a1.intersects(a2));
 
@@ -70,10 +70,10 @@ namespace mango
         ASSERT_TRUE(a1.intersects(a2));
 
         a1.center  = vec3(0.0f, 0.0f, 2.0f);
-        a1.extents = vec3(1.0f);
+        a1.extents = make_vec3(1.0f);
 
         a2.center  = vec3(0.0f, 0.0f, -2.0f);
-        a2.extents = vec3(1.0f);
+        a2.extents = make_vec3(1.0f);
 
         ASSERT_FALSE(a1.intersects(a2));
     }
@@ -81,12 +81,12 @@ namespace mango
     TEST(intersect_test, frustum_sphere_intersection_works)
     {
         // lookAt(vec3(0.0f), vec3(0.0f, 0.0f, -1.0f), vec3(0.0f, 1.0f, 0.0f))
-        mat4 p = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 10.0f);
-        bounding_frustum f(mat4(1.0f), p);
+        mat4 p = mango::perspective(mango::deg_to_rad(45.0f), 16.0f / 9.0f, 0.1f, 10.0f);
+        bounding_frustum f(mat4::Identity(), p);
 
         bounding_sphere s;
 
-        s.center = vec3(0.0f);
+        s.center = make_vec3(0.0f);
         s.radius = 1.0f;
 
         ASSERT_TRUE(f.intersects(s));
@@ -125,12 +125,12 @@ namespace mango
 
     TEST(intersect_test, frustum_aabb_intersection_works)
     {
-        bounding_frustum f(glm::lookAt(vec3(0.0f), vec3(0.0f, 0.0f, -1.0f), vec3(0.0f, 1.0f, 0.0f)), glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 10.0f));
+        bounding_frustum f(mango::lookAt(make_vec3(0.0f), vec3(0.0f, 0.0f, -1.0f), vec3(0.0f, 1.0f, 0.0f)), mango::perspective(mango::deg_to_rad(45.0f), 16.0f / 9.0f, 0.1f, 10.0f));
 
         axis_aligned_bounding_box a;
 
-        a.center  = vec3(0.0f);
-        a.extents = vec3(1.0f);
+        a.center  = make_vec3(0.0f);
+        a.extents = make_vec3(1.0f);
 
         ASSERT_TRUE(f.intersects(a));
         ASSERT_TRUE(a.intersects(f));
@@ -148,7 +148,7 @@ namespace mango
         ASSERT_TRUE(a.intersects(f));
 
         a.center  = vec3(0.0f, 0.0f, 2.0f);
-        a.extents = vec3(1.0f);
+        a.extents = make_vec3(1.0f);
 
         ASSERT_FALSE(f.intersects(a));
         ASSERT_FALSE(a.intersects(f));

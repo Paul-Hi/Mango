@@ -108,12 +108,14 @@ namespace mango
             std::swap(m_erase[data_index], m_erase[last_index]);
 
             m_data.pop_back();
-            m_erase.pop_back();
 
             if (!m_data.empty())
             {
                 m_indices[m_erase[data_index]] = (m_indices[m_erase[data_index]] & ~INDEX_BIT_MASK) | ((key)data_index & INDEX_BIT_MASK);
             }
+
+            m_erase.pop_back();
+
 
             m_indices[m_freelist_tail] = (m_indices[m_freelist_tail] & ~INDEX_BIT_MASK) | ((key)key_ind & INDEX_BIT_MASK);
             m_freelist_tail            = key_ind;

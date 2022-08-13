@@ -2730,7 +2730,7 @@ std::vector<handle<node>> scene_impl::draw_scene_hierarchy_internal(handle<node>
     {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DRAG_DROP_NODE"))
         {
-            IM_ASSERT(payload->DataSize == sizeof(key) * 2);
+            IM_ASSERT(payload->DataSize == sizeof(handle<node>) * 2);
             const handle<node>* dropped = (const handle<node>*)payload->Data;
             MANGO_ASSERT(dropped[0].valid(), "Dropped node is NULL_HND!");
             attach(dropped[0], current);
