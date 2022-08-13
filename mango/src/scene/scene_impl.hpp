@@ -133,7 +133,9 @@ namespace mango
             auto keys = m_models.keys();
             std::vector<handle<model>> result;
             for (const key& k : keys)
+            {
                 result.push_back(handle<model>(k));
+            }
 
             return result;
         }

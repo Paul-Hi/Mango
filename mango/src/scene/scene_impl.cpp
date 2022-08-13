@@ -1698,6 +1698,8 @@ void scene_impl::build_model_camera(tinygltf::Camera& t_camera, handle<node> nod
         key node_id                             = node_hnd.id_unchecked();
         m_nodes[node_id].perspective_camera_hnd = handle<perspective_camera>(m_perspective_cameras.insert(cam));
         m_nodes[node_id].type |= node_type::perspective_camera;
+
+        return;
     }
     if (t_camera.type == "orthographic")
     {
@@ -1722,6 +1724,8 @@ void scene_impl::build_model_camera(tinygltf::Camera& t_camera, handle<node> nod
         key node_id                              = node_hnd.id_unchecked();
         m_nodes[node_id].orthographic_camera_hnd = handle<orthographic_camera>(m_orthographic_cameras.insert(cam));
         m_nodes[node_id].type |= node_type::orthographic_camera;
+
+        return;
     }
     else
     {

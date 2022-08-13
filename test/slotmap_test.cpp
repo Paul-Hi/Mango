@@ -1,4 +1,4 @@
-//! \file      packed_freelist_test.cpp
+//! \file      slotmap_test.cpp
 //! \author    Paul Himmler
 //! \version   1.0
 //! \date      2022
@@ -11,12 +11,12 @@
 
 namespace mango
 {
-    class packed_freelist_test : public ::testing::Test
+    class slotmap_test : public ::testing::Test
     {
       protected:
-        packed_freelist_test() {}
+        slotmap_test() {}
 
-        ~packed_freelist_test() override {}
+        ~slotmap_test() override {}
 
         void SetUp() override {}
 
@@ -25,7 +25,7 @@ namespace mango
 
     using namespace mango;
 
-    TEST_F(packed_freelist_test, can_insert_access_erase)
+    TEST_F(slotmap_test, can_insert_access_erase)
     {
         slotmap<string> string_list;
         ASSERT_EQ(string_list.size(), 0);

@@ -43,6 +43,7 @@ namespace mango
 
             m_data.clear();
             m_indices.clear();
+            m_indices.push(0);
             m_erase.clear();
             m_freelist_head = 0;
             m_freelist_tail = 0;
@@ -203,9 +204,11 @@ namespace mango
             return m_data.cend();
         }
 
-        const std::vector<key>& keys()
+        std::vector<key> keys() const
         {
-            return m_indices;
+            // TODO: Multiple copies are really bad, but we have a duplicate in the beginning ... -.-
+            std::vector<key> keys(m_indices.begin() + 1, m_indices.end());
+            return keys;
         }
 
       private:
