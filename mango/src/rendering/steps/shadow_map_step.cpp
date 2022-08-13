@@ -6,6 +6,7 @@
 
 #include <mango/imgui_helper.hpp>
 #include <mango/profile.hpp>
+#include <rendering/renderer_bindings.hpp>
 #include <rendering/renderer_impl.hpp>
 #include <rendering/steps/shadow_map_step.hpp>
 #include <resources/resources_impl.hpp>
@@ -20,15 +21,15 @@ shadow_map_step::shadow_map_step(const shadow_settings& settings)
 
     m_shadow_data.shadow_resolution                  = settings.get_resolution();
     m_shadow_data.shadow_sample_count                = settings.get_sample_count();
-    m_shadow_data.shadow_width                = settings.get_shadow_width();
-    m_shadow_map_offset                       = settings.get_offset();
+    m_shadow_data.shadow_width                       = settings.get_shadow_width();
+    m_shadow_map_offset                              = settings.get_offset();
     m_shadow_data.shadow_cascade_count               = settings.get_cascade_count();
     m_shadow_data.shadow_slope_bias                  = settings.get_slope_bias();
     m_shadow_data.shadow_normal_bias                 = settings.get_normal_bias();
     m_shadow_data.shadow_filter_mode                 = static_cast<int32>(settings.get_filter_mode());
-    m_cascade_data.lambda                     = settings.get_split_lambda();
+    m_cascade_data.lambda                            = settings.get_split_lambda();
     m_shadow_data.shadow_cascade_interpolation_range = settings.get_cascade_interpolation_range();
-    m_shadow_data.shadow_light_size           = settings.get_light_size();
+    m_shadow_data.shadow_light_size                  = settings.get_light_size();
     MANGO_ASSERT(m_shadow_data.shadow_resolution % 2 == 0, "Shadow Map Resolution has to be a multiple of 2!");
     MANGO_ASSERT(m_shadow_data.shadow_sample_count >= 8 && m_shadow_data.shadow_sample_count <= 64, "Sample count is not in valid range 8 - 64!");
     MANGO_ASSERT(m_shadow_data.shadow_cascade_count > 0 && m_shadow_data.shadow_cascade_count < 5, "Cascade count has to be between 1 and 4!");
@@ -53,31 +54,6 @@ bool shadow_map_step::create_step_resources()
 
     // textures
     if (!create_shadow_map())
-        return false;
-
-    // samplers
-    sampler_create_info sampler_info;
-    sampler_info.sampler_min_filter      = gfx_sampler_filter::sampler_filter_linear;
-    sampler_info.sampler_max_filter      = gfx_sampler_filter::sampler_filter_linear;
-    sampler_info.enable_comparison_mode  = true;
-    sampler_info.comparison_operator     = gfx_compare_operator::compare_operator_less_equal;
-    sampler_info.edge_value_wrap_u       = gfx_sampler_edge_wrap::sampler_edge_wrap_clamp_to_edge;
-    sampler_info.edge_value_wrap_v       = gfx_sampler_edge_wrap::sampler_edge_wrap_clamp_to_edge;
-    sampler_info.edge_value_wrap_w       = gfx_sampler_edge_wrap::sampler_edge_wrap_clamp_to_edge;
-    sampler_info.border_color[0]         = 0;
-    sampler_info.border_color[1]         = 0;
-    sampler_info.border_color[2]         = 0;
-    sampler_info.border_color[3]         = 0;
-    sampler_info.enable_seamless_cubemap = false;
-
-    m_shadow_map_shadow_sampler = graphics_device->create_sampler(sampler_info);
-    if (!check_creation(m_shadow_map_shadow_sampler.get(), "shadow map shadow sampler"))
-        return false;
-
-    sampler_info.enable_comparison_mode = false;
-
-    m_shadow_map_sampler = graphics_device->create_sampler(sampler_info);
-    if (!check_creation(m_shadow_map_sampler.get(), "shadow map sampler"))
         return false;
 
     // shader stages
@@ -161,17 +137,17 @@ bool shadow_map_step::create_step_resources()
     {
         m_shadow_pass_pipeline_create_info_base = graphics_device->provide_graphics_pipeline_create_info();
         auto shadow_pass_pipeline_layout        = graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-              gfx_shader_resource_access::shader_access_dynamic },
+                   { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                     gfx_shader_resource_access::shader_access_dynamic },
 
-            { gfx_shader_stage_type::shader_stage_geometry, SHADOW_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-              gfx_shader_resource_access::shader_access_dynamic },
+                   { gfx_shader_stage_type::shader_stage_geometry, SHADOW_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                     gfx_shader_resource_access::shader_access_dynamic },
 
-            { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+                   { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
+                   { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
 
-            { gfx_shader_stage_type::shader_stage_fragment, MATERIAL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-              gfx_shader_resource_access::shader_access_dynamic },
+                   { gfx_shader_stage_type::shader_stage_fragment, MATERIAL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                     gfx_shader_resource_access::shader_access_dynamic },
         });
 
         m_shadow_pass_pipeline_create_info_base.pipeline_layout = shadow_pass_pipeline_layout;
@@ -236,8 +212,8 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         return;
     fps_lock -= 1.0f / 30.0f;
 
-    m_cascade_data.camera_near           = camera_near;
-    m_cascade_data.camera_far            = camera_far;
+    m_cascade_data.camera_near                 = camera_near;
+    m_cascade_data.camera_far                  = camera_far;
     m_cascade_data.directional_light_direction = directional_light_direction;
 
     const float& clip_near  = camera_near;
@@ -311,8 +287,8 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         vec3 light_to_point = -m_cascade_data.directional_light_direction.normalized();
         if (up.dot(light_to_point) < 1e-5f)
             up = GLOBAL_RIGHT;
-        view                           = lookAt(vec3(center - light_to_point * (-min_extends.z() + m_shadow_map_offset)), center, up);
-        projection                     = ortho(min_extends.x(), max_extends.x(), min_extends.y(), max_extends.y(), 0.0f, (max_extends.z() - min_extends.z()) + m_shadow_map_offset);
+        view                                  = lookAt(vec3(center - light_to_point * (-min_extends.z() + m_shadow_map_offset)), center, up);
+        projection                            = ortho(min_extends.x(), max_extends.x(), min_extends.y(), max_extends.y(), 0.0f, (max_extends.z() - min_extends.z()) + m_shadow_map_offset);
         m_shadow_data.shadow_far_planes[casc] = (max_extends.z() - min_extends.z()) + m_shadow_map_offset;
 
         mat4 shadow_matrix = projection * view;
@@ -333,7 +309,7 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
 
         m_shadow_data.shadow_split_depth[casc]              = (clip_near + split_dist * clip_range);
         m_shadow_data.shadow_view_projection_matrices[casc] = projection * view;
-        m_cascade_data.frusta[casc]                  = bounding_frustum(view, projection);
+        m_cascade_data.frusta[casc]                         = bounding_frustum(view, projection);
     }
 }
 

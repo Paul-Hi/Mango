@@ -7,7 +7,6 @@
 #ifndef MANGO_SHADOW_MAP_STEP_HPP
 #define MANGO_SHADOW_MAP_STEP_HPP
 
-#include <core/context_impl.hpp>
 #include <graphics/graphics.hpp>
 #include <rendering/steps/render_step.hpp>
 #include <mango/intersect.hpp>
@@ -56,20 +55,6 @@ namespace mango
         inline gfx_handle<const gfx_texture> get_shadow_maps_texture()
         {
             return m_shadow_map;
-        }
-
-        //! \brief Returns the shadow depth sampler to bind as sampler2DArrayShadow.
-        //! \return A \a gfx_sampler.
-        inline gfx_handle<const gfx_sampler> get_shadow_maps_shadow_sampler()
-        {
-            return m_shadow_map_shadow_sampler;
-        }
-
-        //! \brief Returns the shadow depth sampler to bind as sampler2DArray.
-        //! \return A \a gfx_sampler.
-        inline gfx_handle<const gfx_sampler> get_shadow_maps_sampler()
-        {
-            return m_shadow_map_sampler;
         }
 
         //! \brief Returns resolution of the quadratic shadow map.

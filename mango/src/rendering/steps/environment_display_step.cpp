@@ -6,6 +6,7 @@
 
 #include <mango/imgui_helper.hpp>
 #include <mango/profile.hpp>
+#include <rendering/renderer_bindings.hpp>
 #include <rendering/renderer_impl.hpp>
 #include <rendering/steps/environment_display_step.hpp>
 #include <resources/resources_impl.hpp>
@@ -142,18 +143,20 @@ bool environment_display_step::create_step_resources()
 
     graphics_pipeline_create_info cubemap_pass_info = graphics_device->provide_graphics_pipeline_create_info();
     auto cubemap_pass_pipeline_layout               = graphics_device->create_pipeline_resource_layout({
-        { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_vertex, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_vertex, 3, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_vertex, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                        gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_vertex, 3, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
 
-        { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-          gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_fragment, 3, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                        gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                        gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_fragment, 3, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
 
-        { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
     });
 
     cubemap_pass_info.pipeline_layout = cubemap_pass_pipeline_layout;
@@ -247,8 +250,8 @@ void environment_display_step::on_ui_widget()
 {
     ImGui::PushID("environment_display_step");
     // Render Level 0.0 - 10.0
-    float& render_level         = m_cubemap_data.render_level;
-    float default_value         = 0.0f;
+    float& render_level = m_cubemap_data.render_level;
+    float default_value = 0.0f;
     slider_float_n("Blur Level", &render_level, 1, &default_value, 0.0f, 10.0f);
     m_cubemap_data.render_level = render_level;
 

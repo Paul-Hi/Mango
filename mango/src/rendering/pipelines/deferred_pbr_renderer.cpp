@@ -121,18 +121,9 @@ bool deferred_pbr_renderer::create_renderer_resources()
     if (!create_pipeline_resources())
         return false;
 
-    // TODO Paul: Still missing ressources!
-
-    /*
-    // default vao needed
-    default_vao = vertex_array::create();
-    if (!check_creation(default_vao.get(), "default vertex array object"))
+    // Passes
+    if (!create_passes())
         return false;
-    default_material             = std::make_shared<material>();
-    default_material->base_color = vec4(vec3(0.75f), 1.0f);
-    default_material->metallic   = 0.0f;
-    default_material->roughness  = 1.0f;
-    */
 
     return true;
 }
@@ -273,9 +264,14 @@ bool deferred_pbr_renderer::create_textures_and_samplers()
     sampler_info.sampler_max_filter = gfx_sampler_filter::sampler_filter_linear;
     m_linear_sampler                = m_graphics_device->create_sampler(sampler_info);
 
-    sampler_info.sampler_min_filter = gfx_sampler_filter::sampler_filter_linear_mipmap_linear;
-    sampler_info.sampler_max_filter = gfx_sampler_filter::sampler_filter_linear;
-    m_mipmapped_linear_sampler      = m_graphics_device->create_sampler(sampler_info);
+    sampler_info.enable_comparison_mode = true;
+    sampler_info.comparison_operator    = gfx_compare_operator::compare_operator_less_equal;
+    m_linear_compare_sampler            = m_graphics_device->create_sampler(sampler_info);
+
+    sampler_info.enable_comparison_mode = false;
+    sampler_info.sampler_min_filter     = gfx_sampler_filter::sampler_filter_linear_mipmap_linear;
+    sampler_info.sampler_max_filter     = gfx_sampler_filter::sampler_filter_linear;
+    m_mipmapped_linear_sampler          = m_graphics_device->create_sampler(sampler_info);
 
     if (!check_creation(m_nearest_sampler.get(), "nearest sampler"))
         return false;
@@ -452,7 +448,7 @@ bool deferred_pbr_renderer::create_shader_stages()
 
         res_resource_desc.defines.clear();
     }
-    // Screen Space Quad for Lighting Pass Vertex Stage and Compositing
+    // Screen Space Quad for Compositing
     {
         res_resource_desc.path        = "res/shader/v_screen_space_triangle.glsl";
         const shader_resource* source = internal_resources->acquire(res_resource_desc);
@@ -468,63 +464,6 @@ bool deferred_pbr_renderer::create_shader_stages()
 
         m_screen_space_triangle_vertex = m_graphics_device->create_shader_stage(shader_info);
         if (!check_creation(m_screen_space_triangle_vertex.get(), "screen space triangle vertex shader"))
-            return false;
-
-        res_resource_desc.defines.clear();
-    }
-    // Lighting Pass Fragment Stage
-    {
-        res_resource_desc.path        = "res/shader/deferred/f_deferred_lighting.glsl";
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_fragment;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 24;
-
-        shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, "light_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, "shadow_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET0, "texture_gbuffer_c0", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET0, "sampler_gbuffer_c0", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET1, "texture_gbuffer_c1", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET1, "sampler_gbuffer_c1", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET2, "texture_gbuffer_c2", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET2, "sampler_gbuffer_c2", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET3, "texture_gbuffer_c3", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET3, "sampler_gbuffer_c3", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_DEPTH, "texture_gbuffer_depth", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_DEPTH, "sampler_gbuffer_depth", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_IRRADIANCE_MAP, "texture_irradiance_map", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_IRRADIANCE_MAP, "sampler_irradiance_map", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_RADIANCE_MAP, "texture_radiance_map", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_RADIANCE_MAP, "sampler_radiance_map", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_LOOKUP, "texture_brdf_integration_lut", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_LOOKUP, "sampler_brdf_integration_lut", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_SHADOW_MAP, "texture_shadow_map_comp", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_SHADOW_MAP, "sampler_shadow_shadow_map", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_MAP, "texture_shadow_map", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_MAP, "sampler_shadow_map", gfx_shader_resource_type::shader_resource_sampler, 1 },
-        } };
-
-        m_lighting_pass_fragment = m_graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_lighting_pass_fragment.get(), "lighting pass fragment shader"))
             return false;
 
         res_resource_desc.defines.clear();
@@ -757,75 +696,6 @@ bool deferred_pbr_renderer::create_pipeline_resources()
 
         m_pipeline_cache.set_transparent_base(transparent_pass_info);
     }
-    // Lighting Pass Pipeline
-    {
-        graphics_pipeline_create_info lighting_pass_info = m_graphics_device->provide_graphics_pipeline_create_info();
-        auto lighting_pass_pipeline_layout               = m_graphics_device->create_pipeline_resource_layout({
-                          { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-                            gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-                            gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-                            gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-                            gfx_shader_resource_access::shader_access_dynamic },
-
-                          { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET0, gfx_shader_resource_type::shader_resource_input_attachment,
-                            gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-                          { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET1, gfx_shader_resource_type::shader_resource_input_attachment,
-                            gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET1, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-                          { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET2, gfx_shader_resource_type::shader_resource_input_attachment,
-                            gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET2, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-                          { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET3, gfx_shader_resource_type::shader_resource_input_attachment,
-                            gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET3, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-                          { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_DEPTH, gfx_shader_resource_type::shader_resource_input_attachment,
-                            gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_DEPTH, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-                          { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_IRRADIANCE_MAP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_IRRADIANCE_MAP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-                          { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_RADIANCE_MAP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_RADIANCE_MAP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-                          { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_LOOKUP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_LOOKUP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-                          { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_SHADOW_MAP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_SHADOW_MAP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-                          { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_MAP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_MAP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-        });
-
-        lighting_pass_info.pipeline_layout = lighting_pass_pipeline_layout;
-
-        lighting_pass_info.shader_stage_descriptor.vertex_shader_stage   = m_screen_space_triangle_vertex;
-        lighting_pass_info.shader_stage_descriptor.fragment_shader_stage = m_lighting_pass_fragment;
-
-        lighting_pass_info.vertex_input_state.attribute_description_count = 0;
-        lighting_pass_info.vertex_input_state.binding_description_count   = 0;
-
-        lighting_pass_info.input_assembly_state.topology = gfx_primitive_topology::primitive_topology_triangle_list; // Not relevant.
-
-        // viewport_descriptor is dynamic
-
-        // rasterization_state -> keep default
-        // depth_stencil_state -> keep default
-        // blend_state -> keep default
-
-        lighting_pass_info.dynamic_state.dynamic_states = gfx_dynamic_state_flag_bits::dynamic_state_viewport | gfx_dynamic_state_flag_bits::dynamic_state_scissor;
-
-        m_lighting_pass_pipeline = m_graphics_device->create_graphics_pipeline(lighting_pass_info);
-    }
     // Composing Pass Pipeline
     {
         graphics_pipeline_create_info composing_pass_info = m_graphics_device->provide_graphics_pipeline_create_info();
@@ -891,6 +761,31 @@ bool deferred_pbr_renderer::create_pipeline_resources()
 
         m_luminance_reduction_pipeline = m_graphics_device->create_compute_pipeline(reduction_pass_info);
     }
+
+    return true; // TODO Paul: This is always true atm.
+}
+
+bool deferred_pbr_renderer::create_passes()
+{
+    m_deferred_lighting_pass.attach(m_shared_context);
+
+    return update_passes();
+}
+
+bool deferred_pbr_renderer::update_passes()
+{
+    gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
+                                  static_cast<float>(m_renderer_info.canvas.height) };
+
+    m_deferred_lighting_pass.set_viewport(window_viewport);
+    m_deferred_lighting_pass.set_render_targets(m_hdr_buffer_render_targets);
+    m_deferred_lighting_pass.set_gbuffer(m_gbuffer_render_targets, m_linear_sampler);
+    m_deferred_lighting_pass.set_renderer_data_buffer(m_renderer_data_buffer);
+    m_deferred_lighting_pass.set_irradiance_map_sampler(m_mipmapped_linear_sampler);
+    m_deferred_lighting_pass.set_radiance_map_sampler(m_mipmapped_linear_sampler);
+    m_deferred_lighting_pass.set_brdf_integration_lut_sampler(m_linear_sampler);
+    m_deferred_lighting_pass.set_shadow_map_sampler(m_linear_sampler);
+    m_deferred_lighting_pass.set_shadow_map_compare_sampler(m_linear_compare_sampler);
 
     return true; // TODO Paul: This is always true atm.
 }
@@ -1397,71 +1292,24 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
     auto irradiance = ls.get_skylight_irradiance_map();
     auto specular   = ls.get_skylight_specular_prefilter_map();
+    auto brdf_lut   = ls.get_skylight_brdf_lookup();
     // lighting pass
     {
-        GL_NAMED_PROFILE_ZONE("Deferred Lighting Pass");
-        NAMED_PROFILE_ZONE("Deferred Lighting Pass");
-        m_frame_context->bind_pipeline(m_lighting_pass_pipeline);
+        m_deferred_lighting_pass.set_camera_data_buffer(active_camera_data->camera_data_buffer);
+        m_deferred_lighting_pass.set_light_data_buffer(light_data.light_data_buffer);
+        m_deferred_lighting_pass.set_shadow_data_buffer(shadow_pass ? shadow_pass->get_shadow_data_buffer() : nullptr);
 
-        gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
-                                      static_cast<float>(m_renderer_info.canvas.height) };
-        m_frame_context->set_viewport(0, 1, &window_viewport);
+        m_deferred_lighting_pass.set_irradiance_map(irradiance ? irradiance : default_texture_cube);
+        m_deferred_lighting_pass.set_radiance_map(specular ? specular : default_texture_cube);
+        m_deferred_lighting_pass.set_brdf_integration_lut(brdf_lut ? brdf_lut : default_texture_2D);
 
-        m_frame_context->set_render_targets(static_cast<int32>(m_hdr_buffer_render_targets.size()) - 1, m_hdr_buffer_render_targets.data(), m_hdr_buffer_render_targets.back());
+        m_deferred_lighting_pass.set_shadow_map(shadow_pass ? shadow_pass->get_shadow_maps_texture() : default_texture_array);
 
-        m_lighting_pass_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer); // TODO Paul: Refill (Atm only filled on construction).
-        m_lighting_pass_pipeline->get_resource_mapping()->set("light_data", light_data.light_data_buffer);
-        // m_lighting_pass_pipeline->get_resource_mapping()->set("shadow_data", ); // TODO Paul: Should be filled in the shadow step. Nothing here yet.
+        m_deferred_lighting_pass.execute(m_frame_context);
 
-        m_lighting_pass_pipeline->get_resource_mapping()->set("texture_gbuffer_c0", m_gbuffer_render_targets[0]);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_gbuffer_c0", m_nearest_sampler);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("texture_gbuffer_c1", m_gbuffer_render_targets[1]);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_gbuffer_c1", m_nearest_sampler);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("texture_gbuffer_c2", m_gbuffer_render_targets[2]);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_gbuffer_c2", m_nearest_sampler);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("texture_gbuffer_c3", m_gbuffer_render_targets[3]);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_gbuffer_c3", m_nearest_sampler);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("texture_gbuffer_depth", m_gbuffer_render_targets[4]);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_gbuffer_depth", m_nearest_sampler);
-
-        if (irradiance && specular) // If this exists the rest has to exist too
-        {
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_irradiance_map", irradiance);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_irradiance_map", m_mipmapped_linear_sampler);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_radiance_map", specular);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_radiance_map", m_mipmapped_linear_sampler);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", ls.get_skylight_brdf_lookup());
-            m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_brdf_integration_lut", m_linear_sampler);
-        }
-        else
-        {
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_irradiance_map", default_texture_cube);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_radiance_map", default_texture_cube);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", default_texture_2D);
-        }
-
-        if (shadow_pass)
-        {
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", shadow_pass->get_shadow_maps_texture());
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map", shadow_pass->get_shadow_maps_texture());
-            m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_shadow_shadow_map", shadow_pass->get_shadow_maps_shadow_sampler());
-            m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_shadow_map", shadow_pass->get_shadow_maps_sampler());
-        }
-        else
-        {
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", default_texture_array);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map", default_texture_array);
-        }
-
-        m_frame_context->submit_pipeline_state_resources();
-
-        m_frame_context->set_index_buffer(nullptr, gfx_format::invalid);
-        m_frame_context->set_vertex_buffers(0, nullptr, nullptr, nullptr);
-
-        m_renderer_info.last_frame.draw_calls++;
-        m_renderer_info.last_frame.vertices += 3;
-        m_frame_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in geometry shader.
+        auto pass_info = m_deferred_lighting_pass.get_info();
+        m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+        m_renderer_info.last_frame.vertices += pass_info.vertices;
     }
 
     // cubemap pass
@@ -1649,13 +1497,13 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
             {
                 dc_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", shadow_pass->get_shadow_maps_texture());
                 dc_pipeline->get_resource_mapping()->set("texture_shadow_map", shadow_pass->get_shadow_maps_texture());
-                dc_pipeline->get_resource_mapping()->set("sampler_shadow_shadow_map", shadow_pass->get_shadow_maps_shadow_sampler());
-                dc_pipeline->get_resource_mapping()->set("sampler_shadow_map", shadow_pass->get_shadow_maps_sampler());
+                dc_pipeline->get_resource_mapping()->set("sampler_shadow_shadow_map", m_linear_compare_sampler);
+                dc_pipeline->get_resource_mapping()->set("sampler_shadow_map", m_linear_sampler);
             }
             else
             {
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", default_texture_array);
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map", default_texture_array);
+                dc_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", default_texture_array);
+                dc_pipeline->get_resource_mapping()->set("texture_shadow_map", default_texture_array);
             }
 
             m_frame_context->submit_pipeline_state_resources();
@@ -1826,6 +1674,7 @@ void deferred_pbr_renderer::set_viewport(int32 x, int32 y, int32 width, int32 he
         m_renderer_info.canvas.height = height;
 
         create_textures_and_samplers();
+        update_passes();
     }
 }
 

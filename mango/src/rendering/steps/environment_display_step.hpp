@@ -7,7 +7,6 @@
 #ifndef MANGO_ENVIRONMENT_DISPLAY_STEP_HPP
 #define MANGO_ENVIRONMENT_DISPLAY_STEP_HPP
 
-#include <core/context_impl.hpp>
 #include <graphics/graphics.hpp>
 #include <rendering/steps/render_step.hpp>
 

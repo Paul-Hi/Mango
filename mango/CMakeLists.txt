@@ -35,12 +35,9 @@ set(PUBLIC_HEADERS
 set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/timer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/allocator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/linear_allocator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/free_list_allocator.hpp
-
 
     # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util/hashing.hpp
@@ -82,6 +79,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_framebuffer_cache.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_vertex_array_cache.hpp
     # Renderer
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer_bindings.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer_pipeline_cache.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_renderer.hpp
@@ -89,7 +87,11 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/environment_display_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/debug_drawer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/render_pass.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/deferred_lighting_pass.hpp
 
     #generated
     ${CMAKE_CURRENT_SOURCE_DIR}/gen/shader_interop.hpp
@@ -98,12 +100,7 @@ set(PRIVATE_HEADERS
 set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/application.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/context_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/environment_display_step.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.cpp
     # ${CMAKE_CURRENT_SOURCE_DIR}/src/resources/mesh_factory.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/linear_allocator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/memory/free_list_allocator.cpp
 
@@ -141,7 +138,13 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_renderer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/debug_drawer.cpp
-)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/environment_display_step.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/deferred_lighting_pass.cpp
+    )
 
 add_library(mango
     ${PUBLIC_HEADERS}

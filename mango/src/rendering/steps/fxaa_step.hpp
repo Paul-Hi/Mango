@@ -8,6 +8,7 @@
 #define MANGO_FXAA_STEP_HPP
 
 #include <rendering/steps/render_step.hpp>
+#include <graphics/graphics.hpp>
 
 namespace mango
 {

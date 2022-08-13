@@ -8,6 +8,7 @@
 #define MANGO_RENDER_STEP_HPP
 
 #include <mango/types.hpp>
+#include <core/context_impl.hpp>
 
 namespace mango
 {

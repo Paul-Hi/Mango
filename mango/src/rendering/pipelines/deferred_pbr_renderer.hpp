@@ -12,6 +12,8 @@
 #include <rendering/renderer_impl.hpp>
 #include <rendering/renderer_pipeline_cache.hpp>
 #include <rendering/steps/render_step.hpp>
+#include <rendering/renderer_bindings.hpp>
+#include <rendering/passes/deferred_lighting_pass.hpp>
 
 namespace mango
 {
@@ -61,6 +63,8 @@ namespace mango
         gfx_handle<const gfx_sampler> m_nearest_sampler;
         //! \brief A sampler with linear filtering and "clamp to edge" edge handling.
         gfx_handle<const gfx_sampler> m_linear_sampler;
+        //! \brief A sampler with linear filtering and "clamp to edge" edge handling, comparison mode is on.
+        gfx_handle<const gfx_sampler> m_linear_compare_sampler;
         //! \brief A sampler with mipmapped linear filtering and "clamp to edge" edge handling.
         gfx_handle<const gfx_sampler> m_mipmapped_linear_sampler;
 
@@ -77,8 +81,6 @@ namespace mango
         gfx_handle<const gfx_shader_stage> m_transparent_pass_fragment;
         //! \brief The vertex \a shader_stage producing a screen space triangle.
         gfx_handle<const gfx_shader_stage> m_screen_space_triangle_vertex;
-        //! \brief The fragment \a shader_stage for the deferred lighting pass.
-        gfx_handle<const gfx_shader_stage> m_lighting_pass_fragment;
         //! \brief The fragment \a shader_stage for the composing pass.
         gfx_handle<const gfx_shader_stage> m_composing_pass_fragment;
 
@@ -87,14 +89,14 @@ namespace mango
         //! \brief The compute \a shader_stage for the luminance buffer reduction pass.
         gfx_handle<const gfx_shader_stage> m_luminance_reduction_compute;
 
-        //! \brief Graphics pipeline calculating the lighting for opaque geometry.
-        gfx_handle<const gfx_pipeline> m_lighting_pass_pipeline;
         //! \brief Graphics pipeline composing everything, applying tonemapping and gamma correction.
         gfx_handle<const gfx_pipeline> m_composing_pass_pipeline;
         //! \brief Compute pipeline constructing a luminance buffer.
         gfx_handle<const gfx_pipeline> m_luminance_construction_pipeline;
         //! \brief Compute pipeline reducing a luminance buffer and calculating an average luminance.
         gfx_handle<const gfx_pipeline> m_luminance_reduction_pipeline;
+
+        deferred_lighting_pass m_deferred_lighting_pass;
 
         //! \brief The \a renderers \a renderer_pipeline_cache to create and cache \a gfx_pipelines for the geometry.
         renderer_pipeline_cache m_pipeline_cache;
@@ -118,6 +120,10 @@ namespace mango
         //! \brief Function used to create pipeline resources.
         //! \return True on success, else false.
         bool create_pipeline_resources();
+
+        bool create_passes();
+
+        bool update_passes();
 
         //! \brief The \a debug_drawer to debug draw.
         debug_drawer m_debug_drawer;
