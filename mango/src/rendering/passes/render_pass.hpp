@@ -13,6 +13,41 @@
 
 namespace mango
 {
+    struct draw_key
+    {
+        key primitive_gpu_data_id;
+        key mesh_gpu_data_id;
+        handle<material> material_hnd;
+        float view_depth;
+        bool transparent;
+        axis_aligned_bounding_box bounding_box; // Does not contribute to order.
+
+        bool operator<(const draw_key& other) const
+        {
+            if (transparent < other.transparent)
+                return true;
+            if (other.transparent < transparent)
+                return false;
+
+            if (view_depth > other.view_depth)
+                return true;
+            if (other.view_depth > view_depth)
+                return false;
+
+            if (material_hnd < other.material_hnd)
+                return true;
+            if (other.material_hnd < material_hnd)
+                return false;
+
+            if (primitive_gpu_data_id < other.primitive_gpu_data_id)
+                return true;
+            if (other.primitive_gpu_data_id < primitive_gpu_data_id)
+                return false;
+
+            return false;
+        }
+    };
+
     struct render_pass_execution_info
     {
         int32 draw_calls; //!< The number of draw calls.

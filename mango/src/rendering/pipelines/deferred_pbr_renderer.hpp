@@ -14,6 +14,8 @@
 #include <rendering/steps/render_step.hpp>
 #include <rendering/renderer_bindings.hpp>
 #include <rendering/passes/deferred_lighting_pass.hpp>
+#include <rendering/passes/geometry_pass.hpp>
+#include <rendering/passes/transparent_pass.hpp>
 
 namespace mango
 {
@@ -73,10 +75,6 @@ namespace mango
         //! \brief The graphics uniform buffer for uploading \a renderer_data.
         gfx_handle<const gfx_buffer> m_renderer_data_buffer;
 
-        //! \brief The vertex \a shader_stage for the deferred geometry pass.
-        gfx_handle<const gfx_shader_stage> m_geometry_pass_vertex;
-        //! \brief The fragment \a shader_stage for the deferred geometry pass.
-        gfx_handle<const gfx_shader_stage> m_geometry_pass_fragment;
         //! \brief The fragment \a shader_stage for the forward transparent pass.
         gfx_handle<const gfx_shader_stage> m_transparent_pass_fragment;
         //! \brief The vertex \a shader_stage producing a screen space triangle.
@@ -97,9 +95,11 @@ namespace mango
         gfx_handle<const gfx_pipeline> m_luminance_reduction_pipeline;
 
         deferred_lighting_pass m_deferred_lighting_pass;
+        geometry_pass m_opaque_geometry_pass;
+        transparent_pass m_transparent_pass;
 
         //! \brief The \a renderers \a renderer_pipeline_cache to create and cache \a gfx_pipelines for the geometry.
-        renderer_pipeline_cache m_pipeline_cache;
+        shared_ptr<renderer_pipeline_cache> m_pipeline_cache;
 
         //! \brief The \a renderers \a graphics_device_context to execute per frame graphics commands.
         graphics_device_context_handle m_frame_context;
@@ -126,7 +126,7 @@ namespace mango
         bool update_passes();
 
         //! \brief The \a debug_drawer to debug draw.
-        debug_drawer m_debug_drawer;
+        shared_ptr<debug_drawer> m_debug_drawer;
 
         //! \brief Optional additional steps of the deferred pipeline.
         shared_ptr<render_step> m_pipeline_steps[mango::render_pipeline_step::number_of_steps];

@@ -598,11 +598,7 @@ namespace mango
         struct
         {
             int32 draw_calls; //!< The number of draw calls.
-            int32 meshes;     //!< The number of meshes.
-            int32 primitives; //!< The number of primitives.
             int32 vertices;   //!< The number of vertices.
-            int32 triangles;  //!< The number of triangles (approx.).
-            int32 materials;  //!< The number of materials.
         } last_frame;         //!< Measured stats from the last rendered frame.
     };
 
