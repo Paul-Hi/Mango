@@ -89,14 +89,6 @@ bool deferred_pbr_renderer::create_renderer_resources()
     if (!create_buffers())
         return false;
 
-    // Shaders
-    if (!create_shader_stages())
-        return false;
-
-    // Pipeline prebuild stuff
-    if (!create_pipeline_resources())
-        return false;
-
     // Passes
     if (!create_passes())
         return false;
@@ -270,209 +262,7 @@ bool deferred_pbr_renderer::create_buffers()
     if (!check_creation(m_renderer_data_buffer.get(), "renderer data buffer"))
         return false;
 
-    buffer_info.buffer_target = gfx_buffer_target::buffer_target_shader_storage;
-    buffer_info.buffer_access = gfx_buffer_access::buffer_access_mapped_access_read_write;
-    buffer_info.size          = sizeof(luminance_data);
-    m_luminance_data_buffer   = m_graphics_device->create_buffer(buffer_info);
-    if (!check_creation(m_luminance_data_buffer.get(), "luminance data buffer"))
-        return false;
-    m_luminance_data_mapping                      = nullptr;
-    graphics_device_context_handle device_context = m_graphics_device->create_graphics_device_context();
-    device_context->begin();
-    m_luminance_data_mapping = static_cast<luminance_data*>(device_context->map_buffer_data(m_luminance_data_buffer, 0, sizeof(luminance_data)));
-    device_context->end();
-    device_context->submit();
-    if (!check_mapping(m_luminance_data_mapping, "luminance data buffer"))
-        return false;
-
-    memset(m_luminance_data_mapping, 0, sizeof(luminance_data));
-    m_luminance_data_mapping->luminance = 1.0f;
-
     return true;
-}
-
-bool deferred_pbr_renderer::create_shader_stages()
-{
-    auto& internal_resources = m_shared_context->get_internal_resources();
-    shader_stage_create_info shader_info;
-    shader_resource_resource_description res_resource_desc;
-    shader_source_description source_desc;
-
-    // Screen Space Quad for Compositing
-    {
-        res_resource_desc.path        = "res/shader/v_screen_space_triangle.glsl";
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_vertex;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 0;
-
-        m_screen_space_triangle_vertex = m_graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_screen_space_triangle_vertex.get(), "screen space triangle vertex shader"))
-            return false;
-
-        res_resource_desc.defines.clear();
-    }
-    // Composing Pass Fragment Stage
-    {
-        res_resource_desc.path = "res/shader/post/f_composing.glsl";
-        res_resource_desc.defines.push_back({ "COMPOSING", "" });
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_fragment;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 6;
-
-        shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, "texture_hdr_input", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, "sampler_hdr_input", gfx_shader_resource_type::shader_resource_sampler, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_DEPTH_SAMPLER, "texture_geometry_depth_input", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_DEPTH_SAMPLER, "sampler_geometry_depth_input", gfx_shader_resource_type::shader_resource_sampler, 1 },
-        } };
-
-        m_composing_pass_fragment = m_graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_composing_pass_fragment.get(), "composing pass fragment shader"))
-            return false;
-
-        res_resource_desc.defines.clear();
-    }
-    // Luminance Construction Compute Stage
-    {
-        res_resource_desc.path = "res/shader/luminance_compute/c_construct_luminance_buffer.glsl";
-        res_resource_desc.defines.push_back({ "COMPUTE", "" });
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_compute;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 2;
-
-        shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_compute, LUMINANCE_DATA_BUFFER_BINDING_POINT, "luminance_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_compute, HDR_IMAGE_LUMINANCE_COMPUTE, "image_hdr_color", gfx_shader_resource_type::shader_resource_image_storage, 1 },
-        } };
-
-        m_luminance_construction_compute = m_graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_luminance_construction_compute.get(), "luminance construction compute shader"))
-            return false;
-
-        res_resource_desc.defines.clear();
-    }
-    // Luminance Reduction Compute Stage
-    {
-        res_resource_desc.path = "res/shader/luminance_compute/c_luminance_buffer_reduction.glsl";
-        res_resource_desc.defines.push_back({ "COMPUTE", "" });
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_compute;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 1;
-
-        shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_compute, LUMINANCE_DATA_BUFFER_BINDING_POINT, "luminance_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-        } };
-
-        m_luminance_reduction_compute = m_graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_luminance_reduction_compute.get(), "luminance reduction compute shader"))
-            return false;
-
-        res_resource_desc.defines.clear();
-    }
-
-    return true;
-}
-
-bool deferred_pbr_renderer::create_pipeline_resources()
-{
-    // Composing Pass Pipeline
-    {
-        graphics_pipeline_create_info composing_pass_info = m_graphics_device->provide_graphics_pipeline_create_info();
-        auto composing_pass_pipeline_layout               = m_graphics_device->create_pipeline_resource_layout({
-                          { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-                            gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-                            gfx_shader_resource_access::shader_access_dynamic },
-
-                          { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_DEPTH_SAMPLER, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-                          { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_DEPTH_SAMPLER, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-        });
-
-        composing_pass_info.pipeline_layout = composing_pass_pipeline_layout;
-
-        composing_pass_info.shader_stage_descriptor.vertex_shader_stage   = m_screen_space_triangle_vertex;
-        composing_pass_info.shader_stage_descriptor.fragment_shader_stage = m_composing_pass_fragment;
-
-        composing_pass_info.vertex_input_state.attribute_description_count = 0;
-        composing_pass_info.vertex_input_state.binding_description_count   = 0;
-
-        composing_pass_info.input_assembly_state.topology = gfx_primitive_topology::primitive_topology_triangle_list; // Not relevant.
-
-        // viewport_descriptor is dynamic
-
-        // rasterization_state -> keep default
-        composing_pass_info.depth_stencil_state.depth_compare_operator = gfx_compare_operator::compare_operator_always; // Do not disable since it writes the depth in the fragment shader.
-        // blend_state -> keep default
-
-        composing_pass_info.dynamic_state.dynamic_states = gfx_dynamic_state_flag_bits::dynamic_state_viewport | gfx_dynamic_state_flag_bits::dynamic_state_scissor;
-
-        m_composing_pass_pipeline = m_graphics_device->create_graphics_pipeline(composing_pass_info);
-    }
-    // Luminance Construction Pipeline
-    {
-        compute_pipeline_create_info construction_pass_info = m_graphics_device->provide_compute_pipeline_create_info();
-        auto construction_pass_pipeline_layout              = m_graphics_device->create_pipeline_resource_layout({
-                         { gfx_shader_stage_type::shader_stage_compute, LUMINANCE_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-                           gfx_shader_resource_access::shader_access_dynamic },
-
-                         { gfx_shader_stage_type::shader_stage_compute, HDR_IMAGE_LUMINANCE_COMPUTE, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_dynamic },
-        });
-
-        construction_pass_info.pipeline_layout = construction_pass_pipeline_layout;
-
-        construction_pass_info.shader_stage_descriptor.compute_shader_stage = m_luminance_construction_compute;
-
-        m_luminance_construction_pipeline = m_graphics_device->create_compute_pipeline(construction_pass_info);
-    }
-    // Luminance Reduction Pipeline
-    {
-        compute_pipeline_create_info reduction_pass_info = m_graphics_device->provide_compute_pipeline_create_info();
-        auto reduction_pass_pipeline_layout              = m_graphics_device->create_pipeline_resource_layout({
-                         { gfx_shader_stage_type::shader_stage_compute, LUMINANCE_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-                           gfx_shader_resource_access::shader_access_dynamic },
-        });
-
-        reduction_pass_info.pipeline_layout = reduction_pass_pipeline_layout;
-
-        reduction_pass_info.shader_stage_descriptor.compute_shader_stage = m_luminance_reduction_compute;
-
-        m_luminance_reduction_pipeline = m_graphics_device->create_compute_pipeline(reduction_pass_info);
-    }
-
-    return true; // TODO Paul: This is always true atm.
 }
 
 bool deferred_pbr_renderer::create_passes()
@@ -482,6 +272,8 @@ bool deferred_pbr_renderer::create_passes()
     m_deferred_lighting_pass.attach(m_shared_context);
     m_transparent_pass.setup(m_pipeline_cache, m_debug_drawer);
     m_transparent_pass.attach(m_shared_context);
+    m_composing_pass.attach(m_shared_context);
+    m_auto_luminance_pass.attach(m_shared_context);
 
     // optional passes
     const bool* render_passes = m_configuration.get_render_extensions();
@@ -545,6 +337,16 @@ bool deferred_pbr_renderer::update_passes()
     m_transparent_pass.set_shadow_map_sampler(m_linear_sampler);
     m_transparent_pass.set_shadow_map_compare_sampler(m_linear_compare_sampler);
 
+    m_composing_pass.set_viewport(window_viewport);
+    m_composing_pass.set_renderer_data_buffer(m_renderer_data_buffer);
+    m_composing_pass.set_hdr_input(m_hdr_buffer_render_targets[0]);
+    m_composing_pass.set_hdr_input_sampler(m_nearest_sampler);
+    m_composing_pass.set_depth_input(m_hdr_buffer_render_targets.back());
+    m_composing_pass.set_depth_input_sampler(m_nearest_sampler);
+
+    m_auto_luminance_pass.set_hdr_input(m_hdr_buffer_render_targets[0]);
+    m_auto_luminance_pass.set_input_size(m_renderer_info.canvas.width, m_renderer_info.canvas.height);
+
     // optional
     auto environment_display = std::static_pointer_cast<environment_display_pass>(m_pipeline_extensions[mango::render_pipeline_extension::environment_display]);
     if (environment_display)
@@ -579,7 +381,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     m_renderer_info.last_frame.vertices   = 0;
 
     m_frame_context->begin();
-    // m_frame_context->client_wait(m_frame_semaphore);
     float clear_color[4] = { 0.1f, 0.1f, 0.1f, 1.0f }; // TODO Paul: member or dynamic?
     auto swap_buffer     = m_graphics_device->get_swap_chain_render_target();
 
@@ -811,51 +612,9 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     // auto exposure
     if (scene->calculate_auto_exposure())
     {
-        GL_NAMED_PROFILE_ZONE("Auto Exposure Calculation");
-        NAMED_PROFILE_ZONE("Auto Exposure Calculation");
-        m_frame_context->bind_pipeline(m_luminance_construction_pipeline);
+        m_auto_luminance_pass.set_delta_time(dt);
 
-        m_frame_context->calculate_mipmaps(m_hdr_buffer_render_targets[0]);
-
-        int32 mip_level = 0;
-        int32 hr_width  = m_renderer_info.canvas.width;
-        int32 hr_height = m_renderer_info.canvas.height;
-        while (hr_width >> mip_level > 512 && hr_height >> mip_level > 512) // we can make it smaller, when we have some better focussing.
-        {
-            ++mip_level;
-        }
-        hr_width >>= mip_level;
-        hr_height >>= mip_level;
-
-        barrier_description bd;
-        bd.barrier_bit = gfx_barrier_bit::shader_image_access_barrier_bit;
-        m_frame_context->barrier(bd);
-
-        auto hdr_view = m_graphics_device->create_image_texture_view(m_hdr_buffer_render_targets[0], mip_level);
-
-        // time coefficient with tau = 1.1;
-        float tau                        = 1.1f;
-        float time_coefficient           = 1.0f - expf(-dt * tau);
-        m_luminance_data_mapping->params = vec4(-8.0f, 1.0f / 31.0f, time_coefficient, hr_width * hr_height); // min -8.0, max +23.0
-
-        m_luminance_construction_pipeline->get_resource_mapping()->set("image_hdr_color", hdr_view);
-        m_luminance_construction_pipeline->get_resource_mapping()->set("luminance_data", m_luminance_data_buffer);
-        m_frame_context->submit_pipeline_state_resources();
-
-        m_frame_context->dispatch(hr_width / 16, hr_height / 16, 1);
-
-        bd.barrier_bit = gfx_barrier_bit::shader_storage_barrier_bit;
-        m_frame_context->barrier(bd);
-
-        m_frame_context->bind_pipeline(m_luminance_reduction_pipeline);
-
-        m_luminance_reduction_pipeline->get_resource_mapping()->set("luminance_data", m_luminance_data_buffer);
-        m_frame_context->submit_pipeline_state_resources();
-
-        m_frame_context->dispatch(1, 1, 1);
-
-        bd.barrier_bit = gfx_barrier_bit::buffer_update_barrier_bit;
-        m_frame_context->barrier(bd);
+        m_auto_luminance_pass.execute(m_frame_context);
     }
 
     auto antialiasing          = std::static_pointer_cast<fxaa_pass>(m_pipeline_extensions[mango::render_pipeline_extension::fxaa]);
@@ -863,34 +622,18 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
     // composing pass
     {
-        GL_NAMED_PROFILE_ZONE("Composing Pass");
-        NAMED_PROFILE_ZONE("Composing Pass");
-        m_frame_context->bind_pipeline(m_composing_pass_pipeline);
-
-        gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
-                                      static_cast<float>(m_renderer_info.canvas.height) };
-        m_frame_context->set_viewport(0, 1, &window_viewport);
-
         if (postprocessing_buffer)
-            m_frame_context->set_render_targets(static_cast<int32>(m_post_render_targets.size()) - 1, m_post_render_targets.data(), m_post_render_targets.back());
+            m_composing_pass.set_render_targets(m_post_render_targets);
         else
-            m_frame_context->set_render_targets(1, &m_output_target, m_ouput_depth_target);
+            m_composing_pass.set_render_targets({ m_output_target, m_ouput_depth_target });
 
-        m_composing_pass_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
-        m_composing_pass_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer);
-        m_composing_pass_pipeline->get_resource_mapping()->set("texture_hdr_input", m_hdr_buffer_render_targets[0]);
-        m_composing_pass_pipeline->get_resource_mapping()->set("sampler_hdr_input", m_nearest_sampler);
-        m_composing_pass_pipeline->get_resource_mapping()->set("texture_geometry_depth_input", m_hdr_buffer_render_targets.back());
-        m_composing_pass_pipeline->get_resource_mapping()->set("sampler_geometry_depth_input", m_nearest_sampler);
+        m_composing_pass.set_camera_data_buffer(active_camera_data->camera_data_buffer);
 
-        m_frame_context->submit_pipeline_state_resources();
+        m_composing_pass.execute(m_frame_context);
 
-        m_frame_context->set_index_buffer(nullptr, gfx_format::invalid);
-        m_frame_context->set_vertex_buffers(0, nullptr, nullptr, nullptr);
-
-        m_renderer_info.last_frame.draw_calls++;
-        m_renderer_info.last_frame.vertices += 3;
-        m_frame_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in geometry shader.
+        auto pass_info = m_composing_pass.get_info();
+        m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+        m_renderer_info.last_frame.vertices += pass_info.vertices;
     }
 
     // debug lines
@@ -898,8 +641,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     {
         m_renderer_info.last_frame.draw_calls++;
         m_renderer_info.last_frame.vertices += m_debug_drawer->vertex_count();
-        // use the already set render targets ...
-        m_debug_drawer->execute();
+        // use already set last render targets and just add lines on top!
+        m_debug_drawer->execute(m_frame_context);
     }
 
     // fxaa
@@ -923,7 +666,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 void deferred_pbr_renderer::present()
 {
     m_frame_context->present();
-    // m_frame_semaphore = m_frame_context->fence(semaphore_create_info());
     m_frame_context->end();
     m_frame_context->submit();
 }
@@ -1090,5 +832,5 @@ void deferred_pbr_renderer::on_ui_widget()
 
 float deferred_pbr_renderer::get_average_luminance() const
 {
-    return m_luminance_data_mapping->luminance;
+    return m_auto_luminance_pass.get_average_luminance();
 }

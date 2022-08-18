@@ -94,6 +94,8 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/deferred_lighting_pass.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/geometry_pass.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/transparent_pass.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/composing_pass.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/auto_luminance_pass.hpp
 
     #generated
     ${CMAKE_CURRENT_SOURCE_DIR}/gen/shader_interop.hpp
@@ -148,6 +150,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/deferred_lighting_pass.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/geometry_pass.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/transparent_pass.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/composing_pass.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/auto_luminance_pass.cpp
     )
 
 add_library(mango

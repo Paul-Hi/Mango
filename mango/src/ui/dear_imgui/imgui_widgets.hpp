@@ -168,7 +168,7 @@ namespace mango
         //! \param[in] num_filters The number of elements in filter.
         //! \return The \a handle referencing the created \a texture and the \a key referencing the created \a texture_gpu_data.
         std::pair<handle<texture>, optional<key>> load_texture_dialog(const unique_ptr<scene_impl>& application_scene, bool standard_color_space, bool high_dynamic_range,
-                                                                    char const* const* const filter, int32 num_filters)
+                                                                      char const* const* const filter, int32 num_filters)
         {
             const char* query_path = tinyfd_openFileDialog(NULL, "res/", num_filters, filter, NULL, 0);
             if (query_path)
@@ -777,7 +777,10 @@ namespace mango
                             mat->base_color_texture_gpu_data = uid_pair.second;
                         }
                         else if (changed)
-                            mat->base_color_texture = NULL_HND<texture>;
+                        {
+                            mat->base_color_texture          = NULL_HND<texture>;
+                            mat->base_color_texture_gpu_data = NONE;
+                        }
 
                         any_change |= changed;
 
@@ -818,7 +821,10 @@ namespace mango
                             mat->metallic_roughness_texture_gpu_data = uid_pair.second;
                         }
                         else if (changed)
-                            mat->metallic_roughness_texture = NULL_HND<texture>;
+                        {
+                            mat->metallic_roughness_texture          = NULL_HND<texture>;
+                            mat->metallic_roughness_texture_gpu_data = NONE;
+                        }
 
                         any_change |= changed;
 
@@ -866,7 +872,10 @@ namespace mango
                             mat->normal_texture_gpu_data = uid_pair.second;
                         }
                         else if (changed)
-                            mat->normal_texture = NULL_HND<texture>;
+                        {
+                            mat->normal_texture          = NULL_HND<texture>;
+                            mat->normal_texture_gpu_data = NONE;
+                        }
 
                         any_change |= changed;
 
@@ -901,7 +910,10 @@ namespace mango
                             mat->occlusion_texture_gpu_data = uid_pair.second;
                         }
                         else if (changed)
-                            mat->occlusion_texture = NULL_HND<texture>;
+                        {
+                            mat->occlusion_texture          = NULL_HND<texture>;
+                            mat->occlusion_texture_gpu_data = NONE;
+                        }
 
                         any_change |= changed;
 
@@ -936,7 +948,10 @@ namespace mango
                             mat->emissive_texture_gpu_data = uid_pair.second;
                         }
                         else if (changed)
-                            mat->emissive_texture = NULL_HND<texture>;
+                        {
+                            mat->emissive_texture          = NULL_HND<texture>;
+                            mat->emissive_texture_gpu_data = NONE;
+                        }
 
                         any_change |= changed;
 
@@ -1021,7 +1036,7 @@ namespace mango
             {
                 for (handle<model> m : application_scene->get_imported_models())
                 {
-                    auto mod = application_scene->get_model(m);
+                    auto mod   = application_scene->get_model(m);
                     auto start = mod->file_path.find_last_of("\\/") + 1;
                     auto name  = mod->file_path.substr(start, mod->file_path.find_last_of(".") - start);
                     if (ImGui::BeginMenu((name + "##instantiation").c_str()))
@@ -1063,7 +1078,8 @@ namespace mango
     //! \param[in] node_hnd The \a handle of the \a node that should be inspected.
     //! \param[in] viewport_size The size of the render_view, when enabled, else some base size.
     //! \param[in,out] selected_primitive The last selected primitive -> Should be updated by inspect_mesh().
-    void scene_object_component_inspector_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, handle<node> node_hnd, const ImVec2& viewport_size, handle<primitive>& selected_primitive)
+    void scene_object_component_inspector_widget(const shared_ptr<context_impl>& shared_context, bool& enabled, handle<node> node_hnd, const ImVec2& viewport_size,
+                                                 handle<primitive>& selected_primitive)
     {
         ImGui::Begin("Scene Object - Component Inspector", &enabled);
         if (node_hnd.valid())

@@ -37,7 +37,7 @@ namespace mango
         void update_buffer();
 
         //! \brief Draws the lines.
-        void execute();
+        void execute(graphics_device_context_handle& device_context);
 
         //! \brief Retrieves the number of vertices currently added.
         //! \return The number of currently added vertices.
