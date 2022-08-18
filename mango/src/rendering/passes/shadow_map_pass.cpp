@@ -1,4 +1,4 @@
-//! \file      shadow_map_step.cpp
+//! \file      shadow_map_pass.cpp
 //! \author    Paul Himmler
 //! \version   1.0
 //! \date      2022
@@ -6,15 +6,16 @@
 
 #include <mango/imgui_helper.hpp>
 #include <mango/profile.hpp>
+#include <rendering/passes/shadow_map_pass.hpp>
 #include <rendering/renderer_bindings.hpp>
 #include <rendering/renderer_impl.hpp>
-#include <rendering/steps/shadow_map_step.hpp>
 #include <resources/resources_impl.hpp>
+#include <scene/scene_impl.hpp>
 #include <util/helpers.hpp>
 
 using namespace mango;
 
-shadow_map_step::shadow_map_step(const shadow_settings& settings)
+shadow_map_pass::shadow_map_pass(const shadow_settings& settings)
     : m_settings(settings)
 {
     PROFILE_ZONE;
@@ -36,9 +37,15 @@ shadow_map_step::shadow_map_step(const shadow_settings& settings)
     MANGO_ASSERT(m_cascade_data.lambda > 0.0f && m_cascade_data.lambda < 1.0f, "Lambda has to be between 0.0 and 1.0!");
 }
 
-shadow_map_step::~shadow_map_step() {}
+void shadow_map_pass::setup(const shared_ptr<renderer_pipeline_cache>& pipeline_cache, const shared_ptr<debug_drawer>& dbg_drawer)
+{
+    m_pipeline_cache = pipeline_cache;
+    m_debug_drawer   = dbg_drawer;
+}
 
-bool shadow_map_step::create_step_resources()
+shadow_map_pass::~shadow_map_pass() {}
+
+bool shadow_map_pass::create_pass_resources()
 {
     PROFILE_ZONE;
     auto& graphics_device = m_shared_context->get_graphics_device();
@@ -49,7 +56,7 @@ bool shadow_map_step::create_step_resources()
     buffer_info.size          = sizeof(shadow_data);
 
     m_shadow_data_buffer = graphics_device->create_buffer(buffer_info);
-    if (!check_creation(m_shadow_data_buffer.get(), "shadow data buffer"))
+    if (!check_creation(m_shadow_data_buffer.get(), "shadow m_shadow_data buffer"))
         return false;
 
     // textures
@@ -135,26 +142,26 @@ bool shadow_map_step::create_step_resources()
     }
     // Pass Pipeline Base
     {
-        m_shadow_pass_pipeline_create_info_base = graphics_device->provide_graphics_pipeline_create_info();
-        auto shadow_pass_pipeline_layout        = graphics_device->create_pipeline_resource_layout({
-                   { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-                     gfx_shader_resource_access::shader_access_dynamic },
+        auto shadow_pass_info            = graphics_device->provide_graphics_pipeline_create_info();
+        auto shadow_pass_pipeline_layout = graphics_device->create_pipeline_resource_layout({
+            { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+              gfx_shader_resource_access::shader_access_dynamic },
 
-                   { gfx_shader_stage_type::shader_stage_geometry, SHADOW_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-                     gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_geometry, SHADOW_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+              gfx_shader_resource_access::shader_access_dynamic },
 
-                   { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-                   { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
 
-                   { gfx_shader_stage_type::shader_stage_fragment, MATERIAL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-                     gfx_shader_resource_access::shader_access_dynamic },
+            { gfx_shader_stage_type::shader_stage_fragment, MATERIAL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+              gfx_shader_resource_access::shader_access_dynamic },
         });
 
-        m_shadow_pass_pipeline_create_info_base.pipeline_layout = shadow_pass_pipeline_layout;
+        shadow_pass_info.pipeline_layout = shadow_pass_pipeline_layout;
 
-        m_shadow_pass_pipeline_create_info_base.shader_stage_descriptor.vertex_shader_stage   = m_shadow_pass_vertex;
-        m_shadow_pass_pipeline_create_info_base.shader_stage_descriptor.geometry_shader_stage = m_shadow_pass_geometry;
-        m_shadow_pass_pipeline_create_info_base.shader_stage_descriptor.fragment_shader_stage = m_shadow_pass_fragment;
+        shadow_pass_info.shader_stage_descriptor.vertex_shader_stage   = m_shadow_pass_vertex;
+        shadow_pass_info.shader_stage_descriptor.geometry_shader_stage = m_shadow_pass_geometry;
+        shadow_pass_info.shader_stage_descriptor.fragment_shader_stage = m_shadow_pass_fragment;
 
         // vertex_input_descriptor comes from the mesh to render.
         // input_assembly_descriptor comes from the mesh to render.
@@ -162,20 +169,22 @@ bool shadow_map_step::create_step_resources()
         // viewport_descriptor is dynamic
 
         // rasterization_state -> keep default
-        m_shadow_pass_pipeline_create_info_base.rasterization_state.cull_mode               = gfx_cull_mode_flag_bits::mode_none;
-        m_shadow_pass_pipeline_create_info_base.rasterization_state.enable_depth_bias       = true;
-        m_shadow_pass_pipeline_create_info_base.rasterization_state.depth_bias_slope_factor = 1.1f;
-        m_shadow_pass_pipeline_create_info_base.rasterization_state.constant_depth_bias     = 4.0f;
+        shadow_pass_info.rasterization_state.cull_mode               = gfx_cull_mode_flag_bits::mode_none;
+        shadow_pass_info.rasterization_state.enable_depth_bias       = true;
+        shadow_pass_info.rasterization_state.depth_bias_slope_factor = 1.1f;
+        shadow_pass_info.rasterization_state.constant_depth_bias     = 4.0f;
         // depth_stencil_state -> keep default
-        m_shadow_pass_pipeline_create_info_base.blend_state.blend_description.color_write_mask = gfx_color_component_flag_bits::component_none;
+        shadow_pass_info.blend_state.blend_description.color_write_mask = gfx_color_component_flag_bits::component_none;
 
-        m_shadow_pass_pipeline_create_info_base.dynamic_state.dynamic_states = gfx_dynamic_state_flag_bits::dynamic_state_viewport | gfx_dynamic_state_flag_bits::dynamic_state_scissor;
+        shadow_pass_info.dynamic_state.dynamic_states = gfx_dynamic_state_flag_bits::dynamic_state_viewport | gfx_dynamic_state_flag_bits::dynamic_state_scissor;
+
+        m_pipeline_cache->set_shadow_base(shadow_pass_info);
     }
 
     return true;
 }
 
-bool shadow_map_step::create_shadow_map()
+bool shadow_map_pass::create_shadow_map()
 {
     auto& graphics_device = m_shared_context->get_graphics_device();
 
@@ -194,30 +203,166 @@ bool shadow_map_step::create_shadow_map()
     return true;
 }
 
-void shadow_map_step::attach(const shared_ptr<context_impl>& context)
+void shadow_map_pass::attach(const shared_ptr<context_impl>& context)
 {
     m_shared_context = context;
 
-    create_step_resources();
+    create_pass_resources();
 }
 
-void shadow_map_step::execute() {}
+void shadow_map_pass::execute(graphics_device_context_handle& device_context)
+{
+    auto warn_missing_draw = [](string what) { MANGO_LOG_WARN("{0} missing for draw. Skipping DrawCall!", what); };
 
-void shadow_map_step::update_cascades(float dt, float camera_near, float camera_far, const mat4& camera_view_projection, const vec3& directional_light_direction)
+    m_rpei.draw_calls = 0;
+    m_rpei.vertices   = 0;
+
+    GL_NAMED_PROFILE_ZONE("Shadow Pass");
+    NAMED_PROFILE_ZONE("Shadow Pass");
+
+    if (!m_debug_view_enabled && !m_shadow_casters.empty())
+    {
+        for (auto& sc : m_shadow_casters)
+        {
+            update_cascades(sc.direction);
+            device_context->set_render_targets(0, nullptr, m_shadow_map);
+
+            for (int32 casc = 0; casc < m_shadow_data.shadow_cascade_count; ++casc)
+            {
+                auto& cascade_frustum = m_cascade_data.frusta[casc];
+
+                m_shadow_data.shadow_cascade = casc;
+
+                if (m_debug_bounds)
+                {
+                    auto corners = bounding_frustum::get_corners(m_shadow_data.shadow_view_projection_matrices[casc]);
+                    m_debug_drawer->set_color(color_rgb(0.5f));
+                    m_debug_drawer->add(corners[0], corners[1]);
+                    m_debug_drawer->add(corners[1], corners[3]);
+                    m_debug_drawer->add(corners[3], corners[2]);
+                    m_debug_drawer->add(corners[2], corners[6]);
+                    m_debug_drawer->add(corners[6], corners[4]);
+                    m_debug_drawer->add(corners[4], corners[0]);
+                    m_debug_drawer->add(corners[0], corners[2]);
+
+                    m_debug_drawer->add(corners[5], corners[4]);
+                    m_debug_drawer->add(corners[4], corners[6]);
+                    m_debug_drawer->add(corners[6], corners[7]);
+                    m_debug_drawer->add(corners[7], corners[3]);
+                    m_debug_drawer->add(corners[3], corners[1]);
+                    m_debug_drawer->add(corners[1], corners[5]);
+                    m_debug_drawer->add(corners[5], corners[7]);
+                }
+
+                for (uint32 c = 0; c < m_draws->size(); ++c)
+                {
+                    auto& dc = m_draws->operator[](c);
+
+                    if (m_frustum_culling)
+                    {
+                        auto& bb = dc.bounding_box;
+                        if (!cascade_frustum.intersects(bb))
+                            continue;
+                    }
+
+                    optional<primitive_gpu_data&> prim_gpu_data = m_scene->get_primitive_gpu_data(dc.primitive_gpu_data_id);
+                    if (!prim_gpu_data)
+                    {
+                        warn_missing_draw("Primitive gpu m_shadow_data");
+                        continue;
+                    }
+                    optional<mesh_gpu_data&> m_gpu_data = m_scene->get_mesh_gpu_data(dc.mesh_gpu_data_id);
+                    if (!m_gpu_data)
+                    {
+                        warn_missing_draw("Mesh gpu m_shadow_data");
+                        continue;
+                    }
+                    optional<material&> mat                   = m_scene->get_material(dc.material_hnd);
+                    optional<material_gpu_data&> mat_gpu_data = m_scene->get_material_gpu_data(mat->gpu_data);
+                    if (!mat || !mat_gpu_data)
+                    {
+                        warn_missing_draw("Material");
+                        continue;
+                    }
+
+                    gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache->get_shadow(prim_gpu_data->vertex_layout, prim_gpu_data->input_assembly, mat->double_sided);
+
+                    device_context->bind_pipeline(dc_pipeline);
+                    gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(m_shadow_data.shadow_resolution), static_cast<float>(m_shadow_data.shadow_resolution) };
+                    device_context->set_viewport(0, 1, &shadow_viewport);
+
+                    device_context->set_buffer_data(m_shadow_data_buffer, 0, sizeof(shadow_data), &(m_shadow_data));
+                    dc_pipeline->get_resource_mapping()->set("shadow_data", m_shadow_data_buffer);
+
+                    dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);
+
+                    if (mat_gpu_data->per_material_data.alpha_mode > 1)
+                        continue; // TODO Paul: Transparent shadows?!
+
+                    dc_pipeline->get_resource_mapping()->set("material_data", mat_gpu_data->material_data_buffer);
+
+                    if (mat_gpu_data->per_material_data.base_color_texture)
+                    {
+                        MANGO_ASSERT(mat->base_color_texture_gpu_data.has_value(), "Texture has no gpu m_shadow_data!");
+                        optional<texture_gpu_data&> tex = m_scene->get_texture_gpu_data(mat->base_color_texture_gpu_data.value());
+                        if (!tex)
+                        {
+                            warn_missing_draw("Base Color Texture");
+                            continue;
+                        }
+                        dc_pipeline->get_resource_mapping()->set("texture_base_color", tex->graphics_texture);
+                        dc_pipeline->get_resource_mapping()->set("sampler_base_color", tex->graphics_sampler);
+                    }
+                    else
+                    {
+                        dc_pipeline->get_resource_mapping()->set("texture_base_color", m_default_texture_2D);
+                    }
+
+                    device_context->submit_pipeline_state_resources();
+
+                    device_context->set_index_buffer(prim_gpu_data->index_buffer_view.graphics_buffer, prim_gpu_data->index_type);
+
+                    std::vector<gfx_handle<const gfx_buffer>> vbs;
+                    vbs.reserve(prim_gpu_data->vertex_buffer_views.size());
+                    std::vector<int32> bindings;
+                    bindings.reserve(prim_gpu_data->vertex_buffer_views.size());
+                    std::vector<int32> offsets;
+                    offsets.reserve(prim_gpu_data->vertex_buffer_views.size());
+                    int32 idx = 0;
+                    for (auto vbv : prim_gpu_data->vertex_buffer_views)
+                    {
+                        vbs.push_back(vbv.graphics_buffer);
+                        bindings.push_back(idx++);
+                        offsets.push_back(vbv.offset);
+                    }
+
+                    device_context->set_vertex_buffers(static_cast<int32>(prim_gpu_data->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
+
+                    m_rpei.draw_calls++;
+                    m_rpei.vertices += std::max(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count);
+                    device_context->draw(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count, prim_gpu_data->draw_call_desc.instance_count,
+                                         prim_gpu_data->draw_call_desc.base_vertex, prim_gpu_data->draw_call_desc.base_instance, prim_gpu_data->draw_call_desc.index_offset);
+                }
+            }
+        }
+    }
+}
+
+void shadow_map_pass::update_cascades(const vec3& directional_light_direction)
 {
     // Update only with 30 fps
     static float fps_lock = 0.0f;
-    fps_lock += dt;
+    fps_lock += m_dt;
     if (fps_lock * 1000.0f < 1.0f / 30.0f)
         return;
     fps_lock -= 1.0f / 30.0f;
 
-    m_cascade_data.camera_near                 = camera_near;
-    m_cascade_data.camera_far                  = camera_far;
+    m_cascade_data.camera_near                 = m_camera_near;
+    m_cascade_data.camera_far                  = m_camera_far;
     m_cascade_data.directional_light_direction = directional_light_direction;
 
-    const float& clip_near  = camera_near;
-    const float& clip_far   = camera_far;
+    const float& clip_near  = m_camera_near;
+    const float& clip_far   = m_camera_far;
     const float& clip_range = clip_far - clip_near;
     const float& min_z      = clip_near;
     const float& max_z      = min_z + clip_range;
@@ -243,7 +388,7 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
         vec3(-1.0f, 1.0f, 1.0f),  vec3(1.0f, 1.0f, 1.0f),  vec3(1.0f, -1.0f, 1.0f),  vec3(-1.0f, -1.0f, 1.0f),
     };
 
-    mat4 cam_inv_vp = camera_view_projection.inverse();
+    mat4 cam_inv_vp = m_inverse_camera_view_projection;
     for (int32 i = 0; i < 8; ++i)
     {
         vec4 inv           = cam_inv_vp * vec4(frustum_corners[i].x(), frustum_corners[i].y(), frustum_corners[i].z(), 1.0f);
@@ -313,9 +458,9 @@ void shadow_map_step::update_cascades(float dt, float camera_near, float camera_
     }
 }
 
-void shadow_map_step::on_ui_widget()
+void shadow_map_pass::on_ui_widget()
 {
-    ImGui::PushID("shadow_step");
+    ImGui::PushID("shadow_pass");
     // Resolution 512, 1024, 2048, 4096
     const char* resolutions[4] = { "512", "1024", "2048", "4096" };
     int32 r                    = m_shadow_data.shadow_resolution;

@@ -2012,7 +2012,7 @@ struct model_data
 
 struct renderer_data
 {
-    sl_bool shadow_step_enabled;
+    sl_bool shadow_pass_enabled;
     sl_bool debug_view_enabled;
     sl_bool position_debug_view;
     sl_bool normal_debug_view;

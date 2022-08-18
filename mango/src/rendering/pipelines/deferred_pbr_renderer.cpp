@@ -7,10 +7,10 @@
 #include <glad/glad.h>
 #include <mango/imgui_helper.hpp>
 #include <mango/profile.hpp>
+#include <rendering/passes/environment_display_pass.hpp>
+#include <rendering/passes/fxaa_pass.hpp>
+#include <rendering/passes/shadow_map_pass.hpp>
 #include <rendering/pipelines/deferred_pbr_renderer.hpp>
-#include <rendering/steps/environment_display_step.hpp>
-#include <rendering/steps/fxaa_step.hpp>
-#include <rendering/steps/shadow_map_step.hpp>
 #include <resources/resources_impl.hpp>
 #include <scene/scene_impl.hpp>
 #include <util/helpers.hpp>
@@ -36,13 +36,7 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
 
     m_frame_context = m_graphics_device->create_graphics_device_context();
 
-    if (!create_renderer_resources())
-    {
-        MANGO_LOG_ERROR("Resource Creation Failed! Renderer is not available!");
-        return;
-    }
-
-    m_renderer_data.shadow_step_enabled         = false;
+    m_renderer_data.shadow_pass_enabled         = false;
     m_renderer_data.debug_view_enabled          = false;
     m_renderer_data.position_debug_view         = false;
     m_renderer_data.normal_debug_view           = false;
@@ -55,6 +49,12 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
     m_renderer_data.metallic_debug_view         = false;
     m_renderer_data.show_cascades               = false;
 
+    if (!create_renderer_resources())
+    {
+        MANGO_LOG_ERROR("Resource Creation Failed! Renderer is not available!");
+        return;
+    }
+
     m_vsync           = configuration.is_vsync_enabled();
     m_wireframe       = configuration.should_draw_wireframe();
     m_frustum_culling = configuration.is_frustum_culling_enabled();
@@ -66,30 +66,6 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
     device_context->set_swap_interval(m_vsync ? 1 : 0);
     device_context->end();
     device_context->submit();
-
-    // additional render steps
-    const bool* render_steps = configuration.get_render_steps();
-    if (render_steps[mango::render_pipeline_step::environment_display])
-    {
-        // create an extra object that is capable to render environment cubemaps.
-        auto environment_display = std::make_shared<environment_display_step>(configuration.get_environment_display_settings());
-        environment_display->attach(m_shared_context);
-        m_pipeline_steps[mango::render_pipeline_step::environment_display] = std::static_pointer_cast<render_step>(environment_display);
-    }
-    if (configuration.get_render_steps()[mango::render_pipeline_step::shadow_map])
-    {
-        auto step_shadow_map = std::make_shared<shadow_map_step>(configuration.get_shadow_settings());
-        step_shadow_map->attach(m_shared_context);
-        m_pipeline_cache->set_shadow_base(step_shadow_map->get_shadow_pass_pipeline_base());
-        m_pipeline_steps[mango::render_pipeline_step::shadow_map] = std::static_pointer_cast<render_step>(step_shadow_map);
-        m_renderer_data.shadow_step_enabled                       = true;
-    }
-    if (configuration.get_render_steps()[mango::render_pipeline_step::fxaa])
-    {
-        auto step_fxaa = std::make_shared<fxaa_step>(configuration.get_fxaa_settings());
-        step_fxaa->attach(m_shared_context);
-        m_pipeline_steps[mango::render_pipeline_step::fxaa] = std::static_pointer_cast<render_step>(step_fxaa);
-    }
 }
 
 deferred_pbr_renderer::~deferred_pbr_renderer() {}
@@ -226,9 +202,9 @@ bool deferred_pbr_renderer::create_textures_and_samplers()
     if (!check_creation(m_ouput_depth_target.get(), "output depth target"))
         return false;
 
-    auto fxaa_pass = std::static_pointer_cast<fxaa_step>(m_pipeline_steps[mango::render_pipeline_step::fxaa]);
-    if (fxaa_pass)
-        fxaa_pass->set_output_targets(m_output_target, m_ouput_depth_target);
+    auto antialiasing = std::static_pointer_cast<fxaa_pass>(m_pipeline_extensions[mango::render_pipeline_extension::fxaa]);
+    if (antialiasing)
+        antialiasing->set_output_targets(m_output_target, m_ouput_depth_target);
 
     // postprocessing render targets
     m_post_render_targets.clear();
@@ -507,6 +483,30 @@ bool deferred_pbr_renderer::create_passes()
     m_transparent_pass.setup(m_pipeline_cache, m_debug_drawer);
     m_transparent_pass.attach(m_shared_context);
 
+    // optional passes
+    const bool* render_passes = m_configuration.get_render_extensions();
+    if (render_passes[mango::render_pipeline_extension::environment_display])
+    {
+        // create an extra object that is capable to render environment cubemaps.
+        auto environment_display = std::make_shared<environment_display_pass>(m_configuration.get_environment_display_settings());
+        environment_display->attach(m_shared_context);
+        m_pipeline_extensions[mango::render_pipeline_extension::environment_display] = std::static_pointer_cast<render_pass>(environment_display);
+    }
+    if (m_configuration.get_render_extensions()[mango::render_pipeline_extension::shadow_map])
+    {
+        auto pass_shadow_map = std::make_shared<shadow_map_pass>(m_configuration.get_shadow_settings());
+        pass_shadow_map->setup(m_pipeline_cache, m_debug_drawer);
+        pass_shadow_map->attach(m_shared_context);
+        m_pipeline_extensions[mango::render_pipeline_extension::shadow_map] = std::static_pointer_cast<render_pass>(pass_shadow_map);
+        m_renderer_data.shadow_pass_enabled                                 = true;
+    }
+    if (m_configuration.get_render_extensions()[mango::render_pipeline_extension::fxaa])
+    {
+        auto pass_fxaa = std::make_shared<fxaa_pass>(m_configuration.get_fxaa_settings());
+        pass_fxaa->attach(m_shared_context);
+        m_pipeline_extensions[mango::render_pipeline_extension::fxaa] = std::static_pointer_cast<render_pass>(pass_fxaa);
+    }
+
     return update_passes();
 }
 
@@ -545,6 +545,25 @@ bool deferred_pbr_renderer::update_passes()
     m_transparent_pass.set_shadow_map_sampler(m_linear_sampler);
     m_transparent_pass.set_shadow_map_compare_sampler(m_linear_compare_sampler);
 
+    // optional
+    auto environment_display = std::static_pointer_cast<environment_display_pass>(m_pipeline_extensions[mango::render_pipeline_extension::environment_display]);
+    if (environment_display)
+        environment_display->set_renderer_data_buffer(m_renderer_data_buffer);
+
+    auto shadow_pass = std::static_pointer_cast<shadow_map_pass>(m_pipeline_extensions[mango::render_pipeline_extension::shadow_map]);
+    if (shadow_pass)
+    {
+        shadow_pass->set_frustum_culling(m_frustum_culling);
+        shadow_pass->set_debug_bounds(m_debug_bounds);
+        shadow_pass->set_wireframe(m_wireframe);
+        shadow_pass->set_debug_view_enabled(m_renderer_data.debug_view_enabled);
+        shadow_pass->set_default_texture_2D(default_texture_2D);
+    }
+
+    auto pass_fxaa = std::static_pointer_cast<fxaa_pass>(m_pipeline_extensions[mango::render_pipeline_extension::fxaa]);
+    if (pass_fxaa)
+        pass_fxaa->set_output_targets(m_output_target, m_ouput_depth_target);
+
     return true; // TODO Paul: This is always true atm.
 }
 
@@ -564,7 +583,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     float clear_color[4] = { 0.1f, 0.1f, 0.1f, 1.0f }; // TODO Paul: member or dynamic?
     auto swap_buffer     = m_graphics_device->get_swap_chain_render_target();
 
-    auto shadow_pass = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_pipeline_step::shadow_map]);
+    auto shadow_pass = std::static_pointer_cast<shadow_map_pass>(m_pipeline_extensions[mango::render_pipeline_extension::shadow_map]);
 
     // clear all framebuffers
     {
@@ -600,8 +619,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         return;
 
     shared_ptr<std::vector<draw_key>> draws = std::make_shared<std::vector<draw_key>>();
-    int32 opaque_count = 0;
-    auto instances     = scene->get_render_instances();
+    int32 opaque_count                      = 0;
+    auto instances                          = scene->get_render_instances();
     if (m_debug_bounds)
         m_debug_drawer->clear();
     bounding_frustum camera_frustum;
@@ -690,139 +709,23 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     auto light_data       = scene->get_light_gpu_data();
 
     // shadow pass
+    if (shadow_pass)
     {
-        GL_NAMED_PROFILE_ZONE("Shadow Pass");
-        NAMED_PROFILE_ZONE("Shadow Pass");
-        auto shadow_casters = ls.get_shadow_casters(); // currently only directional.
+        shadow_pass->set_camera_data_buffer(active_camera_data->camera_data_buffer);
+        shadow_pass->set_scene_pointer(scene);
+        shadow_pass->set_camera_frustum(camera_frustum);
+        shadow_pass->set_draws(draws);
+        shadow_pass->set_delta_time(dt);
+        shadow_pass->set_camera_near(active_camera_data->per_camera_data.camera_near);
+        shadow_pass->set_camera_far(active_camera_data->per_camera_data.camera_far);
+        shadow_pass->set_camera_inverse_view_projection(active_camera_data->per_camera_data.inverse_view_projection);
+        shadow_pass->set_shadow_casters(ls.get_shadow_casters());
 
-        if (shadow_pass && !m_renderer_data.debug_view_enabled && !shadow_casters.empty())
-        {
-            for (auto sc : shadow_casters)
-            {
-                shadow_pass->update_cascades(dt, active_camera_data->per_camera_data.camera_near, active_camera_data->per_camera_data.camera_far,
-                                             active_camera_data->per_camera_data.view_projection_matrix, sc.direction);
-                auto& shadow_data_buffer = shadow_pass->get_shadow_data_buffer();
-                m_frame_context->set_render_targets(0, nullptr, shadow_pass->get_shadow_maps_texture());
-                auto& data = shadow_pass->get_shadow_data();
-                for (int32 casc = 0; casc < data.shadow_cascade_count; ++casc)
-                {
-                    auto& cascade_frustum = shadow_pass->get_cascade_frustum(casc);
+        shadow_pass->execute(m_frame_context);
 
-                    data.shadow_cascade = casc;
-
-                    if (m_debug_bounds)
-                    {
-                        auto corners = bounding_frustum::get_corners(data.shadow_view_projection_matrices[casc]);
-                        m_debug_drawer->set_color(color_rgb(0.5f));
-                        m_debug_drawer->add(corners[0], corners[1]);
-                        m_debug_drawer->add(corners[1], corners[3]);
-                        m_debug_drawer->add(corners[3], corners[2]);
-                        m_debug_drawer->add(corners[2], corners[6]);
-                        m_debug_drawer->add(corners[6], corners[4]);
-                        m_debug_drawer->add(corners[4], corners[0]);
-                        m_debug_drawer->add(corners[0], corners[2]);
-
-                        m_debug_drawer->add(corners[5], corners[4]);
-                        m_debug_drawer->add(corners[4], corners[6]);
-                        m_debug_drawer->add(corners[6], corners[7]);
-                        m_debug_drawer->add(corners[7], corners[3]);
-                        m_debug_drawer->add(corners[3], corners[1]);
-                        m_debug_drawer->add(corners[1], corners[5]);
-                        m_debug_drawer->add(corners[5], corners[7]);
-                    }
-
-                    for (uint32 c = 0; c < draws->size(); ++c)
-                    {
-                        auto& dc = draws->operator[](c);
-
-                        if (m_frustum_culling)
-                        {
-                            auto& bb = dc.bounding_box;
-                            if (!cascade_frustum.intersects(bb))
-                                continue;
-                        }
-
-                        optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(dc.primitive_gpu_data_id);
-                        if (!prim_gpu_data)
-                        {
-                            warn_missing_draw("Primitive gpu data");
-                            continue;
-                        }
-                        optional<mesh_gpu_data&> m_gpu_data = scene->get_mesh_gpu_data(dc.mesh_gpu_data_id);
-                        if (!m_gpu_data)
-                        {
-                            warn_missing_draw("Mesh gpu data");
-                            continue;
-                        }
-                        optional<material&> mat                   = scene->get_material(dc.material_hnd);
-                        optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
-                        if (!mat || !mat_gpu_data)
-                        {
-                            warn_missing_draw("Material");
-                            continue;
-                        }
-
-                        gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache->get_shadow(prim_gpu_data->vertex_layout, prim_gpu_data->input_assembly, mat->double_sided);
-
-                        m_frame_context->bind_pipeline(dc_pipeline);
-                        gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(shadow_pass->resolution()), static_cast<float>(shadow_pass->resolution()) };
-                        m_frame_context->set_viewport(0, 1, &shadow_viewport);
-
-                        m_frame_context->set_buffer_data(shadow_data_buffer, 0, sizeof(shadow_data), &(data));
-                        dc_pipeline->get_resource_mapping()->set("shadow_data", shadow_data_buffer);
-
-                        dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);
-
-                        if (mat_gpu_data->per_material_data.alpha_mode > 1)
-                            continue; // TODO Paul: Transparent shadows?!
-
-                        dc_pipeline->get_resource_mapping()->set("material_data", mat_gpu_data->material_data_buffer);
-
-                        if (mat_gpu_data->per_material_data.base_color_texture)
-                        {
-                            MANGO_ASSERT(mat->base_color_texture_gpu_data.has_value(), "Texture has no gpu data!");
-                            optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data.value());
-                            if (!tex)
-                            {
-                                warn_missing_draw("Base Color Texture");
-                                continue;
-                            }
-                            dc_pipeline->get_resource_mapping()->set("texture_base_color", tex->graphics_texture);
-                            dc_pipeline->get_resource_mapping()->set("sampler_base_color", tex->graphics_sampler);
-                        }
-                        else
-                        {
-                            dc_pipeline->get_resource_mapping()->set("texture_base_color", default_texture_2D);
-                        }
-
-                        m_frame_context->submit_pipeline_state_resources();
-
-                        m_frame_context->set_index_buffer(prim_gpu_data->index_buffer_view.graphics_buffer, prim_gpu_data->index_type);
-
-                        std::vector<gfx_handle<const gfx_buffer>> vbs;
-                        vbs.reserve(prim_gpu_data->vertex_buffer_views.size());
-                        std::vector<int32> bindings;
-                        bindings.reserve(prim_gpu_data->vertex_buffer_views.size());
-                        std::vector<int32> offsets;
-                        offsets.reserve(prim_gpu_data->vertex_buffer_views.size());
-                        int32 idx = 0;
-                        for (auto vbv : prim_gpu_data->vertex_buffer_views)
-                        {
-                            vbs.push_back(vbv.graphics_buffer);
-                            bindings.push_back(idx++);
-                            offsets.push_back(vbv.offset);
-                        }
-
-                        m_frame_context->set_vertex_buffers(static_cast<int32>(prim_gpu_data->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
-
-                        m_renderer_info.last_frame.draw_calls++;
-                        m_renderer_info.last_frame.vertices += std::max(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count);
-                        m_frame_context->draw(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count, prim_gpu_data->draw_call_desc.instance_count,
-                                              prim_gpu_data->draw_call_desc.base_vertex, prim_gpu_data->draw_call_desc.base_instance, prim_gpu_data->draw_call_desc.index_offset);
-                    }
-                }
-            }
-        }
+        auto pass_info = shadow_pass->get_info();
+        m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+        m_renderer_info.last_frame.vertices += pass_info.vertices;
     }
 
     // gbuffer pass
@@ -865,15 +768,17 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     // cubemap pass
     if (!m_renderer_data.debug_view_enabled)
     {
-        GL_NAMED_PROFILE_ZONE("Environment Display Pass");
-        NAMED_PROFILE_ZONE("Environment Display Pass");
-        auto environment_display_pass = std::static_pointer_cast<environment_display_step>(m_pipeline_steps[mango::render_pipeline_step::environment_display]);
-        if (environment_display_pass && specular)
+        auto environment_display = std::static_pointer_cast<environment_display_pass>(m_pipeline_extensions[mango::render_pipeline_extension::environment_display]);
+        if (environment_display && specular)
         {
-            environment_display_pass->set_cubemap(specular);
-            m_renderer_info.last_frame.draw_calls++;
-            m_renderer_info.last_frame.vertices += 18;
-            environment_display_pass->execute();
+            environment_display->set_camera_data_buffer(active_camera_data->camera_data_buffer);
+            environment_display->set_cubemap(specular);
+
+            environment_display->execute(m_frame_context);
+
+            auto pass_info = environment_display->get_info();
+            m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+            m_renderer_info.last_frame.vertices += pass_info.vertices;
         }
     }
 
@@ -953,8 +858,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_frame_context->barrier(bd);
     }
 
-    auto fxaa_pass             = std::static_pointer_cast<fxaa_step>(m_pipeline_steps[mango::render_pipeline_step::fxaa]);
-    bool postprocessing_buffer = fxaa_pass != nullptr;
+    auto antialiasing          = std::static_pointer_cast<fxaa_pass>(m_pipeline_extensions[mango::render_pipeline_extension::fxaa]);
+    bool postprocessing_buffer = antialiasing != nullptr;
 
     // composing pass
     {
@@ -998,16 +903,16 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     }
 
     // fxaa
+    if (antialiasing)
     {
-        GL_NAMED_PROFILE_ZONE("Fxaa Pass");
-        NAMED_PROFILE_ZONE("Fxaa Pass");
-        if (fxaa_pass)
-        {
-            fxaa_pass->set_input_texture(m_post_render_targets[0]); // TODO Paul Hardcoded post targets -> meh.
-            m_renderer_info.last_frame.draw_calls++;
-            m_renderer_info.last_frame.vertices += 3;
-            fxaa_pass->execute();
-        }
+        antialiasing->set_input_texture(m_post_render_targets[0]); // TODO Paul Hardcoded post targets -> meh.
+        m_renderer_info.last_frame.draw_calls++;
+        m_renderer_info.last_frame.vertices += 3;
+        antialiasing->execute(m_frame_context);
+
+        auto pass_info = antialiasing->get_info();
+        m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+        m_renderer_info.last_frame.vertices += pass_info.vertices;
     }
 
     m_frame_context->bind_pipeline(nullptr);
@@ -1059,9 +964,9 @@ void deferred_pbr_renderer::on_ui_widget()
     }
     changed |= checkbox("Frustum Culling", &m_frustum_culling, true);
     ImGui::Separator();
-    bool has_environment_display = m_pipeline_steps[mango::render_pipeline_step::environment_display] != nullptr;
-    bool has_shadow_map          = m_pipeline_steps[mango::render_pipeline_step::shadow_map] != nullptr;
-    bool has_fxaa                = m_pipeline_steps[mango::render_pipeline_step::fxaa] != nullptr;
+    bool has_environment_display = m_pipeline_extensions[mango::render_pipeline_extension::environment_display] != nullptr;
+    bool has_shadow_map          = m_pipeline_extensions[mango::render_pipeline_extension::shadow_map] != nullptr;
+    bool has_fxaa                = m_pipeline_extensions[mango::render_pipeline_extension::fxaa] != nullptr;
     if (ImGui::TreeNodeEx("Steps", flags | ImGuiTreeNodeFlags_Framed))
     {
         bool open = ImGui::CollapsingHeader("Environment Display", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_environment_display ? ImGuiTreeNodeFlags_Leaf : 0));
@@ -1073,68 +978,72 @@ void deferred_pbr_renderer::on_ui_widget()
         {
             if (has_environment_display)
             {
-                auto environment_display = std::make_shared<environment_display_step>(environment_display_settings(0.0f)); // TODO Paul: Settings?
+                auto environment_display = std::make_shared<environment_display_pass>(environment_display_settings(0.0f)); // TODO Paul: Settings?
                 environment_display->attach(m_shared_context);
-                m_pipeline_steps[mango::render_pipeline_step::environment_display] = std::static_pointer_cast<render_step>(environment_display);
+                m_pipeline_extensions[mango::render_pipeline_extension::environment_display] = std::static_pointer_cast<render_pass>(environment_display);
             }
             else
             {
-                m_pipeline_steps[mango::render_pipeline_step::environment_display] = nullptr;
+                m_pipeline_extensions[mango::render_pipeline_extension::environment_display] = nullptr;
             }
         }
         if (has_environment_display && open)
         {
-            m_pipeline_steps[mango::render_pipeline_step::environment_display]->on_ui_widget();
+            m_pipeline_extensions[mango::render_pipeline_extension::environment_display]->on_ui_widget();
         }
+        changed |= value_changed;
 
         open = ImGui::CollapsingHeader("Shadow Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_shadow_map ? ImGuiTreeNodeFlags_Leaf : 0));
         ImGui::SameLine(ImGui::GetContentRegionAvail().x);
-        ImGui::PushID("enable_shadow_step");
+        ImGui::PushID("enable_shadow_pass");
         value_changed = ImGui::Checkbox("", &has_shadow_map);
         ImGui::PopID();
         if (value_changed)
         {
             if (has_shadow_map)
             {
-                auto step_shadow_map = std::make_shared<shadow_map_step>(shadow_settings());
-                step_shadow_map->attach(m_shared_context);
-                m_pipeline_cache->set_shadow_base(step_shadow_map->get_shadow_pass_pipeline_base());
-                m_pipeline_steps[mango::render_pipeline_step::shadow_map] = std::static_pointer_cast<render_step>(step_shadow_map);
-                m_renderer_data.shadow_step_enabled                       = true;
+                auto pass_shadow_map = std::make_shared<shadow_map_pass>(shadow_settings());
+                pass_shadow_map->setup(m_pipeline_cache, m_debug_drawer);
+                pass_shadow_map->attach(m_shared_context);
+                m_pipeline_extensions[mango::render_pipeline_extension::shadow_map] = std::static_pointer_cast<render_pass>(pass_shadow_map);
+                m_renderer_data.shadow_pass_enabled                                 = true;
             }
             else
             {
-                m_pipeline_steps[mango::render_pipeline_step::shadow_map] = nullptr;
-                m_renderer_data.shadow_step_enabled                       = false;
+                m_pipeline_extensions[mango::render_pipeline_extension::shadow_map] = nullptr;
+                m_renderer_data.shadow_pass_enabled                                 = false;
             }
         }
         if (has_shadow_map && open)
         {
-            m_pipeline_steps[mango::render_pipeline_step::shadow_map]->on_ui_widget();
+            m_pipeline_extensions[mango::render_pipeline_extension::shadow_map]->on_ui_widget();
         }
+        changed |= value_changed;
+
         open = ImGui::CollapsingHeader("FXAA Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_fxaa ? ImGuiTreeNodeFlags_Leaf : 0));
         ImGui::SameLine(ImGui::GetContentRegionAvail().x);
-        ImGui::PushID("enable_fxaa_step");
+        ImGui::PushID("enable_fxaa_pass");
         value_changed = ImGui::Checkbox("", &has_fxaa);
         ImGui::PopID();
         if (value_changed)
         {
             if (has_fxaa)
             {
-                auto step_fxaa = std::make_shared<fxaa_step>(fxaa_settings(0.75f));
-                step_fxaa->attach(m_shared_context);
-                step_fxaa->set_output_targets(m_output_target, m_ouput_depth_target);
-                m_pipeline_steps[mango::render_pipeline_step::fxaa] = std::static_pointer_cast<render_step>(step_fxaa);
+                auto pass_fxaa = std::make_shared<fxaa_pass>(fxaa_settings(0.75f));
+                pass_fxaa->attach(m_shared_context);
+                m_pipeline_extensions[mango::render_pipeline_extension::fxaa] = std::static_pointer_cast<render_pass>(pass_fxaa);
             }
             else
             {
-                m_pipeline_steps[mango::render_pipeline_step::fxaa] = nullptr;
+                m_pipeline_extensions[mango::render_pipeline_extension::fxaa] = nullptr;
             }
         }
         if (has_fxaa && open)
         {
-            m_pipeline_steps[mango::render_pipeline_step::fxaa]->on_ui_widget();
+            m_pipeline_extensions[mango::render_pipeline_extension::fxaa]->on_ui_widget();
         }
+        changed |= value_changed;
+
         ImGui::TreePop();
     }
     const char* debug[10]      = { "Default", "Position", "Normal", "Depth", "Base Color", "Reflection Color", "Emission", "Occlusion", "Roughness", "Metallic" };

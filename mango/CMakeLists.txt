@@ -83,10 +83,10 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer_pipeline_cache.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer_impl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/pipelines/deferred_pbr_renderer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/render_step.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/environment_display_step.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/render_pass.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/environment_display_pass.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/shadow_map_pass.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/fxaa_pass.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/debug_drawer.hpp
@@ -142,9 +142,9 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/debug_drawer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/light_stack.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/render_data_builder.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/environment_display_step.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/shadow_map_step.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/steps/fxaa_step.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/environment_display_pass.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/shadow_map_pass.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/fxaa_pass.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/deferred_lighting_pass.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/geometry_pass.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/transparent_pass.cpp

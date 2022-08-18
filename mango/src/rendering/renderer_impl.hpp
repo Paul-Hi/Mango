@@ -59,7 +59,7 @@ namespace mango
         virtual gfx_handle<const gfx_texture> get_ouput_render_target() = 0;
 
         //! \brief Custom UI function.
-        //! \details This can be called by any \a ui_widget and displays settings for the active \a render_step.
+        //! \details This can be called by any \a ui_widget and displays settings for the active \a render_pass.
         //! This does not draw any window, so it needs one surrounding it.
         virtual void on_ui_widget() = 0;
 
@@ -84,7 +84,10 @@ namespace mango
         shared_ptr<context_impl> m_shared_context;
 
         //! \brief The hardware stats.
-        renderer_info m_renderer_info; // TODO Paul: Not in use!
+        renderer_info m_renderer_info;
+
+        //! \brief The configuration.
+        renderer_configuration m_configuration;
 
         //! \brief True if vertical synchronization is enabled, else false.
         bool m_vsync;

@@ -51,7 +51,7 @@ namespace mango
     struct render_pass_execution_info
     {
         int32 draw_calls; //!< The number of draw calls.
-        int32 vertices;   //!< The number of vertices.
+        int32 vertices;   //!< The number of vertices/indices.
     };
 
     //! \brief Base class for all render passes in \a renderers.
@@ -66,6 +66,11 @@ namespace mango
         //! \brief Executes the \a render_pass.
         //! \param[in] device_context The \a graphics_device_context_handle to submit commands to.
         virtual void execute(graphics_device_context_handle& device_context) = 0;
+
+        //! \brief Custom UI function.
+        //! \details This can be called by any \a ui_widget and displays settings for the active \a render_pass.
+        //! This does not draw any window, so it needs one surrounding it.
+        virtual void on_ui_widget() = 0;
 
         virtual render_pass_execution_info get_info() = 0;
 

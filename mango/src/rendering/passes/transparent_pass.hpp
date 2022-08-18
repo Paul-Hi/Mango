@@ -25,6 +25,8 @@ namespace mango
         void attach(const shared_ptr<context_impl>& context) override;
         void execute(graphics_device_context_handle& device_context) override;
 
+        void on_ui_widget() override{};
+
         inline render_pass_execution_info get_info() override
         {
             return m_rpei;

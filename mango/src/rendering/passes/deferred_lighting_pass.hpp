@@ -21,6 +21,8 @@ namespace mango
         void attach(const shared_ptr<context_impl>& context) override;
         void execute(graphics_device_context_handle& device_context) override;
 
+        void on_ui_widget() override{};
+
         inline render_pass_execution_info get_info() override
         {
             return s_rpei;
@@ -83,12 +85,12 @@ namespace mango
 
         inline void set_shadow_map(const gfx_handle<const gfx_texture>& shadow_map)
         {
-            m_shadow_map                 = shadow_map;
+            m_shadow_map = shadow_map;
         }
 
         inline void set_shadow_map_sampler(const gfx_handle<const gfx_sampler>& shadow_map_sampler)
         {
-            m_shadow_map_sampler         = shadow_map_sampler;
+            m_shadow_map_sampler = shadow_map_sampler;
         }
 
         inline void set_shadow_map_compare_sampler(const gfx_handle<const gfx_sampler>& shadow_map_compare_sampler)
@@ -108,7 +110,7 @@ namespace mango
         }
 
       private:
-        //! \brief Executioin info of this pass.
+        //! \brief Execution info of this pass.
         static const render_pass_execution_info s_rpei;
 
         bool create_pass_resources() override;

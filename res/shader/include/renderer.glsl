@@ -5,7 +5,7 @@
 
 layout(binding = RENDERER_DATA_BUFFER_BINDING_POINT, std140) uniform renderer_data
 {
-    bool shadow_step_enabled;         // True, if the shadow map step is enabled and shadows can be calculated.
+    bool shadow_pass_enabled;         // True, if the shadow map pass is enabled and shadows can be calculated.
     bool debug_view_enabled;          // True, if any debug view is enabled. Used to prevent too much branching.
     bool position_debug_view;         // Show the position data.
     bool normal_debug_view;           // Show the normal data.

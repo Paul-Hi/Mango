@@ -11,7 +11,6 @@
 #include <rendering/light_stack.hpp>
 #include <rendering/renderer_impl.hpp>
 #include <rendering/renderer_pipeline_cache.hpp>
-#include <rendering/steps/render_step.hpp>
 #include <rendering/renderer_bindings.hpp>
 #include <rendering/passes/deferred_lighting_pass.hpp>
 #include <rendering/passes/geometry_pass.hpp>
@@ -128,8 +127,8 @@ namespace mango
         //! \brief The \a debug_drawer to debug draw.
         shared_ptr<debug_drawer> m_debug_drawer;
 
-        //! \brief Optional additional steps of the deferred pipeline.
-        shared_ptr<render_step> m_pipeline_steps[mango::render_pipeline_step::number_of_steps];
+        //! \brief Optional additional \a passes of the deferred pipeline.
+        shared_ptr<render_pass> m_pipeline_extensions[mango::render_pipeline_extension::number_of_extensions];
 
         //! \brief The shader storage buffer mapping for the luminance data.
         gfx_handle<const gfx_buffer> m_luminance_data_buffer;
