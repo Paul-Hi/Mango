@@ -606,6 +606,7 @@ namespace mango
     };
 } // namespace mango
 
+//! \cond NO_COND
 template <>
 struct fmt::formatter<mango::gfx_shader_resource_type> : formatter<std::string>
 {
@@ -1019,5 +1020,7 @@ struct fmt::formatter<mango::gfx_format> : formatter<std::string>
         return formatter<std::string>::format(name, ctx);
     }
 };
+
+//! \encond
 
 #endif // MANGO_GRAPHICS_TYPES_HPP

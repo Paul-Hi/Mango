@@ -52,7 +52,7 @@ namespace mango
             gfx_key index_buffer = invalid_gfx_key;
 
             //! \brief Comparison operator equal.
-            //! \param other The other \a vertex_array_key.
+            //! \param[in] other The other \a vertex_array_key.
             //! \return True if other \a vertex_array_key is equal to the current one, else false.
             bool operator==(const vertex_array_key& other) const
             {

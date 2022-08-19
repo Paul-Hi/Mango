@@ -46,7 +46,7 @@ namespace mango
             gfx_key shader_stage_keys[max_shader_stages];
 
             //! \brief Comparison operator equal.
-            //! \param other The other \a shader_program_key.
+            //! \param[in] other The other \a shader_program_key.
             //! \return True if other \a shader_program_key is equal to the current one, else false.
             bool operator==(const shader_program_key& other) const
             {

@@ -30,11 +30,15 @@ namespace mango
             return s_rpei;
         }
 
+        //! \brief Set the camera data buffer.
+        //! \param[in] camera_data_buffer The camera data buffer.
         inline void set_camera_data_buffer(const gfx_handle<const gfx_buffer>& camera_data_buffer)
         {
             m_camera_data_buffer = camera_data_buffer;
         }
 
+        //! \brief Set the renderer data buffer.
+        //! \param[in] renderer_data_buffer The renderer data buffer.
         inline void set_renderer_data_buffer(const gfx_handle<const gfx_buffer>& renderer_data_buffer)
         {
             m_renderer_data_buffer = renderer_data_buffer;
@@ -77,10 +81,12 @@ namespace mango
         //! \brief Graphics pipeline to render the cubemap.
         gfx_handle<const gfx_pipeline> m_cubemap_pass_pipeline;
 
-        //! \brief The cubemap data buffer.
+        //! \brief The cubemap data \a gfx_buffer.
         gfx_handle<const gfx_buffer> m_cubemap_data_buffer;
 
+        //! \brief The camera data \a gfx_buffer.
         gfx_handle<const gfx_buffer> m_camera_data_buffer;
+        //! \brief The renderer data \a gfx_buffer.
         gfx_handle<const gfx_buffer> m_renderer_data_buffer;
 
         //! \brief Current cubemap data.

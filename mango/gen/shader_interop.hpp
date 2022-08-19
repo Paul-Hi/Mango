@@ -15,6 +15,7 @@ namespace mango
 
 // This file is generated. Do NOT change until you want to loose it!
 
+//! \cond NO_COND
 using sl_uint32 = uint32;
 using sl_int32  = int32;
 using sl_float  = float;
@@ -2067,6 +2068,7 @@ struct luminance_data
     sl_vec4 params;
     sl_float luminance;
 };
+//! \encond
 
 } // namespace mango
 

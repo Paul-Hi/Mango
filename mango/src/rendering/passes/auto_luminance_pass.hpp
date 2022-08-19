@@ -12,6 +12,7 @@
 
 namespace mango
 {
+    //! \brief A \a render_pass calculating luminance values for given input.
     class auto_luminance_pass : public render_pass
     {
       public:
@@ -28,22 +29,32 @@ namespace mango
             return s_rpei;
         }
 
+        //! \brief Get calculated average luminance value.
+        //! \return Calculated average luminance.
         inline float get_average_luminance() const
         {
             return m_luminance_data_mapping->luminance;
         }
 
+        //! \brief Set input texture.
+        //! \param[in] hdr_input The input texture.
         inline void set_hdr_input(const gfx_handle<const gfx_texture>& hdr_input)
         {
             m_hdr_input = hdr_input;
         }
 
+
+        //! \brief Set the size of the input texture.
+        //! \param[in] width Input texture width.
+        //! \param[in] height Input texture height.
         inline void set_input_size(int32 width, int32 height)
         {
             m_input_width  = width;
             m_input_height = height;
         }
 
+        //! \brief Set the delta time.
+        //! \param[in] dt The delta time.
         inline void set_delta_time(float dt)
         {
             m_dt = dt;
@@ -71,11 +82,15 @@ namespace mango
         //! \brief The mapped luminance data from the data calculation.
         luminance_data* m_luminance_data_mapping;
 
+        //! \brief The input texture to calculate the luminance for.
         gfx_handle<const gfx_texture> m_hdr_input;
 
+        //! \brief The input textures width.
         int32 m_input_width;
+        //! \brief The input textures height.
         int32 m_input_height;
 
+        //! \brief The delta time to use for eye adaption.
         float m_dt;
     };
 } // namespace mango

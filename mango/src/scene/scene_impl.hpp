@@ -47,7 +47,9 @@ namespace mango
         void remove_node(handle<node> node_hnd) override;
         void remove_perspective_camera(handle<node> node_hnd) override;
         void remove_orthographic_camera(handle<node> node_hnd) override;
+        //! \cond NO_COND
         void remove_mesh(handle<node> node_hnd); // For now no override since we only add them internally as well...
+        //! \endcond
         void remove_directional_light(handle<node> node_hnd) override;
         void remove_skylight(handle<node> node_hnd) override;
         void remove_atmospheric_light(handle<node> node_hnd) override;
@@ -220,7 +222,7 @@ namespace mango
         //! \brief Builds a \a mesh from a tinygltf model mesh.
         //! \param[in] m The loaded tinygltf model.
         //! \param[in] t_mesh The loaded tinygltf model mesh.
-        //! \param[in] node_id The \a handle of the \a node the \a mesh should be added to.
+        //! \param[in] node_hnd The \a handle of the \a node the \a mesh should be added to.
         //! \param[in] buffer_view_ids The \a keys of all loaded \a buffer_views.
         //! \return The \a handle of the created \a mesh or NULL_HND on error.
         handle<mesh> build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, handle<node> node_hnd, const std::vector<key>& buffer_view_ids);
@@ -235,16 +237,16 @@ namespace mango
         handle<material> default_material();
 
         //! \brief Instantiates some \a scene in the scene graph.
-        //! \param[in] node_id The \a scene \a node \a handle to instantiate.
+        //! \param[in] node_hnd The \a scene \a node \a handle to instantiate.
         //! \param[in] parent_hnd The parent \a node \a handle.
         void instantiate_model_scene(handle<node> node_hnd, handle<node> parent_hnd);
 
         //! \brief Removes a \a node belonging to a \a model.
-        //! \param[in] node_id The \a handle of the \a node to remove.
+        //! \param[in] node_hnd The \a handle of the \a node to remove.
         void remove_model_node(handle<node> node_hnd);
 
         //! \brief Traverses a \a node and its children in the scene graph and updates the transformation if necessary; also creates render instances.
-        //! \param[in] node_id The \a handle of the node.
+        //! \param[in] node_hnd The \a handle of the node.
         //! \param[in] parent_hnd The \a handle of the parent or NULL_HND, when root.
         //! \param[in] force_update Force the update (when the parent had to be updated).
         void update_scene_graph(handle<node> node_hnd, handle<node> parent_hnd, bool force_update);

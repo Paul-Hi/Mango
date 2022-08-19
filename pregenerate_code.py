@@ -471,6 +471,8 @@ def generate_interop():
         f.write(
             '// This file is generated. Do NOT change until you want to loose it!\n')
         f.write('\n')
+        f.write('//! \cond NO_COND')
+        f.write('\n')
 
         # define types
         write_type_defines(f)
@@ -501,6 +503,8 @@ def generate_interop():
 
             f.write('};' + '\n')
 
+        f.write('//! \encond')
+        f.write('\n')
         f.write('\n')
         f.write('} // namespace mango' + '\n')
         f.write('\n')

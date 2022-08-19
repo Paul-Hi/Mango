@@ -76,10 +76,15 @@ namespace mango
         //! \brief The graphics uniform buffer for uploading \a renderer_data.
         gfx_handle<const gfx_buffer> m_renderer_data_buffer;
 
+        //! \brief The \a renderers \a deferred_lighting_pass.
         deferred_lighting_pass m_deferred_lighting_pass;
+        //! \brief The \a renderers \a geometry_pass.
         geometry_pass m_opaque_geometry_pass;
+        //! \brief The \a renderers \a transparent_pass.
         transparent_pass m_transparent_pass;
+        //! \brief The \a renderers \a composing_pass.
         composing_pass m_composing_pass;
+        //! \brief The \a renderers \a auto_luminance_pass.
         auto_luminance_pass m_auto_luminance_pass;
 
         //! \brief The \a renderers \a renderer_pipeline_cache to create and cache \a gfx_pipelines for the geometry.

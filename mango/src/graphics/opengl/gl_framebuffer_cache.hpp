@@ -49,7 +49,7 @@ namespace mango
             gfx_key texture_keys[max_render_targets];
 
             //! \brief Comparison operator equal.
-            //! \param other The other \a framebuffer_key.
+            //! \param[in] other The other \a framebuffer_key.
             //! \return True if other \a framebuffer_key is equal to the current one, else false.
             bool operator==(const framebuffer_key& other) const
             {

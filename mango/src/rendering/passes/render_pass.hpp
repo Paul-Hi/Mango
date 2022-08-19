@@ -13,8 +13,10 @@
 
 namespace mango
 {
+    //! \brief Key to sort draw calls.
     struct draw_key
     {
+        //! \cond NO_COND
         key primitive_gpu_data_id;
         key mesh_gpu_data_id;
         handle<material> material_hnd;
@@ -46,8 +48,10 @@ namespace mango
 
             return false;
         }
+        //! \endcond
     };
 
+    //! \brief Information about \a pass draw calls and vertex count.
     struct render_pass_execution_info
     {
         int32 draw_calls; //!< The number of draw calls.
@@ -72,6 +76,8 @@ namespace mango
         //! This does not draw any window, so it needs one surrounding it.
         virtual void on_ui_widget() = 0;
 
+        //! \brief Get the \a render_pass_execution_info.
+        //! \return  The \a passes \a render_pass_execution_info.
         virtual render_pass_execution_info get_info() = 0;
 
       protected:
