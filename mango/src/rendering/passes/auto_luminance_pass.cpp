@@ -50,7 +50,7 @@ void auto_luminance_pass::execute(graphics_device_context_handle& device_context
     // time coefficient with tau = 1.1;
     float tau                        = 1.1f;
     float time_coefficient           = 1.0f - expf(-m_dt * tau);
-    m_luminance_data_mapping->params = vec4(-8.0f, 1.0f / 31.0f, time_coefficient, hr_width * hr_height); // min -8.0, max +23.0
+    m_luminance_data_mapping->params = vec4(-8.0f, 1.0f / 31.0f, time_coefficient, static_cast<float>(hr_width * hr_height)); // min -8.0, max +23.0
 
     m_luminance_construction_pipeline->get_resource_mapping()->set("image_hdr_color", hdr_view);
     m_luminance_construction_pipeline->get_resource_mapping()->set("luminance_data", m_luminance_data_buffer);

@@ -1608,7 +1608,7 @@ handle<node> scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n,
     {
         if (n.translation.size() == 3)
         {
-            tr.position = vec3(n.translation[0], n.translation[1], n.translation[2]);
+            tr.position = vec3(static_cast<float>(n.translation[0]), static_cast<float>(n.translation[1]), static_cast<float>(n.translation[2]));
         }
         else
         {
@@ -1624,7 +1624,7 @@ handle<node> scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n,
         }
         if (n.scale.size() == 3)
         {
-            tr.scale = vec3(n.scale[0], n.scale[1], n.scale[2]);
+            tr.scale = vec3(static_cast<float>(n.scale[0]), static_cast<float>(n.scale[1]), static_cast<float>(n.scale[2]));
         }
         else
         {
@@ -1851,8 +1851,9 @@ handle<mesh> scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_
                 // AABB
                 if (attrib_location == 0)
                 {
-                    prim.bounding_box = axis_aligned_bounding_box::from_min_max(vec3(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]),
-                                                                                vec3(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]));
+                    prim.bounding_box =
+                        axis_aligned_bounding_box::from_min_max(vec3(static_cast<float>(accessor.minValues[0]), static_cast<float>(accessor.minValues[1]), static_cast<float>(accessor.minValues[2])),
+                                                                vec3(static_cast<float>(accessor.maxValues[0]), static_cast<float>(accessor.maxValues[1]), static_cast<float>(accessor.maxValues[2])));
                 }
             }
             else
@@ -2439,8 +2440,8 @@ void scene_impl::update(float dt)
         {
             mesh_gpu_data& data = m_mesh_gpu_data[m.gpu_data];
             // we can assume these exist, because of update_scene_graph()
-            const node& nd      = m_nodes[m.node_hnd.id_unchecked()];
-            const mat4& trafo   = m_global_transformation_matrices[nd.global_matrix_hnd.id_unchecked()];
+            const node& nd    = m_nodes[m.node_hnd.id_unchecked()];
+            const mat4& trafo = m_global_transformation_matrices[nd.global_matrix_hnd.id_unchecked()];
 
             data.per_mesh_data.model_matrix  = trafo;
             data.per_mesh_data.normal_matrix = trafo.block(0, 0, 3, 3).inverse().transpose();
@@ -2462,9 +2463,9 @@ void scene_impl::update(float dt)
         {
             camera_gpu_data& data = m_camera_gpu_data[cam.gpu_data];
             // we can assume these exist, because of update_scene_graph()
-            const node& nd        = m_nodes[cam.node_hnd.id_unchecked()];
-            const mat4& trafo     = m_global_transformation_matrices[nd.global_matrix_hnd.id_unchecked()];
-            vec3 camera_position  = trafo.col(3).head<3>();
+            const node& nd       = m_nodes[cam.node_hnd.id_unchecked()];
+            const mat4& trafo    = m_global_transformation_matrices[nd.global_matrix_hnd.id_unchecked()];
+            vec3 camera_position = trafo.col(3).head<3>();
 
             mat4 view, projection;
             view_projection_perspective_camera(cam, camera_position, view, projection);
@@ -2533,9 +2534,9 @@ void scene_impl::update(float dt)
         {
             camera_gpu_data& data = m_camera_gpu_data[cam.gpu_data];
             // we can assume these exist, because of update_scene_graph()
-            const node& nd        = m_nodes[cam.node_hnd.id_unchecked()];
-            const mat4& trafo     = m_global_transformation_matrices[nd.global_matrix_hnd.id_unchecked()];
-            vec3 camera_position  = trafo.col(3).head<3>();
+            const node& nd       = m_nodes[cam.node_hnd.id_unchecked()];
+            const mat4& trafo    = m_global_transformation_matrices[nd.global_matrix_hnd.id_unchecked()];
+            vec3 camera_position = trafo.col(3).head<3>();
 
             mat4 view, projection;
             view_projection_orthographic_camera(cam, camera_position, view, projection);
@@ -2628,7 +2629,6 @@ void scene_impl::update(float dt)
             data.per_material_data.alpha_mode                 = static_cast<uint8>(mat.alpha_mode);
             data.per_material_data.alpha_cutoff               = mat.alpha_cutoff;
 
-            auto device_context = m_scene_graphics_device->create_graphics_device_context();
             device_context->begin();
             device_context->set_buffer_data(data.material_data_buffer, 0, sizeof(material_data), const_cast<void*>((void*)(&(data.per_material_data))));
             device_context->end();
@@ -2692,7 +2692,7 @@ std::vector<handle<node>> scene_impl::draw_scene_hierarchy_internal(handle<node>
                                      ((nd.children.empty()) ? ImGuiTreeNodeFlags_Leaf : 0);
 
     key current_id = current.id_unchecked();
-    ImGui::PushID(current_id);
+    ImGui::PushID(static_cast<int32>(current_id));
 
     string display_name = get_display_name(nd.type, nd.name);
     bool open           = ImGui::TreeNodeEx(display_name.c_str(), flags, "%s", display_name.c_str());

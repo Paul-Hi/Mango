@@ -180,7 +180,7 @@ void fxaa_pass::on_ui_widget()
 
     float default_value         = 0.0f;
     float spf                   = m_fxaa_data.subpixel_filter;
-    bool changed                = slider_float_n("Subpixel Filter", &spf, 1, &default_value, 0.0f, 1.0f);
+    slider_float_n("Subpixel Filter", &spf, 1, &default_value, 0.0f, 1.0f);
     m_fxaa_data.subpixel_filter = spf;
 
     ImGui::PopID();

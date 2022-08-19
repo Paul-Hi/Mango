@@ -1088,7 +1088,7 @@ namespace mango
             optional<node&> nd      = application_scene->get_node(node_hnd);
             MANGO_ASSERT(nd, "Node to inspect does not exist!");
 
-            ImGui::PushID(node_hnd.id_unchecked());
+            ImGui::PushID(static_cast<int32>(node_hnd.id_unchecked()));
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 0.0f);
 
             details::inspect_node(node_hnd, nd.value(), application_scene);
@@ -1146,7 +1146,7 @@ namespace mango
             optional<primitive&> prim = application_scene->get_primitive(selected_primitive);
             MANGO_ASSERT(prim, "Primitive to inspect does not exist!");
 
-            ImGui::PushID(selected_primitive.id_unchecked());
+            ImGui::PushID(static_cast<int32>(selected_primitive.id_unchecked()));
             ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 0.0f);
 
             details::inspect_primitive(selected_primitive, application_scene);

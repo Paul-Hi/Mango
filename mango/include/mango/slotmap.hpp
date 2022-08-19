@@ -62,7 +62,7 @@ namespace mango
         {
             if (m_freelist_head == m_freelist_tail)
             {
-                m_freelist_tail = m_indices.size();
+                m_freelist_tail = static_cast<index_type>(m_indices.size());
                 m_indices.push_back(0); // generation 0, index set on insert
                 m_indices[m_freelist_head] = (m_indices[m_freelist_head] & ~INDEX_BIT_MASK) | (((key)m_freelist_tail) & INDEX_BIT_MASK);
             }
@@ -104,7 +104,7 @@ namespace mango
             deconstruct(m_data, data_index);
 
             // swap
-            index_type last_index = m_data.size() - 1;
+            index_type last_index = static_cast<index_type>(m_data.size() - 1);
             std::swap(m_data[data_index], m_data[last_index]);
             std::swap(m_erase[data_index], m_erase[last_index]);
 
@@ -220,7 +220,7 @@ namespace mango
         index_type m_freelist_tail = 0;
 
         template <typename S>
-        inline typename std::enable_if<std::is_trivially_destructible<S>::value>::type deconstruct(std::vector<S>& src, index_type index)
+        inline typename std::enable_if<std::is_trivially_destructible<S>::value>::type deconstruct(std::vector<S>&, index_type)
         {
         }
 
