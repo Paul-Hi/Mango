@@ -792,8 +792,8 @@ void deferred_pbr_renderer::on_ui_widget()
     static int32 current_debug = 0;
     if (ImGui::CollapsingHeader("Debug", flags))
     {
-        checkbox("Render Wireframe", &m_wireframe, false);
-        checkbox("Debug Bounds", &m_debug_bounds, false);
+        changed |= checkbox("Render Wireframe", &m_wireframe, false);
+        changed |= checkbox("Debug Bounds", &m_debug_bounds, false);
 
         m_renderer_data.debug_view_enabled          = false;
         m_renderer_data.position_debug_view         = false;
