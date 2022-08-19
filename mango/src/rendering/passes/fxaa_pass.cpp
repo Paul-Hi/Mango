@@ -1,4 +1,4 @@
-//! \file      fxaa_step.cpp
+//! \file      fxaa_pass.cpp
 //! \author    Paul Himmler
 //! \version   1.0
 //! \date      2022
@@ -6,22 +6,24 @@
 
 #include <mango/imgui_helper.hpp>
 #include <mango/profile.hpp>
+#include <rendering/passes/fxaa_pass.hpp>
 #include <rendering/renderer_impl.hpp>
-#include <rendering/steps/fxaa_step.hpp>
 #include <resources/resources_impl.hpp>
 #include <util/helpers.hpp>
 
 using namespace mango;
 
-fxaa_step::fxaa_step(const fxaa_settings& settings)
+const render_pass_execution_info fxaa_pass::s_rpei{ 1, 3 };
+
+fxaa_pass::fxaa_pass(const fxaa_settings& settings)
     : m_settings(settings)
 {
     m_fxaa_data.subpixel_filter = m_settings.get_subpixel_filter();
 }
 
-fxaa_step::~fxaa_step() {}
+fxaa_pass::~fxaa_pass() {}
 
-bool fxaa_step::create_step_resources()
+bool fxaa_pass::create_pass_resources()
 {
     PROFILE_ZONE;
     auto& graphics_device = m_shared_context->get_graphics_device();
@@ -60,7 +62,8 @@ bool fxaa_step::create_step_resources()
 
     // vertex stage
     {
-        res_resource_desc.path        = "res/shader/v_screen_space_triangle.glsl";
+        res_resource_desc.path = "res/shader/v_screen_space_triangle.glsl";
+        res_resource_desc.defines.push_back({ "NOPERSPECTIVE", "" });
         const shader_resource* source = internal_resources->acquire(res_resource_desc);
 
         source_desc.entry_point = "main";
@@ -95,7 +98,7 @@ bool fxaa_step::create_step_resources()
         shader_info.resources = { {
             { gfx_shader_stage_type::shader_stage_fragment, 0, "texture_input", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, 0, "sampler_input", gfx_shader_resource_type::shader_resource_sampler, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, 1, "fxaa_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, 1, "fxaa_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
         } };
 
         m_fxaa_pass_fragment = graphics_device->create_shader_stage(shader_info);
@@ -108,10 +111,10 @@ bool fxaa_step::create_step_resources()
     {
         graphics_pipeline_create_info fxaa_pass_info = graphics_device->provide_graphics_pipeline_create_info();
         auto fxaa_pass_pipeline_layout               = graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+                          { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
+                          { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
 
-            { gfx_shader_stage_type::shader_stage_fragment, 1, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
+                          { gfx_shader_stage_type::shader_stage_fragment, 1, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
         });
 
         fxaa_pass_info.pipeline_layout = fxaa_pass_pipeline_layout;
@@ -138,58 +141,46 @@ bool fxaa_step::create_step_resources()
     return true;
 }
 
-void fxaa_step::attach(const shared_ptr<context_impl>& context)
+void fxaa_pass::attach(const shared_ptr<context_impl>& context)
 {
     m_shared_context = context;
 
-    create_step_resources();
+    create_pass_resources();
 }
 
-void fxaa_step::execute()
+void fxaa_pass::execute(graphics_device_context_handle& device_context)
 {
-    PROFILE_ZONE;
+    GL_NAMED_PROFILE_ZONE("Fxaa Pass");
+    NAMED_PROFILE_ZONE("Fxaa Pass");
+
     if (!m_texture_input || !m_output_target || !m_output_target_depth_stencil)
         return;
 
-    auto& graphics_device = m_shared_context->get_graphics_device();
+    device_context->bind_pipeline(m_fxaa_pass_pipeline);
 
-    auto step_context = graphics_device->create_graphics_device_context();
+    device_context->set_render_targets(1, &m_output_target, m_output_target_depth_stencil);
 
-    step_context->begin();
-
-    step_context->bind_pipeline(m_fxaa_pass_pipeline);
-
-    step_context->set_render_targets(1, &m_output_target, m_output_target_depth_stencil);
-
-    m_fxaa_data.inverse_screen_size = m_output_target->get_size();
+    m_fxaa_data.inverse_screen_size    = m_output_target->get_size();
     m_fxaa_data.inverse_screen_size[0] = 1.0f / m_fxaa_data.inverse_screen_size[0];
     m_fxaa_data.inverse_screen_size[1] = 1.0f / m_fxaa_data.inverse_screen_size[1];
-    step_context->set_buffer_data(m_fxaa_data_buffer, 0, sizeof(m_fxaa_data), &m_fxaa_data);
+    device_context->set_buffer_data(m_fxaa_data_buffer, 0, sizeof(m_fxaa_data), &m_fxaa_data);
 
     m_fxaa_pass_pipeline->get_resource_mapping()->set("fxaa_data", m_fxaa_data_buffer);
     m_fxaa_pass_pipeline->get_resource_mapping()->set("texture_input", m_texture_input);
     m_fxaa_pass_pipeline->get_resource_mapping()->set("sampler_input", m_sampler_input);
 
-    step_context->submit_pipeline_state_resources();
+    device_context->submit_pipeline_state_resources();
 
-    step_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in geometry shader.
-
-    step_context->end();
-    step_context->submit();
-
-    // #ifdef MANGO_DEBUG
-    //     bsp                      = m_fxaa_command_buffer->create<bind_shader_program_command>(command_keys::no_sort);
-    //     bsp->shader_program_name = 0;
-    // #endif // MANGO_DEBUG
+    device_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in geometry shader.
 }
 
-void fxaa_step::on_ui_widget()
+void fxaa_pass::on_ui_widget()
 {
-    ImGui::PushID("fxaa_step");
+    ImGui::PushID("fxaa_pass");
 
-    float default_value = 0.0f;
-    float spf           = m_fxaa_data.subpixel_filter;
-    bool changed = slider_float_n("Subpixel Filter", &spf, 1, &default_value, 0.0f, 1.0f);
+    float default_value         = 0.0f;
+    float spf                   = m_fxaa_data.subpixel_filter;
+    slider_float_n("Subpixel Filter", &spf, 1, &default_value, 0.0f, 1.0f);
     m_fxaa_data.subpixel_filter = spf;
 
     ImGui::PopID();

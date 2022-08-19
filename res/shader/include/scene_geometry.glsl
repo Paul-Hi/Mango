@@ -210,7 +210,7 @@ vec3 get_normal()
 
 float get_logarithmic_depth()
 {
-    return gl_FragDepth;
+    return gl_FragCoord.z;
 }
 
 void draw_debug_views()

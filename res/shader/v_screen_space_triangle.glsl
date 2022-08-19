@@ -1,4 +1,8 @@
+#ifdef NOPERSPECTIVE
+out noperspective vec2 texcoord;
+#else
 out vec2 texcoord;
+#endif // NOPERSPECTIVE
 
 void main()
 {

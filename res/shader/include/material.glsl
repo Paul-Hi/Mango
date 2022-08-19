@@ -6,7 +6,7 @@
 layout(binding = MATERIAL_DATA_BUFFER_BINDING_POINT, std140) uniform material_data
 {
     vec4  base_color;
-    vec4  emissive_color; // this is a vec3, but there are annoying bugs with some drivers.
+    vec3  emissive_color;
     float metallic;
     float roughness;
     bool  base_color_texture;

@@ -142,17 +142,10 @@ namespace mango
         //! \brief Size of the brdf lookup texture for skylights.
         const int32 brdf_lut_size = 256;
 
-        //! \brief Uniform buffer struct for data used by the ibl generation shaders.
-        //! \details Bound to binding point 3.
-        struct ibl_generator_data
-        {
-            std140_vec2 out_size; //!< The size of the output image.
-            std140_vec2 data;     //!< Data used for calculation - Specification in the shaders.
-        };
-        //! \brief The current \a ibl_generator_data.
-        ibl_generator_data m_current_ibl_generator_data;
-        //! \brief The graphics uniform buffer for uploading \a ibl_generator_data.
-        gfx_handle<const gfx_buffer> m_ibl_generator_data_buffer;
+        //! \brief The current \a ibl_generation_data.
+        ibl_generation_data m_current_ibl_generation_data;
+        //! \brief The graphics uniform buffer for uploading \a ibl_generation_data.
+        gfx_handle<const gfx_buffer> m_ibl_generation_data_buffer;
     };
 
     /*

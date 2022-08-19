@@ -77,7 +77,7 @@ namespace mango
             bool double_sided;
 
             //! \brief Comparison operator equal.
-            //! \param other The other \a pipeline_key.
+            //! \param[in] other The other \a pipeline_key.
             //! \return True if other \a pipeline_key is equal to the current one, else false.
             bool operator==(const pipeline_key& other) const
             {

@@ -1,13 +1,7 @@
 #include <../include/camera.glsl>
+#include <../include/cubemap.glsl>
 
 layout(location = 0) in vec3 vertex_data_position;
-
-// Uniform Buffer Cubemap.
-layout(binding = 3, std140) uniform cubemap_data
-{
-    mat4 model_matrix;
-    float render_level;
-};
 
 out vec3 shared_texcoord;
 

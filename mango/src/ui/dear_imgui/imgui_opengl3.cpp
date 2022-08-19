@@ -295,6 +295,8 @@ void ImGui_ImplOpenGL3_RenderDrawData(ImDrawData* draw_data)
                     glScissor((int)clip_rect.x, (int)((float)fb_height - clip_rect.w), (int)(clip_rect.z - clip_rect.x), (int)(clip_rect.w - clip_rect.y));
 
                     // Bind texture, Draw
+                    if(glIsTexture((GLuint)(intptr_t)pcmd->TextureId)) // TODO Paul: We should rather keep them alive ...
+                    {
                     glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd->TextureId);
 #if IMGUI_IMPL_OPENGL_MAY_HAVE_VTX_OFFSET
                     if (g_GlVersion >= 320)
@@ -303,6 +305,7 @@ void ImGui_ImplOpenGL3_RenderDrawData(ImDrawData* draw_data)
                     else
 #endif
                         glDrawElements(GL_TRIANGLES, (GLsizei)pcmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, (void*)(intptr_t)(pcmd->IdxOffset * sizeof(ImDrawIdx)));
+                    }
                 }
             }
         }

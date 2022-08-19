@@ -15,7 +15,7 @@ namespace mango
     //! \brief This can be used to specify the base pipeline for the \a renderer.
     //! \details A \a render_pipeline has to be specified as base pipeline in the \a renderer_configuration.
     //! The information is then used to pre build all necessary data on cpu and gpu for that specific pipeline.
-    //! Some \a render_pipeline_steps may not be available on a certain \a render_pipeline.
+    //! Some \a render_pipeline_extensions may not be available on a certain \a render_pipeline.
     enum render_pipeline
     {
         deferred_pbr,
@@ -23,11 +23,11 @@ namespace mango
         default_pbr = deferred_pbr
     };
 
-    //! \brief An additional step extending the base \a render_pipeline of the \a renderer.
-    //! \details A \a render_pipeline_step has to be specified in the \a renderer_configuration.
+    //! \brief An additional extension extending the base \a render_pipeline of the \a renderer.
+    //! \details A \a render_pipeline_extension has to be specified in the \a renderer_configuration.
     //! The information is then used to enable or disable certain passes in the \a render_pipeline.
-    //! Some steps may not be available on certain \a renderers and \a render_pipelines.
-    enum render_pipeline_step
+    //! Some extensions may not be available on certain \a renderers and \a render_pipelines.
+    enum render_pipeline_extension
     {
         environment_display,
         shadow_map,
@@ -36,7 +36,7 @@ namespace mango
         // voxel_gi,
         // dof,
         // bloom,
-        number_of_steps
+        number_of_extensions
     };
 
     //! \brief Filter specification for shadow map samples.
@@ -57,7 +57,7 @@ namespace mango
         count           = 3
     };
 
-    //! \brief The settings for the \a shadow_map_step.
+    //! \brief The settings for the \a shadow_map_pass.
     class shadow_settings
     {
       public:
@@ -305,7 +305,7 @@ namespace mango
         float m_light_size;
     };
 
-    //! \brief The settings for the \a environment_display_step.
+    //! \brief The settings for the \a environment_display_pass.
     class environment_display_settings
     {
       public:
@@ -343,7 +343,7 @@ namespace mango
         float m_render_level;
     };
 
-    //! \brief The settings for the \a fxaa_step.
+    //! \brief The settings for the \a fxaa_pass.
     class fxaa_settings
     {
       public:
@@ -393,7 +393,7 @@ namespace mango
             , m_frustum_culling(true)
             , m_debug_bounds(false)
         {
-            std::memset(m_render_steps, 0, render_pipeline_step::number_of_steps * sizeof(bool));
+            std::memset(m_render_extensions, 0, render_pipeline_extension::number_of_extensions * sizeof(bool));
         }
 
         //! \brief Constructs a \a renderer_configuration with specific values.
@@ -409,7 +409,7 @@ namespace mango
             , m_frustum_culling(frustum_culling)
             , m_debug_bounds(draw_debug_bounds)
         {
-            std::memset(m_render_steps, 0, render_pipeline_step::number_of_steps * sizeof(bool));
+            std::memset(m_render_extensions, 0, render_pipeline_extension::number_of_extensions * sizeof(bool));
         }
 
         //! \brief Sets or changes the base \a render_pipeline of the \a renderer in the \a renderer_configuration.
@@ -422,34 +422,34 @@ namespace mango
         }
 
         //! \brief Enables shadow map rendering in the \a renderer_configuration.
-        //! \details This is then used to add the \a render_pipeline_step to the base \a render_pipeline of the \a renderer.
-        //! \param[in] settings The \a shadow_settings to use for the \a shadow_map_step.
+        //! \details This is then used to add the \a render_pipeline_extension to the base \a render_pipeline of the \a renderer.
+        //! \param[in] settings The \a shadow_settings to use for the \a shadow_map_pass.
         //! \return A reference to the modified \a renderer_configuration.
         inline renderer_configuration& enable_shadow_maps(const shadow_settings& settings)
         {
-            m_render_steps[render_pipeline_step::shadow_map] = true;
+            m_render_extensions[render_pipeline_extension::shadow_map] = true;
             m_shadow_settings                                = settings;
             return *this;
         }
 
         //! \brief Enables cubemap rendering in for the environment in the \a renderer_configuration.
-        //! \details This is then used to add the \a render_pipeline_step to the base \a render_pipeline of the \a renderer.
-        //! \param[in] settings The \a environment_display_settings to use for the \a environment_display_step.
+        //! \details This is then used to add the \a render_pipeline_extension to the base \a render_pipeline of the \a renderer.
+        //! \param[in] settings The \a environment_display_settings to use for the \a environment_display_pass.
         //! \return A reference to the modified \a renderer_configuration.
         inline renderer_configuration& display_environment(const environment_display_settings& settings)
         {
-            m_render_steps[render_pipeline_step::environment_display] = true;
+            m_render_extensions[render_pipeline_extension::environment_display] = true;
             m_environment_display_settings                            = settings;
             return *this;
         }
 
         //! \brief Enables fxaa in the \a renderer_configuration.
-        //! \details This is then used to add the \a render_pipeline_step to the base \a render_pipeline of the \a renderer.
-        //! \param[in] settings The \a fxaa_settings to use for the \a fxaa_step.
+        //! \details This is then used to add the \a render_pipeline_extension to the base \a render_pipeline of the \a renderer.
+        //! \param[in] settings The \a fxaa_settings to use for the \a fxaa_pass.
         //! \return A reference to the modified \a renderer_configuration.
         inline renderer_configuration& enable_fxaa(const fxaa_settings& settings)
         {
-            m_render_steps[render_pipeline_step::fxaa] = true;
+            m_render_extensions[render_pipeline_extension::fxaa] = true;
             m_fxaa_settings                            = settings;
             return *this;
         }
@@ -525,17 +525,17 @@ namespace mango
             return m_base_pipeline;
         }
 
-        //! \brief Retrieves and returns the array of possible \a render_steps set in the \a renderer_configuration.
-        //! \details The returned array has the size \a render_step::number_of_step_types.
-        //! On a specific position in the array there is the value 'true' if the \a render_step is enabled, else 'false'.
-        //! \return The current  array of possible \a render_steps of the \a renderer.
-        inline const bool* get_render_steps() const
+        //! \brief Retrieves and returns the array of possible \a render_extensions set in the \a renderer_configuration.
+        //! \details The returned array has the size \a render_pass::number_of_pass_types.
+        //! On a specific position in the array there is the value 'true' if the \a render_pass is enabled, else 'false'.
+        //! \return The current  array of possible \a render_extensions of the \a renderer.
+        inline const bool* get_render_extensions() const
         {
-            return m_render_steps;
+            return m_render_extensions;
         }
 
         //! \brief Retrieves and returns the base \a shadow_settings set in the \a renderer_configuration.
-        //! \return The shadow_settings, when the \a shadow_map_step is enabled.
+        //! \return The shadow_settings, when the \a shadow_map_pass is enabled.
         inline const shadow_settings& get_shadow_settings() const
         {
             return m_shadow_settings;
@@ -549,7 +549,7 @@ namespace mango
         }
 
         //! \brief Retrieves and returns the base \a fxaa_settings set in the \a renderer_configuration.
-        //! \return The fxaa_settings, when the \a fxaa_step is enabled.
+        //! \return The fxaa_settings, when the \a fxaa_pass is enabled.
         inline const fxaa_settings& get_fxaa_settings() const
         {
             return m_fxaa_settings;
@@ -570,8 +570,8 @@ namespace mango
         //! \brief The setting of the \a renderer_configuration to enable or disable culling primitives against camera and shadow frusta.
         bool m_frustum_culling;
 
-        //! \brief The additional \a render_pipeline_steps of the \a renderer_configuration to enable or disable vertical synchronization.
-        bool m_render_steps[render_pipeline_step::number_of_steps];
+        //! \brief The additional \a render_pipeline_extensions of the \a renderer_configuration to enable or disable vertical synchronization.
+        bool m_render_extensions[render_pipeline_extension::number_of_extensions];
 
         //! \brief The \a shadow_settings of the \a renderer to configure.
         shadow_settings m_shadow_settings;
@@ -598,11 +598,7 @@ namespace mango
         struct
         {
             int32 draw_calls; //!< The number of draw calls.
-            int32 meshes;     //!< The number of meshes.
-            int32 primitives; //!< The number of primitives.
             int32 vertices;   //!< The number of vertices.
-            int32 triangles;  //!< The number of triangles (approx.).
-            int32 materials;  //!< The number of materials.
         } last_frame;         //!< Measured stats from the last rendered frame.
     };
 

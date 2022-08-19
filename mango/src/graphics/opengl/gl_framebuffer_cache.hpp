@@ -45,11 +45,11 @@ namespace mango
 
             //! \brief The number of attachments.
             int32 attachment_count = 0;
-            //! \brief The \a gfx_uids for the \a gfx_textures attached.
-            gfx_uid texture_uids[max_render_targets];
+            //! \brief The \a gfx_keys for the \a gfx_textures attached.
+            gfx_key texture_keys[max_render_targets];
 
             //! \brief Comparison operator equal.
-            //! \param other The other \a framebuffer_key.
+            //! \param[in] other The other \a framebuffer_key.
             //! \return True if other \a framebuffer_key is equal to the current one, else false.
             bool operator==(const framebuffer_key& other) const
             {
@@ -58,7 +58,7 @@ namespace mango
 
                 for (int32 i = 0; i < attachment_count; ++i)
                 {
-                    if (texture_uids[i] != other.texture_uids[i])
+                    if (texture_keys[i] != other.texture_keys[i])
                         return false;
                 }
 
@@ -83,7 +83,7 @@ namespace mango
 
                 for (int32 i = 0; i < k.attachment_count; ++i)
                 {
-                    res = res * 31 + std::hash<int64>()(k.texture_uids[i]);
+                    res = res * 31 + std::hash<int64>()(k.texture_keys[i]);
                 }
 
                 return res;

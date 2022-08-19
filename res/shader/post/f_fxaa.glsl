@@ -1,16 +1,11 @@
 #include <../include/common_constants_and_functions.glsl>
+#include <../include/fxaa_data.glsl>
 
 out vec4 frag_color;
 
 in noperspective vec2 texcoord;
 
 layout(binding = 0) uniform sampler2D sampler_input; // texture "texture_input"
-
-layout(binding = 1, std140) uniform fxaa_data
-{
-    vec2 inverse_screen_size;
-    float subpixel_filter;
-};
 
 #define FXAA_PC 1
 #define FXAA_GLSL_130 1

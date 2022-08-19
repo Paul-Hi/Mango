@@ -31,7 +31,7 @@ gl_handle gl_shader_program_cache::get_shader_program(const graphics_shader_stag
     {
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_shader_stage>(desc.vertex_shader_stage), "Shader stage is not a gl_shader_stage!");
         auto vertex_shader                     = static_gfx_handle_cast<const gl_shader_stage>(desc.vertex_shader_stage);
-        key.shader_stage_uids[key.stage_count] = vertex_shader->get_uid();
+        key.shader_stage_keys[key.stage_count] = vertex_shader->get_key();
         key.stage_types[key.stage_count]       = gfx_shader_stage_type::shader_stage_vertex;
         key.stage_count++;
 
@@ -42,7 +42,7 @@ gl_handle gl_shader_program_cache::get_shader_program(const graphics_shader_stag
     {
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_shader_stage>(desc.geometry_shader_stage), "Shader stage is not a gl_shader_stage!");
         auto geometry_shader                   = static_gfx_handle_cast<const gl_shader_stage>(desc.geometry_shader_stage);
-        key.shader_stage_uids[key.stage_count] = geometry_shader->get_uid();
+        key.shader_stage_keys[key.stage_count] = geometry_shader->get_key();
         key.stage_types[key.stage_count]       = gfx_shader_stage_type::shader_stage_geometry;
         key.stage_count++;
 
@@ -53,7 +53,7 @@ gl_handle gl_shader_program_cache::get_shader_program(const graphics_shader_stag
     {
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_shader_stage>(desc.fragment_shader_stage), "Shader stage is not a gl_shader_stage!");
         auto fragment_shader                   = static_gfx_handle_cast<const gl_shader_stage>(desc.fragment_shader_stage);
-        key.shader_stage_uids[key.stage_count] = fragment_shader->get_uid();
+        key.shader_stage_keys[key.stage_count] = fragment_shader->get_key();
         key.stage_types[key.stage_count]       = gfx_shader_stage_type::shader_stage_fragment;
         key.stage_count++;
 
@@ -87,7 +87,7 @@ gl_handle gl_shader_program_cache::get_shader_program(const compute_shader_stage
     {
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_shader_stage>(desc.compute_shader_stage), "Shader stage is not a gl_shader_stage!");
         auto compute_shader                    = static_gfx_handle_cast<const gl_shader_stage>(desc.compute_shader_stage);
-        key.shader_stage_uids[key.stage_count] = compute_shader->get_uid();
+        key.shader_stage_keys[key.stage_count] = compute_shader->get_key();
         key.stage_types[key.stage_count]       = gfx_shader_stage_type::shader_stage_compute;
         key.stage_count++;
 

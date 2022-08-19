@@ -42,11 +42,11 @@ namespace mango
             int32 stage_count;
             //! \brief The types of all linked shader stages.
             gfx_shader_stage_type stage_types[max_shader_stages];
-            //! \brief The \a gfx_uids for the \a gfx_shader_stages attached.
-            gfx_uid shader_stage_uids[max_shader_stages];
+            //! \brief The \a gfx_keys for the \a gfx_shader_stages attached.
+            gfx_key shader_stage_keys[max_shader_stages];
 
             //! \brief Comparison operator equal.
-            //! \param other The other \a shader_program_key.
+            //! \param[in] other The other \a shader_program_key.
             //! \return True if other \a shader_program_key is equal to the current one, else false.
             bool operator==(const shader_program_key& other) const
             {
@@ -57,7 +57,7 @@ namespace mango
                 {
                     if (stage_types[i] != other.stage_types[i])
                         return false;
-                    if (shader_stage_uids[i] != other.shader_stage_uids[i])
+                    if (shader_stage_keys[i] != other.shader_stage_keys[i])
                         return false;
                 }
 
@@ -82,7 +82,7 @@ namespace mango
                 for (int32 i = 0; i < k.stage_count; ++i)
                 {
                     res = res * 31 + std::hash<uint8>()(static_cast<uint8>(k.stage_types[i]));
-                    res = res * 31 + std::hash<int64>()(k.shader_stage_uids[i]);
+                    res = res * 31 + std::hash<int64>()(k.shader_stage_keys[i]);
                 }
 
                 return res;

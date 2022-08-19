@@ -38,8 +38,8 @@ namespace mango
         {
             struct
             {
-                //! \brief The \a gfx_uid of the \a gfx_buffer bound as vertex buffer.
-                gfx_uid uid = invalid_gfx_uid;
+                //! \brief The \a gfx_key of the \a gfx_buffer bound as vertex buffer.
+                gfx_key key = invalid_gfx_key;
                 //! \brief The offset in the \a gfx_buffer bound as vertex buffer.
                 int32 offset = 0;
 
@@ -48,11 +48,11 @@ namespace mango
             //! \brief Bitmask to make comparison and caching more performant.
             int16 binding_bitmask = 0;
 
-            //! \brief The \a gfx_uid of the \a gfx_buffer bound as index buffer.
-            gfx_uid index_buffer = invalid_gfx_uid;
+            //! \brief The \a gfx_key of the \a gfx_buffer bound as index buffer.
+            gfx_key index_buffer = invalid_gfx_key;
 
             //! \brief Comparison operator equal.
-            //! \param other The other \a vertex_array_key.
+            //! \param[in] other The other \a vertex_array_key.
             //! \return True if other \a vertex_array_key is equal to the current one, else false.
             bool operator==(const vertex_array_key& other) const
             {
@@ -67,7 +67,7 @@ namespace mango
                 {
                     if (bb & 1)
                     {
-                        if (vertex_buffers[idx].uid != other.vertex_buffers[idx].uid)
+                        if (vertex_buffers[idx].key != other.vertex_buffers[idx].key)
                             return false;
                         if (vertex_buffers[idx].offset != other.vertex_buffers[idx].offset)
                             return false;
@@ -101,7 +101,7 @@ namespace mango
                 {
                     if (bb & 1)
                     {
-                        res = res * 31 + std::hash<int64>()(k.vertex_buffers[idx].uid);
+                        res = res * 31 + std::hash<int64>()(k.vertex_buffers[idx].key);
                         res = res * 31 + std::hash<int32>()(k.vertex_buffers[idx].offset);
                         idx++;
                     }

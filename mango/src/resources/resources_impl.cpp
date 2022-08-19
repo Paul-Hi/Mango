@@ -15,6 +15,7 @@
 #define TINYGLTF_NO_INCLUDE_STB_IMAGE
 #define TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE
 #include <tiny_gltf.h>
+#include <fstream>
 
 using namespace mango;
 
@@ -307,14 +308,14 @@ shader_resource* resources_impl::load_shader_from_file(const shader_resource_res
     return s;
 }
 
-string resources_impl::load_shader_string_from_file(const string path, bool recursive)
+string resources_impl::load_shader_string_from_file(const string& path, bool recursive)
 {
     string source_string = "";
 
     // incl. recursive includes
     string include_id = "#include <";
     std::ifstream input_stream;
-    input_stream.open(path, std::ios::in | std::ios::binary);
+    input_stream.open(path, std::ios::in);
 
     // retrieving the current folder path, because include is relative.
     auto path_end      = path.find_last_of("/\\");

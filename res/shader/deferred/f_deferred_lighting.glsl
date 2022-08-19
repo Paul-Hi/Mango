@@ -37,7 +37,7 @@ void main()
     vec3 cascade_color = vec3(1.0);
 
     // shadows (directional)
-    if(shadow_step_enabled && directional_valid && directional_cast_shadows)
+    if(shadow_pass_enabled && directional_light_valid && directional_light_cast_shadows)
     {
         shadow = directional_shadow(position, normal);
         if(show_cascades)
@@ -52,4 +52,5 @@ void main()
     lighting *= cascade_color;
 
     frag_color = vec4(lighting * base_color.a, 1.0);
+
 }

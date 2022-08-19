@@ -7,10 +7,10 @@
 #include <glad/glad.h>
 #include <mango/imgui_helper.hpp>
 #include <mango/profile.hpp>
+#include <rendering/passes/environment_display_pass.hpp>
+#include <rendering/passes/fxaa_pass.hpp>
+#include <rendering/passes/shadow_map_pass.hpp>
 #include <rendering/pipelines/deferred_pbr_renderer.hpp>
-#include <rendering/steps/environment_display_step.hpp>
-#include <rendering/steps/fxaa_step.hpp>
-#include <rendering/steps/shadow_map_step.hpp>
 #include <resources/resources_impl.hpp>
 #include <scene/scene_impl.hpp>
 #include <util/helpers.hpp>
@@ -26,9 +26,9 @@ gfx_handle<const gfx_texture> default_texture_array;
 
 deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& configuration, const shared_ptr<context_impl>& context)
     : renderer_impl(configuration, context)
-    , m_pipeline_cache(context)
+    , m_pipeline_cache(std::make_shared<renderer_pipeline_cache>(context))
     , m_frame_context(nullptr)
-    , m_debug_drawer(context)
+    , m_debug_drawer(std::make_shared<debug_drawer>(context))
     , m_debug_bounds(false)
     , m_graphics_device(m_shared_context->get_graphics_device())
 {
@@ -36,13 +36,7 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
 
     m_frame_context = m_graphics_device->create_graphics_device_context();
 
-    if (!create_renderer_resources())
-    {
-        MANGO_LOG_ERROR("Resource Creation Failed! Renderer is not available!");
-        return;
-    }
-
-    m_renderer_data.shadow_step_enabled         = false;
+    m_renderer_data.shadow_pass_enabled         = false;
     m_renderer_data.debug_view_enabled          = false;
     m_renderer_data.position_debug_view         = false;
     m_renderer_data.normal_debug_view           = false;
@@ -55,6 +49,12 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
     m_renderer_data.metallic_debug_view         = false;
     m_renderer_data.show_cascades               = false;
 
+    if (!create_renderer_resources())
+    {
+        MANGO_LOG_ERROR("Resource Creation Failed! Renderer is not available!");
+        return;
+    }
+
     m_vsync           = configuration.is_vsync_enabled();
     m_wireframe       = configuration.should_draw_wireframe();
     m_frustum_culling = configuration.is_frustum_culling_enabled();
@@ -62,34 +62,10 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
 
     auto device_context = m_graphics_device->create_graphics_device_context();
     device_context->begin();
-    device_context->set_buffer_data(m_renderer_data_buffer, 0, sizeof(m_renderer_data), &m_renderer_data);
+    device_context->set_buffer_data(m_renderer_data_buffer, 0, sizeof(renderer_data), &m_renderer_data);
     device_context->set_swap_interval(m_vsync ? 1 : 0);
     device_context->end();
     device_context->submit();
-
-    // additional render steps
-    const bool* render_steps = configuration.get_render_steps();
-    if (render_steps[mango::render_pipeline_step::environment_display])
-    {
-        // create an extra object that is capable to render environment cubemaps.
-        auto environment_display = std::make_shared<environment_display_step>(configuration.get_environment_display_settings());
-        environment_display->attach(m_shared_context);
-        m_pipeline_steps[mango::render_pipeline_step::environment_display] = std::static_pointer_cast<render_step>(environment_display);
-    }
-    if (configuration.get_render_steps()[mango::render_pipeline_step::shadow_map])
-    {
-        auto step_shadow_map = std::make_shared<shadow_map_step>(configuration.get_shadow_settings());
-        step_shadow_map->attach(m_shared_context);
-        m_pipeline_cache.set_shadow_base(step_shadow_map->get_shadow_pass_pipeline_base());
-        m_pipeline_steps[mango::render_pipeline_step::shadow_map] = std::static_pointer_cast<render_step>(step_shadow_map);
-        m_renderer_data.shadow_step_enabled                       = true;
-    }
-    if (configuration.get_render_steps()[mango::render_pipeline_step::fxaa])
-    {
-        auto step_fxaa = std::make_shared<fxaa_step>(configuration.get_fxaa_settings());
-        step_fxaa->attach(m_shared_context);
-        m_pipeline_steps[mango::render_pipeline_step::fxaa] = std::static_pointer_cast<render_step>(step_fxaa);
-    }
 }
 
 deferred_pbr_renderer::~deferred_pbr_renderer() {}
@@ -113,26 +89,9 @@ bool deferred_pbr_renderer::create_renderer_resources()
     if (!create_buffers())
         return false;
 
-    // Shaders
-    if (!create_shader_stages())
+    // Passes
+    if (!create_passes())
         return false;
-
-    // Pipeline prebuild stuff
-    if (!create_pipeline_resources())
-        return false;
-
-    // TODO Paul: Still missing ressources!
-
-    /*
-    // default vao needed
-    default_vao = vertex_array::create();
-    if (!check_creation(default_vao.get(), "default vertex array object"))
-        return false;
-    default_material             = std::make_shared<material>();
-    default_material->base_color = vec4(vec3(0.75f), 1.0f);
-    default_material->metallic   = 0.0f;
-    default_material->roughness  = 1.0f;
-    */
 
     return true;
 }
@@ -235,9 +194,9 @@ bool deferred_pbr_renderer::create_textures_and_samplers()
     if (!check_creation(m_ouput_depth_target.get(), "output depth target"))
         return false;
 
-    auto fxaa_pass = std::static_pointer_cast<fxaa_step>(m_pipeline_steps[mango::render_pipeline_step::fxaa]);
-    if (fxaa_pass)
-        fxaa_pass->set_output_targets(m_output_target, m_ouput_depth_target);
+    auto antialiasing = std::static_pointer_cast<fxaa_pass>(m_pipeline_extensions[mango::render_pipeline_extension::fxaa]);
+    if (antialiasing)
+        antialiasing->set_output_targets(m_output_target, m_ouput_depth_target);
 
     // postprocessing render targets
     m_post_render_targets.clear();
@@ -273,9 +232,14 @@ bool deferred_pbr_renderer::create_textures_and_samplers()
     sampler_info.sampler_max_filter = gfx_sampler_filter::sampler_filter_linear;
     m_linear_sampler                = m_graphics_device->create_sampler(sampler_info);
 
-    sampler_info.sampler_min_filter = gfx_sampler_filter::sampler_filter_linear_mipmap_linear;
-    sampler_info.sampler_max_filter = gfx_sampler_filter::sampler_filter_linear;
-    m_mipmapped_linear_sampler      = m_graphics_device->create_sampler(sampler_info);
+    sampler_info.enable_comparison_mode = true;
+    sampler_info.comparison_operator    = gfx_compare_operator::compare_operator_less_equal;
+    m_linear_compare_sampler            = m_graphics_device->create_sampler(sampler_info);
+
+    sampler_info.enable_comparison_mode = false;
+    sampler_info.sampler_min_filter     = gfx_sampler_filter::sampler_filter_linear_mipmap_linear;
+    sampler_info.sampler_max_filter     = gfx_sampler_filter::sampler_filter_linear;
+    m_mipmapped_linear_sampler          = m_graphics_device->create_sampler(sampler_info);
 
     if (!check_creation(m_nearest_sampler.get(), "nearest sampler"))
         return false;
@@ -298,599 +262,109 @@ bool deferred_pbr_renderer::create_buffers()
     if (!check_creation(m_renderer_data_buffer.get(), "renderer data buffer"))
         return false;
 
-    buffer_info.buffer_target = gfx_buffer_target::buffer_target_shader_storage;
-    buffer_info.buffer_access = gfx_buffer_access::buffer_access_mapped_access_read_write;
-    buffer_info.size          = sizeof(luminance_data);
-    m_luminance_data_buffer   = m_graphics_device->create_buffer(buffer_info);
-    if (!check_creation(m_luminance_data_buffer.get(), "luminance data buffer"))
-        return false;
-    m_luminance_data_mapping                      = nullptr;
-    graphics_device_context_handle device_context = m_graphics_device->create_graphics_device_context();
-    device_context->begin();
-    m_luminance_data_mapping = static_cast<luminance_data*>(device_context->map_buffer_data(m_luminance_data_buffer, 0, sizeof(luminance_data)));
-    device_context->end();
-    device_context->submit();
-    if (!check_mapping(m_luminance_data_mapping, "luminance data buffer"))
-        return false;
-
-    memset(&m_luminance_data_mapping->histogram[0], 0, 256 * sizeof(int32));
-    m_luminance_data_mapping->luminance = 1.0f;
-
     return true;
 }
 
-bool deferred_pbr_renderer::create_shader_stages()
+bool deferred_pbr_renderer::create_passes()
 {
-    auto& internal_resources = m_shared_context->get_internal_resources();
-    shader_stage_create_info shader_info;
-    shader_resource_resource_description res_resource_desc;
-    shader_source_description source_desc;
+    m_opaque_geometry_pass.setup(m_pipeline_cache, m_debug_drawer);
+    m_opaque_geometry_pass.attach(m_shared_context);
+    m_deferred_lighting_pass.attach(m_shared_context);
+    m_transparent_pass.setup(m_pipeline_cache, m_debug_drawer);
+    m_transparent_pass.attach(m_shared_context);
+    m_composing_pass.attach(m_shared_context);
+    m_auto_luminance_pass.attach(m_shared_context);
 
-    // Geometry Pass Vertex Stage
+    // optional passes
+    const bool* render_passes = m_configuration.get_render_extensions();
+    if (render_passes[mango::render_pipeline_extension::environment_display])
     {
-        res_resource_desc.path = "res/shader/forward/v_scene_gltf.glsl";
-        res_resource_desc.defines.push_back({ "VERTEX", "" });
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_vertex;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 2;
-
-        shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, "model_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-        } };
-
-        m_geometry_pass_vertex = m_graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_geometry_pass_vertex.get(), "geometry pass vertex shader"))
-            return false;
-
-        res_resource_desc.defines.clear();
+        // create an extra object that is capable to render environment cubemaps.
+        auto environment_display = std::make_shared<environment_display_pass>(m_configuration.get_environment_display_settings());
+        environment_display->attach(m_shared_context);
+        m_pipeline_extensions[mango::render_pipeline_extension::environment_display] = std::static_pointer_cast<render_pass>(environment_display);
     }
-    // Geometry Pass Fragement Stage
+    if (m_configuration.get_render_extensions()[mango::render_pipeline_extension::shadow_map])
     {
-        res_resource_desc.path = "res/shader/forward/f_scene_gltf.glsl";
-        res_resource_desc.defines.push_back({ "GBUFFER_FRAGMENT", "" });
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_fragment;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 11;
-
-        shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_fragment, MATERIAL_DATA_BUFFER_BINDING_POINT, "material_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, "texture_base_color", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, "sampler_base_color", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_ROUGHNESS_METALLIC, "texture_roughness_metallic", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_ROUGHNESS_METALLIC, "sampler_roughness_metallic", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_OCCLUSION, "texture_occlusion", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_OCCLUSION, "sampler_occlusion", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_NORMAL, "texture_normal", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_NORMAL, "sampler_normal", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_EMISSIVE_COLOR, "texture_emissive_color", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_EMISSIVE_COLOR, "sampler_emissive_color", gfx_shader_resource_type::shader_resource_sampler, 1 },
-        } };
-
-        m_geometry_pass_fragment = m_graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_geometry_pass_fragment.get(), "geometry pass fragment shader"))
-            return false;
-
-        res_resource_desc.defines.clear();
+        auto pass_shadow_map = std::make_shared<shadow_map_pass>(m_configuration.get_shadow_settings());
+        pass_shadow_map->setup(m_pipeline_cache, m_debug_drawer);
+        pass_shadow_map->attach(m_shared_context);
+        m_pipeline_extensions[mango::render_pipeline_extension::shadow_map] = std::static_pointer_cast<render_pass>(pass_shadow_map);
+        m_renderer_data.shadow_pass_enabled                                 = true;
     }
-    // Transparent Forward Lighting Fragment Stage
+    if (m_configuration.get_render_extensions()[mango::render_pipeline_extension::fxaa])
     {
-        res_resource_desc.path = "res/shader/forward/f_scene_transparent_gltf.glsl";
-        res_resource_desc.defines.push_back({ "FORWARD_LIGHTING_FRAGMENT", "" });
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_fragment;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 26;
-
-        shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_fragment, MATERIAL_DATA_BUFFER_BINDING_POINT, "material_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, MODEL_DATA_BUFFER_BINDING_POINT, "model_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, "light_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, "shadow_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, "texture_base_color", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, "sampler_base_color", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_ROUGHNESS_METALLIC, "texture_roughness_metallic", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_ROUGHNESS_METALLIC, "sampler_roughness_metallic", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_OCCLUSION, "texture_occlusion", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_OCCLUSION, "sampler_occlusion", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_NORMAL, "texture_normal", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_NORMAL, "sampler_normal", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_EMISSIVE_COLOR, "texture_emissive_color", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_EMISSIVE_COLOR, "sampler_emissive_color", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_IRRADIANCE_MAP, "texture_irradiance_map", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_IRRADIANCE_MAP, "sampler_irradiance_map", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_RADIANCE_MAP, "texture_radiance_map", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_RADIANCE_MAP, "sampler_radiance_map", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_LOOKUP, "texture_brdf_integration_lut", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_LOOKUP, "sampler_brdf_integration_lut", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_SHADOW_MAP, "texture_shadow_map_comp", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_SHADOW_MAP, "sampler_shadow_shadow_map", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_MAP, "texture_shadow_map", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_MAP, "sampler_shadow_map", gfx_shader_resource_type::shader_resource_sampler, 1 },
-        } };
-
-        m_transparent_pass_fragment = m_graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_transparent_pass_fragment.get(), "transparent pass fragment shader"))
-            return false;
-
-        res_resource_desc.defines.clear();
-    }
-    // Screen Space Quad for Lighting Pass Vertex Stage and Compositing
-    {
-        res_resource_desc.path        = "res/shader/v_screen_space_triangle.glsl";
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_vertex;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 0;
-
-        m_screen_space_triangle_vertex = m_graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_screen_space_triangle_vertex.get(), "screen space triangle vertex shader"))
-            return false;
-
-        res_resource_desc.defines.clear();
-    }
-    // Lighting Pass Fragment Stage
-    {
-        res_resource_desc.path        = "res/shader/deferred/f_deferred_lighting.glsl";
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_fragment;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 24;
-
-        shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, "light_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, "shadow_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET0, "texture_gbuffer_c0", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET0, "sampler_gbuffer_c0", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET1, "texture_gbuffer_c1", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET1, "sampler_gbuffer_c1", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET2, "texture_gbuffer_c2", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET2, "sampler_gbuffer_c2", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET3, "texture_gbuffer_c3", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET3, "sampler_gbuffer_c3", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_DEPTH, "texture_gbuffer_depth", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_DEPTH, "sampler_gbuffer_depth", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_IRRADIANCE_MAP, "texture_irradiance_map", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_IRRADIANCE_MAP, "sampler_irradiance_map", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_RADIANCE_MAP, "texture_radiance_map", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_RADIANCE_MAP, "sampler_radiance_map", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_LOOKUP, "texture_brdf_integration_lut", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_LOOKUP, "sampler_brdf_integration_lut", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_SHADOW_MAP, "texture_shadow_map_comp", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_SHADOW_MAP, "sampler_shadow_shadow_map", gfx_shader_resource_type::shader_resource_sampler, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_MAP, "texture_shadow_map", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_MAP, "sampler_shadow_map", gfx_shader_resource_type::shader_resource_sampler, 1 },
-        } };
-
-        m_lighting_pass_fragment = m_graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_lighting_pass_fragment.get(), "lighting pass fragment shader"))
-            return false;
-
-        res_resource_desc.defines.clear();
-    }
-    // Composing Pass Fragment Stage
-    {
-        res_resource_desc.path = "res/shader/post/f_composing.glsl";
-        res_resource_desc.defines.push_back({ "COMPOSING", "" });
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_fragment;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 6;
-
-        shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-
-            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, "texture_hdr_input", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, "sampler_hdr_input", gfx_shader_resource_type::shader_resource_sampler, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_DEPTH_SAMPLER, "texture_geometry_depth_input", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_DEPTH_SAMPLER, "sampler_geometry_depth_input", gfx_shader_resource_type::shader_resource_sampler, 1 },
-        } };
-
-        m_composing_pass_fragment = m_graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_composing_pass_fragment.get(), "composing pass fragment shader"))
-            return false;
-
-        res_resource_desc.defines.clear();
-    }
-    // Luminance Construction Compute Stage
-    {
-        res_resource_desc.path = "res/shader/luminance_compute/c_construct_luminance_buffer.glsl";
-        res_resource_desc.defines.push_back({ "COMPUTE", "" });
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_compute;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 2;
-
-        shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_compute, LUMINANCE_DATA_BUFFER_BINDING_POINT, "luminance_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_compute, HDR_IMAGE_LUMINANCE_COMPUTE, "image_hdr_color", gfx_shader_resource_type::shader_resource_image_storage, 1 },
-        } };
-
-        m_luminance_construction_compute = m_graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_luminance_construction_compute.get(), "luminance construction compute shader"))
-            return false;
-
-        res_resource_desc.defines.clear();
-    }
-    // Luminance Reduction Compute Stage
-    {
-        res_resource_desc.path = "res/shader/luminance_compute/c_luminance_buffer_reduction.glsl";
-        res_resource_desc.defines.push_back({ "COMPUTE", "" });
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_compute;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 1;
-
-        shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_compute, LUMINANCE_DATA_BUFFER_BINDING_POINT, "luminance_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-        } };
-
-        m_luminance_reduction_compute = m_graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_luminance_reduction_compute.get(), "luminance reduction compute shader"))
-            return false;
-
-        res_resource_desc.defines.clear();
+        auto pass_fxaa = std::make_shared<fxaa_pass>(m_configuration.get_fxaa_settings());
+        pass_fxaa->attach(m_shared_context);
+        m_pipeline_extensions[mango::render_pipeline_extension::fxaa] = std::static_pointer_cast<render_pass>(pass_fxaa);
     }
 
-    return true;
+    return update_passes();
 }
 
-bool deferred_pbr_renderer::create_pipeline_resources()
+bool deferred_pbr_renderer::update_passes()
 {
-    // Geometry Pass Pipeline
+    gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
+                                  static_cast<float>(m_renderer_info.canvas.height) };
+
+    m_opaque_geometry_pass.set_viewport(window_viewport);
+    m_opaque_geometry_pass.set_render_targets(m_gbuffer_render_targets);
+    m_opaque_geometry_pass.set_debug_bounds(m_debug_bounds);
+    m_opaque_geometry_pass.set_frustum_culling(m_frustum_culling);
+    m_opaque_geometry_pass.set_wireframe(m_wireframe);
+    m_opaque_geometry_pass.set_default_texture_2D(default_texture_2D);
+
+    m_deferred_lighting_pass.set_viewport(window_viewport);
+    m_deferred_lighting_pass.set_render_targets(m_hdr_buffer_render_targets);
+    m_deferred_lighting_pass.set_gbuffer(m_gbuffer_render_targets, m_linear_sampler);
+    m_deferred_lighting_pass.set_renderer_data_buffer(m_renderer_data_buffer);
+    m_deferred_lighting_pass.set_irradiance_map_sampler(m_mipmapped_linear_sampler);
+    m_deferred_lighting_pass.set_radiance_map_sampler(m_mipmapped_linear_sampler);
+    m_deferred_lighting_pass.set_brdf_integration_lut_sampler(m_linear_sampler);
+    m_deferred_lighting_pass.set_shadow_map_sampler(m_linear_sampler);
+    m_deferred_lighting_pass.set_shadow_map_compare_sampler(m_linear_compare_sampler);
+
+    m_transparent_pass.set_viewport(window_viewport);
+    m_transparent_pass.set_render_targets(m_hdr_buffer_render_targets);
+    m_transparent_pass.set_debug_bounds(m_debug_bounds);
+    m_transparent_pass.set_frustum_culling(m_frustum_culling);
+    m_transparent_pass.set_wireframe(m_wireframe);
+    m_transparent_pass.set_default_texture_2D(default_texture_2D);
+    m_transparent_pass.set_renderer_data_buffer(m_renderer_data_buffer);
+    m_transparent_pass.set_irradiance_map_sampler(m_mipmapped_linear_sampler);
+    m_transparent_pass.set_radiance_map_sampler(m_mipmapped_linear_sampler);
+    m_transparent_pass.set_brdf_integration_lut_sampler(m_linear_sampler);
+    m_transparent_pass.set_shadow_map_sampler(m_linear_sampler);
+    m_transparent_pass.set_shadow_map_compare_sampler(m_linear_compare_sampler);
+
+    m_composing_pass.set_viewport(window_viewport);
+    m_composing_pass.set_renderer_data_buffer(m_renderer_data_buffer);
+    m_composing_pass.set_hdr_input(m_hdr_buffer_render_targets[0]);
+    m_composing_pass.set_hdr_input_sampler(m_nearest_sampler);
+    m_composing_pass.set_depth_input(m_hdr_buffer_render_targets.back());
+    m_composing_pass.set_depth_input_sampler(m_nearest_sampler);
+
+    m_auto_luminance_pass.set_hdr_input(m_hdr_buffer_render_targets[0]);
+    m_auto_luminance_pass.set_input_size(m_renderer_info.canvas.width, m_renderer_info.canvas.height);
+
+    // optional
+    auto environment_display = std::static_pointer_cast<environment_display_pass>(m_pipeline_extensions[mango::render_pipeline_extension::environment_display]);
+    if (environment_display)
+        environment_display->set_renderer_data_buffer(m_renderer_data_buffer);
+
+    auto shadow_pass = std::static_pointer_cast<shadow_map_pass>(m_pipeline_extensions[mango::render_pipeline_extension::shadow_map]);
+    if (shadow_pass)
     {
-        graphics_pipeline_create_info geometry_pass_info = m_graphics_device->provide_graphics_pipeline_create_info();
-        auto geometry_pass_pipeline_layout               = m_graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, MATERIAL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_ROUGHNESS_METALLIC, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_ROUGHNESS_METALLIC, gfx_shader_resource_type::shader_resource_sampler,
-              gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_OCCLUSION, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_OCCLUSION, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_NORMAL, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_NORMAL, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_EMISSIVE_COLOR, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_EMISSIVE_COLOR, gfx_shader_resource_type::shader_resource_sampler,
-              gfx_shader_resource_access::shader_access_dynamic },
-        });
-
-        geometry_pass_info.pipeline_layout = geometry_pass_pipeline_layout;
-
-        geometry_pass_info.shader_stage_descriptor.vertex_shader_stage   = m_geometry_pass_vertex;
-        geometry_pass_info.shader_stage_descriptor.fragment_shader_stage = m_geometry_pass_fragment;
-
-        // vertex_input_descriptor comes from the mesh to render.
-        // input_assembly_descriptor comes from the mesh to render.
-
-        // viewport_descriptor is dynamic
-
-        // rasterization_state -> keep default
-        // depth_stencil_state -> keep default
-        // blend_state -> keep default
-
-        geometry_pass_info.dynamic_state.dynamic_states = gfx_dynamic_state_flag_bits::dynamic_state_viewport | gfx_dynamic_state_flag_bits::dynamic_state_scissor;
-
-        m_pipeline_cache.set_opaque_base(geometry_pass_info);
+        shadow_pass->set_frustum_culling(m_frustum_culling);
+        shadow_pass->set_debug_bounds(m_debug_bounds);
+        shadow_pass->set_wireframe(m_wireframe);
+        shadow_pass->set_debug_view_enabled(m_renderer_data.debug_view_enabled);
+        shadow_pass->set_default_texture_2D(default_texture_2D);
     }
-    // Transparent Pass Pipeline
-    {
-        graphics_pipeline_create_info transparent_pass_info = m_graphics_device->provide_graphics_pipeline_create_info();
-        auto transparent_pass_pipeline_layout               = m_graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_vertex, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
 
-            { gfx_shader_stage_type::shader_stage_fragment, MATERIAL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, MODEL_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_BASE_COLOR, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_ROUGHNESS_METALLIC, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_ROUGHNESS_METALLIC, gfx_shader_resource_type::shader_resource_sampler,
-              gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_OCCLUSION, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_OCCLUSION, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_NORMAL, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_NORMAL, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_EMISSIVE_COLOR, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GEOMETRY_TEXTURE_SAMPLER_EMISSIVE_COLOR, gfx_shader_resource_type::shader_resource_sampler,
-              gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_IRRADIANCE_MAP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_IRRADIANCE_MAP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_RADIANCE_MAP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_RADIANCE_MAP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_LOOKUP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_LOOKUP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_SHADOW_MAP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_SHADOW_MAP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_MAP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_MAP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-        });
-
-        transparent_pass_info.pipeline_layout = transparent_pass_pipeline_layout;
-
-        transparent_pass_info.shader_stage_descriptor.vertex_shader_stage   = m_geometry_pass_vertex;
-        transparent_pass_info.shader_stage_descriptor.fragment_shader_stage = m_transparent_pass_fragment;
-
-        // vertex_input_descriptor comes from the mesh to render.
-        // input_assembly_descriptor comes from the mesh to render.
-
-        // viewport_descriptor is dynamic
-
-        // rasterization_state -> keep default
-        // depth_stencil_state -> keep default
-        transparent_pass_info.rasterization_state.cull_mode                       = gfx_cull_mode_flag_bits::mode_back; // TODO Paul: For now this is fine.
-        transparent_pass_info.blend_state.blend_description.enable_blend          = true;
-        transparent_pass_info.blend_state.blend_description.color_blend_operation = gfx_blend_operation::blend_operation_add;
-        transparent_pass_info.blend_state.blend_description.color_blend_operation = gfx_blend_operation::blend_operation_add;
-        transparent_pass_info.blend_state.blend_description.alpha_blend_operation = gfx_blend_operation::blend_operation_add;
-
-        transparent_pass_info.blend_state.blend_description.src_color_blend_factor = gfx_blend_factor::blend_factor_src_alpha;
-        transparent_pass_info.blend_state.blend_description.dst_color_blend_factor = gfx_blend_factor::blend_factor_one_minus_src_alpha;
-        transparent_pass_info.blend_state.blend_description.src_alpha_blend_factor = gfx_blend_factor::blend_factor_one;
-        transparent_pass_info.blend_state.blend_description.dst_alpha_blend_factor = gfx_blend_factor::blend_factor_one_minus_src_alpha;
-
-        transparent_pass_info.dynamic_state.dynamic_states = gfx_dynamic_state_flag_bits::dynamic_state_viewport | gfx_dynamic_state_flag_bits::dynamic_state_scissor;
-
-        m_pipeline_cache.set_transparent_base(transparent_pass_info);
-    }
-    // Lighting Pass Pipeline
-    {
-        graphics_pipeline_create_info lighting_pass_info = m_graphics_device->provide_graphics_pipeline_create_info();
-        auto lighting_pass_pipeline_layout               = m_graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, SHADOW_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET0, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET1, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET1, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET2, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET2, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET3, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_TARGET3, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_DEPTH, gfx_shader_resource_type::shader_resource_input_attachment,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, GBUFFER_TEXTURE_SAMPLER_DEPTH, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_IRRADIANCE_MAP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_IRRADIANCE_MAP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_RADIANCE_MAP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_RADIANCE_MAP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_LOOKUP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, IBL_SAMPLER_LOOKUP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_SHADOW_MAP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_SHADOW_MAP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_MAP, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, SAMPLER_SHADOW_MAP, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-        });
-
-        lighting_pass_info.pipeline_layout = lighting_pass_pipeline_layout;
-
-        lighting_pass_info.shader_stage_descriptor.vertex_shader_stage   = m_screen_space_triangle_vertex;
-        lighting_pass_info.shader_stage_descriptor.fragment_shader_stage = m_lighting_pass_fragment;
-
-        lighting_pass_info.vertex_input_state.attribute_description_count = 0;
-        lighting_pass_info.vertex_input_state.binding_description_count   = 0;
-
-        lighting_pass_info.input_assembly_state.topology = gfx_primitive_topology::primitive_topology_triangle_list; // Not relevant.
-
-        // viewport_descriptor is dynamic
-
-        // rasterization_state -> keep default
-        // depth_stencil_state -> keep default
-        // blend_state -> keep default
-
-        lighting_pass_info.dynamic_state.dynamic_states = gfx_dynamic_state_flag_bits::dynamic_state_viewport | gfx_dynamic_state_flag_bits::dynamic_state_scissor;
-
-        m_lighting_pass_pipeline = m_graphics_device->create_graphics_pipeline(lighting_pass_info);
-    }
-    // Composing Pass Pipeline
-    {
-        graphics_pipeline_create_info composing_pass_info = m_graphics_device->provide_graphics_pipeline_create_info();
-        auto composing_pass_pipeline_layout               = m_graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_HDR_SAMPLER, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_DEPTH_SAMPLER, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_fragment, COMPOSING_DEPTH_SAMPLER, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-        });
-
-        composing_pass_info.pipeline_layout = composing_pass_pipeline_layout;
-
-        composing_pass_info.shader_stage_descriptor.vertex_shader_stage   = m_screen_space_triangle_vertex;
-        composing_pass_info.shader_stage_descriptor.fragment_shader_stage = m_composing_pass_fragment;
-
-        composing_pass_info.vertex_input_state.attribute_description_count = 0;
-        composing_pass_info.vertex_input_state.binding_description_count   = 0;
-
-        composing_pass_info.input_assembly_state.topology = gfx_primitive_topology::primitive_topology_triangle_list; // Not relevant.
-
-        // viewport_descriptor is dynamic
-
-        // rasterization_state -> keep default
-        composing_pass_info.depth_stencil_state.depth_compare_operator = gfx_compare_operator::compare_operator_always; // Do not disable since it writes the depth in the fragment shader.
-        // blend_state -> keep default
-
-        composing_pass_info.dynamic_state.dynamic_states = gfx_dynamic_state_flag_bits::dynamic_state_viewport | gfx_dynamic_state_flag_bits::dynamic_state_scissor;
-
-        m_composing_pass_pipeline = m_graphics_device->create_graphics_pipeline(composing_pass_info);
-    }
-    // Luminance Construction Pipeline
-    {
-        compute_pipeline_create_info construction_pass_info = m_graphics_device->provide_compute_pipeline_create_info();
-        auto construction_pass_pipeline_layout              = m_graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_compute, LUMINANCE_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-
-            { gfx_shader_stage_type::shader_stage_compute, HDR_IMAGE_LUMINANCE_COMPUTE, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_dynamic },
-        });
-
-        construction_pass_info.pipeline_layout = construction_pass_pipeline_layout;
-
-        construction_pass_info.shader_stage_descriptor.compute_shader_stage = m_luminance_construction_compute;
-
-        m_luminance_construction_pipeline = m_graphics_device->create_compute_pipeline(construction_pass_info);
-    }
-    // Luminance Reduction Pipeline
-    {
-        compute_pipeline_create_info reduction_pass_info = m_graphics_device->provide_compute_pipeline_create_info();
-        auto reduction_pass_pipeline_layout              = m_graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_compute, LUMINANCE_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-              gfx_shader_resource_access::shader_access_dynamic },
-        });
-
-        reduction_pass_info.pipeline_layout = reduction_pass_pipeline_layout;
-
-        reduction_pass_info.shader_stage_descriptor.compute_shader_stage = m_luminance_reduction_compute;
-
-        m_luminance_reduction_pipeline = m_graphics_device->create_compute_pipeline(reduction_pass_info);
-    }
+    auto pass_fxaa = std::static_pointer_cast<fxaa_pass>(m_pipeline_extensions[mango::render_pipeline_extension::fxaa]);
+    if (pass_fxaa)
+        pass_fxaa->set_output_targets(m_output_target, m_ouput_depth_target);
 
     return true; // TODO Paul: This is always true atm.
 }
@@ -905,17 +379,12 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     PROFILE_ZONE;
     m_renderer_info.last_frame.draw_calls = 0;
     m_renderer_info.last_frame.vertices   = 0;
-    m_renderer_info.last_frame.triangles  = 0;
-    m_renderer_info.last_frame.meshes     = 0;
-    m_renderer_info.last_frame.primitives = 0;
-    m_renderer_info.last_frame.materials  = 0;
 
     m_frame_context->begin();
-    // m_frame_context->client_wait(m_frame_semaphore);
     float clear_color[4] = { 0.1f, 0.1f, 0.1f, 1.0f }; // TODO Paul: member or dynamic?
     auto swap_buffer     = m_graphics_device->get_swap_chain_render_target();
 
-    auto shadow_pass = std::static_pointer_cast<shadow_map_step>(m_pipeline_steps[mango::render_pipeline_step::shadow_map]);
+    auto shadow_pass = std::static_pointer_cast<shadow_map_pass>(m_pipeline_extensions[mango::render_pipeline_extension::shadow_map]);
 
     // clear all framebuffers
     {
@@ -944,103 +413,69 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_frame_context->clear_render_target(gfx_clear_attachment_flag_bits::clear_flag_all_draw_buffers, clear_color);
     }
 
-    m_frame_context->set_buffer_data(m_renderer_data_buffer, 0, sizeof(m_renderer_data), &m_renderer_data);
-
-    struct draw_key
-    {
-        uid primitive_gpu_data_id;
-        uid mesh_gpu_data_id;
-        uid material_id;
-        float view_depth;
-        bool transparent;
-        axis_aligned_bounding_box bounding_box; // Does not contribute to order.
-
-        bool operator<(const draw_key& other) const
-        {
-            if (transparent < other.transparent)
-                return true;
-            if (other.transparent < transparent)
-                return false;
-
-            if (view_depth > other.view_depth)
-                return true;
-            if (other.view_depth > view_depth)
-                return false;
-
-            if (material_id < other.material_id)
-                return true;
-            if (other.material_id < material_id)
-                return false;
-
-            if (primitive_gpu_data_id < other.primitive_gpu_data_id)
-                return true;
-            if (other.primitive_gpu_data_id < primitive_gpu_data_id)
-                return false;
-
-            return false;
-        }
-    };
+    m_frame_context->set_buffer_data(m_renderer_data_buffer, 0, sizeof(renderer_data), &m_renderer_data);
 
     auto active_camera_data = scene->get_active_camera_gpu_data();
-    MANGO_ASSERT(active_camera_data, "Non existing active camera!");
+    if (!active_camera_data.has_value())
+        return;
 
-    std::vector<draw_key> draws;
-    int32 opaque_count = 0;
-    auto instances     = scene->get_render_instances();
+    shared_ptr<std::vector<draw_key>> draws = std::make_shared<std::vector<draw_key>>();
+    int32 opaque_count                      = 0;
+    auto instances                          = scene->get_render_instances();
     if (m_debug_bounds)
-        m_debug_drawer.clear();
+        m_debug_drawer->clear();
     bounding_frustum camera_frustum;
     if (m_frustum_culling)
     {
-        camera_frustum = bounding_frustum(active_camera_data->per_camera_data.view_matrix.to_mat4(), active_camera_data->per_camera_data.projection_matrix.to_mat4());
+        camera_frustum = bounding_frustum(active_camera_data->per_camera_data.view_matrix, active_camera_data->per_camera_data.projection_matrix);
         if (m_debug_bounds)
         {
-            auto corners = bounding_frustum::get_corners(active_camera_data->per_camera_data.view_projection_matrix.to_mat4());
-            m_debug_drawer.set_color(color_rgb(0.0f, 1.0f, 0.0f));
-            m_debug_drawer.add(corners[0], corners[1]);
-            m_debug_drawer.add(corners[1], corners[3]);
-            m_debug_drawer.add(corners[3], corners[2]);
-            m_debug_drawer.add(corners[2], corners[6]);
-            m_debug_drawer.add(corners[6], corners[4]);
-            m_debug_drawer.add(corners[4], corners[0]);
-            m_debug_drawer.add(corners[0], corners[2]);
+            auto corners = bounding_frustum::get_corners(active_camera_data->per_camera_data.view_projection_matrix);
+            m_debug_drawer->set_color(color_rgb(0.0f, 1.0f, 0.0f));
+            m_debug_drawer->add(corners[0], corners[1]);
+            m_debug_drawer->add(corners[1], corners[3]);
+            m_debug_drawer->add(corners[3], corners[2]);
+            m_debug_drawer->add(corners[2], corners[6]);
+            m_debug_drawer->add(corners[6], corners[4]);
+            m_debug_drawer->add(corners[4], corners[0]);
+            m_debug_drawer->add(corners[0], corners[2]);
 
-            m_debug_drawer.add(corners[5], corners[4]);
-            m_debug_drawer.add(corners[4], corners[6]);
-            m_debug_drawer.add(corners[6], corners[7]);
-            m_debug_drawer.add(corners[7], corners[3]);
-            m_debug_drawer.add(corners[3], corners[1]);
-            m_debug_drawer.add(corners[1], corners[5]);
-            m_debug_drawer.add(corners[5], corners[7]);
+            m_debug_drawer->add(corners[5], corners[4]);
+            m_debug_drawer->add(corners[4], corners[6]);
+            m_debug_drawer->add(corners[6], corners[7]);
+            m_debug_drawer->add(corners[7], corners[3]);
+            m_debug_drawer->add(corners[3], corners[1]);
+            m_debug_drawer->add(corners[1], corners[5]);
+            m_debug_drawer->add(corners[5], corners[7]);
         }
     }
 
     for (auto instance : instances)
     {
-        optional<node&> node = scene->get_node(instance.node_id);
+        // we can assume the stuff exists - we also want to be fast
+        optional<node&> node = scene->get_node(instance.node_hnd);
         MANGO_ASSERT(node, "Non existing node in instances!");
-        optional<mat4&> global_transformation_matrix = scene->get_global_transformation_matrix(node->global_matrix_id);
+        optional<mat4&> global_transformation_matrix = scene->get_global_transformation_matrix(node->global_matrix_hnd);
         MANGO_ASSERT(global_transformation_matrix, "Non existing transformation matrix in instances!");
 
         if ((node->type & node_type::mesh) != node_type::hierarchy)
         {
             draw_key a_draw;
 
-            optional<mesh&> mesh = scene->get_mesh(node->mesh_id);
+            MANGO_ASSERT(node->mesh_hnd.valid(), "Node with mesh has no mesh attached!");
+            optional<mesh&> mesh = scene->get_mesh(node->mesh_hnd);
             MANGO_ASSERT(mesh, "Non existing mesh in instances!");
             a_draw.mesh_gpu_data_id = mesh->gpu_data;
-
-            m_renderer_info.last_frame.meshes++;
 
             for (auto p : mesh->primitives)
             {
                 optional<primitive&> prim = scene->get_primitive(p);
                 MANGO_ASSERT(prim, "Non existing primitive in instances!");
-                optional<material&> mat = scene->get_material(prim->material);
+                optional<material&> mat = scene->get_material(prim->primitive_material);
                 MANGO_ASSERT(mat, "Non existing material in instances!");
 
                 a_draw.primitive_gpu_data_id = prim->gpu_data;
-                a_draw.material_id           = prim->material;
+                a_draw.material_hnd          = prim->primitive_material;
 
                 a_draw.transparent = mat->alpha_mode > material_alpha_mode::mode_mask;
                 opaque_count += a_draw.transparent ? 0 : 1;
@@ -1056,18 +491,18 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
                 for (const vec3& corner : bb_corners)
                 {
                     if (!a_draw.transparent)
-                        a_draw.view_depth = min(a_draw.view_depth, (active_camera_data->per_camera_data.view_matrix.to_mat4() * vec4(corner.x(), corner.y(), corner.z(), 1.0f)).z());
+                        a_draw.view_depth = min(a_draw.view_depth, (active_camera_data->per_camera_data.view_matrix * vec4(corner.x(), corner.y(), corner.z(), 1.0f)).z());
                     else
-                        a_draw.view_depth = max(a_draw.view_depth, (active_camera_data->per_camera_data.view_matrix.to_mat4() * vec4(corner.x(), corner.y(), corner.z(), 1.0f)).z());
+                        a_draw.view_depth = max(a_draw.view_depth, (active_camera_data->per_camera_data.view_matrix * vec4(corner.x(), corner.y(), corner.z(), 1.0f)).z());
                 }
                 // MANGO_LOG_INFO("{0}", a_draw.view_depth);
 
-                draws.push_back(a_draw);
+                draws->push_back(a_draw);
             }
         }
     }
 
-    std::sort(begin(draws), end(draws));
+    std::sort(draws->begin(), draws->end());
 
     auto warn_missing_draw = [](string what) { MANGO_LOG_WARN("{0} missing for draw. Skipping DrawCall!", what); };
 
@@ -1075,712 +510,152 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     auto light_data       = scene->get_light_gpu_data();
 
     // shadow pass
-    // draw objects
+    if (shadow_pass)
     {
-        GL_NAMED_PROFILE_ZONE("Shadow Pass");
-        NAMED_PROFILE_ZONE("Shadow Pass");
-        auto shadow_casters = ls.get_shadow_casters(); // currently only directional.
+        shadow_pass->set_camera_data_buffer(active_camera_data->camera_data_buffer);
+        shadow_pass->set_scene_pointer(scene);
+        shadow_pass->set_camera_frustum(camera_frustum);
+        shadow_pass->set_draws(draws);
+        shadow_pass->set_delta_time(dt);
+        shadow_pass->set_camera_near(active_camera_data->per_camera_data.camera_near);
+        shadow_pass->set_camera_far(active_camera_data->per_camera_data.camera_far);
+        shadow_pass->set_camera_inverse_view_projection(active_camera_data->per_camera_data.inverse_view_projection);
+        shadow_pass->set_shadow_casters(ls.get_shadow_casters());
 
-        if (shadow_pass && !m_renderer_data.debug_view_enabled && !shadow_casters.empty())
-        {
-            for (auto sc : shadow_casters)
-            {
-                shadow_pass->update_cascades(dt, active_camera_data->per_camera_data.camera_near, active_camera_data->per_camera_data.camera_far,
-                                             active_camera_data->per_camera_data.view_projection_matrix.to_mat4(), sc.direction);
-                auto& shadow_data_buffer = shadow_pass->get_shadow_data_buffer();
-                m_frame_context->set_render_targets(0, nullptr, shadow_pass->get_shadow_maps_texture());
-                auto& data = shadow_pass->get_shadow_data();
-                for (int32 casc = 0; casc < data.cascade_count; ++casc)
-                {
-                    auto& cascade_frustum = shadow_pass->get_cascade_frustum(casc);
+        shadow_pass->execute(m_frame_context);
 
-                    data.cascade = casc;
-
-                    if (m_debug_bounds)
-                    {
-                        auto corners = bounding_frustum::get_corners(data.view_projection_matrices[casc].to_mat4());
-                        m_debug_drawer.set_color(color_rgb(0.5f));
-                        m_debug_drawer.add(corners[0], corners[1]);
-                        m_debug_drawer.add(corners[1], corners[3]);
-                        m_debug_drawer.add(corners[3], corners[2]);
-                        m_debug_drawer.add(corners[2], corners[6]);
-                        m_debug_drawer.add(corners[6], corners[4]);
-                        m_debug_drawer.add(corners[4], corners[0]);
-                        m_debug_drawer.add(corners[0], corners[2]);
-
-                        m_debug_drawer.add(corners[5], corners[4]);
-                        m_debug_drawer.add(corners[4], corners[6]);
-                        m_debug_drawer.add(corners[6], corners[7]);
-                        m_debug_drawer.add(corners[7], corners[3]);
-                        m_debug_drawer.add(corners[3], corners[1]);
-                        m_debug_drawer.add(corners[1], corners[5]);
-                        m_debug_drawer.add(corners[5], corners[7]);
-                    }
-
-                    for (uint32 c = 0; c < draws.size(); ++c)
-                    {
-                        auto& dc = draws[c];
-
-                        if (m_frustum_culling)
-                        {
-                            auto& bb = dc.bounding_box;
-                            if (!cascade_frustum.intersects(bb))
-                                continue;
-                        }
-
-                        optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(dc.primitive_gpu_data_id);
-                        if (!prim_gpu_data)
-                        {
-                            warn_missing_draw("Primitive gpu data");
-                            continue;
-                        }
-                        optional<mesh_gpu_data&> m_gpu_data = scene->get_mesh_gpu_data(dc.mesh_gpu_data_id);
-                        if (!m_gpu_data)
-                        {
-                            warn_missing_draw("Mesh gpu data");
-                            continue;
-                        }
-                        optional<material&> mat                   = scene->get_material(dc.material_id);
-                        optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
-                        if (!mat || !mat_gpu_data)
-                        {
-                            warn_missing_draw("Material");
-                            continue;
-                        }
-
-                        gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_shadow(prim_gpu_data->vertex_layout, prim_gpu_data->input_assembly, mat->double_sided);
-
-                        m_frame_context->bind_pipeline(dc_pipeline);
-                        gfx_viewport shadow_viewport{ 0.0f, 0.0f, static_cast<float>(shadow_pass->resolution()), static_cast<float>(shadow_pass->resolution()) };
-                        m_frame_context->set_viewport(0, 1, &shadow_viewport);
-
-                        m_frame_context->set_buffer_data(shadow_data_buffer, 0, sizeof(shadow_map_step::shadow_data), &(data));
-                        dc_pipeline->get_resource_mapping()->set("shadow_data", shadow_data_buffer);
-
-                        dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);
-
-                        if (mat_gpu_data->per_material_data.alpha_mode > 1)
-                            continue; // TODO Paul: Transparent shadows?!
-
-                        dc_pipeline->get_resource_mapping()->set("material_data", mat_gpu_data->material_data_buffer);
-
-                        if (mat_gpu_data->per_material_data.base_color_texture)
-                        {
-                            optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
-                            if (!tex)
-                            {
-                                warn_missing_draw("Base Color Texture");
-                                continue;
-                            }
-                            dc_pipeline->get_resource_mapping()->set("texture_base_color", tex->graphics_texture);
-                            dc_pipeline->get_resource_mapping()->set("sampler_base_color", tex->graphics_sampler);
-                        }
-                        else
-                        {
-                            dc_pipeline->get_resource_mapping()->set("texture_base_color", default_texture_2D);
-                        }
-
-                        m_frame_context->submit_pipeline_state_resources();
-
-                        m_frame_context->set_index_buffer(prim_gpu_data->index_buffer_view.graphics_buffer, prim_gpu_data->index_type);
-
-                        std::vector<gfx_handle<const gfx_buffer>> vbs;
-                        vbs.reserve(prim_gpu_data->vertex_buffer_views.size());
-                        std::vector<int32> bindings;
-                        bindings.reserve(prim_gpu_data->vertex_buffer_views.size());
-                        std::vector<int32> offsets;
-                        offsets.reserve(prim_gpu_data->vertex_buffer_views.size());
-                        int32 idx = 0;
-                        for (auto vbv : prim_gpu_data->vertex_buffer_views)
-                        {
-                            vbs.push_back(vbv.graphics_buffer);
-                            bindings.push_back(idx++);
-                            offsets.push_back(vbv.offset);
-                        }
-
-                        m_frame_context->set_vertex_buffers(static_cast<int32>(prim_gpu_data->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
-
-                        m_renderer_info.last_frame.draw_calls++;
-                        m_renderer_info.last_frame.primitives++;
-                        m_renderer_info.last_frame.vertices += std::max(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count);
-                        m_frame_context->draw(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count, prim_gpu_data->draw_call_desc.instance_count,
-                                              prim_gpu_data->draw_call_desc.base_vertex, prim_gpu_data->draw_call_desc.base_instance, prim_gpu_data->draw_call_desc.index_offset);
-                    }
-                }
-            }
-        }
+        auto pass_info = shadow_pass->get_info();
+        m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+        m_renderer_info.last_frame.vertices += pass_info.vertices;
     }
 
     // gbuffer pass
-    // draw objects
     {
-        GL_NAMED_PROFILE_ZONE("GBuffer Pass");
-        NAMED_PROFILE_ZONE("GBuffer Pass");
-        m_frame_context->set_render_targets(static_cast<int32>(m_gbuffer_render_targets.size()) - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
-        for (int32 c = 0; c < opaque_count; ++c)
-        {
-            auto& dc = draws[c];
+        m_opaque_geometry_pass.set_camera_data_buffer(active_camera_data->camera_data_buffer);
+        m_opaque_geometry_pass.set_scene_pointer(scene);
+        m_opaque_geometry_pass.set_camera_frustum(camera_frustum);
+        m_opaque_geometry_pass.set_draws(draws);
+        m_opaque_geometry_pass.set_opaque_count(opaque_count);
 
-            if (m_frustum_culling)
-            {
-                auto& bb = dc.bounding_box;
-                if (!camera_frustum.intersects(bb))
-                    continue;
-            }
-            if (m_debug_bounds)
-            {
-                auto& bb     = dc.bounding_box;
-                auto corners = bb.get_corners();
-                m_debug_drawer.set_color(color_rgb(1.0f, 0.0f, 0.0f));
-                m_debug_drawer.add(corners[0], corners[1]);
-                m_debug_drawer.add(corners[1], corners[3]);
-                m_debug_drawer.add(corners[3], corners[2]);
-                m_debug_drawer.add(corners[2], corners[6]);
-                m_debug_drawer.add(corners[6], corners[4]);
-                m_debug_drawer.add(corners[4], corners[0]);
-                m_debug_drawer.add(corners[0], corners[2]);
+        m_opaque_geometry_pass.execute(m_frame_context);
 
-                m_debug_drawer.add(corners[5], corners[4]);
-                m_debug_drawer.add(corners[4], corners[6]);
-                m_debug_drawer.add(corners[6], corners[7]);
-                m_debug_drawer.add(corners[7], corners[3]);
-                m_debug_drawer.add(corners[3], corners[1]);
-                m_debug_drawer.add(corners[1], corners[5]);
-                m_debug_drawer.add(corners[5], corners[7]);
-            }
-
-            optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(dc.primitive_gpu_data_id);
-            if (!prim_gpu_data)
-            {
-                warn_missing_draw("Primitive gpu data");
-                continue;
-            }
-            optional<mesh_gpu_data&> m_gpu_data = scene->get_mesh_gpu_data(dc.mesh_gpu_data_id);
-            if (!m_gpu_data)
-            {
-                warn_missing_draw("Mesh gpu data");
-                continue;
-            }
-            optional<material&> mat                   = scene->get_material(dc.material_id);
-            optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
-            if (!mat || !mat_gpu_data)
-            {
-                warn_missing_draw("Material");
-                continue;
-            }
-
-            gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_opaque(prim_gpu_data->vertex_layout, prim_gpu_data->input_assembly, m_wireframe, mat->double_sided);
-
-            m_frame_context->bind_pipeline(dc_pipeline);
-            gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
-                                          static_cast<float>(m_renderer_info.canvas.height) };
-            m_frame_context->set_viewport(0, 1, &window_viewport);
-
-            dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);
-            dc_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
-            dc_pipeline->get_resource_mapping()->set("material_data", mat_gpu_data->material_data_buffer);
-
-            if (mat_gpu_data->per_material_data.base_color_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
-                if (!tex)
-                {
-                    warn_missing_draw("Base Color Texture");
-                    continue;
-                }
-                dc_pipeline->get_resource_mapping()->set("texture_base_color", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_base_color", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_base_color", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.roughness_metallic_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->metallic_roughness_texture_gpu_data);
-                if (!tex)
-                {
-                    warn_missing_draw("Roughness Metallic Texture");
-                    continue;
-                }
-                dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_roughness_metallic", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.occlusion_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->occlusion_texture_gpu_data);
-                if (!tex)
-                {
-                    warn_missing_draw("Occlusion Texture");
-                    continue;
-                }
-                dc_pipeline->get_resource_mapping()->set("texture_occlusion", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_occlusion", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_occlusion", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.normal_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->normal_texture_gpu_data);
-                if (!tex)
-                {
-                    warn_missing_draw("Normal Texture");
-                    continue;
-                }
-                dc_pipeline->get_resource_mapping()->set("texture_normal", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_normal", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_normal", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.emissive_color_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->emissive_texture_gpu_data);
-                if (!tex)
-                {
-                    warn_missing_draw("Emissive Color Texture");
-                    continue;
-                }
-                dc_pipeline->get_resource_mapping()->set("texture_emissive_color", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_emissive_color", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_emissive_color", default_texture_2D);
-            }
-
-            m_frame_context->submit_pipeline_state_resources();
-
-            m_frame_context->set_index_buffer(prim_gpu_data->index_buffer_view.graphics_buffer, prim_gpu_data->index_type);
-
-            std::vector<gfx_handle<const gfx_buffer>> vbs;
-            vbs.reserve(prim_gpu_data->vertex_buffer_views.size());
-            std::vector<int32> bindings;
-            bindings.reserve(prim_gpu_data->vertex_buffer_views.size());
-            std::vector<int32> offsets;
-            offsets.reserve(prim_gpu_data->vertex_buffer_views.size());
-            int32 idx = 0;
-            for (auto vbv : prim_gpu_data->vertex_buffer_views)
-            {
-                vbs.push_back(vbv.graphics_buffer);
-                bindings.push_back(idx++);
-                offsets.push_back(vbv.offset);
-            }
-
-            m_frame_context->set_vertex_buffers(static_cast<int32>(prim_gpu_data->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
-
-            // m_frame_context->set_render_targets(m_gbuffer_render_targets.size() - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
-
-            m_renderer_info.last_frame.draw_calls++;
-            m_renderer_info.last_frame.primitives++;
-            m_renderer_info.last_frame.vertices += std::max(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count);
-            m_frame_context->draw(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count, prim_gpu_data->draw_call_desc.instance_count,
-                                  prim_gpu_data->draw_call_desc.base_vertex, prim_gpu_data->draw_call_desc.base_instance, prim_gpu_data->draw_call_desc.index_offset);
-        }
+        auto pass_info = m_opaque_geometry_pass.get_info();
+        m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+        m_renderer_info.last_frame.vertices += pass_info.vertices;
     }
 
+    // lighting pass
     auto irradiance = ls.get_skylight_irradiance_map();
     auto specular   = ls.get_skylight_specular_prefilter_map();
-    // lighting pass
+    auto brdf_lut   = ls.get_skylight_brdf_lookup();
     {
-        GL_NAMED_PROFILE_ZONE("Deferred Lighting Pass");
-        NAMED_PROFILE_ZONE("Deferred Lighting Pass");
-        m_frame_context->bind_pipeline(m_lighting_pass_pipeline);
+        m_deferred_lighting_pass.set_camera_data_buffer(active_camera_data->camera_data_buffer);
+        m_deferred_lighting_pass.set_light_data_buffer(light_data.light_data_buffer);
+        m_deferred_lighting_pass.set_shadow_data_buffer(shadow_pass ? shadow_pass->get_shadow_data_buffer() : nullptr);
 
-        gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
-                                      static_cast<float>(m_renderer_info.canvas.height) };
-        m_frame_context->set_viewport(0, 1, &window_viewport);
+        m_deferred_lighting_pass.set_irradiance_map(irradiance ? irradiance : default_texture_cube);
+        m_deferred_lighting_pass.set_radiance_map(specular ? specular : default_texture_cube);
+        m_deferred_lighting_pass.set_brdf_integration_lut(brdf_lut ? brdf_lut : default_texture_2D);
 
-        m_frame_context->set_render_targets(static_cast<int32>(m_hdr_buffer_render_targets.size()) - 1, m_hdr_buffer_render_targets.data(), m_hdr_buffer_render_targets.back());
+        m_deferred_lighting_pass.set_shadow_map(shadow_pass ? shadow_pass->get_shadow_maps_texture() : default_texture_array);
 
-        m_lighting_pass_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer); // TODO Paul: Refill (Atm only filled on construction).
-        m_lighting_pass_pipeline->get_resource_mapping()->set("light_data", light_data.light_data_buffer);
-        // m_lighting_pass_pipeline->get_resource_mapping()->set("shadow_data", ); // TODO Paul: Should be filled in the shadow step. Nothing here yet.
+        m_deferred_lighting_pass.execute(m_frame_context);
 
-        m_lighting_pass_pipeline->get_resource_mapping()->set("texture_gbuffer_c0", m_gbuffer_render_targets[0]);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_gbuffer_c0", m_nearest_sampler);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("texture_gbuffer_c1", m_gbuffer_render_targets[1]);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_gbuffer_c1", m_nearest_sampler);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("texture_gbuffer_c2", m_gbuffer_render_targets[2]);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_gbuffer_c2", m_nearest_sampler);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("texture_gbuffer_c3", m_gbuffer_render_targets[3]);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_gbuffer_c3", m_nearest_sampler);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("texture_gbuffer_depth", m_gbuffer_render_targets[4]);
-        m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_gbuffer_depth", m_nearest_sampler);
-
-        if (irradiance && specular) // If this exists the rest has to exist too
-        {
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_irradiance_map", irradiance);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_irradiance_map", m_mipmapped_linear_sampler);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_radiance_map", specular);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_radiance_map", m_mipmapped_linear_sampler);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", ls.get_skylight_brdf_lookup());
-            m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_brdf_integration_lut", m_linear_sampler);
-        }
-        else
-        {
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_irradiance_map", default_texture_cube);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_radiance_map", default_texture_cube);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", default_texture_2D);
-        }
-
-        if (shadow_pass)
-        {
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", shadow_pass->get_shadow_maps_texture());
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map", shadow_pass->get_shadow_maps_texture());
-            m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_shadow_shadow_map", shadow_pass->get_shadow_maps_shadow_sampler());
-            m_lighting_pass_pipeline->get_resource_mapping()->set("sampler_shadow_map", shadow_pass->get_shadow_maps_sampler());
-        }
-        else
-        {
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", default_texture_array);
-            m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map", default_texture_array);
-        }
-
-        m_frame_context->submit_pipeline_state_resources();
-
-        m_frame_context->set_index_buffer(nullptr, gfx_format::invalid);
-        m_frame_context->set_vertex_buffers(0, nullptr, nullptr, nullptr);
-
-        m_renderer_info.last_frame.draw_calls++;
-        m_renderer_info.last_frame.vertices += 3;
-        m_frame_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in geometry shader.
+        auto pass_info = m_deferred_lighting_pass.get_info();
+        m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+        m_renderer_info.last_frame.vertices += pass_info.vertices;
     }
 
     // cubemap pass
     if (!m_renderer_data.debug_view_enabled)
     {
-        GL_NAMED_PROFILE_ZONE("Environment Display Pass");
-        NAMED_PROFILE_ZONE("Environment Display Pass");
-        auto environment_display_pass = std::static_pointer_cast<environment_display_step>(m_pipeline_steps[mango::render_pipeline_step::environment_display]);
-        if (environment_display_pass && specular)
+        auto environment_display = std::static_pointer_cast<environment_display_pass>(m_pipeline_extensions[mango::render_pipeline_extension::environment_display]);
+        if (environment_display && specular)
         {
-            environment_display_pass->set_cubemap(specular);
-            m_renderer_info.last_frame.draw_calls++;
-            m_renderer_info.last_frame.vertices += 18;
-            environment_display_pass->execute();
+            environment_display->set_camera_data_buffer(active_camera_data->camera_data_buffer);
+            environment_display->set_cubemap(specular);
+
+            environment_display->execute(m_frame_context);
+
+            auto pass_info = environment_display->get_info();
+            m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+            m_renderer_info.last_frame.vertices += pass_info.vertices;
         }
     }
 
     // transparent pass
     {
-        GL_NAMED_PROFILE_ZONE("Transparent Pass");
-        NAMED_PROFILE_ZONE("Transparent Pass");
-        for (uint32 c = opaque_count; c < draws.size(); ++c)
-        {
-            auto& dc = draws[c];
+        m_transparent_pass.set_camera_data_buffer(active_camera_data->camera_data_buffer);
+        m_transparent_pass.set_light_data_buffer(light_data.light_data_buffer);
+        m_transparent_pass.set_shadow_data_buffer(shadow_pass ? shadow_pass->get_shadow_data_buffer() : nullptr);
 
-            if (m_frustum_culling)
-            {
-                auto& bb = dc.bounding_box;
-                if (!camera_frustum.intersects(bb))
-                    continue;
-            }
-            if (m_debug_bounds)
-            {
-                auto& bb     = dc.bounding_box;
-                auto corners = bb.get_corners();
-                m_debug_drawer.set_color(color_rgb(1.0f, 0.0f, 0.0f));
-                m_debug_drawer.add(corners[0], corners[1]);
-                m_debug_drawer.add(corners[1], corners[3]);
-                m_debug_drawer.add(corners[3], corners[2]);
-                m_debug_drawer.add(corners[2], corners[6]);
-                m_debug_drawer.add(corners[6], corners[4]);
-                m_debug_drawer.add(corners[4], corners[0]);
-                m_debug_drawer.add(corners[0], corners[2]);
+        m_transparent_pass.set_scene_pointer(scene);
+        m_transparent_pass.set_camera_frustum(camera_frustum);
+        m_transparent_pass.set_draws(draws);
+        m_transparent_pass.set_transparent_start(opaque_count);
 
-                m_debug_drawer.add(corners[5], corners[4]);
-                m_debug_drawer.add(corners[4], corners[6]);
-                m_debug_drawer.add(corners[6], corners[7]);
-                m_debug_drawer.add(corners[7], corners[3]);
-                m_debug_drawer.add(corners[3], corners[1]);
-                m_debug_drawer.add(corners[1], corners[5]);
-                m_debug_drawer.add(corners[5], corners[7]);
-            }
+        m_transparent_pass.set_irradiance_map(irradiance ? irradiance : default_texture_cube);
+        m_transparent_pass.set_radiance_map(specular ? specular : default_texture_cube);
+        m_transparent_pass.set_brdf_integration_lut(brdf_lut ? brdf_lut : default_texture_2D);
 
-            optional<primitive_gpu_data&> prim_gpu_data = scene->get_primitive_gpu_data(dc.primitive_gpu_data_id);
-            if (!prim_gpu_data)
-            {
-                warn_missing_draw("Primitive gpu data");
-                continue;
-            }
-            optional<mesh_gpu_data&> m_gpu_data = scene->get_mesh_gpu_data(dc.mesh_gpu_data_id);
-            if (!m_gpu_data)
-            {
-                warn_missing_draw("Mesh gpu data");
-                continue;
-            }
-            optional<material&> mat                   = scene->get_material(dc.material_id);
-            optional<material_gpu_data&> mat_gpu_data = scene->get_material_gpu_data(mat->gpu_data);
-            if (!mat || !mat_gpu_data)
-            {
-                warn_missing_draw("Material");
-                continue;
-            }
+        m_transparent_pass.set_shadow_map(shadow_pass ? shadow_pass->get_shadow_maps_texture() : default_texture_array);
 
-            gfx_handle<const gfx_pipeline> dc_pipeline = m_pipeline_cache.get_transparent(prim_gpu_data->vertex_layout, prim_gpu_data->input_assembly, m_wireframe, mat->double_sided);
+        m_transparent_pass.execute(m_frame_context);
 
-            m_frame_context->bind_pipeline(dc_pipeline);
-            gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
-                                          static_cast<float>(m_renderer_info.canvas.height) };
-            m_frame_context->set_viewport(0, 1, &window_viewport);
-
-            dc_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
-            dc_pipeline->get_resource_mapping()->set("light_data", light_data.light_data_buffer);
-            dc_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer);
-            dc_pipeline->get_resource_mapping()->set("model_data", m_gpu_data->model_data_buffer);
-            dc_pipeline->get_resource_mapping()->set("material_data", mat_gpu_data->material_data_buffer);
-
-            if (mat_gpu_data->per_material_data.base_color_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->base_color_texture_gpu_data);
-                if (!tex)
-                {
-                    warn_missing_draw("Base Color Texture");
-                    continue;
-                }
-                dc_pipeline->get_resource_mapping()->set("texture_base_color", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_base_color", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_base_color", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.roughness_metallic_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->metallic_roughness_texture_gpu_data);
-                if (!tex)
-                {
-                    warn_missing_draw("Roughness Metallic Texture");
-                    continue;
-                }
-                dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_roughness_metallic", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_roughness_metallic", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.occlusion_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->occlusion_texture_gpu_data);
-                if (!tex)
-                {
-                    warn_missing_draw("Occlusion Texture");
-                    continue;
-                }
-                dc_pipeline->get_resource_mapping()->set("texture_occlusion", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_occlusion", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_occlusion", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.normal_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->normal_texture_gpu_data);
-                if (!tex)
-                {
-                    warn_missing_draw("Normal Texture");
-                    continue;
-                }
-                dc_pipeline->get_resource_mapping()->set("texture_normal", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_normal", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_normal", default_texture_2D);
-            }
-            if (mat_gpu_data->per_material_data.emissive_color_texture)
-            {
-                optional<texture_gpu_data&> tex = scene->get_texture_gpu_data(mat->emissive_texture_gpu_data);
-                if (!tex)
-                {
-                    warn_missing_draw("Emissive Color Texture");
-                    continue;
-                }
-                dc_pipeline->get_resource_mapping()->set("texture_emissive_color", tex->graphics_texture);
-                dc_pipeline->get_resource_mapping()->set("sampler_emissive_color", tex->graphics_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_emissive_color", default_texture_2D);
-            }
-
-            if (irradiance && specular) // If this exists the rest has to exist too
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_irradiance_map", irradiance);
-                dc_pipeline->get_resource_mapping()->set("sampler_irradiance_map", m_mipmapped_linear_sampler);
-                dc_pipeline->get_resource_mapping()->set("texture_radiance_map", specular);
-                dc_pipeline->get_resource_mapping()->set("sampler_radiance_map", m_mipmapped_linear_sampler);
-                dc_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", ls.get_skylight_brdf_lookup());
-                dc_pipeline->get_resource_mapping()->set("sampler_brdf_integration_lut", m_linear_sampler);
-            }
-            else
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_irradiance_map", default_texture_cube);
-                dc_pipeline->get_resource_mapping()->set("texture_radiance_map", default_texture_cube);
-                dc_pipeline->get_resource_mapping()->set("texture_brdf_integration_lut", default_texture_2D);
-            }
-
-            if (shadow_pass)
-            {
-                dc_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", shadow_pass->get_shadow_maps_texture());
-                dc_pipeline->get_resource_mapping()->set("texture_shadow_map", shadow_pass->get_shadow_maps_texture());
-                dc_pipeline->get_resource_mapping()->set("sampler_shadow_shadow_map", shadow_pass->get_shadow_maps_shadow_sampler());
-                dc_pipeline->get_resource_mapping()->set("sampler_shadow_map", shadow_pass->get_shadow_maps_sampler());
-            }
-            else
-            {
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map_comp", default_texture_array);
-                m_lighting_pass_pipeline->get_resource_mapping()->set("texture_shadow_map", default_texture_array);
-            }
-
-            m_frame_context->submit_pipeline_state_resources();
-
-            m_frame_context->set_index_buffer(prim_gpu_data->index_buffer_view.graphics_buffer, prim_gpu_data->index_type);
-
-            std::vector<gfx_handle<const gfx_buffer>> vbs;
-            vbs.reserve(prim_gpu_data->vertex_buffer_views.size());
-            std::vector<int32> bindings;
-            bindings.reserve(prim_gpu_data->vertex_buffer_views.size());
-            std::vector<int32> offsets;
-            offsets.reserve(prim_gpu_data->vertex_buffer_views.size());
-            int32 idx = 0;
-            for (auto vbv : prim_gpu_data->vertex_buffer_views)
-            {
-                vbs.push_back(vbv.graphics_buffer);
-                bindings.push_back(idx++);
-                offsets.push_back(vbv.offset);
-            }
-
-            m_frame_context->set_vertex_buffers(static_cast<int32>(prim_gpu_data->vertex_buffer_views.size()), vbs.data(), bindings.data(), offsets.data());
-
-            // m_frame_context->set_render_targets(m_gbuffer_render_targets.size() - 1, m_gbuffer_render_targets.data(), m_gbuffer_render_targets.back());
-
-            m_renderer_info.last_frame.draw_calls++;
-            m_renderer_info.last_frame.primitives++;
-            m_renderer_info.last_frame.vertices += std::max(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count);
-            m_frame_context->draw(prim_gpu_data->draw_call_desc.vertex_count, prim_gpu_data->draw_call_desc.index_count, prim_gpu_data->draw_call_desc.instance_count,
-                                  prim_gpu_data->draw_call_desc.base_vertex, prim_gpu_data->draw_call_desc.base_instance, prim_gpu_data->draw_call_desc.index_offset);
-        }
+        auto pass_info = m_transparent_pass.get_info();
+        m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+        m_renderer_info.last_frame.vertices += pass_info.vertices;
     }
 
-    m_debug_drawer.update_buffer();
+    m_debug_drawer->update_buffer();
 
     // auto exposure
     if (scene->calculate_auto_exposure())
     {
-        GL_NAMED_PROFILE_ZONE("Auto Exposure Calculation");
-        NAMED_PROFILE_ZONE("Auto Exposure Calculation");
-        m_frame_context->bind_pipeline(m_luminance_construction_pipeline);
+        m_auto_luminance_pass.set_delta_time(dt);
 
-        m_frame_context->calculate_mipmaps(m_hdr_buffer_render_targets[0]);
-
-        int32 mip_level = 0;
-        int32 hr_width  = m_renderer_info.canvas.width;
-        int32 hr_height = m_renderer_info.canvas.height;
-        while (hr_width >> mip_level > 512 && hr_height >> mip_level > 512) // we can make it smaller, when we have some better focussing.
-        {
-            ++mip_level;
-        }
-        hr_width >>= mip_level;
-        hr_height >>= mip_level;
-
-        barrier_description bd;
-        bd.barrier_bit = gfx_barrier_bit::shader_image_access_barrier_bit;
-        m_frame_context->barrier(bd);
-
-        auto hdr_view = m_graphics_device->create_image_texture_view(m_hdr_buffer_render_targets[0], mip_level);
-
-        // time coefficient with tau = 1.1;
-        float tau                        = 1.1f;
-        float time_coefficient           = 1.0f - expf(-dt * tau);
-        m_luminance_data_mapping->params = vec4(-8.0f, 1.0f / 31.0f, time_coefficient, hr_width * hr_height); // min -8.0, max +23.0
-
-        m_luminance_construction_pipeline->get_resource_mapping()->set("image_hdr_color", hdr_view);
-        m_luminance_construction_pipeline->get_resource_mapping()->set("luminance_data", m_luminance_data_buffer);
-        m_frame_context->submit_pipeline_state_resources();
-
-        m_frame_context->dispatch(hr_width / 16, hr_height / 16, 1);
-
-        bd.barrier_bit = gfx_barrier_bit::shader_storage_barrier_bit;
-        m_frame_context->barrier(bd);
-
-        m_frame_context->bind_pipeline(m_luminance_reduction_pipeline);
-
-        m_luminance_reduction_pipeline->get_resource_mapping()->set("luminance_data", m_luminance_data_buffer);
-        m_frame_context->submit_pipeline_state_resources();
-
-        m_frame_context->dispatch(1, 1, 1);
-
-        bd.barrier_bit = gfx_barrier_bit::buffer_update_barrier_bit;
-        m_frame_context->barrier(bd);
+        m_auto_luminance_pass.execute(m_frame_context);
     }
 
-    auto fxaa_pass             = std::static_pointer_cast<fxaa_step>(m_pipeline_steps[mango::render_pipeline_step::fxaa]);
-    bool postprocessing_buffer = fxaa_pass != nullptr;
+    auto antialiasing          = std::static_pointer_cast<fxaa_pass>(m_pipeline_extensions[mango::render_pipeline_extension::fxaa]);
+    bool postprocessing_buffer = antialiasing != nullptr;
 
     // composing pass
     {
-        GL_NAMED_PROFILE_ZONE("Composing Pass");
-        NAMED_PROFILE_ZONE("Composing Pass");
-        m_frame_context->bind_pipeline(m_composing_pass_pipeline);
-
-        gfx_viewport window_viewport{ static_cast<float>(m_renderer_info.canvas.x), static_cast<float>(m_renderer_info.canvas.y), static_cast<float>(m_renderer_info.canvas.width),
-                                      static_cast<float>(m_renderer_info.canvas.height) };
-        m_frame_context->set_viewport(0, 1, &window_viewport);
-
         if (postprocessing_buffer)
-            m_frame_context->set_render_targets(static_cast<int32>(m_post_render_targets.size()) - 1, m_post_render_targets.data(), m_post_render_targets.back());
+            m_composing_pass.set_render_targets(m_post_render_targets);
         else
-            m_frame_context->set_render_targets(1, &m_output_target, m_ouput_depth_target);
+            m_composing_pass.set_render_targets({ m_output_target, m_ouput_depth_target });
 
-        m_composing_pass_pipeline->get_resource_mapping()->set("camera_data", active_camera_data->camera_data_buffer);
-        m_composing_pass_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer);
-        m_composing_pass_pipeline->get_resource_mapping()->set("texture_hdr_input", m_hdr_buffer_render_targets[0]);
-        m_composing_pass_pipeline->get_resource_mapping()->set("sampler_hdr_input", m_nearest_sampler);
-        m_composing_pass_pipeline->get_resource_mapping()->set("texture_geometry_depth_input", m_hdr_buffer_render_targets.back());
-        m_composing_pass_pipeline->get_resource_mapping()->set("sampler_geometry_depth_input", m_nearest_sampler);
+        m_composing_pass.set_camera_data_buffer(active_camera_data->camera_data_buffer);
 
-        m_frame_context->submit_pipeline_state_resources();
+        m_composing_pass.execute(m_frame_context);
 
-        m_frame_context->set_index_buffer(nullptr, gfx_format::invalid);
-        m_frame_context->set_vertex_buffers(0, nullptr, nullptr, nullptr);
-
-        m_renderer_info.last_frame.draw_calls++;
-        m_renderer_info.last_frame.vertices += 3;
-        m_frame_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in geometry shader.
+        auto pass_info = m_composing_pass.get_info();
+        m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+        m_renderer_info.last_frame.vertices += pass_info.vertices;
     }
 
     // debug lines
     if (m_debug_bounds)
     {
         m_renderer_info.last_frame.draw_calls++;
-        m_renderer_info.last_frame.vertices += m_debug_drawer.vertex_count();
-        // use the already set render targets ...
-        m_debug_drawer.execute();
+        m_renderer_info.last_frame.vertices += m_debug_drawer->vertex_count();
+        // use already set last render targets and just add lines on top!
+        m_debug_drawer->execute(m_frame_context);
     }
 
     // fxaa
+    if (antialiasing)
     {
-        GL_NAMED_PROFILE_ZONE("Fxaa Pass");
-        NAMED_PROFILE_ZONE("Fxaa Pass");
-        if (fxaa_pass)
-        {
-            fxaa_pass->set_input_texture(m_post_render_targets[0]); // TODO Paul Hardcoded post targets -> meh.
-            m_renderer_info.last_frame.draw_calls++;
-            m_renderer_info.last_frame.vertices += 3;
-            fxaa_pass->execute();
-        }
+        antialiasing->set_input_texture(m_post_render_targets[0]); // TODO Paul Hardcoded post targets -> meh.
+        m_renderer_info.last_frame.draw_calls++;
+        m_renderer_info.last_frame.vertices += 3;
+        antialiasing->execute(m_frame_context);
+
+        auto pass_info = antialiasing->get_info();
+        m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+        m_renderer_info.last_frame.vertices += pass_info.vertices;
     }
 
     m_frame_context->bind_pipeline(nullptr);
@@ -1791,7 +666,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 void deferred_pbr_renderer::present()
 {
     m_frame_context->present();
-    // m_frame_semaphore = m_frame_context->fence(semaphore_create_info());
     m_frame_context->end();
     m_frame_context->submit();
 }
@@ -1812,6 +686,7 @@ void deferred_pbr_renderer::set_viewport(int32 x, int32 y, int32 width, int32 he
         m_renderer_info.canvas.height = height;
 
         create_textures_and_samplers();
+        update_passes();
     }
 }
 
@@ -1829,11 +704,11 @@ void deferred_pbr_renderer::on_ui_widget()
         device_context->end();
         device_context->submit();
     }
-    checkbox("Frustum Culling", &m_frustum_culling, true);
+    changed |= checkbox("Frustum Culling", &m_frustum_culling, true);
     ImGui::Separator();
-    bool has_environment_display = m_pipeline_steps[mango::render_pipeline_step::environment_display] != nullptr;
-    bool has_shadow_map          = m_pipeline_steps[mango::render_pipeline_step::shadow_map] != nullptr;
-    bool has_fxaa                = m_pipeline_steps[mango::render_pipeline_step::fxaa] != nullptr;
+    bool has_environment_display = m_pipeline_extensions[mango::render_pipeline_extension::environment_display] != nullptr;
+    bool has_shadow_map          = m_pipeline_extensions[mango::render_pipeline_extension::shadow_map] != nullptr;
+    bool has_fxaa                = m_pipeline_extensions[mango::render_pipeline_extension::fxaa] != nullptr;
     if (ImGui::TreeNodeEx("Steps", flags | ImGuiTreeNodeFlags_Framed))
     {
         bool open = ImGui::CollapsingHeader("Environment Display", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_environment_display ? ImGuiTreeNodeFlags_Leaf : 0));
@@ -1845,68 +720,72 @@ void deferred_pbr_renderer::on_ui_widget()
         {
             if (has_environment_display)
             {
-                auto environment_display = std::make_shared<environment_display_step>(environment_display_settings(0.0f)); // TODO Paul: Settings?
+                auto environment_display = std::make_shared<environment_display_pass>(environment_display_settings(0.0f)); // TODO Paul: Settings?
                 environment_display->attach(m_shared_context);
-                m_pipeline_steps[mango::render_pipeline_step::environment_display] = std::static_pointer_cast<render_step>(environment_display);
+                m_pipeline_extensions[mango::render_pipeline_extension::environment_display] = std::static_pointer_cast<render_pass>(environment_display);
             }
             else
             {
-                m_pipeline_steps[mango::render_pipeline_step::environment_display] = nullptr;
+                m_pipeline_extensions[mango::render_pipeline_extension::environment_display] = nullptr;
             }
         }
         if (has_environment_display && open)
         {
-            m_pipeline_steps[mango::render_pipeline_step::environment_display]->on_ui_widget();
+            m_pipeline_extensions[mango::render_pipeline_extension::environment_display]->on_ui_widget();
         }
+        changed |= value_changed;
 
         open = ImGui::CollapsingHeader("Shadow Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_shadow_map ? ImGuiTreeNodeFlags_Leaf : 0));
         ImGui::SameLine(ImGui::GetContentRegionAvail().x);
-        ImGui::PushID("enable_shadow_step");
+        ImGui::PushID("enable_shadow_pass");
         value_changed = ImGui::Checkbox("", &has_shadow_map);
         ImGui::PopID();
         if (value_changed)
         {
             if (has_shadow_map)
             {
-                auto step_shadow_map = std::make_shared<shadow_map_step>(shadow_settings());
-                step_shadow_map->attach(m_shared_context);
-                m_pipeline_cache.set_shadow_base(step_shadow_map->get_shadow_pass_pipeline_base());
-                m_pipeline_steps[mango::render_pipeline_step::shadow_map] = std::static_pointer_cast<render_step>(step_shadow_map);
-                m_renderer_data.shadow_step_enabled                       = true;
+                auto pass_shadow_map = std::make_shared<shadow_map_pass>(shadow_settings());
+                pass_shadow_map->setup(m_pipeline_cache, m_debug_drawer);
+                pass_shadow_map->attach(m_shared_context);
+                m_pipeline_extensions[mango::render_pipeline_extension::shadow_map] = std::static_pointer_cast<render_pass>(pass_shadow_map);
+                m_renderer_data.shadow_pass_enabled                                 = true;
             }
             else
             {
-                m_pipeline_steps[mango::render_pipeline_step::shadow_map] = nullptr;
-                m_renderer_data.shadow_step_enabled                       = false;
+                m_pipeline_extensions[mango::render_pipeline_extension::shadow_map] = nullptr;
+                m_renderer_data.shadow_pass_enabled                                 = false;
             }
         }
         if (has_shadow_map && open)
         {
-            m_pipeline_steps[mango::render_pipeline_step::shadow_map]->on_ui_widget();
+            m_pipeline_extensions[mango::render_pipeline_extension::shadow_map]->on_ui_widget();
         }
+        changed |= value_changed;
+
         open = ImGui::CollapsingHeader("FXAA Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_fxaa ? ImGuiTreeNodeFlags_Leaf : 0));
         ImGui::SameLine(ImGui::GetContentRegionAvail().x);
-        ImGui::PushID("enable_fxaa_step");
+        ImGui::PushID("enable_fxaa_pass");
         value_changed = ImGui::Checkbox("", &has_fxaa);
         ImGui::PopID();
         if (value_changed)
         {
             if (has_fxaa)
             {
-                auto step_fxaa = std::make_shared<fxaa_step>(fxaa_settings(0.75f));
-                step_fxaa->attach(m_shared_context);
-                step_fxaa->set_output_targets(m_output_target, m_ouput_depth_target);
-                m_pipeline_steps[mango::render_pipeline_step::fxaa] = std::static_pointer_cast<render_step>(step_fxaa);
+                auto pass_fxaa = std::make_shared<fxaa_pass>(fxaa_settings(0.75f));
+                pass_fxaa->attach(m_shared_context);
+                m_pipeline_extensions[mango::render_pipeline_extension::fxaa] = std::static_pointer_cast<render_pass>(pass_fxaa);
             }
             else
             {
-                m_pipeline_steps[mango::render_pipeline_step::fxaa] = nullptr;
+                m_pipeline_extensions[mango::render_pipeline_extension::fxaa] = nullptr;
             }
         }
         if (has_fxaa && open)
         {
-            m_pipeline_steps[mango::render_pipeline_step::fxaa]->on_ui_widget();
+            m_pipeline_extensions[mango::render_pipeline_extension::fxaa]->on_ui_widget();
         }
+        changed |= value_changed;
+
         ImGui::TreePop();
     }
     const char* debug[10]      = { "Default", "Position", "Normal", "Depth", "Base Color", "Reflection Color", "Emission", "Occlusion", "Roughness", "Metallic" };
@@ -1946,9 +825,12 @@ void deferred_pbr_renderer::on_ui_widget()
         }
     }
     ImGui::PopID();
+
+    if (changed)
+        update_passes();
 }
 
 float deferred_pbr_renderer::get_average_luminance() const
 {
-    return m_luminance_data_mapping->luminance;
+    return m_auto_luminance_pass.get_average_luminance();
 }

@@ -11,7 +11,12 @@
 #include <rendering/light_stack.hpp>
 #include <rendering/renderer_impl.hpp>
 #include <rendering/renderer_pipeline_cache.hpp>
-#include <rendering/steps/render_step.hpp>
+#include <rendering/renderer_bindings.hpp>
+#include <rendering/passes/deferred_lighting_pass.hpp>
+#include <rendering/passes/geometry_pass.hpp>
+#include <rendering/passes/transparent_pass.hpp>
+#include <rendering/passes/composing_pass.hpp>
+#include <rendering/passes/auto_luminance_pass.hpp>
 
 namespace mango
 {
@@ -61,6 +66,8 @@ namespace mango
         gfx_handle<const gfx_sampler> m_nearest_sampler;
         //! \brief A sampler with linear filtering and "clamp to edge" edge handling.
         gfx_handle<const gfx_sampler> m_linear_sampler;
+        //! \brief A sampler with linear filtering and "clamp to edge" edge handling, comparison mode is on.
+        gfx_handle<const gfx_sampler> m_linear_compare_sampler;
         //! \brief A sampler with mipmapped linear filtering and "clamp to edge" edge handling.
         gfx_handle<const gfx_sampler> m_mipmapped_linear_sampler;
 
@@ -69,35 +76,19 @@ namespace mango
         //! \brief The graphics uniform buffer for uploading \a renderer_data.
         gfx_handle<const gfx_buffer> m_renderer_data_buffer;
 
-        //! \brief The vertex \a shader_stage for the deferred geometry pass.
-        gfx_handle<const gfx_shader_stage> m_geometry_pass_vertex;
-        //! \brief The fragment \a shader_stage for the deferred geometry pass.
-        gfx_handle<const gfx_shader_stage> m_geometry_pass_fragment;
-        //! \brief The fragment \a shader_stage for the forward transparent pass.
-        gfx_handle<const gfx_shader_stage> m_transparent_pass_fragment;
-        //! \brief The vertex \a shader_stage producing a screen space triangle.
-        gfx_handle<const gfx_shader_stage> m_screen_space_triangle_vertex;
-        //! \brief The fragment \a shader_stage for the deferred lighting pass.
-        gfx_handle<const gfx_shader_stage> m_lighting_pass_fragment;
-        //! \brief The fragment \a shader_stage for the composing pass.
-        gfx_handle<const gfx_shader_stage> m_composing_pass_fragment;
-
-        //! \brief The compute \a shader_stage for the luminance buffer construction pass.
-        gfx_handle<const gfx_shader_stage> m_luminance_construction_compute;
-        //! \brief The compute \a shader_stage for the luminance buffer reduction pass.
-        gfx_handle<const gfx_shader_stage> m_luminance_reduction_compute;
-
-        //! \brief Graphics pipeline calculating the lighting for opaque geometry.
-        gfx_handle<const gfx_pipeline> m_lighting_pass_pipeline;
-        //! \brief Graphics pipeline composing everything, applying tonemapping and gamma correction.
-        gfx_handle<const gfx_pipeline> m_composing_pass_pipeline;
-        //! \brief Compute pipeline constructing a luminance buffer.
-        gfx_handle<const gfx_pipeline> m_luminance_construction_pipeline;
-        //! \brief Compute pipeline reducing a luminance buffer and calculating an average luminance.
-        gfx_handle<const gfx_pipeline> m_luminance_reduction_pipeline;
+        //! \brief The \a renderers \a deferred_lighting_pass.
+        deferred_lighting_pass m_deferred_lighting_pass;
+        //! \brief The \a renderers \a geometry_pass.
+        geometry_pass m_opaque_geometry_pass;
+        //! \brief The \a renderers \a transparent_pass.
+        transparent_pass m_transparent_pass;
+        //! \brief The \a renderers \a composing_pass.
+        composing_pass m_composing_pass;
+        //! \brief The \a renderers \a auto_luminance_pass.
+        auto_luminance_pass m_auto_luminance_pass;
 
         //! \brief The \a renderers \a renderer_pipeline_cache to create and cache \a gfx_pipelines for the geometry.
-        renderer_pipeline_cache m_pipeline_cache;
+        shared_ptr<renderer_pipeline_cache> m_pipeline_cache;
 
         //! \brief The \a renderers \a graphics_device_context to execute per frame graphics commands.
         graphics_device_context_handle m_frame_context;
@@ -112,29 +103,19 @@ namespace mango
         //! \brief Function used to create buffers.
         //! \return True on success, else false.
         bool create_buffers();
-        //! \brief Function used to create shader stages.
+        //! \brief Function used to create passes.
         //! \return True on success, else false.
-        bool create_shader_stages();
-        //! \brief Function used to create pipeline resources.
+        bool create_passes();
+
+        //! \brief Function used to update passes.
         //! \return True on success, else false.
-        bool create_pipeline_resources();
+        bool update_passes();
 
         //! \brief The \a debug_drawer to debug draw.
-        debug_drawer m_debug_drawer;
+        shared_ptr<debug_drawer> m_debug_drawer;
 
-        //! \brief Optional additional steps of the deferred pipeline.
-        shared_ptr<render_step> m_pipeline_steps[mango::render_pipeline_step::number_of_steps];
-
-        //! \brief The shader storage buffer mapping for the luminance data.
-        gfx_handle<const gfx_buffer> m_luminance_data_buffer;
-
-        //! \brief The mapped luminance data from the data calculation.
-        luminance_data* m_luminance_data_mapping;
-
-        /*
-        //! \brief The \a gfx_semaphore used to synchronize luminance calculation.
-        gfx_handle<const gfx_semaphore> m_luminance_semaphore;
-        */
+        //! \brief Optional additional \a passes of the deferred pipeline.
+        shared_ptr<render_pass> m_pipeline_extensions[mango::render_pipeline_extension::number_of_extensions];
 
         //! \brief True if the renderer should draw wireframe, else false.
         bool m_wireframe;
@@ -144,11 +125,6 @@ namespace mango
 
         //! \brief True if the renderer should cull primitives against camera and shadow frusta, else false.
         bool m_frustum_culling;
-
-        /*
-        //! \brief The \a gfx_semaphore used to synchronize \a renderer frames.
-        gfx_handle<const gfx_semaphore> m_frame_semaphore;
-        */
 
         float get_average_luminance() const override;
     };

@@ -52,59 +52,64 @@ scene_impl::scene_impl(const string& name, const shared_ptr<context_impl>& conte
     m_light_stack.init(m_shared_context);
 
     node root("Root");
-    root.transform_id     = m_transforms.emplace();
-    root.type             = node_type::hierarchy;
-    root.global_matrix_id = m_global_transformation_matrices.emplace(mat4::Identity());
-    m_root_node           = m_nodes.emplace(root);
 
-    transform& tr    = m_transforms.at(root.transform_id);
+    transform tr;
     tr.position      = make_vec3(0.0f);
     tr.rotation      = quat(1.0f, 0.0f, 0.0f, 0.0f);
     tr.scale         = make_vec3(1.0f);
     tr.rotation_hint = rad_to_deg(tr.rotation.toRotationMatrix().eulerAngles(1, 2, 0));
+
+    root.transform_hnd     = handle<transform>(m_transforms.insert(tr));
+    root.type              = node_type::hierarchy;
+    root.global_matrix_hnd = handle<mat4>(m_global_transformation_matrices.insert(mat4::Identity()));
+    m_root_node            = m_nodes.insert(root);
 }
 
 scene_impl::~scene_impl() {}
 
-uid scene_impl::add_node(const string& name, uid parent_node)
+handle<node> scene_impl::add_node(const string& name, handle<node> parent_node)
 {
     PROFILE_ZONE;
 
     node new_node(name);
-    new_node.transform_id     = m_transforms.emplace();
-    new_node.type             = node_type::hierarchy;
-    new_node.global_matrix_id = m_global_transformation_matrices.emplace(mat4::Identity());
-    uid node_id               = m_nodes.emplace(new_node);
 
-    transform& tr    = m_transforms.at(new_node.transform_id);
+    transform tr;
     tr.position      = make_vec3(0.0f);
     tr.rotation      = quat(1.0f, 0.0f, 0.0f, 0.0f);
     tr.scale         = make_vec3(1.0f);
     tr.rotation_hint = rad_to_deg(tr.rotation.toRotationMatrix().eulerAngles(1, 2, 0));
 
-    if (!parent_node.is_valid())
+    new_node.transform_hnd     = handle<transform>(m_transforms.insert(tr));
+    new_node.type              = node_type::hierarchy;
+    new_node.global_matrix_hnd = handle<mat4>(m_global_transformation_matrices.insert(mat4::Identity()));
+    key node_id                = m_nodes.insert(new_node);
+    handle<node> node_hnd      = handle<node>(node_id);
+
+    if (!parent_node.valid())
     {
-        attach(node_id, m_root_node);
+        attach(node_hnd, m_root_node);
     }
     else
     {
-        attach(node_id, parent_node);
+        attach(node_hnd, parent_node);
     }
 
-    return node_id;
+    return node_hnd;
 }
 
-uid scene_impl::add_perspective_camera(perspective_camera& new_perspective_camera, uid node_id)
+handle<perspective_camera> scene_impl::add_perspective_camera(perspective_camera& new_perspective_camera, handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add perspective camera!", node_id.get());
-        return invalid_uid;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add perspective camera!", node_hnd);
+        return NULL_HND<perspective_camera>;
     }
 
-    node& nd = m_nodes.at(node_id);
+    key node_id = node_hnd.id_unchecked();
+
+    node& nd = m_nodes[node_id];
 
     buffer_create_info buffer_info;
     buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
@@ -113,10 +118,10 @@ uid scene_impl::add_perspective_camera(perspective_camera& new_perspective_camer
     camera_gpu_data data;
     data.camera_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
     if (!check_creation(data.camera_data_buffer.get(), "camera data buffer"))
-        return invalid_uid;
+        return NULL_HND<perspective_camera>;
 
-    const vec3& camera_position    = m_transforms.at(nd.transform_id).position;
-    new_perspective_camera.node_id = node_id;
+    const vec3& camera_position     = m_transforms[nd.transform_hnd.id_unchecked()].position;
+    new_perspective_camera.node_hnd = node_hnd;
 
     mat4 view, projection;
     view_projection_perspective_camera(new_perspective_camera, camera_position, view, projection);
@@ -149,32 +154,34 @@ uid scene_impl::add_perspective_camera(perspective_camera& new_perspective_camer
     device_context->submit();
 
     new_perspective_camera.changed  = false;
-    new_perspective_camera.gpu_data = m_camera_gpu_data.emplace(data);
+    new_perspective_camera.gpu_data = m_camera_gpu_data.insert(data);
 
-    uid camera_id = m_perspective_cameras.emplace(new_perspective_camera);
+    key camera_id = m_perspective_cameras.insert(new_perspective_camera);
 
-    if (!m_main_camera_node.is_valid())
+    if (!m_main_camera_node.valid())
     {
-        m_main_camera_node = node_id;
+        m_main_camera_node = node_hnd;
     }
 
-    nd.camera_ids[static_cast<uint8>(camera_type::perspective)] = camera_id;
+    nd.perspective_camera_hnd = handle<perspective_camera>(camera_id);
     nd.type |= node_type::perspective_camera;
 
     return camera_id;
 }
 
-uid scene_impl::add_orthographic_camera(orthographic_camera& new_orthographic_camera, uid node_id)
+handle<orthographic_camera> scene_impl::add_orthographic_camera(orthographic_camera& new_orthographic_camera, handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add orthographic camera!", node_id.get());
-        return invalid_uid;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add orthographic camera!", node_hnd);
+        return NULL_HND<orthographic_camera>;
     }
 
-    node& nd = m_nodes.at(node_id);
+    key node_id = node_hnd.id_unchecked();
+
+    node& nd = m_nodes[node_id];
 
     buffer_create_info buffer_info;
     buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
@@ -183,10 +190,10 @@ uid scene_impl::add_orthographic_camera(orthographic_camera& new_orthographic_ca
     camera_gpu_data data;
     data.camera_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
     if (!check_creation(data.camera_data_buffer.get(), "camera data buffer"))
-        return invalid_uid;
+        return NULL_HND<orthographic_camera>;
 
-    const vec3& camera_position     = m_transforms.at(nd.transform_id).position;
-    new_orthographic_camera.node_id = node_id;
+    const vec3& camera_position      = m_transforms[nd.transform_hnd.id_unchecked()].position;
+    new_orthographic_camera.node_hnd = node_hnd;
 
     mat4 view, projection;
     view_projection_orthographic_camera(new_orthographic_camera, camera_position, view, projection);
@@ -219,82 +226,82 @@ uid scene_impl::add_orthographic_camera(orthographic_camera& new_orthographic_ca
     device_context->submit();
 
     new_orthographic_camera.changed  = false;
-    new_orthographic_camera.gpu_data = m_camera_gpu_data.emplace(data);
+    new_orthographic_camera.gpu_data = m_camera_gpu_data.insert(data);
 
-    uid camera_id = m_orthographic_cameras.emplace(new_orthographic_camera);
+    key camera_id = m_orthographic_cameras.insert(new_orthographic_camera);
 
-    if (!m_main_camera_node.is_valid())
+    if (!m_main_camera_node.valid())
     {
         m_main_camera_node = node_id;
     }
 
-    nd.camera_ids[static_cast<uint8>(camera_type::orthographic)] = camera_id;
+    nd.orthographic_camera_hnd = handle<orthographic_camera>(camera_id);
     nd.type |= node_type::orthographic_camera;
 
     return camera_id;
 }
 
-uid scene_impl::add_directional_light(directional_light& new_directional_light, uid node_id)
+handle<directional_light> scene_impl::add_directional_light(directional_light& new_directional_light, handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add directional light!", node_id.get());
-        return invalid_uid;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add directional light!", node_hnd);
+        return NULL_HND<directional_light>;
     }
 
-    uid light_id = m_directional_lights.emplace(new_directional_light);
+    key light_id = m_directional_lights.insert(new_directional_light);
 
-    node& nd = m_nodes.at(node_id);
+    node& nd = m_nodes[node_hnd.id_unchecked()];
 
-    nd.light_ids[static_cast<uint8>(light_type::directional)] = light_id;
+    nd.directional_light_hnd = handle<directional_light>(light_id);
     nd.type |= node_type::directional_light;
 
     return light_id;
 }
 
-uid scene_impl::add_skylight(skylight& new_skylight, uid node_id)
+handle<skylight> scene_impl::add_skylight(skylight& new_skylight, handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add skylight!", node_id.get());
-        return invalid_uid;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add skylight!", node_hnd);
+        return NULL_HND<skylight>;
     }
 
-    uid light_id = m_skylights.emplace(new_skylight);
+    key light_id = m_skylights.insert(new_skylight);
 
-    node& nd = m_nodes.at(node_id);
+    node& nd = m_nodes[node_hnd.id_unchecked()];
 
-    nd.light_ids[static_cast<uint8>(light_type::skylight)] = light_id;
+    nd.skylight_hnd = handle<skylight>(light_id);
     nd.type |= node_type::skylight;
 
     return light_id;
 }
 
-uid scene_impl::add_atmospheric_light(atmospheric_light& new_atmospheric_light, uid node_id)
+handle<atmospheric_light> scene_impl::add_atmospheric_light(atmospheric_light& new_atmospheric_light, handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add atmospheric light!", node_id.get());
-        return invalid_uid;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add atmospheric light!", node_hnd);
+        return NULL_HND<atmospheric_light>;
     }
 
-    uid light_id = m_atmospheric_lights.emplace(new_atmospheric_light);
+    key light_id = m_atmospheric_lights.insert(new_atmospheric_light);
 
-    node& nd = m_nodes.at(node_id);
+    node& nd = m_nodes[node_hnd.id_unchecked()];
 
-    nd.light_ids[static_cast<uint8>(light_type::atmospheric)] = light_id;
+    nd.atmospheric_light_hnd = handle<atmospheric_light>(light_id);
     nd.type |= node_type::atmospheric_light;
 
     return light_id;
 }
 
-uid scene_impl::build_material(material& new_material)
+handle<material> scene_impl::build_material(material& new_material)
 {
     PROFILE_ZONE;
 
@@ -305,18 +312,18 @@ uid scene_impl::build_material(material& new_material)
     material_gpu_data data;
     data.material_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
     if (!check_creation(data.material_data_buffer.get(), "material data buffer"))
-        return invalid_uid;
+        return NULL_HND<material>;
 
     data.per_material_data.base_color                 = new_material.base_color.as_vec4();
     data.per_material_data.emissive_color             = new_material.emissive_color.as_vec3();
     data.per_material_data.metallic                   = new_material.metallic;
     data.per_material_data.roughness                  = new_material.roughness;
-    data.per_material_data.base_color_texture         = new_material.base_color_texture.is_valid();
-    data.per_material_data.roughness_metallic_texture = new_material.metallic_roughness_texture.is_valid();
-    data.per_material_data.occlusion_texture          = new_material.occlusion_texture.is_valid();
+    data.per_material_data.base_color_texture         = new_material.base_color_texture.valid() && m_textures.valid(new_material.base_color_texture.id_unchecked());
+    data.per_material_data.roughness_metallic_texture = new_material.metallic_roughness_texture.valid() && m_textures.valid(new_material.metallic_roughness_texture.id_unchecked());
+    data.per_material_data.occlusion_texture          = new_material.occlusion_texture.valid() && m_textures.valid(new_material.occlusion_texture.id_unchecked());
     data.per_material_data.packed_occlusion           = new_material.packed_occlusion;
-    data.per_material_data.normal_texture             = new_material.normal_texture.is_valid();
-    data.per_material_data.emissive_color_texture     = new_material.emissive_texture.is_valid();
+    data.per_material_data.normal_texture             = new_material.normal_texture.valid() && m_textures.valid(new_material.normal_texture.id_unchecked());
+    data.per_material_data.emissive_color_texture     = new_material.emissive_texture.valid() && m_textures.valid(new_material.emissive_texture.id_unchecked());
     data.per_material_data.emissive_intensity         = new_material.emissive_intensity;
     data.per_material_data.alpha_mode                 = static_cast<uint8>(new_material.alpha_mode);
     data.per_material_data.alpha_cutoff               = new_material.alpha_cutoff;
@@ -328,14 +335,14 @@ uid scene_impl::build_material(material& new_material)
     device_context->submit();
 
     new_material.changed  = false;
-    new_material.gpu_data = m_material_gpu_data.emplace(data);
+    new_material.gpu_data = m_material_gpu_data.insert(data);
 
-    uid material_id = m_materials.emplace(new_material);
+    key material_id = m_materials.insert(new_material);
 
-    return material_id;
+    return handle<material>(material_id);
 }
 
-uid scene_impl::load_texture_from_image(const string& path, bool standard_color_space, bool high_dynamic_range)
+handle<texture> scene_impl::load_texture_from_image(const string& path, bool standard_color_space, bool high_dynamic_range)
 {
     PROFILE_ZONE;
 
@@ -364,14 +371,14 @@ uid scene_impl::load_texture_from_image(const string& path, bool standard_color_
     texture_gpu_data data;
     data.graphics_texture = texture_sampler_pair.first;
     data.graphics_sampler = texture_sampler_pair.second;
-    tex.gpu_data          = m_texture_gpu_data.emplace(data);
+    tex.gpu_data          = m_texture_gpu_data.insert(data);
 
-    uid texture_id = m_textures.emplace(tex);
+    key texture_id = m_textures.insert(tex);
 
-    return texture_id;
+    return handle<texture>(texture_id);
 }
 
-uid scene_impl::load_model_from_gltf(const string& path)
+handle<model> scene_impl::load_model_from_gltf(const string& path)
 {
     PROFILE_ZONE;
 
@@ -379,390 +386,404 @@ uid scene_impl::load_model_from_gltf(const string& path)
     mod.file_path = path;
     mod.scenarios = load_model_from_file(path, mod.default_scenario);
 
-    uid model_id = m_models.emplace(mod);
+    key model_id = m_models.insert(mod);
 
-    return model_id;
+    return handle<model>(model_id);
 }
 
-uid scene_impl::add_skylight_from_hdr(const string& path, uid node_id)
+handle<skylight> scene_impl::add_skylight_from_hdr(const string& path, handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add skylight!", node_id.get());
-        return invalid_uid;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add skylight!", node_hnd);
+        return NULL_HND<skylight>;
     }
 
     // texture
-    uid texture_id = load_texture_from_image(path, false, true);
+    handle<texture> texture_hnd = load_texture_from_image(path, false, true);
 
     // skylight
     skylight new_skylight;
-    new_skylight.hdr_texture = texture_id;
+    new_skylight.hdr_texture = texture_hnd;
     new_skylight.use_texture = true;
 
-    uid light_id = m_skylights.emplace(new_skylight);
+    key light_id = m_skylights.insert(new_skylight);
 
-    node& nd = m_nodes.at(node_id);
+    node& nd = m_nodes[node_hnd.id_unchecked()];
 
-    nd.light_ids[static_cast<uint8>(light_type::skylight)] = light_id;
+    nd.skylight_hnd = handle<skylight>(light_id);
     nd.type |= node_type::skylight;
 
     return light_id;
 }
 
-void scene_impl::add_model_to_scene(uid model_to_add, uid scenario_id, uid node_id)
+void scene_impl::add_model_to_scene(handle<model> model_to_add, handle<scenario> scenario_hnd, handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!model_to_add.valid() || !m_models.valid(model_to_add.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add model to scene!", node_id.get());
+        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not add model to scene!", model_to_add);
         return;
     }
 
-    if (!model_to_add.is_valid() || !scenario_id.is_valid())
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Model or scenario are not valid! Can not add model to scene!");
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not add model to scene!", node_hnd);
         return;
     }
 
-    if (!m_models.contains(model_to_add))
+    if (scenario_hnd.valid() && !m_scenarios.valid(scenario_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not add model to scene!", model_to_add.get());
-        return;
-    }
-    if (!m_scenarios.contains(scenario_id))
-    {
-        MANGO_LOG_WARN("Scenario with ID {0} does not exist! Can not add model to scene!", scenario_id.get());
+        MANGO_LOG_WARN("Scenario with ID {0} does not exist! Can not add model to scene!", scenario_hnd);
         return;
     }
 
-    const model& m = m_models.at(model_to_add);
+    key scenario_id = scenario_hnd.id_unchecked();
+    model mod       = m_models[model_to_add.id_unchecked()];
 
-    auto found = std::find(m.scenarios.begin(), m.scenarios.end(), scenario_id);
-    if (found == m.scenarios.end())
+    auto found = std::find(mod.scenarios.begin(), mod.scenarios.end(), scenario_hnd);
+    if (found == mod.scenarios.end())
     {
         MANGO_LOG_WARN("Model to add does not contain scenario to add! Can not add model to scene!");
         return;
     }
 
-    const scenario& sc = m_scenarios.at(scenario_id);
+    const scenario& sc = m_scenarios[scenario_id];
     for (auto nd : sc.root_nodes)
     {
-        instantiate_model_scene(nd, node_id);
+        instantiate_model_scene(nd, node_hnd.id_unchecked());
     }
 }
 
-void scene_impl::remove_node(uid node_id)
+void scene_impl::remove_node(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove node!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove node!", node_hnd);
         return;
     }
-    if (node_id == m_root_node)
+
+    if (node_hnd == m_root_node)
     {
         MANGO_LOG_WARN("Can not remove root node!");
         return;
     }
 
-    const node& to_remove = m_nodes.at(node_id);
+    key node_id = node_hnd.id_unchecked();
+
+    const node& to_remove = m_nodes[node_id];
 
     if ((to_remove.type & node_type::mesh) != node_type::hierarchy)
-        remove_mesh(node_id);
+        remove_mesh(node_hnd);
     if ((to_remove.type & node_type::perspective_camera) != node_type::hierarchy)
-        remove_perspective_camera(node_id);
+        remove_perspective_camera(node_hnd);
     if ((to_remove.type & node_type::orthographic_camera) != node_type::hierarchy)
-        remove_orthographic_camera(node_id);
+        remove_orthographic_camera(node_hnd);
     if ((to_remove.type & node_type::directional_light) != node_type::hierarchy)
-        remove_directional_light(node_id);
+        remove_directional_light(node_hnd);
     if ((to_remove.type & node_type::skylight) != node_type::hierarchy)
-        remove_skylight(node_id);
+        remove_skylight(node_hnd);
     if ((to_remove.type & node_type::atmospheric_light) != node_type::hierarchy)
-        remove_atmospheric_light(node_id);
+        remove_atmospheric_light(node_hnd);
 
-    for (uid c : to_remove.children)
+    for (auto c : to_remove.children)
     {
-        remove_node(c);
+        if (c.valid())
+            remove_node(c.id_unchecked());
     }
 
     m_nodes.erase(node_id);
 }
 
-void scene_impl::remove_perspective_camera(uid node_id)
+void scene_impl::remove_perspective_camera(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove perspective camera!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove perspective camera!", node_hnd);
         return;
     }
 
-    node& node = m_nodes.at(node_id);
+    key node_id = node_hnd.id_unchecked();
+    node& node  = m_nodes[node_id];
 
     if ((node.type & node_type::perspective_camera) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a perspective camera! Can not remove perspective camera!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a perspective camera! Can not remove perspective camera!", node_id);
         return;
     }
 
-    uid camera_id = node.camera_ids[static_cast<uint8>(camera_type::perspective)];
+    handle<perspective_camera> camera_hnd = node.perspective_camera_hnd;
 
-    if (!m_perspective_cameras.contains(camera_id))
+    if (!camera_hnd.valid() || !m_perspective_cameras.valid(camera_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not remove perspective camera!", camera_id.get());
+        MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not remove perspective camera!", camera_hnd);
         return;
     }
 
-    const perspective_camera& to_remove = m_perspective_cameras.at(camera_id);
+    key camera_id                       = camera_hnd.id_unchecked();
+    const perspective_camera& to_remove = m_perspective_cameras[camera_id];
 
-    uid gpu_data_id = to_remove.gpu_data;
-    MANGO_ASSERT(m_camera_gpu_data.contains(gpu_data_id), "Camera gpu data for perspective camera does not exist!");
+    key gpu_data_id = to_remove.gpu_data;
+    MANGO_ASSERT(m_camera_gpu_data.valid(gpu_data_id), "Camera gpu data for perspective camera does not exist!");
 
     node.type &= ~node_type::perspective_camera;
-    node.camera_ids[static_cast<uint8>(camera_type::perspective)] = invalid_uid;
+    node.perspective_camera_hnd = NULL_HND<perspective_camera>;
 
     m_camera_gpu_data.erase(gpu_data_id);
     m_perspective_cameras.erase(camera_id);
 }
 
-void scene_impl::remove_orthographic_camera(uid node_id)
+void scene_impl::remove_orthographic_camera(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove orthographic camera!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove orthographic camera!", node_hnd);
         return;
     }
 
-    node& node = m_nodes.at(node_id);
+    key node_id = node_hnd.id_unchecked();
+    node& node  = m_nodes[node_id];
 
     if ((node.type & node_type::orthographic_camera) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a orthographic camera! Can not remove orthographic camera!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a orthographic camera! Can not remove orthographic camera!", node_id);
         return;
     }
 
-    uid camera_id = node.camera_ids[static_cast<uint8>(camera_type::orthographic)];
+    handle<orthographic_camera> camera_hnd = node.orthographic_camera_hnd;
 
-    if (!m_orthographic_cameras.contains(camera_id))
+    if (!camera_hnd.valid() || !m_orthographic_cameras.valid(camera_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Orthographic camera with ID {0} does not exist! Can not remove orthographic camera!", camera_id.get());
+        MANGO_LOG_WARN("Orthographic camera with ID {0} does not exist! Can not remove orthographic camera!", camera_hnd);
         return;
     }
 
-    const orthographic_camera& to_remove = m_orthographic_cameras.at(camera_id);
+    key camera_id                        = camera_hnd.id_unchecked();
+    const orthographic_camera& to_remove = m_orthographic_cameras[camera_id];
 
-    uid gpu_data_id = to_remove.gpu_data;
-    MANGO_ASSERT(m_camera_gpu_data.contains(gpu_data_id), "Camera gpu data for orthographic camera does not exist!");
+    key gpu_data_id = to_remove.gpu_data;
+    MANGO_ASSERT(m_camera_gpu_data.valid(gpu_data_id), "Camera gpu data for orthographic camera does not exist!");
 
     node.type &= ~node_type::orthographic_camera;
-    node.camera_ids[static_cast<uint8>(camera_type::orthographic)] = invalid_uid;
+    node.orthographic_camera_hnd = NULL_HND<orthographic_camera>;
 
     m_camera_gpu_data.erase(gpu_data_id);
     m_orthographic_cameras.erase(camera_id);
 }
 
-void scene_impl::remove_mesh(uid node_id)
+void scene_impl::remove_mesh(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove mesh!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove mesh!", node_hnd);
         return;
     }
 
-    node& node = m_nodes.at(node_id);
+    key node_id = node_hnd.id_unchecked();
+    node& node  = m_nodes[node_id];
 
     if ((node.type & node_type::mesh) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a mesh! Can not remove mesh!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a mesh! Can not remove mesh!", node_id);
         return;
     }
 
-    uid mesh_id = node.mesh_id;
+    handle<mesh> mesh_hnd = node.mesh_hnd;
 
-    if (!m_meshes.contains(mesh_id))
+    if (!mesh_hnd.valid() || !m_meshes.valid(mesh_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Mesh with ID {0} does not exist! Can not remove mesh!", mesh_id.get());
+        MANGO_LOG_WARN("Mesh does not exist! Can not remove mesh!");
         return;
     }
 
-    const mesh& to_remove = m_meshes.at(mesh_id);
+    key mesh_id           = mesh_hnd.id_unchecked();
+    const mesh& to_remove = m_meshes[mesh_id];
 
-    uid gpu_data_id = to_remove.gpu_data;
-    MANGO_ASSERT(m_mesh_gpu_data.contains(gpu_data_id), "Mesh gpu data for mesh does not exist!");
+    key gpu_data_id = to_remove.gpu_data;
+    MANGO_ASSERT(m_mesh_gpu_data.valid(gpu_data_id), "Mesh gpu data for mesh does not exist!");
 
     node.type &= ~node_type::mesh;
-    node.mesh_id = invalid_uid;
+    node.mesh_hnd = NULL_HND<mesh>;
 
     m_mesh_gpu_data.erase(gpu_data_id);
     m_meshes.erase(mesh_id);
 }
 
-void scene_impl::remove_directional_light(uid node_id)
+void scene_impl::remove_directional_light(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove directional light!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove directional light!", node_hnd);
         return;
     }
 
-    node& node = m_nodes.at(node_id);
+    key node_id = node_hnd.id_unchecked();
+    node& node  = m_nodes[node_id];
 
     if ((node.type & node_type::directional_light) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a directional light! Can not remove directional light!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a directional light! Can not remove directional light!", node_id);
         return;
     }
 
-    uid light_id = node.light_ids[static_cast<uint8>(light_type::directional)];
+    handle<directional_light> light_hnd = node.directional_light_hnd;
 
-    if (!m_directional_lights.contains(light_id))
+    if (!light_hnd.valid() || !m_directional_lights.valid(light_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Directional light with ID {0} does not exist! Can not remove directional light!", light_id.get());
+        MANGO_LOG_WARN("Directional light does not exist! Can not remove directional light!");
         return;
     }
 
     node.type &= ~node_type::directional_light;
-    node.camera_ids[static_cast<uint8>(light_type::directional)] = invalid_uid;
+    node.directional_light_hnd = NULL_HND<directional_light>;
 
-    m_directional_lights.erase(light_id);
+    m_directional_lights.erase(light_hnd.id_unchecked());
 }
 
-void scene_impl::remove_skylight(uid node_id)
+void scene_impl::remove_skylight(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove skylight!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove skylight!", node_hnd);
         return;
     }
 
-    node& node = m_nodes.at(node_id);
+    key node_id = node_hnd.id_unchecked();
+    node& node  = m_nodes[node_id];
 
     if ((node.type & node_type::skylight) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a skylight! Can not remove skylight!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a skylight! Can not remove skylight!", node_id);
         return;
     }
 
-    uid light_id = node.light_ids[static_cast<uint8>(light_type::skylight)];
+    handle<skylight> light_hnd = node.skylight_hnd;
 
-    if (!m_skylights.contains(light_id))
+    if (!light_hnd.valid() || !m_skylights.valid(light_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Skylight with ID {0} does not exist! Can not remove skylight!", light_id.get());
+        MANGO_LOG_WARN("Skylight does not exist! Can not remove skylight!");
         return;
     }
 
-    const skylight& to_remove = m_skylights.at(light_id);
+    key light_id        = light_hnd.id_unchecked();
+    skylight& to_remove = m_skylights[light_id];
 
-    if (to_remove.hdr_texture.is_valid())
+    if (to_remove.hdr_texture.valid() && m_textures.valid(to_remove.hdr_texture.id_unchecked()))
     {
-        remove_texture(to_remove.hdr_texture);
+        remove_texture(to_remove.hdr_texture.id_unchecked());
     }
 
     node.type &= ~node_type::skylight;
-    node.camera_ids[static_cast<uint8>(light_type::skylight)] = invalid_uid;
+    node.skylight_hnd = NULL_HND<skylight>;
 
     m_skylights.erase(light_id);
 }
 
-void scene_impl::remove_atmospheric_light(uid node_id)
+void scene_impl::remove_atmospheric_light(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove atmospheric light!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not remove atmospheric light!", node_hnd);
         return;
     }
 
-    node& node = m_nodes.at(node_id);
+    key node_id = node_hnd.id_unchecked();
+    node& node  = m_nodes[node_id];
 
     if ((node.type & node_type::atmospheric_light) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a atmospheric light! Can not remove atmospheric light!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not contain a atmospheric light! Can not remove atmospheric light!", node_id);
         return;
     }
 
-    uid light_id = node.light_ids[static_cast<uint8>(light_type::atmospheric)];
+    handle<atmospheric_light> light_hnd = node.atmospheric_light_hnd;
 
-    if (!m_atmospheric_lights.contains(light_id))
+    if (!light_hnd.valid() || !m_atmospheric_lights.valid(light_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Atmospheric light with ID {0} does not exist! Can not remove atmospheric light!", light_id.get());
+        MANGO_LOG_WARN("Atmospheric light with ID {0} does not exist! Can not remove atmospheric light!", light_hnd);
         return;
     }
 
     node.type &= ~node_type::atmospheric_light;
-    node.camera_ids[static_cast<uint8>(light_type::atmospheric)] = invalid_uid;
+    node.atmospheric_light_hnd = NULL_HND<atmospheric_light>;
 
-    m_atmospheric_lights.erase(light_id);
+    m_atmospheric_lights.erase(light_hnd.id_unchecked());
 }
 
-void scene_impl::unload_gltf_model(uid model_id)
+void scene_impl::unload_gltf_model(handle<model> model_hnd)
 {
     PROFILE_ZONE;
     MANGO_ASSERT(false, "Currently not supported!");
 
-    if (!m_models.contains(model_id))
+    if (!model_hnd.valid() || !m_models.valid(model_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not unload model!", model_id.get());
+        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not unload model!", model_hnd);
         return;
     }
 
-    const model& m = m_models.at(model_id);
+    key model_id   = model_hnd.id_unchecked();
+    const model& m = m_models[model_id];
 
     for (auto sc : m.scenarios)
     {
-        if (!m_scenarios.contains(sc))
+        if (!sc.valid() && !m_scenarios.valid(sc.id_unchecked()))
         {
-            MANGO_LOG_WARN("Scenario with ID {0} does not exist! Can not unload model!", sc.get());
+            MANGO_LOG_WARN("Scenario with ID {0} does not exist! Can not unload model!", sc);
             return;
         }
 
-        const scenario& scen = m_scenarios.at(sc);
+        key scenario_id      = sc.id_unchecked();
+        const scenario& scen = m_scenarios[scenario_id];
         for (auto node : scen.root_nodes)
         {
             remove_model_node(node);
         }
 
-        m_scenarios.erase(sc);
+        m_scenarios.erase(scenario_id);
     }
 
     m_models.erase(model_id);
 }
 
-void scene_impl::instantiate_model_scene(uid node_id, uid parent_id)
+void scene_impl::instantiate_model_scene(handle<node> node_hnd, handle<node> parent_hnd)
 {
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not instantiate!", node_id.get());
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not instantiate!", node_hnd);
         return;
     }
 
-    node& nd = m_nodes.at(node_id);
+    key node_id               = node_hnd.id_unchecked();
+    auto name                 = m_nodes[node_id].name;
+    handle<node> instance_hnd = add_node(name, parent_hnd);
+    key instance_id           = instance_hnd.id_unchecked();
 
-    uid instance_id = add_node(nd.name, parent_id);
-
-    node& instance = m_nodes.at(instance_id);
+    node& nd       = m_nodes[node_id];
+    node& instance = m_nodes[instance_id];
 
     instance.type = nd.type;
 
-    if (nd.mesh_id.is_valid())
+    if (nd.mesh_hnd.valid() && m_meshes.valid(nd.mesh_hnd.id_unchecked()))
     {
-        mesh copy               = m_meshes.at(nd.mesh_id);
-        mesh_gpu_data data_copy = m_mesh_gpu_data.at(copy.gpu_data);
+        mesh copy               = m_meshes[nd.mesh_hnd.id_unchecked()];
+        mesh_gpu_data data_copy = m_mesh_gpu_data[copy.gpu_data];
 
         buffer_create_info buffer_info;
         buffer_info.buffer_target   = gfx_buffer_target::buffer_target_uniform;
@@ -773,16 +794,16 @@ void scene_impl::instantiate_model_scene(uid node_id, uid parent_id)
         if (!check_creation(data_copy.model_data_buffer.get(), "model data buffer"))
             return;
 
-        copy.gpu_data    = m_mesh_gpu_data.emplace(data_copy);
-        copy.node_id     = instance_id;
-        copy.changed     = true;
-        instance.mesh_id = m_meshes.emplace(copy);
+        copy.gpu_data     = m_mesh_gpu_data.insert(data_copy);
+        copy.node_hnd     = instance_hnd;
+        copy.changed      = true;
+        instance.mesh_hnd = handle<mesh>(m_meshes.insert(copy));
     }
 
-    if (nd.camera_ids[0].is_valid())
+    if (nd.perspective_camera_hnd.valid() && m_perspective_cameras.valid(nd.perspective_camera_hnd.id_unchecked()))
     {
-        perspective_camera copy   = m_perspective_cameras.at(nd.camera_ids[0]);
-        camera_gpu_data data_copy = m_camera_gpu_data.at(copy.gpu_data);
+        perspective_camera copy   = m_perspective_cameras[nd.perspective_camera_hnd.id_unchecked()];
+        camera_gpu_data data_copy = m_camera_gpu_data[copy.gpu_data];
 
         buffer_create_info buffer_info;
         buffer_info.buffer_target    = gfx_buffer_target::buffer_target_uniform;
@@ -793,16 +814,16 @@ void scene_impl::instantiate_model_scene(uid node_id, uid parent_id)
         if (!check_creation(data_copy.camera_data_buffer.get(), "camera data buffer"))
             return;
 
-        copy.gpu_data          = m_camera_gpu_data.emplace(data_copy);
-        copy.node_id           = instance_id;
-        copy.changed           = true;
-        instance.camera_ids[0] = m_perspective_cameras.emplace(copy);
+        copy.gpu_data                   = m_camera_gpu_data.insert(data_copy);
+        copy.node_hnd                   = instance_hnd;
+        copy.changed                    = true;
+        instance.perspective_camera_hnd = handle<perspective_camera>(m_perspective_cameras.insert(copy));
     }
 
-    if (nd.camera_ids[1].is_valid())
+    if (nd.orthographic_camera_hnd.valid() && m_orthographic_cameras.valid(nd.orthographic_camera_hnd.id_unchecked()))
     {
-        orthographic_camera copy  = m_orthographic_cameras.at(nd.camera_ids[1]);
-        camera_gpu_data data_copy = m_camera_gpu_data.at(copy.gpu_data);
+        orthographic_camera copy  = m_orthographic_cameras[nd.orthographic_camera_hnd.id_unchecked()];
+        camera_gpu_data data_copy = m_camera_gpu_data[copy.gpu_data];
 
         buffer_create_info buffer_info;
         buffer_info.buffer_target    = gfx_buffer_target::buffer_target_uniform;
@@ -813,301 +834,302 @@ void scene_impl::instantiate_model_scene(uid node_id, uid parent_id)
         if (!check_creation(data_copy.camera_data_buffer.get(), "camera data buffer"))
             return;
 
-        copy.gpu_data          = m_camera_gpu_data.emplace(data_copy);
-        copy.node_id           = instance_id;
-        copy.changed           = true;
-        instance.camera_ids[1] = m_orthographic_cameras.emplace(copy);
+        copy.gpu_data                    = m_camera_gpu_data.insert(data_copy);
+        copy.node_hnd                    = instance_hnd;
+        copy.changed                     = true;
+        instance.orthographic_camera_hnd = handle<orthographic_camera>(m_orthographic_cameras.insert(copy));
     }
 
-    if (nd.light_ids[0].is_valid())
+    if (nd.directional_light_hnd.valid() && m_directional_lights.valid(nd.directional_light_hnd.id_unchecked()))
     {
-        directional_light copy = m_directional_lights.at(nd.light_ids[0]);
-        copy.changed           = true;
-        instance.light_ids[0]  = m_directional_lights.emplace(copy);
+        directional_light copy         = m_directional_lights[nd.directional_light_hnd.id_unchecked()];
+        copy.changed                   = true;
+        instance.directional_light_hnd = handle<directional_light>(m_directional_lights.insert(copy));
     }
 
-    if (nd.light_ids[1].is_valid())
+    if (nd.skylight_hnd.valid() && m_skylights.valid(nd.skylight_hnd.id_unchecked()))
     {
-        skylight copy         = m_skylights.at(nd.light_ids[1]);
+        skylight copy         = m_skylights[nd.skylight_hnd.id_unchecked()];
         copy.changed          = true;
-        instance.light_ids[1] = m_skylights.emplace(copy);
+        instance.skylight_hnd = handle<skylight>(m_skylights.insert(copy));
     }
 
-    if (nd.light_ids[2].is_valid())
+    if (nd.atmospheric_light_hnd.valid() && m_atmospheric_lights.valid(nd.atmospheric_light_hnd.id_unchecked()))
     {
-        atmospheric_light& to_copy = m_atmospheric_lights.at(nd.light_ids[2]);
-        atmospheric_light copy     = to_copy;
-        copy.changed               = true;
-        instance.light_ids[2]      = m_atmospheric_lights.emplace(copy);
+        atmospheric_light& to_copy     = m_atmospheric_lights[nd.atmospheric_light_hnd.id_unchecked()];
+        atmospheric_light copy         = to_copy;
+        copy.changed                   = true;
+        instance.atmospheric_light_hnd = handle<atmospheric_light>(m_atmospheric_lights.insert(copy));
     }
 
-    transform& tr             = m_transforms.at(nd.transform_id);
-    transform& instance_tr    = m_transforms.at(instance.transform_id);
+    transform& tr             = m_transforms[nd.transform_hnd.id_unchecked()];
+    transform& instance_tr    = m_transforms[instance.transform_hnd.id_unchecked()];
     instance_tr.position      = tr.position;
     instance_tr.rotation      = tr.rotation;
     instance_tr.scale         = tr.scale;
     instance_tr.rotation_hint = tr.rotation_hint;
     instance_tr.changed       = true;
 
-    for (uid c : nd.children)
+    for (auto c : nd.children)
     {
-        instantiate_model_scene(c, instance_id);
+        if (c.valid())
+            instantiate_model_scene(c.id_unchecked(), instance_id);
     }
 }
 
-void scene_impl::remove_model_node(uid node_id)
+void scene_impl::remove_model_node(handle<node> node_hnd)
 {
-    MANGO_UNUSED(node_id);
+    MANGO_UNUSED(node_hnd);
     MANGO_ASSERT(false, "Not implemented!");
 }
 
-optional<node&> scene_impl::get_node(uid node_id)
+optional<node&> scene_impl::get_node(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve node!", node_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve node!", node_hnd);
+        return NONE;
     }
 
-    return m_nodes.at(node_id);
+    return m_nodes[node_hnd.id_unchecked()];
 }
 
-optional<transform&> scene_impl::get_transform(uid node_id)
+optional<transform&> scene_impl::get_transform(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve transform!", node_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve transform!", node_hnd);
+        return NONE;
     }
 
-    const node& nd = m_nodes.at(node_id);
+    const node& nd = m_nodes[node_hnd.id_unchecked()];
 
-    if (!m_transforms.contains(nd.transform_id))
+    if (!m_transforms.valid(nd.transform_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Transform with ID {0} does not exist! Can not retrieve transform!", nd.transform_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Transform with ID {0} does not exist! Can not retrieve transform!", nd.transform_hnd.id_unchecked());
+        return NONE;
     }
 
-    return m_transforms.at(nd.transform_id);
+    return m_transforms[nd.transform_hnd.id_unchecked()];
 }
 
-optional<perspective_camera&> scene_impl::get_perspective_camera(uid node_id)
+optional<perspective_camera&> scene_impl::get_perspective_camera(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve perspective camera!", node_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve perspective camera!", node_hnd);
+        return NONE;
     }
 
-    const node& nd = m_nodes.at(node_id);
+    const node& nd = m_nodes[node_hnd.id_unchecked()];
 
     if ((nd.type & node_type::perspective_camera) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a perspective camera! Can not retrieve perspective camera!", node_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Node with ID {0} does not contain a perspective camera! Can not retrieve perspective camera!", node_hnd.id_unchecked());
+        return NONE;
     }
 
-    uid camera_id = nd.camera_ids[static_cast<uint8>(camera_type::perspective)];
+    handle<perspective_camera> camera_hnd = nd.perspective_camera_hnd;
 
-    if (!m_perspective_cameras.contains(camera_id))
+    if (!camera_hnd.valid() || !m_perspective_cameras.valid(camera_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not retrieve perspective camera!", camera_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not retrieve perspective camera!", camera_hnd);
+        return NONE;
     }
 
-    return m_perspective_cameras.at(camera_id);
+    return m_perspective_cameras[camera_hnd.id_unchecked()];
 }
 
-optional<orthographic_camera&> scene_impl::get_orthographic_camera(uid node_id)
+optional<orthographic_camera&> scene_impl::get_orthographic_camera(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve orthographic camera!", node_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve orthographic camera!", node_hnd);
+        return NONE;
     }
 
-    const node& nd = m_nodes.at(node_id);
+    const node& nd = m_nodes[node_hnd.id_unchecked()];
 
     if ((nd.type & node_type::orthographic_camera) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a orthographic camera! Can not retrieve orthographic camera!", node_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Node with ID {0} does not contain a orthographic camera! Can not retrieve orthographic camera!", node_hnd.id_unchecked());
+        return NONE;
     }
 
-    uid camera_id = nd.camera_ids[static_cast<uint8>(camera_type::orthographic)];
+    handle<orthographic_camera> camera_hnd = nd.orthographic_camera_hnd;
 
-    if (!m_orthographic_cameras.contains(camera_id))
+    if (!camera_hnd.valid() || !m_orthographic_cameras.valid(camera_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Orthographic camera with ID {0} does not exist! Can not retrieve orthographic camera!", camera_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Orthographic camera with ID {0} does not exist! Can not retrieve orthographic camera!", camera_hnd);
+        return NONE;
     }
 
-    return m_orthographic_cameras.at(camera_id);
+    return m_orthographic_cameras[camera_hnd.id_unchecked()];
 }
 
-optional<directional_light&> scene_impl::get_directional_light(uid node_id)
+optional<directional_light&> scene_impl::get_directional_light(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve directional light!", node_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve directional light!", node_hnd);
+        return NONE;
     }
 
-    const node& nd = m_nodes.at(node_id);
+    const node& nd = m_nodes[node_hnd.id_unchecked()];
 
     if ((nd.type & node_type::directional_light) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a directional light! Can not retrieve directional light!", node_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Node with ID {0} does not contain a directional light! Can not retrieve directional light!", node_hnd.id_unchecked());
+        return NONE;
     }
 
-    uid light_id = nd.light_ids[static_cast<uint8>(light_type::directional)];
+    handle<directional_light> light_hnd = nd.directional_light_hnd;
 
-    if (!m_directional_lights.contains(light_id))
+    if (!light_hnd.valid() || !m_directional_lights.valid(light_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Directional light with ID {0} does not exist! Can not retrieve directional light!", light_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Directional light with ID {0} does not exist! Can not retrieve directional light!", light_hnd);
+        return NONE;
     }
 
-    return m_directional_lights.at(light_id);
+    return m_directional_lights[light_hnd.id_unchecked()];
 }
 
-optional<skylight&> scene_impl::get_skylight(uid node_id)
+optional<skylight&> scene_impl::get_skylight(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve skylight!", node_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve skylight!", node_hnd);
+        return NONE;
     }
 
-    const node& nd = m_nodes.at(node_id);
+    const node& nd = m_nodes[node_hnd.id_unchecked()];
 
     if ((nd.type & node_type::skylight) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a skylight! Can not retrieve skylight!", node_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Node with ID {0} does not contain a skylight! Can not retrieve skylight!", node_hnd.id_unchecked());
+        return NONE;
     }
 
-    uid light_id = nd.light_ids[static_cast<uint8>(light_type::skylight)];
+    handle<skylight> light_hnd = nd.skylight_hnd;
 
-    if (!m_skylights.contains(light_id))
+    if (!light_hnd.valid() || !m_skylights.valid(light_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Skylight with ID {0} does not exist! Can not retrieve skylight!", light_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Skylight with ID {0} does not exist! Can not retrieve skylight!", light_hnd);
+        return NONE;
     }
 
-    return m_skylights.at(light_id);
+    return m_skylights[light_hnd.id_unchecked()];
 }
 
-optional<atmospheric_light&> scene_impl::get_atmospheric_light(uid node_id)
+optional<atmospheric_light&> scene_impl::get_atmospheric_light(handle<node> node_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve atmospheric light!", node_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not retrieve atmospheric light!", node_hnd);
+        return NONE;
     }
 
-    const node& nd = m_nodes.at(node_id);
+    const node& nd = m_nodes[node_hnd.id_unchecked()];
 
     if ((nd.type & node_type::atmospheric_light) == node_type::hierarchy)
     {
-        MANGO_LOG_WARN("Node with ID {0} does not contain a atmospheric light! Can not retrieve atmospheric light!", node_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Node with ID {0} does not contain a atmospheric light! Can not retrieve atmospheric light!", node_hnd.id_unchecked());
+        return NONE;
     }
 
-    uid light_id = nd.light_ids[static_cast<uint8>(light_type::atmospheric)];
+    handle<atmospheric_light> light_hnd = nd.atmospheric_light_hnd;
 
-    if (!m_atmospheric_lights.contains(light_id))
+    if (!light_hnd.valid() || !m_atmospheric_lights.valid(light_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Atmospheric light with ID {0} does not exist! Can not retrieve atmospheric light!", light_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Atmospheric light with ID {0} does not exist! Can not retrieve atmospheric light!", light_hnd);
+        return NONE;
     }
 
-    return m_atmospheric_lights.at(light_id);
+    return m_atmospheric_lights[light_hnd.id_unchecked()];
 }
 
-optional<model&> scene_impl::get_model(uid instance_id)
+optional<model&> scene_impl::get_model(handle<model> instance_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_models.contains(instance_id))
+    if (!instance_hnd.valid() || !m_models.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not retrieve model!", instance_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Model with ID {0} does not exist! Can not retrieve model!", instance_hnd);
+        return NONE;
     }
 
-    return m_models.at(instance_id);
+    return m_models[instance_hnd.id_unchecked()];
 }
 
-optional<mesh&> scene_impl::get_mesh(uid instance_id)
+optional<mesh&> scene_impl::get_mesh(handle<mesh> instance_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_meshes.contains(instance_id))
+    if (!instance_hnd.valid() || !m_meshes.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Mesh with ID {0} does not exist! Can not retrieve mesh!", instance_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Mesh with ID {0} does not exist! Can not retrieve mesh!", instance_hnd);
+        return NONE;
     }
 
-    return m_meshes.at(instance_id);
+    return m_meshes[instance_hnd.id_unchecked()];
 }
 
-optional<material&> scene_impl::get_material(uid instance_id)
+optional<material&> scene_impl::get_material(handle<material> instance_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_materials.contains(instance_id))
+    if (!instance_hnd.valid() || !m_materials.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Material with ID {0} does not exist! Can not retrieve material!", instance_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Material with ID {0} does not exist! Can not retrieve material!", instance_hnd);
+        return NONE;
     }
 
-    return m_materials.at(instance_id);
+    return m_materials[instance_hnd.id_unchecked()];
 }
 
-optional<texture&> scene_impl::get_texture(uid instance_id)
+optional<texture&> scene_impl::get_texture(handle<texture> instance_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_textures.contains(instance_id))
+    if (!instance_hnd.valid() || !m_textures.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Texture with ID {0} does not exist! Can not retrieve texture!", instance_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Texture with ID {0} does not exist! Can not retrieve texture!", instance_hnd);
+        return NONE;
     }
 
-    return m_textures.at(instance_id);
+    return m_textures[instance_hnd.id_unchecked()];
 }
 
-uid scene_impl::get_root_node()
+handle<node> scene_impl::get_root_node()
 {
     return m_root_node;
 }
 
-uid scene_impl::get_active_camera_uid()
+handle<node> scene_impl::get_active_camera_node()
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(m_main_camera_node))
+    if (!m_main_camera_node.valid() || !m_nodes.valid(m_main_camera_node.id_unchecked()))
     {
-        MANGO_LOG_WARN("Active camera node with ID {0} does not exist! Can not retrieve active camera data!", m_main_camera_node.get());
-        return invalid_uid;
+        MANGO_LOG_WARN("Active camera node does not exist! Can not retrieve active camera data!");
+        return NULL_HND<node>;
     }
 
-    const node& nd = m_nodes.at(m_main_camera_node);
+    const node& nd = m_nodes[m_main_camera_node.id_unchecked()];
 
     if ((nd.type & node_type::perspective_camera) != node_type::hierarchy)
     {
@@ -1118,50 +1140,50 @@ uid scene_impl::get_active_camera_uid()
         return m_main_camera_node;
     }
 
-    MANGO_LOG_WARN("Active camera node with ID {0} does not contain any camera! Can not retrieve active camera data!", m_main_camera_node.get());
-    return invalid_uid;
+    MANGO_LOG_WARN("Active camera node with ID {0} does not contain any camera! Can not retrieve active camera data!", m_main_camera_node.id_unchecked());
+    return NULL_HND<node>;
 }
 
-void scene_impl::set_main_camera(uid node_id)
+void scene_impl::set_main_camera_node(handle<node> node_hnd)
 {
-    if (!m_nodes.contains(node_id))
+    if (!node_hnd.valid() || !m_nodes.valid(node_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Node with ID {0} does not exist! Can not set as active camera!", node_id.get());
+        MANGO_LOG_WARN("Node does not exist! Can not set as active camera!");
         return;
     }
 
-    const node& nd = m_nodes.at(node_id);
+    const node& nd = m_nodes[node_hnd.id_unchecked()];
 
     if ((nd.type & node_type::perspective_camera) != node_type::hierarchy)
     {
-        m_main_camera_node = node_id;
+        m_main_camera_node = node_hnd;
         return;
     }
     if ((nd.type & node_type::orthographic_camera) != node_type::hierarchy)
     {
-        m_main_camera_node = node_id;
+        m_main_camera_node = node_hnd;
         return;
     }
 
-    MANGO_LOG_WARN("Node with ID {0} does not contain any camera! Can not set as active camera!", node_id.get());
+    MANGO_LOG_WARN("Node with ID {0} does not contain any camera! Can not set as active camera!", node_hnd.id_unchecked());
 }
 
-void scene_impl::attach(uid child_node, uid parent_node)
+void scene_impl::attach(handle<node> child_node, handle<node> parent_node)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(child_node))
+    if (!child_node.valid() || !m_nodes.valid(child_node.id_unchecked()))
     {
-        MANGO_LOG_WARN("Child node with ID {0} does not exist! Can not attach!", child_node.get());
+        MANGO_LOG_WARN("Child node with ID {0} does not exist! Can not attach!", child_node);
         return;
     }
-    if (!m_nodes.contains(parent_node))
+    if (!parent_node.valid() || !m_nodes.valid(parent_node.id_unchecked()))
     {
-        MANGO_LOG_WARN("Parent node with ID {0} does not exist! Can not attach!", parent_node.get());
+        MANGO_LOG_WARN("Parent node with ID {0} does not exist! Can not attach!", parent_node);
         return;
     }
 
-    node& child = m_nodes.at(child_node);
+    node& child = m_nodes[child_node.id_unchecked()];
 
     auto found = std::find(child.children.begin(), child.children.end(), parent_node);
     if (found != child.children.end())
@@ -1170,27 +1192,27 @@ void scene_impl::attach(uid child_node, uid parent_node)
         return;
     }
 
-    node& parent = m_nodes.at(parent_node);
+    node& parent = m_nodes[parent_node.id_unchecked()];
 
     parent.children.push_back(child_node);
 }
 
-void scene_impl::detach(uid child_node, uid parent_node)
+void scene_impl::detach(handle<node> child_node, handle<node> parent_node)
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(child_node))
+    if (!child_node.valid() || !m_nodes.valid(child_node.id_unchecked()))
     {
-        MANGO_LOG_WARN("Child node with ID {0} does not exist! Can not detach!", child_node.get());
+        MANGO_LOG_WARN("Child node with ID {0} does not exist! Can not detach!", child_node);
         return;
     }
-    if (!m_nodes.contains(parent_node))
+    if (!parent_node.valid() || !m_nodes.valid(parent_node.id_unchecked()))
     {
-        MANGO_LOG_WARN("Parent node with ID {0} does not exist! Can not detach!", parent_node.get());
+        MANGO_LOG_WARN("Parent node with ID {0} does not exist! Can not detach!", parent_node);
         return;
     }
 
-    node& parent = m_nodes.at(parent_node);
+    node& parent = m_nodes[parent_node.id_unchecked()];
 
     auto found = std::find(parent.children.begin(), parent.children.end(), child_node);
     if (found == parent.children.end())
@@ -1202,117 +1224,117 @@ void scene_impl::detach(uid child_node, uid parent_node)
     parent.children.erase(found);
 }
 
-void scene_impl::remove_texture(uid texture_id)
+void scene_impl::remove_texture(handle<texture> instance_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_textures.contains(texture_id))
+    if (!instance_hnd.valid() || !m_textures.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Texture with ID {0} does not exist! Can not remove texture gpu data!", texture_id.get());
+        MANGO_LOG_WARN("Texture with ID {0} does not exist! Can not remove texture gpu data!", instance_hnd);
         return;
     }
 
-    const texture& tex = m_textures.at(texture_id);
+    const texture& tex = m_textures[instance_hnd.id_unchecked()];
 
-    if (!m_texture_gpu_data.contains(tex.gpu_data))
+    if (!m_texture_gpu_data.valid(tex.gpu_data))
     {
-        MANGO_LOG_WARN("Texture gpu data with ID {0} does not exist! Can not remove texture gpu data!", tex.gpu_data.get());
+        MANGO_LOG_WARN("Texture gpu data with ID {0} does not exist! Can not remove texture gpu data!", tex.gpu_data);
         return;
     }
 
-    m_textures.erase(texture_id);
+    m_textures.erase(instance_hnd.id_unchecked());
     m_texture_gpu_data.erase(tex.gpu_data);
 }
 
-optional<primitive&> scene_impl::get_primitive(uid instance_id)
+optional<primitive&> scene_impl::get_primitive(handle<primitive> instance_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_primitives.contains(instance_id))
+    if (!instance_hnd.valid() || !m_primitives.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Primitive with ID {0} does not exist! Can not retrieve primitive!", instance_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Primitive with ID {0} does not exist! Can not retrieve primitive!", instance_hnd);
+        return NONE;
     }
 
-    return m_primitives.at(instance_id);
+    return m_primitives[instance_hnd.id_unchecked()];
 }
 
-optional<mat4&> scene_impl::get_global_transformation_matrix(uid instance_id)
+optional<mat4&> scene_impl::get_global_transformation_matrix(handle<mat4> instance_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_global_transformation_matrices.contains(instance_id))
+    if (!instance_hnd.valid() || !m_global_transformation_matrices.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Global transformation matrix with ID {0} does not exist! Can not retrieve global transformation matrix!", instance_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Global transformation matrix with ID {0} does not exist! Can not retrieve global transformation matrix!", instance_hnd);
+        return NONE;
     }
 
-    return m_global_transformation_matrices.at(instance_id);
+    return m_global_transformation_matrices[instance_hnd.id_unchecked()];
 }
 
-optional<texture_gpu_data&> scene_impl::get_texture_gpu_data(uid instance_id)
+optional<texture_gpu_data&> scene_impl::get_texture_gpu_data(key instance_id)
 {
     PROFILE_ZONE;
 
-    if (!m_texture_gpu_data.contains(instance_id))
+    if (!m_texture_gpu_data.valid(instance_id))
     {
-        MANGO_LOG_WARN("Texture gpu data with ID {0} does not exist! Can not retrieve texture gpu data!", instance_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Texture gpu data with ID {0} does not exist! Can not retrieve texture gpu data!", instance_id);
+        return NONE;
     }
 
-    return m_texture_gpu_data.at(instance_id);
+    return m_texture_gpu_data[instance_id];
 }
 
-optional<material_gpu_data&> scene_impl::get_material_gpu_data(uid instance_id)
+optional<material_gpu_data&> scene_impl::get_material_gpu_data(key instance_id)
 {
     PROFILE_ZONE;
 
-    if (!m_material_gpu_data.contains(instance_id))
+    if (!m_material_gpu_data.valid(instance_id))
     {
-        MANGO_LOG_WARN("Material gpu data with ID {0} does not exist! Can not retrieve material gpu data!", instance_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Material gpu data with ID {0} does not exist! Can not retrieve material gpu data!", instance_id);
+        return NONE;
     }
 
-    return m_material_gpu_data.at(instance_id);
+    return m_material_gpu_data[instance_id];
 }
 
-optional<primitive_gpu_data&> scene_impl::get_primitive_gpu_data(uid instance_id)
+optional<primitive_gpu_data&> scene_impl::get_primitive_gpu_data(key instance_id)
 {
     PROFILE_ZONE;
 
-    if (!m_primitive_gpu_data.contains(instance_id))
+    if (!m_primitive_gpu_data.valid(instance_id))
     {
-        MANGO_LOG_WARN("Primitive gpu data with ID {0} does not exist! Can not retrieve primitive gpu data!", instance_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Primitive gpu data with ID {0} does not exist! Can not retrieve primitive gpu data!", instance_id);
+        return NONE;
     }
 
-    return m_primitive_gpu_data.at(instance_id);
+    return m_primitive_gpu_data[instance_id];
 }
 
-optional<mesh_gpu_data&> scene_impl::get_mesh_gpu_data(uid instance_id)
+optional<mesh_gpu_data&> scene_impl::get_mesh_gpu_data(key instance_id)
 {
     PROFILE_ZONE;
 
-    if (!m_mesh_gpu_data.contains(instance_id))
+    if (!m_mesh_gpu_data.valid(instance_id))
     {
-        MANGO_LOG_WARN("Mesh gpu data with ID {0} does not exist! Can not retrieve mesh gpu data!", instance_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Mesh gpu data with ID {0} does not exist! Can not retrieve mesh gpu data!", instance_id);
+        return NONE;
     }
 
-    return m_mesh_gpu_data.at(instance_id);
+    return m_mesh_gpu_data[instance_id];
 }
 
-optional<camera_gpu_data&> scene_impl::get_camera_gpu_data(uid instance_id)
+optional<camera_gpu_data&> scene_impl::get_camera_gpu_data(key instance_id)
 {
     PROFILE_ZONE;
 
-    if (!m_camera_gpu_data.contains(instance_id))
+    if (!m_camera_gpu_data.valid(instance_id))
     {
-        MANGO_LOG_WARN("Canera gpu data with ID {0} does not exist! Can not retrieve camera gpu data!", instance_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Canera gpu data with ID {0} does not exist! Can not retrieve camera gpu data!", instance_id);
+        return NONE;
     }
 
-    return m_camera_gpu_data.at(instance_id);
+    return m_camera_gpu_data[instance_id];
 }
 
 const light_gpu_data& scene_impl::get_light_gpu_data()
@@ -1320,65 +1342,66 @@ const light_gpu_data& scene_impl::get_light_gpu_data()
     return m_light_gpu_data;
 }
 
-optional<buffer_view&> scene_impl::get_buffer_view(uid instance_id)
+optional<buffer_view&> scene_impl::get_buffer_view(handle<buffer_view> instance_hnd)
 {
     PROFILE_ZONE;
 
-    if (!m_buffer_views.contains(instance_id))
+    if (!instance_hnd.valid() || !m_buffer_views.valid(instance_hnd.id_unchecked()))
     {
-        MANGO_LOG_WARN("Buffer view with ID {0} does not exist! Can not retrieve buffer view!", instance_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Buffer view with ID {0} does not exist! Can not retrieve buffer view!", instance_hnd);
+        return NONE;
     }
 
-    return m_buffer_views.at(instance_id);
+    return m_buffer_views[instance_hnd.id_unchecked()];
 }
 
 optional<camera_gpu_data&> scene_impl::get_active_camera_gpu_data()
 {
     PROFILE_ZONE;
 
-    if (!m_nodes.contains(m_main_camera_node))
+    if (!m_main_camera_node.valid() || !m_nodes.valid(m_main_camera_node.id_unchecked()))
     {
-        MANGO_LOG_WARN("Active camera node with ID {0} does not exist! Can not retrieve active camera gpu data!", m_main_camera_node.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Active camera node does not exist! Can not retrieve active camera gpu data!");
+        return NONE;
     }
 
-    const node& nd = m_nodes.at(m_main_camera_node);
+    const node& nd = m_nodes[m_main_camera_node.id_unchecked()];
 
-    uid camera_data_id = invalid_uid;
+    key camera_data_id;
 
     if ((nd.type & node_type::perspective_camera) != node_type::hierarchy)
     {
-        uid camera_id = nd.camera_ids[static_cast<uint8>(camera_type::perspective)];
+        MANGO_ASSERT(nd.perspective_camera_hnd.valid(), "Perspective camera node has no perspective camera attached!");
+        key camera_id = nd.perspective_camera_hnd.id_unchecked();
 
-        if (!m_perspective_cameras.contains(camera_id))
+        if (!m_perspective_cameras.valid(camera_id))
         {
-            MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not retrieve camera gpu data!", camera_id.get());
-            return NULL_OPTION;
+            MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not retrieve camera gpu data!", camera_id);
+            return NONE;
         }
-        const perspective_camera& cam = m_perspective_cameras.at(camera_id);
+        const perspective_camera& cam = m_perspective_cameras[camera_id];
         camera_data_id                = cam.gpu_data;
     }
-    if ((nd.type & node_type::orthographic_camera) != node_type::hierarchy)
+    else if ((nd.type & node_type::orthographic_camera) != node_type::hierarchy)
     {
-        uid camera_id = nd.camera_ids[static_cast<uint8>(camera_type::orthographic)];
+        MANGO_ASSERT(nd.orthographic_camera_hnd.valid(), "Orthographic camera node has no orthographic camera attached!");
+        key camera_id = nd.orthographic_camera_hnd.id_unchecked();
 
-        if (!m_orthographic_cameras.contains(camera_id))
+        if (!m_orthographic_cameras.valid(camera_id))
         {
-            MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not retrieve camera gpu data!", camera_id.get());
-            return NULL_OPTION;
+            MANGO_LOG_WARN("Perspective camera with ID {0} does not exist! Can not retrieve camera gpu data!", camera_id);
+            return NONE;
         }
-        const orthographic_camera& cam = m_orthographic_cameras.at(camera_id);
+        const orthographic_camera& cam = m_orthographic_cameras[camera_id];
         camera_data_id                 = cam.gpu_data;
     }
-
-    if (!camera_data_id.is_valid() || !m_camera_gpu_data.contains(camera_data_id))
+    else
     {
-        MANGO_LOG_WARN("Camera gpu data with ID {0} does not exist! Can not retrieve camera gpu data!", camera_data_id.get());
-        return NULL_OPTION;
+        MANGO_LOG_WARN("Camera node does not contain any camera!");
+        return NONE;
     }
 
-    return m_camera_gpu_data.at(camera_data_id);
+    return m_camera_gpu_data[camera_data_id];
 }
 
 std::pair<gfx_handle<const gfx_texture>, gfx_handle<const gfx_sampler>> scene_impl::create_gfx_texture_and_sampler(const string& path, bool standard_color_space, bool high_dynamic_range,
@@ -1478,7 +1501,7 @@ std::pair<gfx_handle<const gfx_texture>, gfx_handle<const gfx_sampler>> scene_im
     return result;
 }
 
-std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& default_scenario)
+std::vector<handle<scenario>> scene_impl::load_model_from_file(const string& path, int32& default_scenario)
 {
     auto& graphics_device = m_shared_context->get_graphics_device();
 
@@ -1493,7 +1516,7 @@ std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& def
     if (m.scenes.size() <= 0)
     {
         MANGO_LOG_DEBUG("No scenarios in the gltf model found! Can not load invalid gltf.");
-        return std::vector<uid>();
+        return std::vector<handle<scenario>>();
     }
     else
     {
@@ -1501,7 +1524,7 @@ std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& def
     }
 
     // load buffer views and data
-    std::vector<uid> buffer_view_ids(m.bufferViews.size());
+    std::vector<key> buffer_view_ids(m.bufferViews.size());
     for (int32 i = 0; i < static_cast<int32>(m.bufferViews.size()); ++i)
     {
         const tinygltf::BufferView& bv = m.bufferViews[i];
@@ -1533,12 +1556,12 @@ std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& def
         device_context->submit();
         // TODO Paul: Are interleaved buffers loaded multiple times? Could we just preprocess them?
 
-        buffer_view_ids[i] = m_buffer_views.emplace(view);
+        buffer_view_ids[i] = m_buffer_views.insert(view);
     }
 
     default_scenario = m.defaultScene > -1 ? m.defaultScene : 0;
 
-    std::vector<uid> all_scenarios;
+    std::vector<handle<scenario>> all_scenarios;
 
     buffer_create_info buffer_info;
     buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
@@ -1547,7 +1570,7 @@ std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& def
     // light_data is filled by the light_stack
     m_light_gpu_data.light_data_buffer = m_scene_graphics_device->create_buffer(buffer_info);
     if (!check_creation(m_light_gpu_data.light_data_buffer.get(), "light data buffer"))
-        return std::vector<uid>();
+        return std::vector<handle<scenario>>();
 
     for (const tinygltf::Scene& t_scene : m.scenes)
     {
@@ -1555,28 +1578,23 @@ std::vector<uid> scene_impl::load_model_from_file(const string& path, int32& def
 
         for (int32 i = 0; i < static_cast<int32>(t_scene.nodes.size()); ++i)
         {
-            scen.root_nodes.push_back(build_model_node(m, m.nodes.at(t_scene.nodes.at(i)), buffer_view_ids));
+            scen.root_nodes.push_back(build_model_node(m, m.nodes.at(t_scene.nodes[i]), buffer_view_ids));
         }
 
-        uid scenario_id = m_scenarios.emplace(scen);
-        all_scenarios.push_back(scenario_id);
+        key scenario_id = m_scenarios.insert(scen);
+        all_scenarios.push_back(handle<scenario>(scenario_id));
     }
 
     return all_scenarios;
 }
 
-uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<uid>& buffer_view_ids)
+handle<node> scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const std::vector<key>& buffer_view_ids)
 {
     PROFILE_ZONE;
 
     node model_node(n.name);
-    model_node.transform_id     = m_transforms.emplace();
-    model_node.type             = node_type::hierarchy;
-    model_node.global_matrix_id = invalid_uid; // We do not need this here, since we add it when instantiated.
-    uid node_id                 = m_nodes.emplace(model_node);
-    node& node_ref              = m_nodes.back();
 
-    transform& tr = m_transforms.at(model_node.transform_id);
+    transform tr;
 
     if (n.matrix.size() == 16)
     {
@@ -1590,7 +1608,7 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
     {
         if (n.translation.size() == 3)
         {
-            tr.position = vec3(n.translation[0], n.translation[1], n.translation[2]);
+            tr.position = vec3(static_cast<float>(n.translation[0]), static_cast<float>(n.translation[1]), static_cast<float>(n.translation[2]));
         }
         else
         {
@@ -1606,7 +1624,7 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
         }
         if (n.scale.size() == 3)
         {
-            tr.scale = vec3(n.scale[0], n.scale[1], n.scale[2]);
+            tr.scale = vec3(static_cast<float>(n.scale[0]), static_cast<float>(n.scale[1]), static_cast<float>(n.scale[2]));
         }
         else
         {
@@ -1616,25 +1634,30 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
 
     tr.rotation_hint = rad_to_deg(tr.rotation.toRotationMatrix().eulerAngles(1, 2, 0));
 
+    model_node.transform_hnd = handle<transform>(m_transforms.insert(tr));
+    model_node.type          = node_type::hierarchy;
+    handle<node> node_hnd    = m_nodes.insert(model_node);
+    key node_id              = node_hnd.id_unchecked();
+
     if (n.mesh > -1)
     {
         MANGO_ASSERT(n.mesh < static_cast<int32>(m.meshes.size()), "Invalid gltf mesh!");
-        MANGO_LOG_DEBUG("Node contains a mesh!");
-        node_ref.mesh_id = build_model_mesh(m, m.meshes.at(n.mesh), node_id, buffer_view_ids);
-        node_ref.type |= node_type::mesh;
+        MANGO_LOG_DEBUG("Node is a mesh!");
+        auto loaded = build_model_mesh(m, m.meshes.at(n.mesh), node_hnd, buffer_view_ids);
+        if (loaded.valid())
+        {
+            m_nodes[node_id].mesh_hnd = loaded;
+            m_nodes[node_id].type |= node_type::mesh;
+        }
     }
 
     if (n.camera > -1)
     {
         MANGO_ASSERT(n.camera < static_cast<int32>(m.cameras.size()), "Invalid gltf camera!");
-        MANGO_LOG_DEBUG("Node contains a camera!");
+        MANGO_LOG_DEBUG("Node is a camera!");
 
-        camera_type out_type;
-        vec3 target   = tr.rotation * GLOBAL_FORWARD; // TODO Paul: Check that!
-        uid camera_id = build_model_camera(m.cameras.at(n.camera), node_id, target, out_type);
-
-        node_ref.camera_ids[static_cast<uint8>(out_type)] = camera_id;
-        node_ref.type |= ((out_type == camera_type::perspective) ? node_type::perspective_camera : node_type::orthographic_camera);
+        vec3 target = tr.rotation * GLOBAL_FORWARD; // TODO Paul: Check that!
+        build_model_camera(m.cameras.at(n.camera), node_hnd, target);
     }
 
     // build child nodes
@@ -1642,20 +1665,19 @@ uid scene_impl::build_model_node(tinygltf::Model& m, tinygltf::Node& n, const st
     {
         MANGO_ASSERT(n.children[i] < static_cast<int32>(m.nodes.size()), "Invalid gltf node!");
 
-        uid child_id = build_model_node(m, m.nodes.at(n.children.at(i)), buffer_view_ids);
-        node_ref.children.push_back(child_id);
+        handle<node> child_hnd = build_model_node(m, m.nodes.at(n.children[i]), buffer_view_ids);
+        m_nodes[node_id].children.push_back(child_hnd);
     }
 
     return node_id;
 }
 
-uid scene_impl::build_model_camera(tinygltf::Camera& t_camera, uid node_id, const vec3& target, camera_type& out_type)
+void scene_impl::build_model_camera(tinygltf::Camera& t_camera, handle<node> node_hnd, const vec3& target)
 {
     PROFILE_ZONE;
 
     if (t_camera.type == "perspective")
     {
-        out_type = camera_type::perspective;
         perspective_camera cam;
         cam.z_near                 = static_cast<float>(t_camera.perspective.znear);
         cam.z_far                  = t_camera.perspective.zfar > 0.0 ? static_cast<float>(t_camera.perspective.zfar) : 10000.0f; // Infinite?
@@ -1668,16 +1690,19 @@ uid scene_impl::build_model_camera(tinygltf::Camera& t_camera, uid node_id, cons
 
         cam.target = target;
 
-        cam.node_id = node_id;
-        cam.changed = false; // No update needed, since this is only storage.
+        cam.node_hnd = node_hnd;
+        cam.changed  = false; // No update needed, since this is only storage.
 
-        cam.gpu_data = m_camera_gpu_data.emplace(camera_gpu_data()); // gpu data is filled on instantiation
+        cam.gpu_data = m_camera_gpu_data.insert(camera_gpu_data()); // gpu data is filled on instantiation
 
-        return m_perspective_cameras.emplace(cam);
+        key node_id                             = node_hnd.id_unchecked();
+        m_nodes[node_id].perspective_camera_hnd = handle<perspective_camera>(m_perspective_cameras.insert(cam));
+        m_nodes[node_id].type |= node_type::perspective_camera;
+
+        return;
     }
     if (t_camera.type == "orthographic")
     {
-        out_type = camera_type::orthographic;
         orthographic_camera cam;
         cam.z_near = static_cast<float>(t_camera.orthographic.znear);
         cam.z_far  = t_camera.perspective.zfar > 0.0 ? static_cast<float>(t_camera.perspective.zfar) : 10000.0f; // Infinite?
@@ -1691,23 +1716,29 @@ uid scene_impl::build_model_camera(tinygltf::Camera& t_camera, uid node_id, cons
         cam.target  = target;
         cam.changed = false; // No update needed, since this is only storage.
 
-        cam.node_id = node_id;
-        cam.changed = false; // No update needed, since this is only storage.
+        cam.node_hnd = node_hnd;
+        cam.changed  = false; // No update needed, since this is only storage.
 
-        cam.gpu_data = m_camera_gpu_data.emplace(camera_gpu_data()); // gpu data is filled on instantiation
+        cam.gpu_data = m_camera_gpu_data.insert(camera_gpu_data()); // gpu data is filled on instantiation
 
-        return m_orthographic_cameras.emplace(cam);
+        key node_id                              = node_hnd.id_unchecked();
+        m_nodes[node_id].orthographic_camera_hnd = handle<orthographic_camera>(m_orthographic_cameras.insert(cam));
+        m_nodes[node_id].type |= node_type::orthographic_camera;
+
+        return;
     }
-
-    return invalid_uid;
+    else
+    {
+        MANGO_ASSERT(false, "Unknown camera type!");
+    }
 }
 
-uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid node_id, const std::vector<uid>& buffer_view_ids)
+handle<mesh> scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, handle<node> node_hnd, const std::vector<key>& buffer_view_ids)
 {
     PROFILE_ZONE;
-    mesh mesh;
-    mesh.name    = t_mesh.name;
-    mesh.node_id = node_id;
+    mesh model_mesh;
+    model_mesh.name     = t_mesh.name;
+    model_mesh.node_hnd = node_hnd;
     mesh_gpu_data data;
     data.per_mesh_data.has_normals  = true;
     data.per_mesh_data.has_tangents = true;
@@ -1731,8 +1762,8 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
         {
             const tinygltf::Accessor& index_accessor = m.accessors[t_primitive.indices];
 
-            uid view_id                               = buffer_view_ids[index_accessor.bufferView];
-            prim_gpu_data.index_buffer_view           = m_buffer_views.at(view_id);
+            key view_id                               = buffer_view_ids[index_accessor.bufferView];
+            prim_gpu_data.index_buffer_view           = m_buffer_views[view_id];
             prim_gpu_data.index_type                  = static_cast<gfx_format>(index_accessor.componentType); // cast should be okay
             prim_gpu_data.draw_call_desc.index_count  = static_cast<int32>(index_accessor.count);
             prim_gpu_data.draw_call_desc.index_offset = static_cast<int32>(index_accessor.byteOffset);
@@ -1744,13 +1775,19 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
             // vertex_count has to be set later.
         }
 
-        uid material_id;
+        handle<material> material_hnd;
         if (t_primitive.material >= 0)
-            material_id = load_material(m.materials[t_primitive.material], m);
+        {
+            auto loaded = load_material(m.materials[t_primitive.material], m);
+            if (loaded.valid())
+                material_hnd = loaded;
+            else
+                material_hnd = default_material();
+        }
         else
-            material_id = default_material();
+            material_hnd = default_material();
 
-        prim.material = material_id;
+        prim.primitive_material = material_hnd;
 
         int32 vertex_buffer_binding = 0;
         int32 description_index     = 0;
@@ -1764,7 +1801,7 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
             if (accessor.sparse.isSparse)
             {
                 MANGO_LOG_ERROR("Models with sparse accessors are currently not supported! Undefined behavior!");
-                return uid();
+                return NULL_HND<mesh>;
             }
 
             int32 attrib_location = -1;
@@ -1785,8 +1822,8 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
 
             if (attrib_location > -1)
             {
-                uid view_id   = buffer_view_ids[accessor.bufferView];
-                auto buffer_v = m_buffer_views.at(view_id);
+                key view_id   = buffer_view_ids[accessor.bufferView];
+                auto buffer_v = m_buffer_views[view_id];
                 buffer_v.offset += static_cast<int32>(accessor.byteOffset);
                 prim_gpu_data.vertex_buffer_views.emplace_back(buffer_v);
 
@@ -1814,8 +1851,9 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
                 // AABB
                 if (attrib_location == 0)
                 {
-                    prim.bounding_box = axis_aligned_bounding_box::from_min_max(vec3(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]),
-                                                                                vec3(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]));
+                    prim.bounding_box =
+                        axis_aligned_bounding_box::from_min_max(vec3(static_cast<float>(accessor.minValues[0]), static_cast<float>(accessor.minValues[1]), static_cast<float>(accessor.minValues[2])),
+                                                                vec3(static_cast<float>(accessor.maxValues[0]), static_cast<float>(accessor.maxValues[1]), static_cast<float>(accessor.maxValues[2])));
                 }
             }
             else
@@ -1827,10 +1865,10 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
         prim_gpu_data.vertex_layout.binding_description_count   = description_index;
         prim_gpu_data.vertex_layout.attribute_description_count = description_index;
 
-        uid prim_gpu_data_id = m_primitive_gpu_data.emplace(prim_gpu_data);
+        key prim_gpu_data_id = m_primitive_gpu_data.insert(prim_gpu_data);
         prim.gpu_data        = prim_gpu_data_id;
-        uid prim_id          = m_primitives.emplace(prim);
-        mesh.primitives.push_back(prim_id);
+        key prim_id          = m_primitives.insert(prim);
+        model_mesh.primitives.push_back(handle<primitive>(prim_id));
 
         data.per_mesh_data.has_normals &= prim.has_normals;
         data.per_mesh_data.has_tangents &= prim.has_tangents;
@@ -1839,14 +1877,14 @@ uid scene_impl::build_model_mesh(tinygltf::Model& m, tinygltf::Mesh& t_mesh, uid
     // data.per_mesh_data.model_matrix is updated in update()
     // data.per_mesh_data.normal_matrix is updated in update()
 
-    mesh.gpu_data = m_mesh_gpu_data.emplace(data);
+    model_mesh.gpu_data = m_mesh_gpu_data.insert(data);
 
-    mesh.changed = false; // No update needed, since this is only storage.
+    model_mesh.changed = false; // No update needed, since this is only storage.
 
-    return m_meshes.emplace(mesh);
+    return handle<mesh>(m_meshes.insert(model_mesh));
 }
 
-uid scene_impl::load_material(const tinygltf::Material& primitive_material, tinygltf::Model& m)
+handle<material> scene_impl::load_material(const tinygltf::Material& primitive_material, tinygltf::Model& m)
 {
     PROFILE_ZONE;
 
@@ -1858,8 +1896,8 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         new_material.name = primitive_material.name;
 
         // check if material with that name is alread loaded
-        auto cached = material_name_to_uid.find(new_material.name);
-        if (cached != material_name_to_uid.end())
+        auto cached = m_material_name_to_handle.find(new_material.name);
+        if (cached != m_material_name_to_handle.end())
         {
             return cached->second;
         }
@@ -1898,10 +1936,10 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
     else
     {
         // base color
-        const tinygltf::Texture& base_col = m.textures.at(pbr.baseColorTexture.index);
+        const tinygltf::Texture& base_col = m.textures[pbr.baseColorTexture.index];
 
         if (base_col.source < 0)
-            return invalid_uid;
+            return NULL_HND<material>;
 
         const tinygltf::Image& image = m.images[base_col.source];
 
@@ -1930,7 +1968,6 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
 
         bool standard_color_space = true;
 
-        texture tex;
         tex.file_path            = image.uri;
         tex.standard_color_space = standard_color_space;
         tex.high_dynamic_range   = high_dynamic_range;
@@ -1950,9 +1987,9 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         texture_gpu_data data;
         data.graphics_texture = texture_sampler_pair.first;
         data.graphics_sampler = texture_sampler_pair.second;
-        tex.gpu_data          = m_texture_gpu_data.emplace(data);
+        tex.gpu_data          = m_texture_gpu_data.insert(data);
 
-        new_material.base_color_texture          = m_textures.emplace(tex);
+        new_material.base_color_texture          = m_textures.insert(tex);
         new_material.base_color_texture_gpu_data = tex.gpu_data;
     }
 
@@ -1964,10 +2001,10 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
     }
     else
     {
-        const tinygltf::Texture& o_r_m_t = m.textures.at(pbr.metallicRoughnessTexture.index);
+        const tinygltf::Texture& o_r_m_t = m.textures[pbr.metallicRoughnessTexture.index];
 
         if (o_r_m_t.source < 0)
-            return invalid_uid;
+            return NULL_HND<material>;
 
         const tinygltf::Image& image = m.images[o_r_m_t.source];
 
@@ -1996,7 +2033,6 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
 
         bool standard_color_space = false;
 
-        texture tex;
         tex.file_path            = image.uri;
         tex.standard_color_space = standard_color_space;
         tex.high_dynamic_range   = high_dynamic_range;
@@ -2016,9 +2052,9 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         texture_gpu_data data;
         data.graphics_texture = texture_sampler_pair.first;
         data.graphics_sampler = texture_sampler_pair.second;
-        tex.gpu_data          = m_texture_gpu_data.emplace(data);
+        tex.gpu_data          = m_texture_gpu_data.insert(data);
 
-        new_material.metallic_roughness_texture          = m_textures.emplace(tex);
+        new_material.metallic_roughness_texture          = m_textures.insert(tex);
         new_material.metallic_roughness_texture_gpu_data = tex.gpu_data;
     }
 
@@ -2034,9 +2070,9 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         {
             new_material.packed_occlusion = false;
 
-            const tinygltf::Texture& occ = m.textures.at(primitive_material.occlusionTexture.index);
+            const tinygltf::Texture& occ = m.textures[primitive_material.occlusionTexture.index];
             if (occ.source < 0)
-                return invalid_uid;
+                return NULL_HND<material>;
 
             const tinygltf::Image& image = m.images[occ.source];
 
@@ -2065,7 +2101,6 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
 
             bool standard_color_space = false;
 
-            texture tex;
             tex.file_path            = image.uri;
             tex.standard_color_space = standard_color_space;
             tex.high_dynamic_range   = high_dynamic_range;
@@ -2085,9 +2120,9 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
             texture_gpu_data data;
             data.graphics_texture = texture_sampler_pair.first;
             data.graphics_sampler = texture_sampler_pair.second;
-            tex.gpu_data          = m_texture_gpu_data.emplace(data);
+            tex.gpu_data          = m_texture_gpu_data.insert(data);
 
-            new_material.occlusion_texture          = m_textures.emplace(tex);
+            new_material.occlusion_texture          = m_textures.insert(tex);
             new_material.occlusion_texture_gpu_data = tex.gpu_data;
         }
     }
@@ -2095,10 +2130,10 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
     // normal
     if (primitive_material.normalTexture.index >= 0)
     {
-        const tinygltf::Texture& norm = m.textures.at(primitive_material.normalTexture.index);
+        const tinygltf::Texture& norm = m.textures[primitive_material.normalTexture.index];
 
         if (norm.source < 0)
-            return invalid_uid;
+            return NULL_HND<material>;
 
         const tinygltf::Image& image = m.images[norm.source];
 
@@ -2127,7 +2162,6 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
 
         bool standard_color_space = false;
 
-        texture tex;
         tex.file_path            = image.uri;
         tex.standard_color_space = standard_color_space;
         tex.high_dynamic_range   = high_dynamic_range;
@@ -2147,9 +2181,9 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         texture_gpu_data data;
         data.graphics_texture = texture_sampler_pair.first;
         data.graphics_sampler = texture_sampler_pair.second;
-        tex.gpu_data          = m_texture_gpu_data.emplace(data);
+        tex.gpu_data          = m_texture_gpu_data.insert(data);
 
-        new_material.normal_texture          = m_textures.emplace(tex);
+        new_material.normal_texture          = m_textures.insert(tex);
         new_material.normal_texture_gpu_data = tex.gpu_data;
     }
 
@@ -2161,10 +2195,10 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
     }
     else
     {
-        const tinygltf::Texture& emissive = m.textures.at(primitive_material.emissiveTexture.index);
+        const tinygltf::Texture& emissive = m.textures[primitive_material.emissiveTexture.index];
 
         if (emissive.source < 0)
-            return invalid_uid;
+            return NULL_HND<material>;
 
         const tinygltf::Image& image = m.images[emissive.source];
 
@@ -2193,7 +2227,6 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
 
         bool standard_color_space = true;
 
-        texture tex;
         tex.file_path            = image.uri;
         tex.standard_color_space = standard_color_space;
         tex.high_dynamic_range   = high_dynamic_range;
@@ -2213,9 +2246,9 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         texture_gpu_data data;
         data.graphics_texture = texture_sampler_pair.first;
         data.graphics_sampler = texture_sampler_pair.second;
-        tex.gpu_data          = m_texture_gpu_data.emplace(data);
+        tex.gpu_data          = m_texture_gpu_data.insert(data);
 
-        new_material.emissive_texture          = m_textures.emplace(tex);
+        new_material.emissive_texture          = m_textures.insert(tex);
         new_material.emissive_texture_gpu_data = tex.gpu_data;
     }
 
@@ -2238,19 +2271,22 @@ uid scene_impl::load_material(const tinygltf::Material& primitive_material, tiny
         new_material.alpha_cutoff = 1.0f;
     }
 
-    uid material_uid = build_material(new_material);
+    handle<material> material_hnd = build_material(new_material);
+
+    if (!material_hnd.valid())
+        return NULL_HND<material>;
 
     if (!primitive_material.name.empty())
     {
-        material_name_to_uid.insert({ new_material.name, material_uid });
+        m_material_name_to_handle.insert({ new_material.name, material_hnd });
     }
 
-    return material_uid;
+    return material_hnd;
 }
 
-uid scene_impl::default_material()
+handle<material> scene_impl::default_material()
 {
-    if (m_default_material.is_valid())
+    if (m_default_material.valid())
         return m_default_material;
 
     material default_material;
@@ -2261,6 +2297,11 @@ uid scene_impl::default_material()
     default_material.roughness  = 1.0f;
 
     m_default_material = build_material(default_material);
+
+    if (!m_default_material.valid())
+    {
+        MANGO_LOG_CRITICAL("Can not load default material!");
+    }
 
     return m_default_material;
 }
@@ -2274,7 +2315,7 @@ uid scene_impl::default_material()
 //
 //     environment.type_of_light          = light_type::environment;
 //     environment.data                   = std::make_shared<environment_light_data>();
-//     auto el_data                       = static_cast<mango::environment_light_data*>(environment.data.get());
+//     auto el_data                       = static_cast<mango::environment_light_data*>(environment.data);
 //     el_data->intensity                 = default_skylight_intensity;
 //     el_data->render_sun_as_directional = true;
 //     el_data->create_atmosphere         = true;
@@ -2290,10 +2331,11 @@ uid scene_impl::default_material()
 //     return environment_entity;
 // }
 
-void scene_impl::update_scene_graph(uid node_id, uid parent_id, bool force_update)
+void scene_impl::update_scene_graph(handle<node> node_hnd, handle<node> parent_hnd, bool force_update)
 {
-    node& nd      = m_nodes.at(node_id);
-    transform& tr = m_transforms.at(nd.transform_id);
+    key node_id   = node_hnd.id_unchecked();
+    node& nd      = m_nodes[node_id];
+    transform& tr = m_transforms[nd.transform_hnd.id_unchecked()];
 
     if (tr.changed || force_update)
     {
@@ -2303,32 +2345,37 @@ void scene_impl::update_scene_graph(uid node_id, uid parent_id, bool force_updat
         local_transformation_matrix      = local_transformation_matrix * scale(tr.scale);
 
         mat4 parent_transformation_matrix = mat4::Identity();
-        if (parent_id.is_valid())
+        if (parent_hnd.valid() && m_nodes.valid(parent_hnd.id_unchecked()))
         {
-            const node& parent           = m_nodes.at(parent_id);
-            parent_transformation_matrix = m_global_transformation_matrices.at(parent.global_matrix_id);
+            const node& parent = m_nodes[parent_hnd.id_unchecked()];
+            MANGO_ASSERT(parent.global_matrix_hnd.valid(), "Parent does not have a global matrix calculated!");
+            parent_transformation_matrix = m_global_transformation_matrices[parent.global_matrix_hnd.id_unchecked()];
         }
 
-        mat4& global_transformation_matrix = m_global_transformation_matrices.at(nd.global_matrix_id);
+        MANGO_ASSERT(nd.global_matrix_hnd.valid(), "Node does not have a global matrix attached!");
+        mat4& global_transformation_matrix = m_global_transformation_matrices[nd.global_matrix_hnd.id_unchecked()];
 
         global_transformation_matrix = parent_transformation_matrix * local_transformation_matrix;
 
         // Set changed flags
         if ((nd.type & node_type::mesh) != node_type::hierarchy)
         {
-            mesh& m   = m_meshes.at(nd.mesh_id);
+            MANGO_ASSERT(nd.mesh_hnd.valid(), "Mesh node has no mesh attached!");
+            mesh& m   = m_meshes[nd.mesh_hnd.id_unchecked()];
             m.changed = true;
         }
         if ((nd.type & node_type::perspective_camera) != node_type::hierarchy)
         {
-            uid camera_id           = nd.camera_ids[static_cast<uint8>(camera_type::perspective)];
-            perspective_camera& cam = m_perspective_cameras.at(camera_id);
+            MANGO_ASSERT(nd.perspective_camera_hnd.valid(), "Perspective camera node has no perspective camera attached!");
+            key camera_id           = nd.perspective_camera_hnd.id_unchecked();
+            perspective_camera& cam = m_perspective_cameras[camera_id];
             cam.changed             = true;
         }
         if ((nd.type & node_type::orthographic_camera) != node_type::hierarchy)
         {
-            uid camera_id            = nd.camera_ids[static_cast<uint8>(camera_type::orthographic)];
-            orthographic_camera& cam = m_orthographic_cameras.at(camera_id);
+            MANGO_ASSERT(nd.orthographic_camera_hnd.valid(), "Orthographic camera node has no orthographic camera attached!");
+            key camera_id            = nd.orthographic_camera_hnd.id_unchecked();
+            orthographic_camera& cam = m_orthographic_cameras[camera_id];
             cam.changed              = true;
         }
 
@@ -2338,20 +2385,23 @@ void scene_impl::update_scene_graph(uid node_id, uid parent_id, bool force_updat
     // light changes are handled by the light stack
     if ((nd.type & node_type::directional_light) != node_type::hierarchy)
     {
-        uid light_id         = nd.light_ids[static_cast<uint8>(light_type::directional)];
-        directional_light& l = m_directional_lights.at(light_id);
+        MANGO_ASSERT(nd.directional_light_hnd.valid(), "Directional light node has no directional light attached!");
+        key light_id         = nd.directional_light_hnd.id_unchecked();
+        directional_light& l = m_directional_lights[light_id];
         m_light_stack.push(l);
     }
     if ((nd.type & node_type::skylight) != node_type::hierarchy)
     {
-        uid light_id = nd.light_ids[static_cast<uint8>(light_type::skylight)];
-        skylight& l  = m_skylights.at(light_id);
+        MANGO_ASSERT(nd.skylight_hnd.valid(), "Skylight node has no skylight light attached!");
+        key light_id = nd.skylight_hnd.id_unchecked();
+        skylight& l  = m_skylights[light_id];
         m_light_stack.push(l);
     }
     if ((nd.type & node_type::atmospheric_light) != node_type::hierarchy)
     {
-        uid light_id         = nd.light_ids[static_cast<uint8>(light_type::atmospheric)];
-        atmospheric_light& l = m_atmospheric_lights.at(light_id);
+        MANGO_ASSERT(nd.atmospheric_light_hnd.valid(), "Atmospheric light node has no atmospheric light  attached!");
+        key light_id         = nd.atmospheric_light_hnd.id_unchecked();
+        atmospheric_light& l = m_atmospheric_lights[light_id];
         m_light_stack.push(l);
     }
 
@@ -2360,10 +2410,10 @@ void scene_impl::update_scene_graph(uid node_id, uid parent_id, bool force_updat
 
     for (auto it = nd.children.begin(); it != nd.children.end();)
     {
-        uid c = *it;
-        if (c.is_valid())
+        auto c = *it;
+        if (c.valid() && m_nodes.valid(c.id_unchecked()))
         {
-            update_scene_graph(c, node_id, force_update);
+            update_scene_graph(c.id_unchecked(), node_id, force_update);
             it++;
         }
         else
@@ -2380,18 +2430,18 @@ void scene_impl::update(float dt)
 
     m_render_instances.clear();
 
-    update_scene_graph(m_root_node, invalid_uid, false);
+    update_scene_graph(m_root_node, NULL_HND<node>, false);
 
     // Everything else can be updated in ecs style for changed stuff
     // TODO Paul: This could probably be done in parallel...
-    for (auto id : m_meshes)
+    for (auto m : m_meshes)
     {
-        mesh& m = m_meshes.at(id);
         if (m.changed)
         {
-            mesh_gpu_data& data = m_mesh_gpu_data.at(m.gpu_data);
-            const node& nd      = m_nodes.at(m.node_id);
-            const mat4& trafo   = m_global_transformation_matrices.at(nd.global_matrix_id);
+            mesh_gpu_data& data = m_mesh_gpu_data[m.gpu_data];
+            // we can assume these exist, because of update_scene_graph()
+            const node& nd    = m_nodes[m.node_hnd.id_unchecked()];
+            const mat4& trafo = m_global_transformation_matrices[nd.global_matrix_hnd.id_unchecked()];
 
             data.per_mesh_data.model_matrix  = trafo;
             data.per_mesh_data.normal_matrix = trafo.block(0, 0, 3, 3).inverse().transpose();
@@ -2406,16 +2456,16 @@ void scene_impl::update(float dt)
         }
     }
     m_requires_auto_exposure = false;
-    for (auto id : m_perspective_cameras)
+    for (auto cam : m_perspective_cameras)
     {
-        perspective_camera& cam = m_perspective_cameras.at(id);
         m_requires_auto_exposure |= cam.adaptive_exposure;
         if (cam.changed)
         {
-            camera_gpu_data& data = m_camera_gpu_data.at(cam.gpu_data);
-            const node& nd        = m_nodes.at(cam.node_id);
-            const mat4& trafo     = m_global_transformation_matrices.at(nd.global_matrix_id);
-            vec3 camera_position  = trafo.col(3).head<3>();
+            camera_gpu_data& data = m_camera_gpu_data[cam.gpu_data];
+            // we can assume these exist, because of update_scene_graph()
+            const node& nd       = m_nodes[cam.node_hnd.id_unchecked()];
+            const mat4& trafo    = m_global_transformation_matrices[nd.global_matrix_hnd.id_unchecked()];
+            vec3 camera_position = trafo.col(3).head<3>();
 
             mat4 view, projection;
             view_projection_perspective_camera(cam, camera_position, view, projection);
@@ -2477,16 +2527,16 @@ void scene_impl::update(float dt)
             cam.changed = false;
         }
     }
-    for (auto id : m_orthographic_cameras)
+    for (auto cam : m_orthographic_cameras)
     {
-        orthographic_camera& cam = m_orthographic_cameras.at(id);
         m_requires_auto_exposure |= cam.adaptive_exposure;
         if (cam.changed)
         {
-            camera_gpu_data& data = m_camera_gpu_data.at(cam.gpu_data);
-            const node& nd        = m_nodes.at(cam.node_id);
-            const mat4& trafo     = m_global_transformation_matrices.at(nd.global_matrix_id);
-            vec3 camera_position  = trafo.col(3).head<3>();
+            camera_gpu_data& data = m_camera_gpu_data[cam.gpu_data];
+            // we can assume these exist, because of update_scene_graph()
+            const node& nd       = m_nodes[cam.node_hnd.id_unchecked()];
+            const mat4& trafo    = m_global_transformation_matrices[nd.global_matrix_hnd.id_unchecked()];
+            vec3 camera_position = trafo.col(3).head<3>();
 
             mat4 view, projection;
             view_projection_orthographic_camera(cam, camera_position, view, projection);
@@ -2516,7 +2566,7 @@ void scene_impl::update(float dt)
 
                 // Compute the resulting ISO if we left both shutter and aperture here
                 iso                 = clamp(((ape * ape) * 100.0f) / (shu * exp2f(target_ev)), min_camera_iso, max_camera_iso);
-                float unclamped_iso = (shu * exp2(target_ev));
+                float unclamped_iso = (shu * exp2f(target_ev));
                 MANGO_UNUSED(unclamped_iso);
 
                 // Apply half the difference in EV to the aperture
@@ -2559,28 +2609,26 @@ void scene_impl::update(float dt)
     device_context->end();
     device_context->submit();
 
-    for (auto id : m_materials)
+    for (auto mat : m_materials)
     {
-        material& mat = m_materials.at(id);
         if (mat.changed)
         {
-            material_gpu_data& data = m_material_gpu_data.at(mat.gpu_data);
+            material_gpu_data& data = m_material_gpu_data[mat.gpu_data];
 
             data.per_material_data.base_color                 = mat.base_color.as_vec4();
             data.per_material_data.emissive_color             = mat.emissive_color.as_vec3();
             data.per_material_data.metallic                   = mat.metallic;
             data.per_material_data.roughness                  = mat.roughness;
-            data.per_material_data.base_color_texture         = mat.base_color_texture.is_valid();
-            data.per_material_data.roughness_metallic_texture = mat.metallic_roughness_texture.is_valid();
-            data.per_material_data.occlusion_texture          = mat.occlusion_texture.is_valid();
+            data.per_material_data.base_color_texture         = mat.base_color_texture.valid() && m_textures.valid(mat.base_color_texture.id_unchecked());
+            data.per_material_data.roughness_metallic_texture = mat.metallic_roughness_texture.valid() && m_textures.valid(mat.metallic_roughness_texture.id_unchecked());
+            data.per_material_data.occlusion_texture          = mat.occlusion_texture.valid() && m_textures.valid(mat.occlusion_texture.id_unchecked());
             data.per_material_data.packed_occlusion           = mat.packed_occlusion;
-            data.per_material_data.normal_texture             = mat.normal_texture.is_valid();
-            data.per_material_data.emissive_color_texture     = mat.emissive_texture.is_valid();
+            data.per_material_data.normal_texture             = mat.normal_texture.valid() && m_textures.valid(mat.normal_texture.id_unchecked());
+            data.per_material_data.emissive_color_texture     = mat.emissive_texture.valid() && m_textures.valid(mat.emissive_texture.id_unchecked());
             data.per_material_data.emissive_intensity         = mat.emissive_intensity;
             data.per_material_data.alpha_mode                 = static_cast<uint8>(mat.alpha_mode);
             data.per_material_data.alpha_cutoff               = mat.alpha_cutoff;
 
-            auto device_context = m_scene_graphics_device->create_graphics_device_context();
             device_context->begin();
             device_context->set_buffer_data(data.material_data_buffer, 0, sizeof(material_data), const_cast<void*>((void*)(&(data.per_material_data))));
             device_context->end();
@@ -2590,9 +2638,8 @@ void scene_impl::update(float dt)
         }
     }
 
-    for (auto id : m_textures)
+    for (auto tex : m_textures)
     {
-        texture& tex = m_textures.at(id);
         if (tex.changed)
         {
             // TODO Paul: This does crash when we do this for textures from a model -.-...
@@ -2616,7 +2663,7 @@ void scene_impl::update(float dt)
 
             auto texture_sampler_pair = create_gfx_texture_and_sampler(tex.file_path, tex.standard_color_space, tex.high_dynamic_range, sampler_info);
 
-            texture_gpu_data data = m_texture_gpu_data.at(tex.gpu_data);
+            texture_gpu_data data = m_texture_gpu_data[tex.gpu_data];
 
             data.graphics_texture = texture_sampler_pair.first;
             data.graphics_sampler = texture_sampler_pair.second;
@@ -2626,14 +2673,14 @@ void scene_impl::update(float dt)
     }
 }
 
-void scene_impl::draw_scene_hierarchy(uid& selected)
+void scene_impl::draw_scene_hierarchy(handle<node>& selected)
 {
-    std::vector<uid> to_remove = draw_scene_hierarchy_internal(m_root_node, invalid_uid, selected);
+    std::vector<handle<node>> to_remove = draw_scene_hierarchy_internal(m_root_node, NULL_HND<node>, selected);
     for (auto n : to_remove)
         remove_node(n);
 }
 
-std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid parent, uid& selected)
+std::vector<handle<node>> scene_impl::draw_scene_hierarchy_internal(handle<node> current, handle<node> parent, handle<node>& selected)
 {
     optional<node&> opt_node = get_node(current);
     MANGO_ASSERT(opt_node, "Something is broken - Can not draw hierarchy for a non existing node!");
@@ -2641,9 +2688,11 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid pare
 
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 5));
     const ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_FramePadding |
-                                     ImGuiTreeNodeFlags_AllowItemOverlap | ((m_ui_selected_uid == current) ? ImGuiTreeNodeFlags_Selected : 0) | ((nd.children.empty()) ? ImGuiTreeNodeFlags_Leaf : 0);
+                                     ImGuiTreeNodeFlags_AllowItemOverlap | ((m_ui_selected_handle == current) ? ImGuiTreeNodeFlags_Selected : 0) |
+                                     ((nd.children.empty()) ? ImGuiTreeNodeFlags_Leaf : 0);
 
-    ImGui::PushID(current.get());
+    key current_id = current.id_unchecked();
+    ImGui::PushID(static_cast<int32>(current_id));
 
     string display_name = get_display_name(nd.type, nd.name);
     bool open           = ImGui::TreeNodeEx(display_name.c_str(), flags, "%s", display_name.c_str());
@@ -2651,24 +2700,24 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid pare
     ImGui::PopStyleVar();
     if (ImGui::IsItemClicked(0))
     {
-        m_ui_selected_uid = current;
+        m_ui_selected_handle = current;
     }
-    if (ImGui::IsItemClicked(1) && !ImGui::IsPopupOpen(("##object_menu" + std::to_string(current.get())).c_str()))
+    if (ImGui::IsItemClicked(1) && !ImGui::IsPopupOpen(("##object_menu" + std::to_string(current_id)).c_str()))
     {
-        m_ui_selected_uid = current;
-        ImGui::OpenPopup(("##object_menu" + std::to_string(current.get())).c_str());
+        m_ui_selected_handle = current;
+        ImGui::OpenPopup(("##object_menu" + std::to_string(current_id)).c_str());
     }
 
-    std::vector<uid> to_remove;
-    if (ImGui::BeginPopup(("##object_menu" + std::to_string(current.get())).c_str()))
+    std::vector<handle<node>> to_remove;
+    if (ImGui::BeginPopup(("##object_menu" + std::to_string(current_id)).c_str()))
     {
-        if (ImGui::Selectable(("Add Node##object_menu" + std::to_string(current.get())).c_str()))
+        if (ImGui::Selectable(("Add Node##object_menu" + std::to_string(current_id)).c_str()))
         {
-            m_ui_selected_uid = add_node("Node", current);
+            m_ui_selected_handle = add_node("Node", current);
         }
-        if (m_root_node != current && ImGui::Selectable(("Remove Node##object_menu" + std::to_string(current.get())).c_str()))
+        if (m_root_node != current && ImGui::Selectable(("Remove Node##object_menu" + std::to_string(current_id)).c_str()))
         {
-            m_ui_selected_uid = invalid_uid;
+            m_ui_selected_handle = NULL_HND<node>;
             to_remove.push_back(current);
             removed = true;
         }
@@ -2677,18 +2726,20 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid pare
     }
     if (m_root_node != current && !removed && ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
     {
-        uid payload[2] = { current, parent };
-        ImGui::SetDragDropPayload("DRAG_DROP_NODE", (void*)payload, sizeof(uid) * 2);
+        handle<node> payload[2] = { current, parent };
+        ImGui::SetDragDropPayload("DRAG_DROP_NODE", (void*)payload, sizeof(handle<node>) * 2);
         ImGui::EndDragDropSource();
     }
     if (!removed && ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DRAG_DROP_NODE"))
         {
-            IM_ASSERT(payload->DataSize == sizeof(uid) * 2);
-            const uid* dropped = (const uid*)payload->Data;
+            IM_ASSERT(payload->DataSize == sizeof(handle<node>) * 2);
+            const handle<node>* dropped = (const handle<node>*)payload->Data;
+            MANGO_ASSERT(dropped[0].valid(), "Dropped node is NULL_HND!");
             attach(dropped[0], current);
-            detach(dropped[0], dropped[1]);
+            if (dropped[1].valid())
+                detach(dropped[0], dropped[1]);
         }
         ImGui::EndDragDropTarget();
     }
@@ -2698,17 +2749,20 @@ std::vector<uid> scene_impl::draw_scene_hierarchy_internal(uid current, uid pare
         {
             for (auto& c : nd.children)
             {
-                auto removed_children = draw_scene_hierarchy_internal(c, current, selected);
-                to_remove.insert(to_remove.end(), removed_children.begin(), removed_children.end());
-                if (removed_children.size() > 0 && removed_children[0] == c)
-                    c = invalid_uid;
+                if (c.valid())
+                {
+                    auto removed_children = draw_scene_hierarchy_internal(c, current, selected);
+                    to_remove.insert(to_remove.end(), removed_children.begin(), removed_children.end());
+                    if (removed_children.size() > 0 && removed_children[0] == c)
+                        c = NULL_HND<node>;
+                }
             }
         }
         ImGui::TreePop();
     }
 
     ImGui::PopID();
-    selected = m_ui_selected_uid;
+    selected = m_ui_selected_handle;
     return to_remove;
 }
 

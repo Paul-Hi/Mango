@@ -6,6 +6,7 @@
 
 #include <mango/profile.hpp>
 #include <rendering/render_data_builder.hpp>
+#include <rendering/renderer_bindings.hpp>
 #include <resources/resources_impl.hpp>
 #include <scene/scene_impl.hpp>
 #include <util/helpers.hpp>
@@ -39,7 +40,7 @@ bool skylight_builder::init(const shared_ptr<context_impl>& context)
             { gfx_shader_stage_type::shader_stage_compute, 0, "texture_hdr_in", gfx_shader_resource_type::shader_resource_texture, 1 },
             { gfx_shader_stage_type::shader_stage_compute, 0, "sampler_hdr_in", gfx_shader_resource_type::shader_resource_sampler, 1 },
             { gfx_shader_stage_type::shader_stage_compute, 1, "cubemap_out", gfx_shader_resource_type::shader_resource_image_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_compute, 3, "ibl_generation_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, IBL_GEN_DATA_BUFFER_BINDING_POINT, "ibl_generation_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
         } };
 
         m_equi_to_cubemap = graphics_device->create_shader_stage(shader_info);
@@ -48,10 +49,11 @@ bool skylight_builder::init(const shared_ptr<context_impl>& context)
 
         compute_pipeline_create_info cubemap_compute_pass_info = graphics_device->provide_compute_pipeline_create_info();
         auto cubemap_compute_pass_pipeline_layout              = graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_compute, 1, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_compute, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
+                         { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
+                         { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+                         { gfx_shader_stage_type::shader_stage_compute, 1, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_dynamic },
+                         { gfx_shader_stage_type::shader_stage_compute, IBL_GEN_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                           gfx_shader_resource_access::shader_access_dynamic },
         });
 
         cubemap_compute_pass_info.pipeline_layout = cubemap_compute_pass_pipeline_layout;
@@ -76,8 +78,8 @@ bool skylight_builder::init(const shared_ptr<context_impl>& context)
 
         shader_info.resources = { {
             { gfx_shader_stage_type::shader_stage_compute, 0, "cubemap_out", gfx_shader_resource_type::shader_resource_image_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_compute, 3, "ibl_generation_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_compute, 4, "atmosphere_ub_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, IBL_GEN_DATA_BUFFER_BINDING_POINT, "ibl_generation_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, 4, "atmosphere_ub_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
         } };
 
         m_atmospheric_cubemap = graphics_device->create_shader_stage(shader_info);
@@ -86,9 +88,10 @@ bool skylight_builder::init(const shared_ptr<context_impl>& context)
 
         compute_pipeline_create_info atmospheric_cubemap_compute_pass_info = graphics_device->provide_compute_pipeline_create_info();
         auto atmospheric_cubemap_compute_pass_pipeline_layout              = graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_static },
-            { gfx_shader_stage_type::shader_stage_compute, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_static },
-            { gfx_shader_stage_type::shader_stage_compute, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_static },
+                         { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_static },
+                         { gfx_shader_stage_type::shader_stage_compute, IBL_GEN_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                           gfx_shader_resource_access::shader_access_static },
+                         { gfx_shader_stage_type::shader_stage_compute, 4, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_static },
         });
 
         atmospheric_cubemap_compute_pass_info.pipeline_layout = atmospheric_cubemap_compute_pass_pipeline_layout;
@@ -115,7 +118,7 @@ bool skylight_builder::init(const shared_ptr<context_impl>& context)
             { gfx_shader_stage_type::shader_stage_compute, 0, "texture_cubemap_in", gfx_shader_resource_type::shader_resource_texture, 1 },
             { gfx_shader_stage_type::shader_stage_compute, 0, "sampler_cubemap_in", gfx_shader_resource_type::shader_resource_sampler, 1 },
             { gfx_shader_stage_type::shader_stage_compute, 1, "irradiance_map_out", gfx_shader_resource_type::shader_resource_image_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_compute, 3, "ibl_generation_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, IBL_GEN_DATA_BUFFER_BINDING_POINT, "ibl_generation_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
         } };
 
         m_build_irradiance_map = graphics_device->create_shader_stage(shader_info);
@@ -124,10 +127,11 @@ bool skylight_builder::init(const shared_ptr<context_impl>& context)
 
         compute_pipeline_create_info irradiance_map_compute_pass_info = graphics_device->provide_compute_pipeline_create_info();
         auto irradiance_map_compute_pass_pipeline_layout              = graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_compute, 1, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_compute, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
+                         { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
+                         { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+                         { gfx_shader_stage_type::shader_stage_compute, 1, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_dynamic },
+                         { gfx_shader_stage_type::shader_stage_compute, IBL_GEN_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                           gfx_shader_resource_access::shader_access_dynamic },
         });
 
         irradiance_map_compute_pass_info.pipeline_layout = irradiance_map_compute_pass_pipeline_layout;
@@ -154,7 +158,7 @@ bool skylight_builder::init(const shared_ptr<context_impl>& context)
             { gfx_shader_stage_type::shader_stage_compute, 0, "texture_cubemap_in", gfx_shader_resource_type::shader_resource_texture, 1 },
             { gfx_shader_stage_type::shader_stage_compute, 0, "sampler_cubemap_in", gfx_shader_resource_type::shader_resource_sampler, 1 },
             { gfx_shader_stage_type::shader_stage_compute, 1, "prefiltered_spec_out", gfx_shader_resource_type::shader_resource_image_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_compute, 3, "ibl_generation_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, IBL_GEN_DATA_BUFFER_BINDING_POINT, "ibl_generation_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
         } };
 
         m_build_specular_prefiltered_map = graphics_device->create_shader_stage(shader_info);
@@ -163,10 +167,11 @@ bool skylight_builder::init(const shared_ptr<context_impl>& context)
 
         compute_pipeline_create_info spec_prefiltered_map_compute_pass_info = graphics_device->provide_compute_pipeline_create_info();
         auto spec_prefiltered_map_compute_pass_pipeline_layout              = graphics_device->create_pipeline_resource_layout({
-            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_compute, 1, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_dynamic },
-            { gfx_shader_stage_type::shader_stage_compute, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
+                         { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
+                         { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+                         { gfx_shader_stage_type::shader_stage_compute, 1, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_dynamic },
+                         { gfx_shader_stage_type::shader_stage_compute, IBL_GEN_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                           gfx_shader_resource_access::shader_access_dynamic },
         });
 
         spec_prefiltered_map_compute_pass_info.pipeline_layout = spec_prefiltered_map_compute_pass_pipeline_layout;
@@ -204,9 +209,9 @@ void skylight_builder::create_brdf_lookup()
     buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
     buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
 
-    buffer_info.size            = sizeof(ibl_generator_data);
-    m_ibl_generator_data_buffer = graphics_device->create_buffer(buffer_info);
-    if (!check_creation(m_ibl_generator_data_buffer.get(), "ibl generator data buffer"))
+    buffer_info.size             = sizeof(ibl_generation_data);
+    m_ibl_generation_data_buffer = graphics_device->create_buffer(buffer_info);
+    if (!check_creation(m_ibl_generation_data_buffer.get(), "ibl generator data buffer"))
         return;
 
     auto& internal_resources = m_shared_context->get_internal_resources();
@@ -228,7 +233,7 @@ void skylight_builder::create_brdf_lookup()
 
     shader_info.resources = { {
         { gfx_shader_stage_type::shader_stage_compute, 0, "integration_lut_out", gfx_shader_resource_type::shader_resource_image_storage, 1 },
-        { gfx_shader_stage_type::shader_stage_compute, 3, "ibl_generation_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+        { gfx_shader_stage_type::shader_stage_compute, IBL_GEN_DATA_BUFFER_BINDING_POINT, "ibl_generation_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
     } };
 
     m_brdf_lookup_generation_compute = graphics_device->create_shader_stage(shader_info);
@@ -237,8 +242,8 @@ void skylight_builder::create_brdf_lookup()
 
     compute_pipeline_create_info brdf_lookup_pass_info = graphics_device->provide_compute_pipeline_create_info();
     auto brdf_lookup_pass_pipeline_layout              = graphics_device->create_pipeline_resource_layout({
-        { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_static },
-        { gfx_shader_stage_type::shader_stage_compute, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_static },
+                     { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_static },
+                     { gfx_shader_stage_type::shader_stage_compute, IBL_GEN_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_static },
     });
 
     brdf_lookup_pass_info.pipeline_layout = brdf_lookup_pass_pipeline_layout;
@@ -253,13 +258,13 @@ void skylight_builder::create_brdf_lookup()
     GL_NAMED_PROFILE_ZONE("Generating brdf lookup");
 
     device_context->bind_pipeline(m_brdf_integration_lut_pipeline);
-    m_current_ibl_generator_data.out_size = vec2(static_cast<float>(brdf_lut_size), static_cast<float>(brdf_lut_size));
-    m_current_ibl_generator_data.data     = vec2(0.0f, 0.0f); // unused here
-    device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
+    m_current_ibl_generation_data.out_size = vec2(static_cast<float>(brdf_lut_size), static_cast<float>(brdf_lut_size));
+    m_current_ibl_generation_data.data     = vec2(0.0f, 0.0f); // unused here
+    device_context->set_buffer_data(m_ibl_generation_data_buffer, 0, sizeof(ibl_generation_data), &m_current_ibl_generation_data);
 
     auto lut_view = graphics_device->create_image_texture_view(m_brdf_integration_lut);
     m_brdf_integration_lut_pipeline->get_resource_mapping()->set("integration_lut_out", lut_view);
-    m_brdf_integration_lut_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generator_data_buffer);
+    m_brdf_integration_lut_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generation_data_buffer);
 
     device_context->submit_pipeline_state_resources();
 
@@ -302,7 +307,7 @@ void skylight_builder::build(scene_impl* scene, const skylight& light, skylight_
     // HDR Texture
     if (light.use_texture)
     {
-        if (light.hdr_texture == invalid_uid)
+        if (!light.hdr_texture.valid())
         {
             clear(render_data);
             return;
@@ -381,6 +386,8 @@ void skylight_builder::capture(const command_buffer_ptr<min_key>& compute_comman
 void skylight_builder::load_from_hdr(scene_impl* scene, const skylight& light, skylight_cache* render_data)
 {
     PROFILE_ZONE;
+
+    MANGO_ASSERT(light.hdr_texture.valid(), "Skylight with hdr texture does not have a texture attached!");
     auto& graphics_device = m_shared_context->get_graphics_device();
 
     texture_create_info texture_info;
@@ -413,15 +420,15 @@ void skylight_builder::load_from_hdr(scene_impl* scene, const skylight& light, s
         MANGO_LOG_WARN("Hdr texture to build ibl does not exist.");
         return;
     }
-    m_current_ibl_generator_data.out_size = vec2(static_cast<float>(global_cubemap_size), static_cast<float>(global_cubemap_size));
-    m_current_ibl_generator_data.data     = vec2(0.0f, 0.0f); // unused here
-    device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
+    m_current_ibl_generation_data.out_size = vec2(static_cast<float>(global_cubemap_size), static_cast<float>(global_cubemap_size));
+    m_current_ibl_generation_data.data     = vec2(0.0f, 0.0f); // unused here
+    device_context->set_buffer_data(m_ibl_generation_data_buffer, 0, sizeof(ibl_generation_data), &m_current_ibl_generation_data);
 
     m_equi_to_cubemap_pipeline->get_resource_mapping()->set("texture_hdr_in", hdr_data->graphics_texture);
     m_equi_to_cubemap_pipeline->get_resource_mapping()->set("sampler_hdr_in", hdr_data->graphics_sampler);
     auto cubemap_view = graphics_device->create_image_texture_view(render_data->cubemap);
     m_equi_to_cubemap_pipeline->get_resource_mapping()->set("cubemap_out", cubemap_view);
-    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generator_data_buffer);
+    m_equi_to_cubemap_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generation_data_buffer);
 
     device_context->submit_pipeline_state_resources();
 
@@ -495,15 +502,15 @@ void skylight_builder::calculate_ibl_maps(skylight_cache* render_data)
     // build irradiance map
     device_context->bind_pipeline(m_build_irradiance_map_pipeline);
 
-    m_current_ibl_generator_data.out_size = vec2(static_cast<float>(global_irradiance_map_size), static_cast<float>(global_irradiance_map_size));
-    m_current_ibl_generator_data.data     = vec2(0.0f, 0.0f); // unused here
-    device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
+    m_current_ibl_generation_data.out_size = vec2(static_cast<float>(global_irradiance_map_size), static_cast<float>(global_irradiance_map_size));
+    m_current_ibl_generation_data.data     = vec2(0.0f, 0.0f); // unused here
+    device_context->set_buffer_data(m_ibl_generation_data_buffer, 0, sizeof(ibl_generation_data), &m_current_ibl_generation_data);
 
     m_build_irradiance_map_pipeline->get_resource_mapping()->set("texture_cubemap_in", render_data->cubemap);
     m_build_irradiance_map_pipeline->get_resource_mapping()->set("sampler_cubemap_in", mipmapped_gen_sampler);
     auto irradiance_view = graphics_device->create_image_texture_view(render_data->irradiance_cubemap);
     m_build_irradiance_map_pipeline->get_resource_mapping()->set("irradiance_map_out", irradiance_view);
-    m_build_irradiance_map_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generator_data_buffer);
+    m_build_irradiance_map_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generation_data_buffer);
 
     device_context->submit_pipeline_state_resources();
 
@@ -525,13 +532,13 @@ void skylight_builder::calculate_ibl_maps(skylight_cache* render_data)
         const uint32 mipmap_height = global_specular_convolution_map_size >> mip;
         float roughness            = (float)mip / (float)(specular_mip_count - 1);
 
-        m_current_ibl_generator_data.out_size = vec2(mipmap_width, mipmap_height);
-        m_current_ibl_generator_data.data     = vec2(roughness, 0.0f);
-        device_context->set_buffer_data(m_ibl_generator_data_buffer, 0, sizeof(ibl_generator_data), &m_current_ibl_generator_data);
+        m_current_ibl_generation_data.out_size = vec2(mipmap_width, mipmap_height);
+        m_current_ibl_generation_data.data     = vec2(roughness, 0.0f);
+        device_context->set_buffer_data(m_ibl_generation_data_buffer, 0, sizeof(ibl_generation_data), &m_current_ibl_generation_data);
 
         auto mip_view = graphics_device->create_image_texture_view(render_data->specular_prefiltered_cubemap, mip);
         m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set("prefiltered_spec_out", mip_view);
-        m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generator_data_buffer);
+        m_build_specular_prefiltered_map_pipeline->get_resource_mapping()->set("ibl_generation_data", m_ibl_generation_data_buffer);
 
         device_context->submit_pipeline_state_resources();
 
@@ -573,17 +580,17 @@ void atmosphere_builder::build(atmosphere_light* light, atmosphere_cache* render
 // buffer_ptr m_atmosphere_data_buffer;
 // struct atmosphere_ub_data
 // {
-//     std140_vec3 sun_dir;
-//     std140_vec3 rayleigh_scattering_coefficients;
-//     std140_vec3 ray_origin;
-//     std140_vec2 density_multiplier;
-//     std140_float sun_intensity;
-//     std140_float mie_scattering_coefficient;
-//     std140_float ground_radius;
-//     std140_float atmosphere_radius;
-//     std140_float mie_preferred_scattering_dir;
-//     std140_int scatter_points;
-//     std140_int scatter_points_second_ray;
+//     sl_vec3 sun_dir;
+//     sl_vec3 rayleigh_scattering_coefficients;
+//     sl_vec3 ray_origin;
+//     sl_vec2 density_multiplier;
+//     sl_float sun_intensity;
+//     sl_float mie_scattering_coefficient;
+//     sl_float ground_radius;
+//     sl_float atmosphere_radius;
+//     sl_float mie_preferred_scattering_dir;
+//     sl_int scatter_points;
+//     sl_int scatter_points_second_ray;
 // };
 // atmosphere_ub_data* m_atmosphere_data_mapping;
 

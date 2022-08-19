@@ -49,7 +49,7 @@ namespace mango
     //! \brief Type alias for a size_t.
     using ptr_size = ::size_t;
 
-    //! \brief Type alias for an iintptr_t.
+    //! \brief Type alias for an intptr_t.
     using intptr = ::intptr_t;
 
     //! \brief Type alias for an uintptr_t.
@@ -66,6 +66,24 @@ namespace mango
 
     //! \brief Type alias for a Eigen::Vector4i.
     using ivec4 = Eigen::Vector4i;
+
+    //! \brief Type alias for a Eigen::Vector2<uint32>.
+    using uvec2 = Eigen::Vector2<uint32>;
+
+    //! \brief Type alias for a  Eigen::Vector3<uint32>.
+    using uvec3 = Eigen::Vector3<uint32>;
+
+    //! \brief Type alias for a Eigen::Vector4<uint32>.
+    using uvec4 = Eigen::Vector4<uint32>;
+
+    //! \brief Type alias for a Eigen::Vector2<bool>.
+    using bvec2 = Eigen::Vector2<bool>;
+
+    //! \brief Type alias for a  Eigen::Vector3<bool>.
+    using bvec3 = Eigen::Vector3<bool>;
+
+    //! \brief Type alias for a Eigen::Vector4<bool>.
+    using bvec4 = Eigen::Vector4<bool>;
 
     //! \brief Type alias for a Eigen::Vector2f.
     using vec2 = Eigen::Vector2f;
@@ -109,6 +127,9 @@ namespace mango
     //! \brief Type alias for a Eigen::Matrix4d.
     using dmat4 = Eigen::Matrix4d;
 
+    //! \brief A key for everything.
+    using key = uint64;
+
     //! \brief Create a \a vec3 from one value.
     //! \param[in] value The value to fill the \a vec3 with.
     //! \return The created \a vec3.
@@ -146,7 +167,7 @@ namespace mango
     using optional = tl::optional<T>;
 
 //! \brief Define for a tl::nullopt.
-#define NULL_OPTION tl::nullopt
+#define NONE tl::nullopt
 
     //! \brief  Create an object that is owned by a unique_ptr.
     //! \param[in]  args  Arguments for the \a T object's constructor.
@@ -166,6 +187,82 @@ namespace mango
         return unique_ptr<T>{ static_cast<T*>(old.release()) };
     }
 
+    //! \brief Typed handle base class.
+    template <typename T>
+    class handle
+    {
+      public:
+        handle()
+            : id(NONE)
+        {
+        }
+
+        //! \brief Check if a \a handle is valid.
+        //! \return True if the \a handle has a \a key, else false.
+        inline bool valid() const
+        {
+            return id.has_value();
+        }
+
+        //! \brief Retrieve the \a key of a \a handle unchecked.
+        //! \return The \a key of the \a handle.
+        key id_unchecked() const
+        {
+            return id.value();
+        }
+
+        //! \cond NO_COND
+
+        bool operator==(const handle<T>& other) const
+        {
+            return this->id == other.id;
+        }
+
+        bool operator!=(const handle<T> other) const
+        {
+            return !(*this == other);
+        }
+
+        bool operator<(const handle<T> other) const
+        {
+            return this->id < other.id;
+        }
+
+        bool operator>(const handle<T> other) const
+        {
+            return (other < *this);
+        }
+
+        bool operator<=(const handle<T> other) const
+        {
+            return !(*this > other);
+        }
+
+        bool operator>=(const handle<T> other) const
+        {
+            return !(*this < other);
+        }
+
+        //! \endcond
+
+      private:
+        friend class scene_impl; // TODO: I hate friend classes...
+
+        //! \brief Constructing \a handle with \a key.
+        //! \param[in] id The \a key to initialize the \a handle with.
+        handle(key id)
+            : id(id)
+        {
+        }
+
+        //! \brief The optional \a key of the \a handle.
+        optional<key> id;
+    };
+
+    //! \brief Invalid default \a handle for any type.
+    template <typename T>
+    handle<T> NULL_HND;
+
 //! \brief Pi.
 #define PI 3.1415926535897932384626433832795
 //! \brief Pi times two.
@@ -178,93 +275,6 @@ namespace mango
 #define GLOBAL_FORWARD vec3(0.0f, 0.0f, -1.0f)
 //! \brief Define for the global unit vector.
 #define GLOBAL_UNIT vec3(1.0f)
-
-    //! \brief An uid used to index everything.
-    struct uid
-    {
-        //! \brief Retrieves the internal lookup id.
-        //! \return A constant reference to the internal lookup id.
-        inline const uint32& get() const
-        {
-            return lookup_id;
-        }
-
-        uid()
-            : lookup_id(0)
-            , valid(false){};
-        ~uid() = default;
-        //! \brief Copy constructor.
-        uid(const uid&) = default;
-        //! \brief Move constructor.
-        uid(uid&&) = default;
-        //! \brief Assignment operator.
-        uid& operator=(const uid&) = default;
-        //! \brief Move assignment operator.
-        uid& operator=(uid&&) = default;
-
-        //! \brief Comparison operator equal.
-        //! \param other The other \a uid.
-        //! \return True if other \a uid is equal to the current one, else false.
-        bool operator==(const uid& other) const
-        {
-            return lookup_id == other.lookup_id;
-        }
-
-        //! \brief Comparison operator not equal.
-        //! \param other The other \a uid.
-        //! \return True if other \a uid is not equal to the current one, else false.
-        bool operator!=(const uid& other) const
-        {
-            return lookup_id != other.lookup_id;
-        }
-
-        //! \brief Comparison operator less.
-        //! \param other The other \a uid.
-        //! \return True if other \a uid is less then the current one, else false.
-        bool operator<(const uid& other) const
-        {
-            return lookup_id < other.lookup_id;
-        }
-
-        //! \brief Returns if the \a uid is valid or not.
-        //! \return True if the \a uid is valid else false.
-        const bool is_valid() const
-        {
-            return valid;
-        }
-
-      private:
-        template <typename T, ptr_size C>
-        friend class packed_freelist;
-
-        //! \brief Id of the lookup.
-        //! \details 16 least significant bits = index of this lookup in a packed freelist lookup array / 16 most significant bits = usage count of this lookup.
-        uint32 lookup_id;
-
-        //! \brief True if \a uid is valid, else false.
-        bool valid;
-    };
-
-    //! \brief Invalid \a uid.
-    static const uid invalid_uid;
-
-    //! \brief Hash for the \a uid structure.
-    struct uid_hash
-    {
-        //! \brief Function call operator.
-        //! \details Hashes the \a uid.
-        //! \param[in] k The \a uid to hash.
-        //! \return The hash for the given \a uid.
-        std::size_t operator()(const uid& k) const
-        {
-            // https://stackoverflow.com/questions/1646807/quick-and-simple-hash-code-combinations/
-
-            size_t res = 17;
-            res        = res * 31 + std::hash<uint32>()(k.get());
-
-            return res;
-        };
-    };
 
     //! \brief A floating point type used to describe properties with a 0 to 1 range.
     struct normalized_float
@@ -551,95 +561,159 @@ namespace mango
 
     // Utility functions
 
-    // TODO Paul: We might move such utility functions.
+    //! \brief Convert degrees to radians.
+    //! \param[in] degrees Angle in degrees.
+    //! \return Angle in radians.
     inline float deg_to_rad(const float& degrees)
     {
         return degrees * (static_cast<float>(PI) / 180.0f);
     }
 
+    //! \brief Convert radians to degrees.
+    //! \param[in] radians Angle in radians.
+    //! \return Angle in degrees.
     inline float rad_to_deg(const float& radians)
     {
         return radians * (180.0f / static_cast<float>(PI));
     }
 
+    //! \brief Convert \a vec3 in degrees to radians.
+    //! \param[in] degrees \a vec3 angle in degrees.
+    //! \return \a vec3 angles in radians.
     inline vec3 deg_to_rad(const vec3& degrees)
     {
         return degrees * (PI / 180.0f);
     }
 
+    //! \brief Convert \a vec3 in radians to degrees.
+    //! \param[in] radians \a vec3 angles in radians.
+    //! \return \a vec3 angles in degrees.
     inline vec3 rad_to_deg(const vec3& radians)
     {
         return radians * (180.0f / PI);
     }
 
+    //! \brief Convert \a vec4 in degrees to radians.
+    //! \param[in] degrees \a vec4 angle in degrees.
+    //! \return \a vec4 angles in radians.
     inline vec4 deg_to_rad(const vec4& degrees)
     {
         return degrees * (PI / 180.0f);
     }
 
+    //! \brief Convert \a vec4 in radians to degrees.
+    //! \param[in] radians \a vec4 angles in radians.
+    //! \return \a vec4 angles in degrees.
     inline vec4 rad_to_deg(const vec4& radians)
     {
         return radians * (180.0f / PI);
     }
 
+    //! \brief Clamp value between low and high.
+    //! \param[in] v The value to clamp.
+    //! \param[in] lo Lower limit.
+    //! \param[in] hi Upper limit.
+    //! \param[in] comp Compare function.
+    //! \return The clamped value.
     template <typename T, typename Compare>
     constexpr const T& clamp(const T& v, const T& lo, const T& hi, Compare comp)
     {
         return comp(v, lo) ? lo : comp(hi, v) ? hi : v;
     }
 
+    //! \brief Clamp value between low and high.
+    //! \param[in] v The value to clamp.
+    //! \param[in] lo Lower limit.
+    //! \param[in] hi Upper limit.
+    //! \return The clamped value.
     template <typename T>
     constexpr const T& clamp(const T& v, const T& lo, const T& hi)
     {
         return mango::clamp(v, lo, hi, std::less<T>());
     }
 
+    //! \brief Return the absolute value of given \a vec3.
+    //! \param[in] v The \a vec3 get the absolute value for.
+    //! \return The absolute \a vec3 value of v.
     inline vec3 abs(const vec3& v)
     {
         return vec3(std::abs(v.x()), std::abs(v.y()), std::abs(v.z()));
     }
 
+    //! \brief Return the absolute value of given \a vec4.
+    //! \param[in] v The \a vec4 get the absolute value for.
+    //! \return The absolute \a vec4 value of v.
     inline vec4 abs(const vec4& v)
     {
         return vec4(std::abs(v.x()), std::abs(v.y()), std::abs(v.z()), std::abs(v.w()));
     }
 
+    //! \brief Minimum of two values.
+    //! \param[in] a The first value.
+    //! \param[in] b The second value.
+    //! \return The minimum of both values.
     template <typename T, typename U>
     typename std::common_type<T, U>::type min(const T& a, const U& b)
     {
         return (a < b) ? a : b;
     }
 
+    //! \brief Maximum of two values.
+    //! \param[in] a The first value.
+    //! \param[in] b The second value.
+    //! \return The maximum of both values.
     template <typename T, typename U>
     typename std::common_type<T, U>::type max(const T& a, const U& b)
     {
         return (a > b) ? a : b;
     }
 
+    //! \brief Minimum of two \a vec3.
+    //! \param[in] a The first \a vec3.
+    //! \param[in] b The second \a vec3.
+    //! \return The minimum of both \a vec3.
     template <>
     inline vec3 min<vec3, vec3>(const vec3& a, const vec3& b)
     {
         return vec3(mango::min(a.x(), b.x()), mango::min(a.y(), b.y()), mango::min(a.z(), b.z()));
     }
 
+    //! \brief Maximum of two \a vec3.
+    //! \param[in] a The first \a vec3.
+    //! \param[in] b The second \a vec3.
+    //! \return The maximum of both \a vec3.
     template <>
     inline vec3 max<vec3, vec3>(const vec3& a, const vec3& b)
     {
         return vec3(mango::max(a.x(), b.x()), mango::max(a.y(), b.y()), mango::max(a.z(), b.z()));
     }
 
+    //! \brief Minimum of two \a vec4.
+    //! \param[in] a The first \a vec4.
+    //! \param[in] b The second \a vec4.
+    //! \return The minimum of both \a vec4.
     template <>
     inline vec4 min<vec4, vec4>(const vec4& a, const vec4& b)
     {
         return vec4(mango::min(a.x(), b.x()), mango::min(a.y(), b.y()), mango::min(a.z(), b.z()), mango::min(a.w(), b.w()));
     }
 
+    //! \brief Maximum of two \a vec4.
+    //! \param[in] a The first \a vec4.
+    //! \param[in] b The second \a vec4.
+    //! \return The maximum of both \a vec4.
     template <>
     inline vec4 max<vec4, vec4>(const vec4& a, const vec4& b)
     {
         return vec4(mango::max(a.x(), b.x()), mango::max(a.y(), b.y()), mango::max(a.z(), b.z()), mango::max(a.w(), b.w()));
     }
 
+    //! \brief Create a perspective matrix (OpenGL).
+    //! \param[in] fovy The field of view.
+    //! \param[in] aspect The aspect ratio.
+    //! \param[in] zNear Near plane depth.
+    //! \param[in] zFar Far plane depth.
+    //! \return An OpenGL perspective matrix.
     template <typename Scalar>
     Eigen::Matrix<Scalar, 4, 4> perspective(Scalar fovy, Scalar aspect, Scalar zNear, Scalar zFar)
     {
@@ -657,6 +731,14 @@ namespace mango
         return tr.matrix();
     }
 
+    //! \brief Create a orthographic matrix (OpenGL).
+    //! \param[in] left Left value.
+    //! \param[in] right Right value.
+    //! \param[in] bottom Bottom value.
+    //! \param[in] top Top value.
+    //! \param[in] zNear Near plane depth.
+    //! \param[in] zFar Far plane depth.
+    //! \return An OpenGL orthographic matrix.
     template <typename Scalar>
     Eigen::Matrix<Scalar, 4, 4> ortho(const Scalar& left, const Scalar& right, const Scalar& bottom, const Scalar& top, const Scalar& zNear, const Scalar& zFar)
     {
@@ -670,6 +752,11 @@ namespace mango
         return mat;
     }
 
+    //! \brief Create a view matrix.
+    //! \param[in] eye Eye position.
+    //! \param[in] center The target position to look at.
+    //! \param[in] up Up vector.
+    //! \return A view matrix.
     template <typename Derived>
     Eigen::Matrix<typename Derived::Scalar, 4, 4> lookAt(const Derived& eye, const Derived& center, const Derived& up)
     {
@@ -696,6 +783,11 @@ namespace mango
         return mat;
     }
 
+    //! \brief Create a scale matrix.
+    //! \param[in] x Scaling in x direction.
+    //! \param[in] y Scaling in y direction.
+    //! \param[in] z Scaling in z direction.
+    //! \return The scale matrix.
     template <typename Scalar>
     Eigen::Matrix<Scalar, 4, 4> scale(Scalar x, Scalar y, Scalar z)
     {
@@ -708,6 +800,11 @@ namespace mango
         return tr.matrix();
     }
 
+    //! \brief Create a translation matrix.
+    //! \param[in] x Translation in x direction.
+    //! \param[in] y Translation in y direction.
+    //! \param[in] z Translation in z direction.
+    //! \return The translation matrix.
     template <typename Scalar>
     Eigen::Matrix<Scalar, 4, 4> translate(Scalar x, Scalar y, Scalar z)
     {
@@ -719,6 +816,9 @@ namespace mango
         return tr.matrix();
     }
 
+    //! \brief Create a scale matrix.
+    //! \param[in] scale Scaling in x,y,z direction.
+    //! \return The scale matrix.
     template <typename Scalar>
     Eigen::Matrix<Scalar, 4, 4> scale(const Eigen::Vector3<Scalar>& scale)
     {
@@ -731,6 +831,9 @@ namespace mango
         return tr.matrix();
     }
 
+    //! \brief Create a translation matrix.
+    //! \param[in] translation Translation in x,y,z direction.
+    //! \return The translation matrix.
     template <typename Scalar>
     Eigen::Matrix<Scalar, 4, 4> translate(const Eigen::Vector3<Scalar>& translation)
     {
@@ -742,6 +845,9 @@ namespace mango
         return tr.matrix();
     }
 
+    //! \brief Calculate a rotation matrix from a quaternion.
+    //! \param[in] rotation The rotation quaternion.
+    //! \return The rotation matrix for the given quaternion.
     inline mat4 quaternion_to_mat4(const quat& rotation)
     {
         mat4 m              = Eigen::Matrix4f::Identity();
@@ -749,6 +855,11 @@ namespace mango
         return m;
     }
 
+    //! \brief Decompose a transformation matrix in scale, rotation and translation.
+    //! \param[in] input The transformation matrix to decompose.
+    //! \param[out] out_scale Output vector for scale.
+    //! \param[out] out_rotation Output quaternion for rotation.
+    //! \param[out] out_translation Output vector for translation.
     inline void decompose_transformation(const mat4& input, vec3& out_scale, quat& out_rotation, vec3& out_translation)
     {
         out_translation = input.col(3).head<3>();
@@ -764,5 +875,23 @@ namespace mango
         out_rotation = quat(rot);
     }
 } // namespace mango
+
+//! \cond NO_COND
+
+template <typename T>
+struct fmt::formatter<mango::handle<T>> : formatter<std::string>
+{
+    // parse is inherited from formatter<string_view>.
+    template <typename FormatContext>
+    auto format(mango::handle<T> hnd, FormatContext& ctx)
+    {
+        if(hnd.valid())
+            return formatter<std::string>::format(std::to_string(hnd.id_unchecked()), ctx);
+
+        return formatter<std::string>::format("-", ctx);
+    }
+};
+
+//! \endcond
 
 #endif // MANGO_TYPES_HPP

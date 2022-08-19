@@ -12,13 +12,14 @@ add_executable(AllTests
     init_test.cpp
     graphics_test.cpp
     intersect_test.cpp
-    packed_freelist_test.cpp
+    slotmap_test.cpp
 )
 
 target_include_directories(AllTests
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../mango/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/../mango/gen
 )
 
 target_compile_definitions(AllTests

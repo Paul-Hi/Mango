@@ -21,5 +21,5 @@ void main()
     if(alpha_mode == 3 && alpha_dither(gl_FragCoord.xy, sqrt(color.a)))
         discard;
 
-    depth = gl_FragDepth;
+    depth = gl_FragCoord.z;
 }

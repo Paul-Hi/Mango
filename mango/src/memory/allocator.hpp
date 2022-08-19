@@ -73,12 +73,9 @@ namespace mango
             if (unaligned_address < 0)
                 return nullptr;
 
-            int64 adjustment = 0;
+            int64 aligned_address = calculate_alignment(unaligned_address, alignment);
 
-            adjustment = calculate_adjustment(unaligned_address, alignment);
-
-            int64 aligned_address = unaligned_address + adjustment;
-
+            int64 adjustment = aligned_address - unaligned_address;
             MANGO_ASSERT(adjustment < 256, "Adjustment is wrong!");
 
             // store adjustment in last byte (needed for free)
@@ -124,15 +121,13 @@ namespace mango
         //! \param[in] mem The memory to free.
         virtual void free_memory_unaligned(void* mem) = 0;
 
-        //! \brief Calculates the adjustment needed to align a given adress for a specific alignment.
-        //! \param[in] unaligned_address The adress to calculate the alignment adjustment for.
+        //! \brief Calculates the aligned address for a specific alignment.
+        //! \param[in] unaligned_address The adress to calculate the aligned address for.
         //! \param[in] alignment The alignment to calculate the adjustment from.
-        //! \return The adjustment needed to align unaligned_adress with alignment.
-        int64 calculate_adjustment(int64 unaligned_address, const int64 alignment)
+        //! \return The aligned unaligned_adress.
+        int64 calculate_alignment(int64 unaligned_address, const int64 alignment)
         {
-            int64 mask         = alignment - 2;
-            int64 misalignment = unaligned_address & mask;
-            return alignment - misalignment;
+            return ((unaligned_address + (alignment - 1)) & ~(alignment - 1));
         }
     };
 } // namespace mango

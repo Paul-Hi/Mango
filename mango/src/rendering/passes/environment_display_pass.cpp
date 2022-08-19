@@ -1,4 +1,4 @@
-//! \file      environment_display_step.cpp
+//! \file      environment_display_pass.cpp
 //! \author    Paul Himmler
 //! \version   1.0
 //! \date      2022
@@ -6,28 +6,31 @@
 
 #include <mango/imgui_helper.hpp>
 #include <mango/profile.hpp>
+#include <rendering/renderer_bindings.hpp>
 #include <rendering/renderer_impl.hpp>
-#include <rendering/steps/environment_display_step.hpp>
+#include <rendering/passes/environment_display_pass.hpp>
 #include <resources/resources_impl.hpp>
 #include <util/helpers.hpp>
 
 using namespace mango;
+
+const render_pass_execution_info environment_display_pass::s_rpei{ 1, 18 };
 
 static const float cubemap_vertices[36] = { -1.0f, 1.0f, 1.0f,  1.0f, 1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f,
                                             -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f, -1.0f, 1.0f };
 
 static const uint8 cubemap_indices[18] = { 8, 9, 0, 2, 1, 3, 3, 2, 5, 4, 7, 6, 6, 0, 7, 1, 10, 11 };
 
-environment_display_step::environment_display_step(const environment_display_settings& settings)
+environment_display_pass::environment_display_pass(const environment_display_settings& settings)
     : m_settings(settings)
 {
     m_cubemap_data.render_level = m_settings.get_render_level();
     MANGO_ASSERT(m_cubemap_data.render_level >= 0.0f && m_cubemap_data.render_level < 10.1f, "Cubemap render level has to be between 0.0 and 10.0f!");
 }
 
-environment_display_step::~environment_display_step() {}
+environment_display_pass::~environment_display_pass() {}
 
-bool environment_display_step::create_step_resources()
+bool environment_display_pass::create_pass_resources()
 {
     PROFILE_ZONE;
     auto& graphics_device = m_shared_context->get_graphics_device();
@@ -99,9 +102,9 @@ bool environment_display_step::create_step_resources()
         shader_info.resource_count = 3;
 
         shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_vertex, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_vertex, 3, "cubemap_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_vertex, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_vertex, 3, "cubemap_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
         } };
 
         m_cubemap_pass_vertex = graphics_device->create_shader_stage(shader_info);
@@ -125,12 +128,12 @@ bool environment_display_step::create_step_resources()
         shader_info.resource_count = 6;
 
         shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, "light_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, "camera_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, "renderer_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, "light_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, 0, "texture_environment_cubemap", gfx_shader_resource_type::shader_resource_texture, 1 },
             { gfx_shader_stage_type::shader_stage_fragment, 0, "sampler_environment_cubemap", gfx_shader_resource_type::shader_resource_sampler, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, 3, "cubemap_data", gfx_shader_resource_type::shader_resource_buffer_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, 3, "cubemap_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
         } };
 
         m_cubemap_pass_fragment = graphics_device->create_shader_stage(shader_info);
@@ -142,18 +145,20 @@ bool environment_display_step::create_step_resources()
 
     graphics_pipeline_create_info cubemap_pass_info = graphics_device->provide_graphics_pipeline_create_info();
     auto cubemap_pass_pipeline_layout               = graphics_device->create_pipeline_resource_layout({
-        { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_vertex, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_vertex, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_vertex, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_vertex, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                        gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_vertex, 3, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
 
-        { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage,
-          gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_fragment, 3, gfx_shader_resource_type::shader_resource_buffer_storage, gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_fragment, CAMERA_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                        gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_fragment, RENDERER_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                        gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_fragment, LIGHT_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_fragment, 3, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_dynamic },
 
-        { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
-        { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_texture, gfx_shader_resource_access::shader_access_dynamic },
+                      { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
     });
 
     cubemap_pass_info.pipeline_layout = cubemap_pass_pipeline_layout;
@@ -193,62 +198,47 @@ bool environment_display_step::create_step_resources()
     return true;
 }
 
-void environment_display_step::attach(const shared_ptr<context_impl>& context)
+void environment_display_pass::attach(const shared_ptr<context_impl>& context)
 {
     m_shared_context = context;
 
-    create_step_resources();
+    create_pass_resources();
 }
 
-void environment_display_step::execute()
+void environment_display_pass::execute(graphics_device_context_handle& device_context)
 {
-    PROFILE_ZONE;
+    GL_NAMED_PROFILE_ZONE("Environment Display Pass");
+    NAMED_PROFILE_ZONE("Environment Display Pass");
+
     if (!m_current_cubemap || m_cubemap_data.render_level < 0.0f)
         return;
 
-    auto& graphics_device = m_shared_context->get_graphics_device();
-
-    auto step_context = graphics_device->create_graphics_device_context();
-
-    step_context->begin();
-
-    step_context->bind_pipeline(m_cubemap_pass_pipeline);
-
-    // TODO Paul: Other Uniform Buffers? Can we be sure, that they are set by renderer? -.-
+    device_context->bind_pipeline(m_cubemap_pass_pipeline);
 
     m_cubemap_data.model_matrix = mat4::Identity(); // TODO Paul!
-    step_context->set_buffer_data(m_cubemap_data_buffer, 0, sizeof(m_cubemap_data), &m_cubemap_data);
+    device_context->set_buffer_data(m_cubemap_data_buffer, 0, sizeof(m_cubemap_data), &m_cubemap_data);
 
+    m_cubemap_pass_pipeline->get_resource_mapping()->set("camera_data", m_camera_data_buffer);
+    m_cubemap_pass_pipeline->get_resource_mapping()->set("renderer_data", m_renderer_data_buffer);
     m_cubemap_pass_pipeline->get_resource_mapping()->set("cubemap_data", m_cubemap_data_buffer);
     m_cubemap_pass_pipeline->get_resource_mapping()->set("texture_environment_cubemap", m_current_cubemap);
     m_cubemap_pass_pipeline->get_resource_mapping()->set("sampler_environment_cubemap", m_cubemap_sampler);
 
-    step_context->submit_pipeline_state_resources();
+    device_context->submit_pipeline_state_resources();
 
-    step_context->set_index_buffer(m_cube_indices, gfx_format::t_unsigned_byte);
+    device_context->set_index_buffer(m_cube_indices, gfx_format::t_unsigned_byte);
     int32 list[1] = { 0 };
-    step_context->set_vertex_buffers(1, &m_cube_vertices, list, list);
+    device_context->set_vertex_buffers(1, &m_cube_vertices, list, list);
 
-    step_context->draw(0, 18, 1, 0, 0, 0);
-
-    step_context->end();
-    step_context->submit();
-
-    // #ifdef MANGO_DEBUG
-    //     bva                    = m_cubemap_command_buffer->create<bind_vertex_array_command>(command_keys::no_sort);
-    //     bva->vertex_array_name = 0;
-    //
-    //     bsp                      = m_cubemap_command_buffer->create<bind_shader_program_command>(command_keys::no_sort);
-    //     bsp->shader_program_name = 0;
-    // #endif // MANGO_DEBUG
+    device_context->draw(0, 18, 1, 0, 0, 0);
 }
 
-void environment_display_step::on_ui_widget()
+void environment_display_pass::on_ui_widget()
 {
-    ImGui::PushID("environment_display_step");
+    ImGui::PushID("environment_display_pass");
     // Render Level 0.0 - 10.0
-    float& render_level         = m_cubemap_data.render_level;
-    float default_value         = 0.0f;
+    float& render_level = m_cubemap_data.render_level;
+    float default_value = 0.0f;
     slider_float_n("Blur Level", &render_level, 1, &default_value, 0.0f, 10.0f);
     m_cubemap_data.render_level = render_level;
 

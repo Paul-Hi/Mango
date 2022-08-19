@@ -647,7 +647,6 @@ namespace mango
     //! \param[out] g True if the g component should be written, else false.
     //! \param[out] b True if the b component should be written, else false.
     //! \param[out] a True if the a component should be written, else false.
-    //! \return The number of mipmap levels.
     inline void create_gl_color_mask(const gfx_color_component_flag_bits& write_mask, bool& r, bool& g, bool& b, bool& a)
     {
         r = g = b = a = false;
@@ -717,7 +716,6 @@ namespace mango
     //! \param[out] component_type The component type as \a gl_enum.
     //! \param[out] number_of_components The number of components in the format.
     //! \param[out] normalized True if the the attribute data is normalized, else false.
-    //! \return The number of mipmap levels.
     inline void gfx_format_to_gl_attribute_data(const gfx_format& attribute_format, gl_enum& component_type, int32& number_of_components, bool& normalized)
     {
         switch (attribute_format)

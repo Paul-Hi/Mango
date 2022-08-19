@@ -38,7 +38,7 @@ gl_handle gl_vertex_array_cache::get_vertex_array(const vertex_array_data_descri
         MANGO_ASSERT(desc.index_buffer, "Index count > 0, but index buffer not provided!");
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_buffer>(*desc.index_buffer), "Buffer is not a gl_buffer!");
         auto ib          = static_gfx_handle_cast<const gl_buffer>(*desc.index_buffer);
-        key.index_buffer = ib->get_uid();
+        key.index_buffer = ib->get_key();
 
         create_info.index_buffer_handle = ib->m_buffer_gl_handle;
     }
@@ -48,7 +48,7 @@ gl_handle gl_vertex_array_cache::get_vertex_array(const vertex_array_data_descri
         MANGO_ASSERT(desc.vertex_buffers[i].buffer, "Vertex buffer not provided!");
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_buffer>(desc.vertex_buffers[i].buffer), "Buffer is not a gl_buffer!");
         auto vb                      = static_gfx_handle_cast<const gl_buffer>(desc.vertex_buffers[i].buffer);
-        key.vertex_buffers[i].uid    = vb->get_uid();
+        key.vertex_buffers[i].key    = vb->get_key();
         key.vertex_buffers[i].offset = desc.vertex_buffers[i].offset;
         key.binding_bitmask |= 1ULL << desc.vertex_buffers[i].binding; // TODO Paul: Check that.
 

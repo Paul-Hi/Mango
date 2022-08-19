@@ -179,29 +179,18 @@ void debug_drawer::update_buffer()
     m_vertex_count = static_cast<int32>(m_vertices.size()) / 2;
 }
 
-void debug_drawer::execute()
+void debug_drawer::execute(graphics_device_context_handle& device_context)
 {
     PROFILE_ZONE;
 
-    auto& graphics_device = m_shared_context->get_graphics_device();
+    device_context->bind_pipeline(m_debug_draw_pipeline);
 
-    auto debug_draw_context = graphics_device->create_graphics_device_context();
-
-    debug_draw_context->begin();
-
-    debug_draw_context->bind_pipeline(m_debug_draw_pipeline);
-
-    // TODO Paul: Other Uniform Buffers? Can we be sure, that they are set by renderer? -.-
-
-    debug_draw_context->submit_pipeline_state_resources();
+    device_context->submit_pipeline_state_resources();
 
     int32 list0[2]                                 = { 0, 1 };
     int32 list1[2]                                 = { 0, 3 * sizeof(float) };
     gfx_handle<const gfx_buffer> vertex_buffers[2] = { m_vertex_buffer, m_vertex_buffer };
-    debug_draw_context->set_vertex_buffers(2, vertex_buffers, list0, list1);
+    device_context->set_vertex_buffers(2, vertex_buffers, list0, list1);
 
-    debug_draw_context->draw(m_vertex_count, 0, 1, 0, 0, 0);
-
-    debug_draw_context->end();
-    debug_draw_context->submit();
+    device_context->draw(m_vertex_count, 0, 1, 0, 0, 0);
 }

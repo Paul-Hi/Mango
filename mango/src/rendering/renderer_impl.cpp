@@ -9,8 +9,9 @@
 
 using namespace mango;
 
-renderer_impl::renderer_impl(const renderer_configuration&, const shared_ptr<context_impl>& context)
+renderer_impl::renderer_impl(const renderer_configuration& configuration, const shared_ptr<context_impl>& context)
     : m_shared_context(context)
+    , m_configuration(configuration)
 {
 }
 

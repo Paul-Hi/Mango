@@ -32,7 +32,7 @@ gl_handle gl_framebuffer_cache::get_framebuffer(int32 count, gfx_handle<const gf
     {
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_texture>(render_targets[i]), "Texture is not a gl_texture!");
         auto tex            = static_gfx_handle_cast<const gl_texture>(render_targets[i]);
-        key.texture_uids[i] = tex->get_uid();
+        key.texture_keys[i] = tex->get_key();
 
         create_info.handles[i] = tex->m_texture_gl_handle;
     }
@@ -41,7 +41,7 @@ gl_handle gl_framebuffer_cache::get_framebuffer(int32 count, gfx_handle<const gf
     {
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_texture>(depth_stencil_target), "Texture is not a gl_texture!");
         auto tex                = static_gfx_handle_cast<const gl_texture>(depth_stencil_target);
-        key.texture_uids[count] = tex->get_uid();
+        key.texture_keys[count] = tex->get_key();
 
         // early check
         auto result = cache.find(key);
