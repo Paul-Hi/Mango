@@ -29,6 +29,8 @@ namespace mango
 #define CUBEMAP_DATA_BUFFER_BINDING_POINT 3
     //! \brief The binding point for the \a fxaa_data buffer.
 #define FXAA_DATA_BUFFER_BINDING_POINT 1
+    //! \brief The binding point for the \a hi_z_data buffer.
+#define HI_Z_DATA_BUFFER_BINDING_POINT 6
 
     //! \brief The vertex input binding point for the position vertex attribute.
 #define VERTEX_INPUT_POSITION 0
@@ -81,13 +83,18 @@ namespace mango
     //! \brief The sampler and texture binding point for the shadow map.
 #define SAMPLER_SHADOW_MAP 9
 
-    //! \brief The sampler and texture binding point for the output target color hdr attachment to compose.
+    //! \brief The sampler and texture binding point for the target color hdr attachment to compose.
 #define COMPOSING_HDR_SAMPLER 0
-    //! \brief The sampler and texture binding point for the output target depth attachment to pass through.
+    //! \brief The sampler and texture binding point for the target depth attachment to pass through.
 #define COMPOSING_DEPTH_SAMPLER 1
 
     //! \brief The image binding point for the output target color hdr attachment to compute the average luminance for.
 #define HDR_IMAGE_LUMINANCE_COMPUTE 0
+
+    //! \brief The sampler and texture binding point for the depth texture to sample from (first pass original depth, afterwards RG texture from previous pass)
+#define HI_Z_DEPTH_SAMPLER 0
+    //! \brief The image binding point for the output target color attachment to write the min/max depth to.
+#define HI_Z_IMAGE_COMPUTE 1
 
 } // namespace mango
 

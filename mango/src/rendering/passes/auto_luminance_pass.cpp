@@ -78,7 +78,7 @@ bool auto_luminance_pass::create_pass_resources()
     auto& graphics_device    = m_shared_context->get_graphics_device();
     auto& internal_resources = m_shared_context->get_internal_resources();
 
-    // buffers
+    // buffer
     buffer_create_info buffer_info;
     buffer_info.buffer_target = gfx_buffer_target::buffer_target_shader_storage;
     buffer_info.buffer_access = gfx_buffer_access::buffer_access_mapped_access_read_write;

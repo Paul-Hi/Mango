@@ -2068,6 +2068,12 @@ struct luminance_data
     sl_vec4 params;
     sl_float luminance;
 };
+
+struct hi_z_data
+{
+    sl_vec4 params;
+    sl_int32 pass;
+};
 //! \encond
 
 } // namespace mango

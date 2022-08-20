@@ -274,6 +274,7 @@ bool deferred_pbr_renderer::create_passes()
     m_transparent_pass.attach(m_shared_context);
     m_composing_pass.attach(m_shared_context);
     m_auto_luminance_pass.attach(m_shared_context);
+    m_hi_z_pass.attach(m_shared_context);
 
     // optional passes
     const bool* render_passes = m_configuration.get_render_extensions();
@@ -346,6 +347,10 @@ bool deferred_pbr_renderer::update_passes()
 
     m_auto_luminance_pass.set_hdr_input(m_hdr_buffer_render_targets[0]);
     m_auto_luminance_pass.set_input_size(m_renderer_info.canvas.width, m_renderer_info.canvas.height);
+
+    m_hi_z_pass.set_depth_texture(m_hdr_buffer_render_targets.back());
+    m_hi_z_pass.set_depth_size(m_renderer_info.canvas.width, m_renderer_info.canvas.height);
+    m_hi_z_pass.set_nearest_sampler(m_nearest_sampler);
 
     // optional
     auto environment_display = std::static_pointer_cast<environment_display_pass>(m_pipeline_extensions[mango::render_pipeline_extension::environment_display]);
@@ -608,6 +613,11 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     }
 
     m_debug_drawer->update_buffer();
+
+    // hi-z
+    {
+        m_hi_z_pass.execute(m_frame_context);
+    }
 
     // auto exposure
     if (scene->calculate_auto_exposure())

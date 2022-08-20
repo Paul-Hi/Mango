@@ -87,16 +87,16 @@ bool editor::create()
 
     // test settings comment in to have some example scene
     {
-        handle<model> bb = m_current_scene->load_model_from_gltf("res/models/WaterBottle/WaterBottle.glb");
-        // handle<model> bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
+        // handle<model> bb = m_current_scene->load_model_from_gltf("res/models/WaterBottle/WaterBottle.glb");
+        handle<model> bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
         // handle<model> bb                      = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/Bistro_v5_1/BistroExterior.gltf");
         optional<mango::model&> mod = m_current_scene->get_model(bb);
         MANGO_ASSERT(mod, "Model not existent!");
-        handle<node> model_instance_root = m_current_scene->add_node("WaterBottle");
+        handle<node> model_instance_root = m_current_scene->add_node("Sponza");
         m_current_scene->add_model_to_scene(bb, mod->scenarios.at(mod->default_scenario), model_instance_root);
         optional<transform&> mod_transform = m_current_scene->get_transform(model_instance_root);
         MANGO_ASSERT(mod_transform, "Model instance transform not existent!");
-        mod_transform->scale *= 10.0f;
+        mod_transform->scale *= 0.6f;
         mod_transform->changed = true;
 
         handle<node> directional_light_node = m_current_scene->add_node("Directional Sun Light");

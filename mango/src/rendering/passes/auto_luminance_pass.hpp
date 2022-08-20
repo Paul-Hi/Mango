@@ -66,9 +66,9 @@ namespace mango
 
         bool create_pass_resources() override;
 
-        //! \brief The compute \a shader_stage for the luminance buffer construction pass.
+        //! \brief The compute \a gfx_shader_stage for the luminance buffer construction pass.
         gfx_handle<const gfx_shader_stage> m_luminance_construction_compute;
-        //! \brief The compute \a shader_stage for the luminance buffer reduction pass.
+        //! \brief The compute \a gfx_shader_stage for the luminance buffer reduction pass.
         gfx_handle<const gfx_shader_stage> m_luminance_reduction_compute;
 
         //! \brief Compute pipeline constructing a luminance buffer.
@@ -76,7 +76,7 @@ namespace mango
         //! \brief Compute pipeline reducing a luminance buffer and calculating an average luminance.
         gfx_handle<const gfx_pipeline> m_luminance_reduction_pipeline;
 
-        //! \brief The shader storage buffer mapping for the luminance data.
+        //! \brief The shader storage buffer for the luminance data.
         gfx_handle<const gfx_buffer> m_luminance_data_buffer;
 
         //! \brief The mapped luminance data from the data calculation.

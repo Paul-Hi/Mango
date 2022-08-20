@@ -445,7 +445,9 @@ def generate_interop():
              './res/shader/include/ibl_gen.glsl',
              './res/shader/include/cubemap.glsl',
              './res/shader/include/fxaa_data.glsl',
-             './res/shader/include/luminance.glsl']
+             './res/shader/include/luminance.glsl',
+             './res/shader/include/hi_z.glsl',
+             ]
     buffers = parse_shader_buffers(files)
 
     if not os.path.exists('./mango/gen'):
