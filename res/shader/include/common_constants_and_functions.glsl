@@ -3,6 +3,7 @@
 
 const float PI = 3.1415926535897932384626433832795;
 const float TWO_PI = PI * 2.0;
+const float HALF_PI = PI * 0.5;
 const float INV_PI = 1.0 / PI;
 
 const float DFG_TEXTURE_SIZE = 256.0;
@@ -22,12 +23,21 @@ float linearize_depth(in float d, in float near, in float far)
     return 2.0 * near / (far + near - depth * (far - near));
 }
 
-vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection)
+vec3 world_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_view_projection_matrix)
 {
     float z = depth * 2.0 - 1.0;
 
     vec4 clip = vec4(uv * 2.0 - 1.0, z, 1.0);
-    vec4 direct = inverse_view_projection * clip;
+    vec4 direct = inverse_view_projection_matrix * clip;
+    return direct.xyz / direct.w;
+}
+
+vec3 view_space_from_depth(in float depth, in vec2 uv, in mat4 inverse_projection_matrix)
+{
+    float z = depth * 2.0 - 1.0;
+
+    vec4 clip = vec4(uv * 2.0 - 1.0, z, 1.0);
+    vec4 direct = inverse_projection_matrix * clip;
     return direct.xyz / direct.w;
 }
 
@@ -48,6 +58,20 @@ vec2 vogel_disc_sample(in int sample_idx, in int sample_count, in float phi)
     float c = cos(theta);
 
     return vec2(c, s) * r;
+}
+
+// https://blog.selfshadow.com/publications/s2016-shading-course/activision/s2016_pbs_activision_occlusion.pdf
+float fast_sqrt(in float x)
+{
+    return intBitsToFloat(0x1fbd1df5 + (floatBitsToInt(x) >> 1));
+}
+
+float fast_acos(in float _x)
+{
+    float x = abs(_x);
+    float res = -0.156583 * x + HALF_PI;
+    res *= fast_sqrt(1.0 - x);
+    return _x >= 0.0 ? res : PI - res;
 }
 
 #ifndef COMPUTE

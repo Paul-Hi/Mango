@@ -276,6 +276,8 @@ bool deferred_pbr_renderer::create_passes()
     m_auto_luminance_pass.attach(m_shared_context);
     m_hi_z_pass.attach(m_shared_context);
 
+    m_gtao_pass.attach(m_shared_context);
+
     // optional passes
     const bool* render_passes = m_configuration.get_render_extensions();
     if (render_passes[mango::render_pipeline_extension::environment_display])
@@ -348,9 +350,14 @@ bool deferred_pbr_renderer::update_passes()
     m_auto_luminance_pass.set_hdr_input(m_hdr_buffer_render_targets[0]);
     m_auto_luminance_pass.set_input_size(m_renderer_info.canvas.width, m_renderer_info.canvas.height);
 
-    m_hi_z_pass.set_depth_texture(m_hdr_buffer_render_targets.back());
+    m_hi_z_pass.set_depth_texture(m_gbuffer_render_targets.back());
     m_hi_z_pass.set_depth_size(m_renderer_info.canvas.width, m_renderer_info.canvas.height);
     m_hi_z_pass.set_nearest_sampler(m_nearest_sampler);
+
+    m_gtao_pass.set_gbuffer_normal_texture(m_gbuffer_render_targets[1]);
+    m_gtao_pass.set_gbuffer_orm_texture(m_gbuffer_render_targets[3]);
+    m_gtao_pass.set_nearest_sampler(m_nearest_sampler);
+    m_gtao_pass.set_viewport(window_viewport);
 
     // optional
     auto environment_display = std::static_pointer_cast<environment_display_pass>(m_pipeline_extensions[mango::render_pipeline_extension::environment_display]);
@@ -524,7 +531,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         shadow_pass->set_delta_time(dt);
         shadow_pass->set_camera_near(active_camera_data->per_camera_data.camera_near);
         shadow_pass->set_camera_far(active_camera_data->per_camera_data.camera_far);
-        shadow_pass->set_camera_inverse_view_projection(active_camera_data->per_camera_data.inverse_view_projection);
+        shadow_pass->set_camera_inverse_view_projection(active_camera_data->per_camera_data.inverse_view_projection_matrix);
         shadow_pass->set_shadow_casters(ls.get_shadow_casters());
 
         shadow_pass->execute(m_frame_context);
@@ -545,6 +552,23 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_opaque_geometry_pass.execute(m_frame_context);
 
         auto pass_info = m_opaque_geometry_pass.get_info();
+        m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+        m_renderer_info.last_frame.vertices += pass_info.vertices;
+    }
+
+    // hi-z
+    {
+        m_hi_z_pass.execute(m_frame_context);
+    }
+
+    // gtao optional
+    {
+        m_gtao_pass.set_camera_data_buffer(active_camera_data->camera_data_buffer);
+        m_gtao_pass.set_hierarchical_depth_texture(m_hi_z_pass.get_hierarchical_depth_buffer());
+        m_gtao_pass.set_depth_mip_count(graphics::calculate_mip_count(m_renderer_info.canvas.width, m_renderer_info.canvas.height)); // TODO: Do not calculate again?
+        m_gtao_pass.execute(m_frame_context);
+
+        auto pass_info = m_gtao_pass.get_info();
         m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
         m_renderer_info.last_frame.vertices += pass_info.vertices;
     }
@@ -613,11 +637,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     }
 
     m_debug_drawer->update_buffer();
-
-    // hi-z
-    {
-        m_hi_z_pass.execute(m_frame_context);
-    }
 
     // auto exposure
     if (scene->calculate_auto_exposure())

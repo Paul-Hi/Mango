@@ -31,6 +31,8 @@ namespace mango
 #define FXAA_DATA_BUFFER_BINDING_POINT 1
     //! \brief The binding point for the \a hi_z_data buffer.
 #define HI_Z_DATA_BUFFER_BINDING_POINT 6
+    //! \brief The binding point for the \a gtao_data buffer.
+#define GTAO_DATA_BUFFER_BINDING_POINT 2
 
     //! \brief The vertex input binding point for the position vertex attribute.
 #define VERTEX_INPUT_POSITION 0

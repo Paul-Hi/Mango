@@ -14,7 +14,7 @@ void main()
         return;
     }
 
-    vec3 position = world_space_from_depth(depth, texcoord, inverse_view_projection);
+    vec3 position = world_space_from_depth(depth, texcoord, inverse_view_projection_matrix);
     vec4 base_color = get_base_color();
     vec3 normal = get_normal();
     vec3 view = normalize(camera_position.xyz - position);

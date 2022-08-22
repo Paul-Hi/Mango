@@ -59,7 +59,7 @@ float get_logarithmic_depth()
 void draw_debug_views()
 {
     float depth                = get_logarithmic_depth();
-    vec3 position              = world_space_from_depth(depth, texcoord, inverse_view_projection);
+    vec3 position              = world_space_from_depth(depth, texcoord, inverse_view_projection_matrix);
     vec4 base_color            = get_base_color();
     vec3 normal                = get_normal();
     vec3 o_r_m                 = get_occlusion_roughness_metallic();

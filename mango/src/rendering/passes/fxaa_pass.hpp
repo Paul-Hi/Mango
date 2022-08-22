@@ -62,9 +62,9 @@ namespace mango
         //! \brief The \a gfx_texture to use as output depth stencil target.
         gfx_handle<const gfx_texture> m_output_target_depth_stencil;
 
-        //! \brief The vertex \a shader_stage for the cubemap pass.
+        //! \brief The vertex \a gfx_shader_stage for the cubemap pass.
         gfx_handle<const gfx_shader_stage> m_fxaa_pass_vertex;
-        //! \brief The fragment \a shader_stage for the cubemap pass.
+        //! \brief The fragment \a gfx_shader_stage for the cubemap pass.
         gfx_handle<const gfx_shader_stage> m_fxaa_pass_fragment;
         //! \brief Pipeline to anti alias an input with fxaa.
         gfx_handle<const gfx_pipeline> m_fxaa_pass_pipeline;

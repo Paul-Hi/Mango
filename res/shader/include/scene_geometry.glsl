@@ -237,7 +237,7 @@ void draw_debug_views()
     }
     if(depth_debug_view)
     {
-        float z_lin = linearize_depth(depth, camera_near, camera_far) / camera_far;
+        float z_lin = linearize_depth(depth, camera_near, camera_far);
         frag_color = vec4(vec3(z_lin), 1.0);
         return;
     }

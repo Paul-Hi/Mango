@@ -1966,8 +1966,10 @@ struct camera_data
 {
     sl_mat4 view_matrix;
     sl_mat4 projection_matrix;
+    sl_mat4 inverse_view_matrix;
+    sl_mat4 inverse_projection_matrix;
     sl_mat4 view_projection_matrix;
-    sl_mat4 inverse_view_projection;
+    sl_mat4 inverse_view_projection_matrix;
     sl_vec3 camera_position;
     sl_float camera_near;
     sl_float camera_far;
@@ -2073,6 +2075,15 @@ struct hi_z_data
 {
     sl_vec4 params;
     sl_int32 pass;
+};
+
+struct gtao_data
+{
+    sl_float ao_radius;
+    sl_float thin_occluder_compensation;
+    sl_int32 slices;
+    sl_int32 direction_samples;
+    sl_int32 depth_mip_count;
 };
 //! \encond
 

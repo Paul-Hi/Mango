@@ -476,7 +476,7 @@ namespace mango
         component_g     = 1 << 1,
         component_b     = 1 << 2,
         component_a     = 1 << 3,
-        components_rgb  = component_r | component_g | component_r,
+        components_rgb  = component_r | component_g | component_b,
         components_rgba = components_rgb | component_a,
         components_last = components_rgba
     };

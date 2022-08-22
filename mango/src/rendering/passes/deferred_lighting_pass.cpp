@@ -68,7 +68,7 @@ void deferred_lighting_pass::execute(graphics_device_context_handle& device_cont
     device_context->set_index_buffer(nullptr, gfx_format::invalid);
     device_context->set_vertex_buffers(0, nullptr, nullptr, nullptr);
 
-    device_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in geometry shader.
+    device_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in vertex shader.
 }
 
 bool deferred_lighting_pass::create_pass_resources()

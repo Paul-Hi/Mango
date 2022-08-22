@@ -447,6 +447,7 @@ def generate_interop():
              './res/shader/include/fxaa_data.glsl',
              './res/shader/include/luminance.glsl',
              './res/shader/include/hi_z.glsl',
+             './res/shader/include/gtao_data.glsl',
              ]
     buffers = parse_shader_buffers(files)
 

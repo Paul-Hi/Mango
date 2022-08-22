@@ -171,7 +171,7 @@ void fxaa_pass::execute(graphics_device_context_handle& device_context)
 
     device_context->submit_pipeline_state_resources();
 
-    device_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in geometry shader.
+    device_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in vertex shader.
 }
 
 void fxaa_pass::on_ui_widget()

@@ -651,18 +651,6 @@ namespace mango
     {
         r = g = b = a = false;
 
-        if ((write_mask & gfx_color_component_flag_bits::components_rgba) == gfx_color_component_flag_bits::components_rgba)
-        {
-            r = g = b = a = true;
-            return;
-        }
-
-        if ((write_mask & gfx_color_component_flag_bits::components_rgb) == gfx_color_component_flag_bits::components_rgb)
-        {
-            r = g = b = true;
-            return;
-        }
-
         if ((write_mask & gfx_color_component_flag_bits::component_r) != gfx_color_component_flag_bits::component_none)
         {
             r = true;

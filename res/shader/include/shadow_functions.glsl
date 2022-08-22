@@ -120,7 +120,7 @@ float directional_shadow(in vec3 world_position, in vec3 normal)
 
     vec3 light_dir = normalize(directional_light_direction.xyz);
     float n_dot_l = saturate(dot(normal, light_dir));
-    vec3 bias = vec3(clamp(shadow_slope_bias * tan(acos(n_dot_l)), 0.0, shadow_slope_bias * 2.0)) + normal * shadow_normal_bias;
+    vec3 bias = vec3(clamp(shadow_slope_bias * tan(fast_acos(n_dot_l)), 0.0, shadow_slope_bias * 2.0)) + normal * shadow_normal_bias;
 
     world_position += bias;
     float shadow = 1.0;

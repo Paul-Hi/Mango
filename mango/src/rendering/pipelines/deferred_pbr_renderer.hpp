@@ -18,6 +18,7 @@
 #include <rendering/passes/composing_pass.hpp>
 #include <rendering/passes/auto_luminance_pass.hpp>
 #include <rendering/passes/hi_z_pass.hpp>
+#include <rendering/passes/gtao_pass.hpp>
 
 namespace mango
 {
@@ -89,6 +90,10 @@ namespace mango
         auto_luminance_pass m_auto_luminance_pass;
         //! \brief The \a renderers \a hi_z_pass.
         hi_z_pass m_hi_z_pass;
+
+        // TODO: Temporary -> this is optional.
+        //! \brief The \a renderers \a gtao_pass.
+        gtao_pass m_gtao_pass;
 
         //! \brief The \a renderers \a renderer_pipeline_cache to create and cache \a gfx_pipelines for the geometry.
         shared_ptr<renderer_pipeline_cache> m_pipeline_cache;
