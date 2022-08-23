@@ -3,19 +3,25 @@
 #include <../include/gtao_data.glsl>
 // https://www.activision.com/cdn/research/Practical_Real_Time_Strategies_for_Accurate_Indirect_Occlusion_NEW%20VERSION_COLOR.pdf
 
-out vec4 occlusion_roughness_metallic; // put occlusion directly in gbuffer target :D
+out float ao;
 
 in vec2 texcoord;
 
 layout(binding = 0) uniform sampler2D sampler_hierarchical_depth; // texture "texture_hierarchical_depth"
 layout(binding = 1) uniform sampler2D sampler_normal; // texture "texture_normal"
 
+// See https://github.com/martymcmodding/qUINT/blob/master/Shaders/qUINT_mxao.fx and https://blog.selfshadow.com/publications/s2016-shading-course/activision/s2016_pbs_activision_occlusion.pdf in case we want to extend to multi bounce with color
+float gtao_bw_multi_bounce(in float v)
+{
+    return max(v, ((v * 1.708 - 4.1534) * v + 3.4455) * v);
+}
+
 void main()
 {
-    float center_depth = textureLod(sampler_hierarchical_depth, texcoord, 0).x * 0.99999; // offset because self intersection
+    float center_depth = textureLod(sampler_hierarchical_depth, texcoord, 1).x * 0.99999; // offset because self intersection
 
-    vec3 view_normal = normalize((view_matrix * vec4(normalize(texture(sampler_normal, texcoord).xyz * 2.0 - 1.0), 0.0)).xyz);
-    vec3 view_pos = view_space_from_depth(center_depth, texcoord, inverse_projection_matrix);
+    vec3 view_normal = normalize((view_matrix * vec4(texture(sampler_normal, texcoord).xyz * 2.0 - 1.0, 0.0)).xyz);
+    vec3 view_pos = view_space_from_depth(center_depth, texcoord, inverse_projection_matrix); // offset for steep angles
     vec3 view_dir = normalize(-view_pos);
     float radius = 0.25 * ao_radius / (direction_samples * 2 *(abs(view_pos.z) + 2.0));
     float falloff = -1.0 / (ao_radius + 0.75 * ao_radius * ao_radius);
@@ -35,7 +41,7 @@ void main()
         vec3 ortho_direction = direction - dot(direction, view_dir) * view_dir;
         vec3 view_axis = cross(direction, view_dir); // normalize?
         vec3 projected_view_normal = view_normal - view_axis * dot(view_normal, view_axis);
-        float pvnl = length(projected_view_normal);
+        float pvnl = sqrt(dot(projected_view_normal, projected_view_normal));
 
         float sign_n = sign(dot(ortho_direction, projected_view_normal));
         float cos_n = saturate(dot(projected_view_normal, view_dir) / pvnl);
@@ -48,22 +54,22 @@ void main()
         for (int dir_sample = 0; dir_sample < direction_samples; ++dir_sample)
         {
             float s = float(dir_sample) / direction_samples;
-            float scaling = fract(base_noise + float(slice + dir_sample * direction_samples));
-            vec2 offset = s * scaling * omega; // check if we need to invert y...
+            float scaling = fract(base_noise + float(slice + dir_sample * direction_samples) * 10);
+            vec2 offset = s * scaling * omega;
             vec2 s_texcoord0 = texcoord - offset;
             vec2 s_texcoord1 = texcoord + offset;
 
             // Mip calculation from https://github.com/martymcmodding/qUINT/blob/master/Shaders/qUINT_mxao.fx
-            float mip = saturate(radius * dir_sample * 20.0) * 3.0; // add mip bias?
-            float s_depth0 = textureLod(sampler_hierarchical_depth, s_texcoord0, mip).x; // uses max depth - min better?
-            float s_depth1 = textureLod(sampler_hierarchical_depth, s_texcoord1, mip).x; // uses max depth - min better?
+            float mip = saturate(radius * dir_sample * 20.0) * 3.0 + 1.0; // add additional mip bias?
+            float s_depth0 = textureLod(sampler_hierarchical_depth, s_texcoord0, mip).x;
+            float s_depth1 = textureLod(sampler_hierarchical_depth, s_texcoord1, mip).x;
             vec3 s_pos0 = view_space_from_depth(s_depth0, s_texcoord0, inverse_projection_matrix);
             vec3 s_pos1 = view_space_from_depth(s_depth1, s_texcoord1, inverse_projection_matrix);
 
             vec3 s_hv0 = s_pos0 - view_pos;
             vec3 s_hv1 = s_pos1 - view_pos;
-            float s_hd0 = length(s_hv0);
-            float s_hd1 = length(s_hv1);
+            float s_hd0 = sqrt(dot(s_hv0, s_hv0));
+            float s_hd1 = sqrt(dot(s_hv1, s_hv1));
             s_hv0 /= s_hd0;
             s_hv1 /= s_hd1;
 
@@ -91,5 +97,7 @@ void main()
         visibility += pvnl * (cos_n + h1 * sin_n - cos(h1 - n)) * 0.25;
     }
 
-    occlusion_roughness_metallic.x = pow(visibility / slices, 2.2);
+    ao = visibility / slices;
+    ao = saturate(multi_bounce ? gtao_bw_multi_bounce(ao) : ao);
+    ao = pow(ao, power);
 }

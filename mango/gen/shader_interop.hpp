@@ -2084,6 +2084,8 @@ struct gtao_data
     sl_int32 slices;
     sl_int32 direction_samples;
     sl_int32 depth_mip_count;
+    sl_bool multi_bounce;
+    sl_float power;
 };
 //! \encond
 

@@ -196,6 +196,7 @@ namespace mango
             ImGui::AlignTextToFramePadding();
             ImGui::Text(icon.c_str());
             ImGui::SameLine();
+            node.name.resize(31); // TODO Paul: Kind of fishy.
             strcpy(tmp_string.data(), node.name.c_str()); // TODO Paul: Kind of fishy.
             ImGui::InputTextWithHint("##tag", "Enter Node Name", tmp_string.data(), 32);
             node.name = tmp_string.data();
@@ -772,9 +773,9 @@ namespace mango
                         {
                             if (mat->base_color_texture.valid())
                                 application_scene->remove_texture(mat->base_color_texture);
-                            auto uid_pair                    = details::load_texture_dialog(application_scene, true, false, filter, 4);
-                            mat->base_color_texture          = uid_pair.first;
-                            mat->base_color_texture_gpu_data = uid_pair.second;
+                            auto tex_pair                    = details::load_texture_dialog(application_scene, true, false, filter, 4);
+                            mat->base_color_texture          = tex_pair.first;
+                            mat->base_color_texture_gpu_data = tex_pair.second;
                         }
                         else if (changed)
                         {
@@ -816,9 +817,9 @@ namespace mango
                         {
                             if (mat->metallic_roughness_texture.valid())
                                 application_scene->remove_texture(mat->metallic_roughness_texture);
-                            auto uid_pair                            = details::load_texture_dialog(application_scene, false, false, filter, 4);
-                            mat->metallic_roughness_texture          = uid_pair.first;
-                            mat->metallic_roughness_texture_gpu_data = uid_pair.second;
+                            auto tex_pair                            = details::load_texture_dialog(application_scene, false, false, filter, 4);
+                            mat->metallic_roughness_texture          = tex_pair.first;
+                            mat->metallic_roughness_texture_gpu_data = tex_pair.second;
                         }
                         else if (changed)
                         {
@@ -867,9 +868,9 @@ namespace mango
                         {
                             if (mat->normal_texture.valid())
                                 application_scene->remove_texture(mat->normal_texture);
-                            auto uid_pair                = details::load_texture_dialog(application_scene, false, false, filter, 4);
-                            mat->normal_texture          = uid_pair.first;
-                            mat->normal_texture_gpu_data = uid_pair.second;
+                            auto tex_pair                = details::load_texture_dialog(application_scene, false, false, filter, 4);
+                            mat->normal_texture          = tex_pair.first;
+                            mat->normal_texture_gpu_data = tex_pair.second;
                         }
                         else if (changed)
                         {
@@ -905,9 +906,9 @@ namespace mango
                         {
                             if (mat->occlusion_texture.valid())
                                 application_scene->remove_texture(mat->occlusion_texture);
-                            auto uid_pair                   = details::load_texture_dialog(application_scene, false, false, filter, 4);
-                            mat->occlusion_texture          = uid_pair.first;
-                            mat->occlusion_texture_gpu_data = uid_pair.second;
+                            auto tex_pair                   = details::load_texture_dialog(application_scene, false, false, filter, 4);
+                            mat->occlusion_texture          = tex_pair.first;
+                            mat->occlusion_texture_gpu_data = tex_pair.second;
                         }
                         else if (changed)
                         {
@@ -943,9 +944,9 @@ namespace mango
                         {
                             if (mat->emissive_texture.valid())
                                 application_scene->remove_texture(mat->emissive_texture);
-                            auto uid_pair                  = details::load_texture_dialog(application_scene, true, false, filter, 4);
-                            mat->emissive_texture          = uid_pair.first;
-                            mat->emissive_texture_gpu_data = uid_pair.second;
+                            auto tex_pair                  = details::load_texture_dialog(application_scene, true, false, filter, 4);
+                            mat->emissive_texture          = tex_pair.first;
+                            mat->emissive_texture_gpu_data = tex_pair.second;
                         }
                         else if (changed)
                         {

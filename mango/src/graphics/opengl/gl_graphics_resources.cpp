@@ -618,6 +618,7 @@ void gl_pipeline::submit_pipeline_resources(gfx_handle<gfx_graphics_state> share
             continue;
         glBindBufferBase(gfx_buffer_target_to_gl(buffer.first->m_info.buffer_target), b, buffer.first->m_buffer_gl_handle);
         shared_graphics_state->record_buffer_binding(buffer.first->m_info.buffer_target, b, buffer.first->native_handle());
+        buffer.first = make_gfx_handle<gl_buffer>(gl_buffer::dummy());
     }
 
     std::vector<gl_handle> gl_handles;
@@ -641,6 +642,7 @@ void gl_pipeline::submit_pipeline_resources(gfx_handle<gfx_graphics_state> share
             }
             start_binding = b + 1;
         }
+        texture.first = make_gfx_handle<gl_texture>(gl_texture::dummy());
     }
     if (gl_handles.size())
     {
@@ -658,6 +660,7 @@ void gl_pipeline::submit_pipeline_resources(gfx_handle<gfx_graphics_state> share
 
         auto internal = image_texture_view.first->m_texture->m_info.texture_format;
         glBindImageTexture(b, image_texture_view.first->m_texture->m_texture_gl_handle, image_texture_view.first->m_level, GL_TRUE, 0, GL_READ_WRITE, gfx_format_to_gl(internal));
+        image_texture_view.first = make_gfx_handle<gl_image_texture_view>(gl_image_texture_view(make_gfx_handle<gl_texture>(gl_texture::dummy()), 0));
     }
     /*
     gl_handles.reserve(texture_images_count);
@@ -709,6 +712,7 @@ void gl_pipeline::submit_pipeline_resources(gfx_handle<gfx_graphics_state> share
             }
             start_binding = b + 1;
         }
+        sampler.first = make_gfx_handle<gl_sampler>(gl_sampler::dummy());
     }
     if (gl_handles.size())
     {

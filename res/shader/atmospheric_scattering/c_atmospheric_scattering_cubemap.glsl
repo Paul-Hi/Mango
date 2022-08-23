@@ -71,7 +71,7 @@ vec3 atmospheric_scattering(in vec3 ray_dir)
         vec3 scatter_point = ray_origin.xyz + ray_dir * (step_size * 0.5);
         for(int i = 0; i < scatter_points; ++i)
         {
-            float scatter_height = length(scatter_point) - ground_radius;
+            float scatter_height = sqrt(dot(scatter_point, scatter_point)) - ground_radius;
 
             vec2 optical_depths = exp(-scatter_height / density_multiplier) * step_size;
             accumulated_optical_depths += optical_depths;
@@ -82,7 +82,7 @@ vec3 atmospheric_scattering(in vec3 ray_dir)
             vec3 second_scattering_point = scatter_point + sun_dir.xyz * (second_step_size * 0.5);
             for(int j = 0; j < scatter_points_second_ray; ++j)
             {
-                float second_height = length(second_scattering_point) - ground_radius;
+                float second_height = sqrt(dot(second_scattering_point, second_scattering_point)) - ground_radius;
 
                 second_ray_accumulated_optical_depths += exp(-second_height / density_multiplier) * second_step_size;
 

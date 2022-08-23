@@ -2438,7 +2438,7 @@ void scene_impl::update(float dt)
 
     // Everything else can be updated in ecs style for changed stuff
     // TODO Paul: This could probably be done in parallel...
-    for (auto m : m_meshes)
+    for (auto& m : m_meshes)
     {
         if (m.changed)
         {
@@ -2460,7 +2460,7 @@ void scene_impl::update(float dt)
         }
     }
     m_requires_auto_exposure = false;
-    for (auto cam : m_perspective_cameras)
+    for (auto& cam : m_perspective_cameras)
     {
         m_requires_auto_exposure |= cam.adaptive_exposure;
         if (cam.changed)
@@ -2533,7 +2533,7 @@ void scene_impl::update(float dt)
             cam.changed = false;
         }
     }
-    for (auto cam : m_orthographic_cameras)
+    for (auto& cam : m_orthographic_cameras)
     {
         m_requires_auto_exposure |= cam.adaptive_exposure;
         if (cam.changed)
@@ -2617,7 +2617,7 @@ void scene_impl::update(float dt)
     device_context->end();
     device_context->submit();
 
-    for (auto mat : m_materials)
+    for (auto& mat : m_materials)
     {
         if (mat.changed)
         {
@@ -2646,7 +2646,7 @@ void scene_impl::update(float dt)
         }
     }
 
-    for (auto tex : m_textures)
+    for (auto& tex : m_textures)
     {
         if (tex.changed)
         {

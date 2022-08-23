@@ -45,6 +45,8 @@ bool editor::create()
     renderer_config.enable_shadow_maps(shs);
     fxaa_settings fs;
     renderer_config.enable_fxaa(fs);
+    gtao_settings gtaos;
+    renderer_config.enable_gtao(gtaos);
 
     m_main_renderer = mango_context->create_renderer(renderer_config);
     MANGO_ASSERT(m_main_renderer, "Renderer creation failed!");

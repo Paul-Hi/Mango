@@ -10,6 +10,8 @@ layout(binding = GTAO_DATA_BUFFER_BINDING_POINT, std140) uniform gtao_data
     int slices;                         // number of slices in hemisphere
     int direction_samples;              // direction samples (in both directions so these times two are the actual sample count)
     int depth_mip_count;                // number of depth hierarchy mips for clamping
+    bool multi_bounce;                  // enables multi bounce (no color)
+    float power;                        // power of ao
 };
 
 #endif // MANGO_GTAO_DATA_GLSL

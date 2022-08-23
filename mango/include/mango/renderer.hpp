@@ -32,7 +32,7 @@ namespace mango
         environment_display,
         shadow_map,
         fxaa,
-        // ssao,
+        gtao,
         // voxel_gi,
         // dof,
         // bloom,
@@ -380,6 +380,149 @@ namespace mango
         float m_subpixel_filter;
     };
 
+    //! \brief The settings for the \a gtao_pass.
+    class gtao_settings
+    {
+      public:
+        //! \brief Default constructor to set some default values.
+        gtao_settings()
+            : m_ao_radius(3.5f)
+            , m_thin_occluder_compensation(0.8f)
+            , m_slices(3)
+            , m_direction_samples(3)
+            , m_multi_bounce(true)
+            , m_power(6.6f)
+        {
+        }
+
+        //! \brief Constructs \a gtao_settings with specific values.
+        //! \param[in] ao_radius The radius for the ambient occlusion.
+        //! \param[in] thin_occluder_compensation The thin occluder compensation for the ambient occlusion.
+        //! \param[in] slices The number of slices for the ambient occlusion.
+        //! \param[in] direction_samples The number of samples per direction for the ambient occlusion.
+        //! \param[in] multi_bounce True if the ambient occlusion should have (bw) multi bounce, else false.
+        //! \param[in] power The power of the ambient occlusion.
+        gtao_settings(float ao_radius, float thin_occluder_compensation, int32 slices, int32 direction_samples, bool multi_bounce, float power)
+            : m_ao_radius(ao_radius)
+            , m_thin_occluder_compensation(thin_occluder_compensation)
+            , m_slices(slices)
+            , m_direction_samples(direction_samples)
+            , m_multi_bounce(multi_bounce)
+            , m_power(power)
+        {
+        }
+
+        //! \brief Sets the radius to render the ambient occlusion with.
+        //! \param[in] ao_radius The radius to render the ambient occlusion with.
+        //! \return A reference to the modified \a gtao_settings.
+        inline gtao_settings& set_ao_radius(float ao_radius)
+        {
+            m_ao_radius = ao_radius;
+            return *this;
+        }
+
+        //! \brief Sets the thin occluder compensation for the ambient occlusion.
+        //! \param[in] thin_occluder_compensation The thin occluder compensation for the ambient occlusion.
+        //! \return A reference to the modified \a gtao_settings.
+        inline gtao_settings& set_thin_occluder_compensation(float thin_occluder_compensation)
+        {
+            m_thin_occluder_compensation = thin_occluder_compensation;
+            return *this;
+        }
+
+        //! \brief Sets the number of slices for the ambient occlusion.
+        //! \param[in] slices The number of slices for the ambient occlusion.
+        //! \return A reference to the modified \a gtao_settings.
+        inline gtao_settings& set_slices(int32 slices)
+        {
+            m_slices = slices;
+            return *this;
+        }
+
+        //! \brief Sets the number of samples per direction for the ambient occlusion.
+        //! \param[in] direction_samples The number of samples per direction for the ambient occlusion.
+        //! \return A reference to the modified \a gtao_settings.
+        inline gtao_settings& set_direction_samples(int32 direction_samples)
+        {
+            m_direction_samples = direction_samples;
+            return *this;
+        }
+
+        //! \brief Sets the multi bounce property for the ambient occlusion.
+        //! \param[in] multi_bounce True if the ambient occlusion should have (bw) multi bounce, else false.
+        //! \return A reference to the modified \a gtao_settings.
+        inline gtao_settings& set_multi_bounce(bool multi_bounce)
+        {
+            m_multi_bounce = multi_bounce;
+            return *this;
+        }
+
+        //! \brief Sets the power to render the ambient occlusion with.
+        //! \param[in] power The power to render the ambient occlusion with.
+        //! \return A reference to the modified \a gtao_settings.
+        inline gtao_settings& set_power(float power)
+        {
+            m_power = power;
+            return *this;
+        }
+
+        //! \brief Retrieves the radius to render the ambient occlusion with.
+        //! \return The radius to render the ambient occlusion with.
+        inline float get_ao_radius() const
+        {
+            return m_ao_radius;
+        }
+
+        //! \brief Retrieves the thin occluder compensation for the ambient occlusion.
+        //! \return The thin occluder compensation for the ambient occlusion.
+        inline float get_thin_occluder_compensation() const
+        {
+            return m_thin_occluder_compensation;
+        }
+
+        //! \brief Retrieves the number of slices for the ambient occlusion.
+        //! \return The number of slices for the ambient occlusion.
+        inline int32 get_slices() const
+        {
+            return m_slices;
+        }
+
+        //! \brief Retrieves the number of samples per direction for the ambient occlusion.
+        //! \return The number of samples per direction for the ambient occlusion.
+        inline int32 get_direction_samples() const
+        {
+            return m_direction_samples;
+        }
+
+        //! \brief Retrieves the multi bounce property for the ambient occlusion.
+        //! \return True if the ambient occlusion should have (bw) multi bounce, else false.
+        inline bool get_multi_bounce() const
+        {
+            return m_multi_bounce;
+        }
+
+        //! \brief Retrieves the power to render the ambient occlusion with.
+        //! \return The power to render the ambient occlusion with.
+        inline float get_power() const
+        {
+            return m_power;
+        }
+
+      private:
+        //!\brief The radius for the ambient occlusion.
+        float m_ao_radius;
+        //!\brief The thin occluder compensation for the ambient occlusion.
+        float m_thin_occluder_compensation;
+        //!\brief The number of slices for the ambient occlusion.
+        int32 m_slices;
+        //!\brief The number of samples per direction for the ambient occlusion.
+        int32 m_direction_samples;
+        //!\brief True if the ambient occlusion should have (bw) multi bounce, else false.
+        bool m_multi_bounce;
+        //!\brief The power of the ambient occlusion.
+        float m_power;
+    };
+
     //! \brief The configuration for the \a renderer.
     //! \details Has to be used to configure the \a renderer in the \a application create() method.
     class renderer_configuration
@@ -428,7 +571,7 @@ namespace mango
         inline renderer_configuration& enable_shadow_maps(const shadow_settings& settings)
         {
             m_render_extensions[render_pipeline_extension::shadow_map] = true;
-            m_shadow_settings                                = settings;
+            m_shadow_settings                                          = settings;
             return *this;
         }
 
@@ -439,7 +582,7 @@ namespace mango
         inline renderer_configuration& display_environment(const environment_display_settings& settings)
         {
             m_render_extensions[render_pipeline_extension::environment_display] = true;
-            m_environment_display_settings                            = settings;
+            m_environment_display_settings                                      = settings;
             return *this;
         }
 
@@ -450,7 +593,18 @@ namespace mango
         inline renderer_configuration& enable_fxaa(const fxaa_settings& settings)
         {
             m_render_extensions[render_pipeline_extension::fxaa] = true;
-            m_fxaa_settings                            = settings;
+            m_fxaa_settings                                      = settings;
+            return *this;
+        }
+
+        //! \brief Enables gtao in the \a renderer_configuration.
+        //! \details This is then used to add the \a render_pipeline_extension to the base \a render_pipeline of the \a renderer.
+        //! \param[in] settings The \a gtao_settings to use for the \a gtao_pass.
+        //! \return A reference to the modified \a renderer_configuration.
+        inline renderer_configuration& enable_gtao(const gtao_settings& settings)
+        {
+            m_render_extensions[render_pipeline_extension::gtao] = true;
+            m_gtao_settings                                      = settings;
             return *this;
         }
 
@@ -555,6 +709,13 @@ namespace mango
             return m_fxaa_settings;
         }
 
+        //! \brief Retrieves and returns the base \a gtao_settings set in the \a renderer_configuration.
+        //! \return The gtao_settings, when the \a  gtao_pass is enabled.
+        inline const gtao_settings& get_gtao_settings() const
+        {
+            return m_gtao_settings;
+        }
+
       private:
         //! \brief The base \a render_pipeline of the \a renderer to configure.
         render_pipeline m_base_pipeline;
@@ -579,6 +740,8 @@ namespace mango
         environment_display_settings m_environment_display_settings;
         //! \brief The \a fxaa_settings of the \a renderer to configure.
         fxaa_settings m_fxaa_settings;
+        //! \brief The \a gtao_settings of the \a renderer to configure.
+        gtao_settings m_gtao_settings;
     };
 
     //! \brief Information used and filled by the \a renderer.

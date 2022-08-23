@@ -9,6 +9,7 @@
 #include <mango/profile.hpp>
 #include <rendering/passes/environment_display_pass.hpp>
 #include <rendering/passes/fxaa_pass.hpp>
+#include <rendering/passes/gtao_pass.hpp>
 #include <rendering/passes/shadow_map_pass.hpp>
 #include <rendering/pipelines/deferred_pbr_renderer.hpp>
 #include <resources/resources_impl.hpp>
@@ -276,8 +277,6 @@ bool deferred_pbr_renderer::create_passes()
     m_auto_luminance_pass.attach(m_shared_context);
     m_hi_z_pass.attach(m_shared_context);
 
-    m_gtao_pass.attach(m_shared_context);
-
     // optional passes
     const bool* render_passes = m_configuration.get_render_extensions();
     if (render_passes[mango::render_pipeline_extension::environment_display])
@@ -300,6 +299,12 @@ bool deferred_pbr_renderer::create_passes()
         auto pass_fxaa = std::make_shared<fxaa_pass>(m_configuration.get_fxaa_settings());
         pass_fxaa->attach(m_shared_context);
         m_pipeline_extensions[mango::render_pipeline_extension::fxaa] = std::static_pointer_cast<render_pass>(pass_fxaa);
+    }
+    if (m_configuration.get_render_extensions()[mango::render_pipeline_extension::gtao])
+    {
+        auto pass_gtao = std::make_shared<gtao_pass>(m_configuration.get_gtao_settings());
+        pass_gtao->attach(m_shared_context);
+        m_pipeline_extensions[mango::render_pipeline_extension::gtao] = std::static_pointer_cast<render_pass>(pass_gtao);
     }
 
     return update_passes();
@@ -325,7 +330,6 @@ bool deferred_pbr_renderer::update_passes()
     m_deferred_lighting_pass.set_radiance_map_sampler(m_mipmapped_linear_sampler);
     m_deferred_lighting_pass.set_brdf_integration_lut_sampler(m_linear_sampler);
     m_deferred_lighting_pass.set_shadow_map_sampler(m_linear_sampler);
-    m_deferred_lighting_pass.set_shadow_map_compare_sampler(m_linear_compare_sampler);
 
     m_transparent_pass.set_viewport(window_viewport);
     m_transparent_pass.set_render_targets(m_hdr_buffer_render_targets);
@@ -338,7 +342,6 @@ bool deferred_pbr_renderer::update_passes()
     m_transparent_pass.set_radiance_map_sampler(m_mipmapped_linear_sampler);
     m_transparent_pass.set_brdf_integration_lut_sampler(m_linear_sampler);
     m_transparent_pass.set_shadow_map_sampler(m_linear_sampler);
-    m_transparent_pass.set_shadow_map_compare_sampler(m_linear_compare_sampler);
 
     m_composing_pass.set_viewport(window_viewport);
     m_composing_pass.set_renderer_data_buffer(m_renderer_data_buffer);
@@ -353,11 +356,6 @@ bool deferred_pbr_renderer::update_passes()
     m_hi_z_pass.set_depth_texture(m_gbuffer_render_targets.back());
     m_hi_z_pass.set_depth_size(m_renderer_info.canvas.width, m_renderer_info.canvas.height);
     m_hi_z_pass.set_nearest_sampler(m_nearest_sampler);
-
-    m_gtao_pass.set_gbuffer_normal_texture(m_gbuffer_render_targets[1]);
-    m_gtao_pass.set_gbuffer_orm_texture(m_gbuffer_render_targets[3]);
-    m_gtao_pass.set_nearest_sampler(m_nearest_sampler);
-    m_gtao_pass.set_viewport(window_viewport);
 
     // optional
     auto environment_display = std::static_pointer_cast<environment_display_pass>(m_pipeline_extensions[mango::render_pipeline_extension::environment_display]);
@@ -377,6 +375,16 @@ bool deferred_pbr_renderer::update_passes()
     auto pass_fxaa = std::static_pointer_cast<fxaa_pass>(m_pipeline_extensions[mango::render_pipeline_extension::fxaa]);
     if (pass_fxaa)
         pass_fxaa->set_output_targets(m_output_target, m_ouput_depth_target);
+
+    auto pass_gtao = std::static_pointer_cast<gtao_pass>(m_pipeline_extensions[mango::render_pipeline_extension::gtao]);
+    if (pass_gtao)
+    {
+        pass_gtao->set_gbuffer_normal_texture(m_gbuffer_render_targets[1]);
+        pass_gtao->set_gbuffer_orm_texture(m_gbuffer_render_targets[3]);
+        pass_gtao->set_full_res_depth_texture(m_gbuffer_render_targets.back());
+        pass_gtao->set_nearest_sampler(m_nearest_sampler);
+        pass_gtao->set_viewport(window_viewport);
+    }
 
     return true; // TODO Paul: This is always true atm.
 }
@@ -561,14 +569,16 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_hi_z_pass.execute(m_frame_context);
     }
 
-    // gtao optional
+    // gtao
+    auto ao_pass          = std::static_pointer_cast<gtao_pass>(m_pipeline_extensions[mango::render_pipeline_extension::gtao]);
+    if(ao_pass)
     {
-        m_gtao_pass.set_camera_data_buffer(active_camera_data->camera_data_buffer);
-        m_gtao_pass.set_hierarchical_depth_texture(m_hi_z_pass.get_hierarchical_depth_buffer());
-        m_gtao_pass.set_depth_mip_count(graphics::calculate_mip_count(m_renderer_info.canvas.width, m_renderer_info.canvas.height)); // TODO: Do not calculate again?
-        m_gtao_pass.execute(m_frame_context);
+        ao_pass->set_camera_data_buffer(active_camera_data->camera_data_buffer);
+        ao_pass->set_hierarchical_depth_texture(m_hi_z_pass.get_hierarchical_depth_buffer());
+        ao_pass->set_depth_mip_count(graphics::calculate_mip_count(m_renderer_info.canvas.width, m_renderer_info.canvas.height)); // TODO: Do not calculate again?
+        ao_pass->execute(m_frame_context);
 
-        auto pass_info = m_gtao_pass.get_info();
+        auto pass_info = ao_pass->get_info();
         m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
         m_renderer_info.last_frame.vertices += pass_info.vertices;
     }
@@ -587,6 +597,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_deferred_lighting_pass.set_brdf_integration_lut(brdf_lut ? brdf_lut : default_texture_2D);
 
         m_deferred_lighting_pass.set_shadow_map(shadow_pass ? shadow_pass->get_shadow_maps_texture() : default_texture_array);
+        m_deferred_lighting_pass.set_shadow_map_compare_sampler(shadow_pass ? m_linear_compare_sampler : m_linear_sampler);
 
         m_deferred_lighting_pass.execute(m_frame_context);
 
@@ -628,6 +639,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         m_transparent_pass.set_brdf_integration_lut(brdf_lut ? brdf_lut : default_texture_2D);
 
         m_transparent_pass.set_shadow_map(shadow_pass ? shadow_pass->get_shadow_maps_texture() : default_texture_array);
+        m_transparent_pass.set_shadow_map_compare_sampler(shadow_pass ? m_linear_compare_sampler : m_linear_sampler);
 
         m_transparent_pass.execute(m_frame_context);
 
@@ -738,6 +750,7 @@ void deferred_pbr_renderer::on_ui_widget()
     bool has_environment_display = m_pipeline_extensions[mango::render_pipeline_extension::environment_display] != nullptr;
     bool has_shadow_map          = m_pipeline_extensions[mango::render_pipeline_extension::shadow_map] != nullptr;
     bool has_fxaa                = m_pipeline_extensions[mango::render_pipeline_extension::fxaa] != nullptr;
+    bool has_gtao                = m_pipeline_extensions[mango::render_pipeline_extension::gtao] != nullptr;
     if (ImGui::TreeNodeEx("Steps", flags | ImGuiTreeNodeFlags_Framed))
     {
         bool open = ImGui::CollapsingHeader("Environment Display", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_environment_display ? ImGuiTreeNodeFlags_Leaf : 0));
@@ -812,6 +825,30 @@ void deferred_pbr_renderer::on_ui_widget()
         if (has_fxaa && open)
         {
             m_pipeline_extensions[mango::render_pipeline_extension::fxaa]->on_ui_widget();
+        }
+        changed |= value_changed;
+
+        open = ImGui::CollapsingHeader("GTAO Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_fxaa ? ImGuiTreeNodeFlags_Leaf : 0));
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x);
+        ImGui::PushID("enable_gtao_pass");
+        value_changed = ImGui::Checkbox("", &has_gtao);
+        ImGui::PopID();
+        if (value_changed)
+        {
+            if (has_gtao)
+            {
+                auto pass_gtao = std::make_shared<gtao_pass>(gtao_settings());
+                pass_gtao->attach(m_shared_context);
+                m_pipeline_extensions[mango::render_pipeline_extension::gtao] = std::static_pointer_cast<render_pass>(pass_gtao);
+            }
+            else
+            {
+                m_pipeline_extensions[mango::render_pipeline_extension::gtao] = nullptr;
+            }
+        }
+        if (has_gtao && open)
+        {
+            m_pipeline_extensions[mango::render_pipeline_extension::gtao]->on_ui_widget();
         }
         changed |= value_changed;
 

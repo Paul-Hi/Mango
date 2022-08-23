@@ -16,15 +16,15 @@ namespace mango
     class gtao_pass : public render_pass
     {
       public:
-        // TODO: Add settings and enable disable stuff
-        // gtao_pass(const gtao_settings& settings);
-        gtao_pass() = default;
+        //! \brief Constructs a the \a gtao_pass.
+        //! \param[in] settings The \a gtao_settings to use.
+        gtao_pass(const gtao_settings& settings);
         ~gtao_pass() = default;
 
         void attach(const shared_ptr<context_impl>& context) override;
         void execute(graphics_device_context_handle& device_context) override;
 
-        void on_ui_widget() override{};
+        void on_ui_widget() override;
 
         inline render_pass_execution_info get_info() override
         {
@@ -42,6 +42,13 @@ namespace mango
         //! \param[in] viewport The viewport to use.
         inline void set_viewport(const gfx_viewport& viewport)
         {
+            if (m_viewport.width != viewport.width || m_viewport.height != viewport.height)
+            {
+                m_viewport = viewport;
+                create_ao_textures();
+                return;
+            }
+
             m_viewport = viewport;
         }
 
@@ -62,6 +69,13 @@ namespace mango
         //! \brief Set hierarchical depth texture.
         //! \param[in] depth_texture The hierarchical depth texture.
         inline void set_hierarchical_depth_texture(const gfx_handle<const gfx_texture>& depth_texture)
+        {
+            m_hierarchical_depth_texture = depth_texture;
+        }
+
+        //! \brief Set full res depth texture.
+        //! \param[in] depth_texture The full res depth texture.
+        inline void set_full_res_depth_texture(const gfx_handle<const gfx_texture>& depth_texture)
         {
             m_depth_texture = depth_texture;
         }
@@ -86,14 +100,37 @@ namespace mango
 
         bool create_pass_resources() override;
 
+        bool create_ao_textures();
+
+        //! \brief The \a gtao_settings for the pass.
+        gtao_settings m_settings;
+
         //! \brief The vertex \a gfx_shader_stage producing a screen space triangle.
         gfx_handle<const gfx_shader_stage> m_screen_space_triangle_vertex;
 
         //! \brief The fragment \a gfx_shader_stage to calculate gtao.
         gfx_handle<const gfx_shader_stage> m_gtao_fragment;
 
-        //! \brief Graphics pipeline calculaton ground truth ambient occlusion.
+        //! \brief The fragment \a gfx_shader_stage to denoise the gtao spatially.
+        gfx_handle<const gfx_shader_stage> m_spatial_denoise_fragment;
+
+        //! \brief The fragment \a gfx_shader_stage to upsample the gtao.
+        gfx_handle<const gfx_shader_stage> m_upsample_fragment;
+
+        //! \brief Graphics pipeline calculating ground truth ambient occlusion.
         gfx_handle<const gfx_pipeline> m_gtao_pass_pipeline;
+
+        //! \brief Graphics pipeline to spatially denoise the gtao.
+        gfx_handle<const gfx_pipeline> m_spatial_denoise_pipeline;
+
+        //! \brief Graphics pipeline to upsample the gtao.
+        gfx_handle<const gfx_pipeline> m_upsample_pipeline;
+
+        //! \brief One ao texture.
+        gfx_handle<const gfx_texture> m_gtao_texture0;
+
+        //! \brief One ao texture.
+        gfx_handle<const gfx_texture> m_gtao_texture1;
 
         //! \brief The occlusion roughness metallic texture from the gbuffer to put occlusion in.
         gfx_handle<const gfx_texture> m_orm_texture;
@@ -102,6 +139,9 @@ namespace mango
         gfx_handle<const gfx_texture> m_normal_texture;
 
         //! \brief The hierarchical depth texture.
+        gfx_handle<const gfx_texture> m_hierarchical_depth_texture;
+
+        //! \brief The full res depth texture.
         gfx_handle<const gfx_texture> m_depth_texture;
 
         //! \brief Nearest sampler.
