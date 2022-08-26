@@ -87,6 +87,20 @@ void gtao_pass::execute(graphics_device_context_handle& device_context)
 
     device_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in vertex shader.
 
+    device_context->set_render_targets(1, &m_gtao_texture0, nullptr);
+
+    m_spatial_denoise_pipeline->get_resource_mapping()->set("texture_gtao", m_gtao_texture1);
+    m_spatial_denoise_pipeline->get_resource_mapping()->set("sampler_gtao", m_nearest_sampler);
+    m_spatial_denoise_pipeline->get_resource_mapping()->set("texture_depth", m_depth_texture);
+    m_spatial_denoise_pipeline->get_resource_mapping()->set("sampler_depth", m_nearest_sampler);
+
+    device_context->submit_pipeline_state_resources();
+
+    device_context->set_index_buffer(nullptr, gfx_format::invalid);
+    device_context->set_vertex_buffers(0, nullptr, nullptr, nullptr);
+
+    device_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in vertex shader.
+
     GL_NAMED_PROFILE_ZONE("GTAO Upsample Pass");
     NAMED_PROFILE_ZONE("GTAO Upsample Pass");
     device_context->bind_pipeline(m_upsample_pipeline);
@@ -95,9 +109,11 @@ void gtao_pass::execute(graphics_device_context_handle& device_context)
 
     device_context->set_render_targets(1, &m_orm_texture, nullptr);
 
-    m_upsample_pipeline->get_resource_mapping()->set("texture_gtao", m_gtao_texture1);
-    m_upsample_pipeline->get_resource_mapping()->set("sampler_gtao", m_nearest_sampler);
-    m_upsample_pipeline->get_resource_mapping()->set("texture_depth", m_depth_texture);
+    m_upsample_pipeline->get_resource_mapping()->set("texture_gtao_linear", m_gtao_texture0);
+    m_upsample_pipeline->get_resource_mapping()->set("sampler_gtao_linear", m_linear_sampler);
+    m_upsample_pipeline->get_resource_mapping()->set("texture_gtao_nearest", m_gtao_texture0);
+    m_upsample_pipeline->get_resource_mapping()->set("sampler_gtao_nearest", m_nearest_sampler);
+    m_upsample_pipeline->get_resource_mapping()->set("texture_depth", m_hierarchical_depth_texture);
     m_upsample_pipeline->get_resource_mapping()->set("sampler_depth", m_nearest_sampler);
 
     device_context->submit_pipeline_state_resources();
@@ -209,7 +225,7 @@ bool gtao_pass::create_pass_resources()
 
     // GTAO Spatial Denoiser
     {
-        res_resource_desc.path        = "res/shader/post/f_bilateral_filter5x5.glsl";
+        res_resource_desc.path        = "res/shader/post/f_spatial_denoiser.glsl";
         const shader_resource* source = internal_resources->acquire(res_resource_desc);
 
         source_desc.entry_point = "main";
@@ -237,7 +253,7 @@ bool gtao_pass::create_pass_resources()
 
     // GTAO Upsample
     {
-        res_resource_desc.path        = "res/shader/post/f_bilateral_filter3x3.glsl";
+        res_resource_desc.path        = "res/shader/post/f_nearest_depth_upsample.glsl";
         const shader_resource* source = internal_resources->acquire(res_resource_desc);
 
         source_desc.entry_point = "main";
@@ -247,13 +263,15 @@ bool gtao_pass::create_pass_resources()
         shader_info.stage         = gfx_shader_stage_type::shader_stage_fragment;
         shader_info.shader_source = source_desc;
 
-        shader_info.resource_count = 4;
+        shader_info.resource_count = 6;
 
         shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_fragment, 0, "texture_gtao", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, 0, "sampler_gtao", gfx_shader_resource_type::shader_resource_sampler, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, 1, "texture_depth", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
-            { gfx_shader_stage_type::shader_stage_fragment, 1, "sampler_depth", gfx_shader_resource_type::shader_resource_sampler, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, 0, "texture_gtao_linear", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, 0, "sampler_gtao_linear", gfx_shader_resource_type::shader_resource_sampler, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, 1, "texture_gtao_nearest", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, 1, "sampler_gtao_nearest", gfx_shader_resource_type::shader_resource_sampler, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, 2, "texture_depth", gfx_shader_resource_type::shader_resource_input_attachment, 1 },
+            { gfx_shader_stage_type::shader_stage_fragment, 2, "sampler_depth", gfx_shader_resource_type::shader_resource_sampler, 1 },
         } };
 
         m_upsample_fragment = graphics_device->create_shader_stage(shader_info);
@@ -336,6 +354,8 @@ bool gtao_pass::create_pass_resources()
                           { gfx_shader_stage_type::shader_stage_fragment, 0, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
                           { gfx_shader_stage_type::shader_stage_fragment, 1, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
                           { gfx_shader_stage_type::shader_stage_fragment, 1, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
+                          { gfx_shader_stage_type::shader_stage_fragment, 2, gfx_shader_resource_type::shader_resource_input_attachment, gfx_shader_resource_access::shader_access_dynamic },
+                          { gfx_shader_stage_type::shader_stage_fragment, 2, gfx_shader_resource_type::shader_resource_sampler, gfx_shader_resource_access::shader_access_dynamic },
         });
 
         upsample_info.pipeline_layout = upsample_pipeline_layout;
@@ -372,9 +392,9 @@ void gtao_pass::on_ui_widget()
 
     float default_value[1] = { 3.5f };
 
-    slider_float_n("Radius", &m_gtao_data.ao_radius, 1, default_value, 0.5f, 20.0f);
-    default_value[0] = 6.6f;
-    slider_float_n("Power", &m_gtao_data.power, 1, default_value, 0.5f, 15.5f);
+    slider_float_n("Radius", &m_gtao_data.ao_radius, 1, default_value, 0.5f, 10.0f);
+    default_value[0] = 12.5f;
+    slider_float_n("Power", &m_gtao_data.power, 1, default_value, 0.5f, 25.5f);
 
     int32 default_value_i[1] = { 3 };
 

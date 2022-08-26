@@ -383,6 +383,7 @@ bool deferred_pbr_renderer::update_passes()
         pass_gtao->set_gbuffer_orm_texture(m_gbuffer_render_targets[3]);
         pass_gtao->set_full_res_depth_texture(m_gbuffer_render_targets.back());
         pass_gtao->set_nearest_sampler(m_nearest_sampler);
+        pass_gtao->set_linear_sampler(m_linear_sampler);
         pass_gtao->set_viewport(window_viewport);
     }
 

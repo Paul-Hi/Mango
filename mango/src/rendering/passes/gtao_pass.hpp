@@ -87,6 +87,13 @@ namespace mango
             m_nearest_sampler = nearest_sampler;
         }
 
+        //! \brief Set a linear sampler.
+        //! \param[in] linear_sampler The nearest sampler.
+        inline void set_linear_sampler(const gfx_handle<const gfx_sampler>& linear_sampler)
+        {
+            m_linear_sampler = linear_sampler;
+        }
+
         //! \brief Set the number of mips in the depth hierarchy.
         //! \param[in] mip_count The number of mips in the depth hierarchy.
         inline void set_depth_mip_count(int32 mip_count)
@@ -143,6 +150,9 @@ namespace mango
 
         //! \brief The full res depth texture.
         gfx_handle<const gfx_texture> m_depth_texture;
+
+        //! \brief Linear sampler.
+        gfx_handle<const gfx_sampler> m_linear_sampler;
 
         //! \brief Nearest sampler.
         gfx_handle<const gfx_sampler> m_nearest_sampler;

@@ -16,30 +16,33 @@ float gtao_bw_multi_bounce(in float v)
     return max(v, ((v * 1.708 - 4.1534) * v + 3.4455) * v);
 }
 
+// TODO: Maybe check Bent Normals for directional occlusion and a little bit of GI
 void main()
 {
     float center_depth = textureLod(sampler_hierarchical_depth, texcoord, 1).x * 0.99999; // offset because self intersection
 
     vec3 view_normal = normalize((view_matrix * vec4(texture(sampler_normal, texcoord).xyz * 2.0 - 1.0, 0.0)).xyz);
-    vec3 view_pos = view_space_from_depth(center_depth, texcoord, inverse_projection_matrix); // offset for steep angles
+    vec3 view_pos = view_space_from_depth(center_depth, texcoord, inverse_projection_matrix);
     vec3 view_dir = normalize(-view_pos);
     float radius = 0.25 * ao_radius / (direction_samples * 2 *(abs(view_pos.z) + 2.0));
-    float falloff = -1.0 / (ao_radius + 0.75 * ao_radius * ao_radius);
+    float falloff = -2.0 / (0.125 * ao_radius + 0.25 * ao_radius * ao_radius);
 
-    float base_noise = interleaved_gradient_noise(gl_FragCoord.xy);
+    const ivec2 fragcoord = ivec2(gl_FragCoord.xy);
+    float spatial_direction_noise = (1.0 / 16.0) * ((((fragcoord.x + fragcoord.y) & 0x3) << 2) + (fragcoord.x & 0x3));
+    float spatial_offset_noise = (1.0 / 4.0) * ((fragcoord.y - fragcoord.x) & 0x3);
 
     float visibility = 0;
 
     for (int slice = 0; slice < slices; ++slice)
     {
-        float phi = PI * (float(slice) + base_noise) / slices;
+        float phi = PI * (float(slice) + spatial_direction_noise) / slices;
 
         vec2 omega = vec2(cos(phi), sin(phi));
         vec3 direction = vec3(omega, 0.0);
         omega *= radius;
 
         vec3 ortho_direction = direction - dot(direction, view_dir) * view_dir;
-        vec3 view_axis = cross(direction, view_dir); // normalize?
+        vec3 view_axis = cross(direction, view_dir);
         vec3 projected_view_normal = view_normal - view_axis * dot(view_normal, view_axis);
         float pvnl = sqrt(dot(projected_view_normal, projected_view_normal));
 
@@ -54,7 +57,7 @@ void main()
         for (int dir_sample = 0; dir_sample < direction_samples; ++dir_sample)
         {
             float s = float(dir_sample) / direction_samples;
-            float scaling = fract(base_noise + float(slice + dir_sample * direction_samples) * 10);
+            float scaling = fract(spatial_offset_noise + float(slice + dir_sample * direction_samples) * 10);
             vec2 offset = s * scaling * omega;
             vec2 s_texcoord0 = texcoord - offset;
             vec2 s_texcoord1 = texcoord + offset;

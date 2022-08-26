@@ -17,7 +17,10 @@ Keep in mind that I do this in my spare time, besides studying and working.
 * Building and running on Linux and Windows.
 * Basic support of GLTF models (No animations yet, some features missing, no draco encoding)
 * HDR support and image based lighting
-* Directional light with Cascaded Shadow Mapping
+* Directional lighting with Cascaded Shadow Mapping
+* Auto Exposure
+* FXAA
+* GTAO
 * Basic GUI with DearImGui with widgets
 * Many physically based rendering features
 * Deferred rendering with OpenGL backend

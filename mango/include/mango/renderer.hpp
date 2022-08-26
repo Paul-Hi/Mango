@@ -33,9 +33,10 @@ namespace mango
         shadow_map,
         fxaa,
         gtao,
-        // voxel_gi,
-        // dof,
         // bloom,
+        // dof,
+        // ssr,
+        // voxel_gi,
         number_of_extensions
     };
 
@@ -391,7 +392,7 @@ namespace mango
             , m_slices(3)
             , m_direction_samples(3)
             , m_multi_bounce(true)
-            , m_power(6.6f)
+            , m_power(12.5f)
         {
         }
 
