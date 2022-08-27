@@ -340,8 +340,8 @@ void bloom_pass::on_ui_widget()
 {
     ImGui::PushID("bloom_pass");
 
-    int32 default_valuei[1] = { 1 };
-    slider_int_n("Radius", &m_bloom_data.filter_radius, 1, default_valuei, 1, 4);
+    int32 default_valuei[1] = { 2 };
+    slider_int_n("Radius", &m_bloom_data.filter_radius, 1, default_valuei, 1, 6);
     float default_value[1] = { 0.5f };
     slider_float_n("Power", &m_bloom_data.power, 1, default_value, 0.25f, 1.25f);
 

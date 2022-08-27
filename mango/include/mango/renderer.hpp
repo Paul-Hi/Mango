@@ -529,7 +529,7 @@ namespace mango
       public:
         //! \brief Default constructor to set some default values.
         bloom_settings()
-            : m_filter_radius(1)
+            : m_filter_radius(2)
             , m_power(0.5f)
         {
         }
