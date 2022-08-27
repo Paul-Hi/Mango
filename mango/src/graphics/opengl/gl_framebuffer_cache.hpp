@@ -21,6 +21,14 @@ namespace mango
         //! \brief Returns the \a gl_handle of a specific gl framebuffer for given render targets.
         //! \details Creates and caches gl framebuffers.
         //! \param[in] count The number of render targets.
+        //! \param[in] render_targets A list of \a gfx_image_texture_views describing the render targets to use.
+        //! \param[in] depth_stencil_target The \a gfx_image_texture_view describing the depth stencil target.
+        //! \return The \a gl_handle of a specific gl framebuffer for given render targets.
+        gl_handle get_framebuffer(int32 count, gfx_handle<const gfx_image_texture_view>* render_targets, gfx_handle<const gfx_image_texture_view> depth_stencil_target);
+
+        //! \brief Returns the \a gl_handle of a specific gl framebuffer for given render targets.
+        //! \details Creates and caches gl framebuffers.
+        //! \param[in] count The number of render targets.
         //! \param[in] render_targets A list of \a gfx_textures describing the render targets to use.
         //! \param[in] depth_stencil_target The \a gfx_texture describing the depth stencil target.
         //! \return The \a gl_handle of a specific gl framebuffer for given render targets.
@@ -47,6 +55,8 @@ namespace mango
             int32 attachment_count = 0;
             //! \brief The \a gfx_keys for the \a gfx_textures attached.
             gfx_key texture_keys[max_render_targets];
+            //! \brief The levels for the \a gfx_textures attached.
+            gfx_key texture_levels[max_render_targets];
 
             //! \brief Comparison operator equal.
             //! \param[in] other The other \a framebuffer_key.
@@ -59,6 +69,8 @@ namespace mango
                 for (int32 i = 0; i < attachment_count; ++i)
                 {
                     if (texture_keys[i] != other.texture_keys[i])
+                        return false;
+                    if (texture_levels[i] != other.texture_levels[i])
                         return false;
                 }
 
@@ -84,6 +96,7 @@ namespace mango
                 for (int32 i = 0; i < k.attachment_count; ++i)
                 {
                     res = res * 31 + std::hash<int64>()(k.texture_keys[i]);
+                    res = res * 31 + std::hash<int32>()(k.texture_levels[i]);
                 }
 
                 return res;
@@ -101,8 +114,10 @@ namespace mango
             int32 stencil_attachment = 0; // TODO Paul: Pure stencil not supported.
             //! \brief The number of depth stencil attachments.
             int32 depth_stencil_attachment = 0;
-            //! \brief The \a gl_handles if all attachments.
+            //! \brief The \a gl_handles of all attachments.
             gl_handle handles[max_render_targets];
+            //! \brief The attached levels of all attachments.
+            int32 levels[max_render_targets];
         };
 
         //! \brief Creates a framebuffer and returns th handle from opengl.

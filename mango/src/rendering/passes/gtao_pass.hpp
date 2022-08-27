@@ -88,7 +88,7 @@ namespace mango
         }
 
         //! \brief Set a linear sampler.
-        //! \param[in] linear_sampler The nearest sampler.
+        //! \param[in] linear_sampler The linear sampler.
         inline void set_linear_sampler(const gfx_handle<const gfx_sampler>& linear_sampler)
         {
             m_linear_sampler = linear_sampler;

@@ -2087,6 +2087,13 @@ struct gtao_data
     sl_bool multi_bounce;
     sl_float power;
 };
+
+struct bloom_data
+{
+    sl_int32 filter_radius;
+    sl_float power;
+    sl_int32 current_mip;
+};
 //! \encond
 
 } // namespace mango

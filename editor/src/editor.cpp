@@ -47,6 +47,8 @@ bool editor::create()
     renderer_config.enable_fxaa(fs);
     gtao_settings gtaos;
     renderer_config.enable_gtao(gtaos);
+    bloom_settings blooms;
+    renderer_config.enable_bloom(blooms);
 
     m_main_renderer = mango_context->create_renderer(renderer_config);
     MANGO_ASSERT(m_main_renderer, "Renderer creation failed!");

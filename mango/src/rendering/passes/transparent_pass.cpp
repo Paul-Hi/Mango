@@ -387,7 +387,6 @@ bool transparent_pass::create_pass_resources()
     transparent_pass_info.rasterization_state.cull_mode                       = gfx_cull_mode_flag_bits::mode_back; // TODO Paul: For now this is fine.
     transparent_pass_info.blend_state.blend_description.enable_blend          = true;
     transparent_pass_info.blend_state.blend_description.color_blend_operation = gfx_blend_operation::blend_operation_add;
-    transparent_pass_info.blend_state.blend_description.color_blend_operation = gfx_blend_operation::blend_operation_add;
     transparent_pass_info.blend_state.blend_description.alpha_blend_operation = gfx_blend_operation::blend_operation_add;
 
     transparent_pass_info.blend_state.blend_description.src_color_blend_factor = gfx_blend_factor::blend_factor_src_alpha;

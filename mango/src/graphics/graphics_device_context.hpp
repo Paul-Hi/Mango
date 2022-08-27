@@ -105,9 +105,15 @@ namespace mango
         // pipeline
         //
 
+        //! \brief Sets one or more \a gfx_image_texture_views as color render targets and a \a gfx_image_texture_view as depth stencil target for rendering on the gpu.
+        //! \param[in] count The number of color render targets to set.
+        //! \param[in] render_targets Pointer to the list of \a gfx_image_texture_views to set as color render targets.
+        //! \param[in] depth_stencil_target The \a gfx_image_texture_view to set as depth stencil target.
+        virtual void set_render_targets(int32 count, gfx_handle<const gfx_image_texture_view>* render_targets, gfx_handle<const gfx_image_texture_view> depth_stencil_target) = 0;
+
         //! \brief Sets one or more \a gfx_textures as color render targets and a \a gfx_texture as depth stencil target for rendering on the gpu.
         //! \param[in] count The number of color render targets to set.
-        //! \param[in] render_targets Pointer to the list of \a gfx_texture to set as color render targets.
+        //! \param[in] render_targets Pointer to the list of \a gfx_textures to set as color render targets.
         //! \param[in] depth_stencil_target The \a gfx_texture to set as depth stencil target.
         virtual void set_render_targets(int32 count, gfx_handle<const gfx_texture>* render_targets, gfx_handle<const gfx_texture> depth_stencil_target) = 0;
 

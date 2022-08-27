@@ -19,6 +19,78 @@ gl_framebuffer_cache::~gl_framebuffer_cache()
     cache.clear();
 }
 
+gl_handle gl_framebuffer_cache::get_framebuffer(int32 count, gfx_handle<const gfx_image_texture_view>* render_targets, gfx_handle<const gfx_image_texture_view> depth_stencil_target)
+{
+    framebuffer_key key;
+
+    framebuffer_create_info create_info;
+
+    key.attachment_count          = count + (depth_stencil_target != nullptr);
+    create_info.color_attachments = count;
+
+    for (int32 i = 0; i < count; ++i)
+    {
+        MANGO_ASSERT(std::dynamic_pointer_cast<const gl_image_texture_view>(render_targets[i]), "Texture is not a gl_image_texture_view!");
+        auto tex              = static_gfx_handle_cast<const gl_image_texture_view>(render_targets[i]);
+        key.texture_keys[i]   = tex->get_key();
+        key.texture_levels[i] = tex->m_level;
+
+        create_info.handles[i] = tex->m_texture->m_texture_gl_handle;
+        create_info.levels[i]  = tex->m_level;
+    }
+
+    if (depth_stencil_target != nullptr)
+    {
+        MANGO_ASSERT(std::dynamic_pointer_cast<const gl_image_texture_view>(depth_stencil_target), "Texture is not a gl_image_texture_view!");
+        auto tex                  = static_gfx_handle_cast<const gl_image_texture_view>(depth_stencil_target);
+        key.texture_keys[count]   = tex->get_key();
+        key.texture_levels[count] = tex->m_level;
+
+        // early check
+        auto result = cache.find(key);
+
+        if (result != cache.end())
+            return result->second;
+
+        create_info.handles[count] = tex->m_texture->m_texture_gl_handle;
+        create_info.levels[count]  = tex->m_level;
+
+        const gfx_format& internal = tex->m_texture->m_info.texture_format;
+
+        // TODO Paul: Pure stencil not supported.
+
+        switch (internal)
+        {
+        case gfx_format::depth24_stencil8:
+        case gfx_format::depth32f_stencil8:
+            create_info.depth_stencil_attachment++;
+            break;
+        case gfx_format::depth_component32f:
+        case gfx_format::depth_component16:
+        case gfx_format::depth_component24:
+        case gfx_format::depth_component32:
+            create_info.depth_attachment++;
+            break;
+        default:
+            MANGO_ASSERT(false, "Depth Stencil Target has no valid format!");
+            break;
+        }
+    }
+    else
+    {
+        auto result = cache.find(key);
+
+        if (result != cache.end())
+            return result->second;
+    }
+
+    gl_handle created = create(create_info);
+
+    cache.insert({ key, created });
+
+    return created;
+}
+
 gl_handle gl_framebuffer_cache::get_framebuffer(int32 count, gfx_handle<const gfx_texture>* render_targets, gfx_handle<const gfx_texture> depth_stencil_target)
 {
     framebuffer_key key;
@@ -31,17 +103,20 @@ gl_handle gl_framebuffer_cache::get_framebuffer(int32 count, gfx_handle<const gf
     for (int32 i = 0; i < count; ++i)
     {
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_texture>(render_targets[i]), "Texture is not a gl_texture!");
-        auto tex            = static_gfx_handle_cast<const gl_texture>(render_targets[i]);
-        key.texture_keys[i] = tex->get_key();
+        auto tex              = static_gfx_handle_cast<const gl_texture>(render_targets[i]);
+        key.texture_keys[i]   = tex->get_key();
+        key.texture_levels[i] = 0;
 
         create_info.handles[i] = tex->m_texture_gl_handle;
+        create_info.levels[i]  = 0;
     }
 
     if (depth_stencil_target != nullptr)
     {
         MANGO_ASSERT(std::dynamic_pointer_cast<const gl_texture>(depth_stencil_target), "Texture is not a gl_texture!");
-        auto tex                = static_gfx_handle_cast<const gl_texture>(depth_stencil_target);
-        key.texture_keys[count] = tex->get_key();
+        auto tex                  = static_gfx_handle_cast<const gl_texture>(depth_stencil_target);
+        key.texture_keys[count]   = tex->get_key();
+        key.texture_levels[count] = 0;
 
         // early check
         auto result = cache.find(key);
@@ -50,6 +125,7 @@ gl_handle gl_framebuffer_cache::get_framebuffer(int32 count, gfx_handle<const gf
             return result->second;
 
         create_info.handles[count] = tex->m_texture_gl_handle;
+        create_info.levels[count]  = 0;
 
         const gfx_format& internal = tex->m_info.texture_format;
 
@@ -96,19 +172,19 @@ gl_handle gl_framebuffer_cache::create(const framebuffer_create_info& create_inf
 
     for (int32 i = 0; i < create_info.color_attachments; ++i)
     {
-        glNamedFramebufferTexture(framebuffer, GL_COLOR_ATTACHMENT0 + i, create_info.handles[i], 0);
+        glNamedFramebufferTexture(framebuffer, GL_COLOR_ATTACHMENT0 + i, create_info.handles[i], create_info.levels[i]);
         draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
     }
 
     // TODO Paul: Assuming correct order here.
     if (create_info.depth_stencil_attachment)
     {
-        glNamedFramebufferTexture(framebuffer, GL_DEPTH_STENCIL_ATTACHMENT, create_info.handles[create_info.color_attachments], 0);
+        glNamedFramebufferTexture(framebuffer, GL_DEPTH_STENCIL_ATTACHMENT, create_info.handles[create_info.color_attachments], create_info.levels[create_info.color_attachments]);
     }
 
     if (create_info.depth_attachment)
     {
-        glNamedFramebufferTexture(framebuffer, GL_DEPTH_ATTACHMENT, create_info.handles[create_info.color_attachments], 0);
+        glNamedFramebufferTexture(framebuffer, GL_DEPTH_ATTACHMENT, create_info.handles[create_info.color_attachments], create_info.levels[create_info.color_attachments]);
     }
 
     // TODO Paul: Pure stencil not supported.

@@ -7,6 +7,7 @@
 #include <glad/glad.h>
 #include <mango/imgui_helper.hpp>
 #include <mango/profile.hpp>
+#include <rendering/passes/bloom_pass.hpp>
 #include <rendering/passes/environment_display_pass.hpp>
 #include <rendering/passes/fxaa_pass.hpp>
 #include <rendering/passes/gtao_pass.hpp>
@@ -306,6 +307,12 @@ bool deferred_pbr_renderer::create_passes()
         pass_gtao->attach(m_shared_context);
         m_pipeline_extensions[mango::render_pipeline_extension::gtao] = std::static_pointer_cast<render_pass>(pass_gtao);
     }
+    if (m_configuration.get_render_extensions()[mango::render_pipeline_extension::bloom])
+    {
+        auto pass_bloom = std::make_shared<bloom_pass>(m_configuration.get_bloom_settings());
+        pass_bloom->attach(m_shared_context);
+        m_pipeline_extensions[mango::render_pipeline_extension::bloom] = std::static_pointer_cast<render_pass>(pass_bloom);
+    }
 
     return update_passes();
 }
@@ -385,6 +392,14 @@ bool deferred_pbr_renderer::update_passes()
         pass_gtao->set_nearest_sampler(m_nearest_sampler);
         pass_gtao->set_linear_sampler(m_linear_sampler);
         pass_gtao->set_viewport(window_viewport);
+    }
+
+    auto pass_bloom = std::static_pointer_cast<bloom_pass>(m_pipeline_extensions[mango::render_pipeline_extension::bloom]);
+    if (pass_bloom)
+    {
+        pass_bloom->set_hdr_texture(m_hdr_buffer_render_targets[0]);
+        pass_bloom->set_mipmapped_linear_sampler(m_mipmapped_linear_sampler);
+        pass_bloom->set_viewport(window_viewport);
     }
 
     return true; // TODO Paul: This is always true atm.
@@ -571,8 +586,8 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     }
 
     // gtao
-    auto ao_pass          = std::static_pointer_cast<gtao_pass>(m_pipeline_extensions[mango::render_pipeline_extension::gtao]);
-    if(ao_pass)
+    auto ao_pass = std::static_pointer_cast<gtao_pass>(m_pipeline_extensions[mango::render_pipeline_extension::gtao]);
+    if (ao_pass)
     {
         ao_pass->set_camera_data_buffer(active_camera_data->camera_data_buffer);
         ao_pass->set_hierarchical_depth_texture(m_hi_z_pass.get_hierarchical_depth_buffer());
@@ -650,6 +665,17 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
     }
 
     m_debug_drawer->update_buffer();
+
+    // bloom
+    auto pass_bloom = std::static_pointer_cast<bloom_pass>(m_pipeline_extensions[mango::render_pipeline_extension::bloom]);
+    if (pass_bloom)
+    {
+        pass_bloom->execute(m_frame_context);
+
+        auto pass_info = pass_bloom->get_info();
+        m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
+        m_renderer_info.last_frame.vertices += pass_info.vertices;
+    }
 
     // auto exposure
     if (scene->calculate_auto_exposure())
@@ -752,6 +778,7 @@ void deferred_pbr_renderer::on_ui_widget()
     bool has_shadow_map          = m_pipeline_extensions[mango::render_pipeline_extension::shadow_map] != nullptr;
     bool has_fxaa                = m_pipeline_extensions[mango::render_pipeline_extension::fxaa] != nullptr;
     bool has_gtao                = m_pipeline_extensions[mango::render_pipeline_extension::gtao] != nullptr;
+    bool has_bloom                = m_pipeline_extensions[mango::render_pipeline_extension::bloom] != nullptr;
     if (ImGui::TreeNodeEx("Steps", flags | ImGuiTreeNodeFlags_Framed))
     {
         bool open = ImGui::CollapsingHeader("Environment Display", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_environment_display ? ImGuiTreeNodeFlags_Leaf : 0));
@@ -829,7 +856,7 @@ void deferred_pbr_renderer::on_ui_widget()
         }
         changed |= value_changed;
 
-        open = ImGui::CollapsingHeader("GTAO Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_fxaa ? ImGuiTreeNodeFlags_Leaf : 0));
+        open = ImGui::CollapsingHeader("GTAO Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_gtao ? ImGuiTreeNodeFlags_Leaf : 0));
         ImGui::SameLine(ImGui::GetContentRegionAvail().x);
         ImGui::PushID("enable_gtao_pass");
         value_changed = ImGui::Checkbox("", &has_gtao);
@@ -850,6 +877,30 @@ void deferred_pbr_renderer::on_ui_widget()
         if (has_gtao && open)
         {
             m_pipeline_extensions[mango::render_pipeline_extension::gtao]->on_ui_widget();
+        }
+        changed |= value_changed;
+
+        open = ImGui::CollapsingHeader("Bloom Step", flags | ImGuiTreeNodeFlags_AllowItemOverlap | (!has_bloom ? ImGuiTreeNodeFlags_Leaf : 0));
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x);
+        ImGui::PushID("enable_bloom_pass");
+        value_changed = ImGui::Checkbox("", &has_bloom);
+        ImGui::PopID();
+        if (value_changed)
+        {
+            if (has_bloom)
+            {
+                auto pass_bloom = std::make_shared<bloom_pass>(bloom_settings());
+                pass_bloom->attach(m_shared_context);
+                m_pipeline_extensions[mango::render_pipeline_extension::bloom] = std::static_pointer_cast<render_pass>(pass_bloom);
+            }
+            else
+            {
+                m_pipeline_extensions[mango::render_pipeline_extension::bloom] = nullptr;
+            }
+        }
+        if (has_bloom && open)
+        {
+            m_pipeline_extensions[mango::render_pipeline_extension::bloom]->on_ui_widget();
         }
         changed |= value_changed;
 

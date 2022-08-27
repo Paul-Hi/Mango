@@ -33,7 +33,7 @@ namespace mango
         shadow_map,
         fxaa,
         gtao,
-        // bloom,
+        bloom,
         // dof,
         // ssr,
         // voxel_gi,
@@ -523,6 +523,64 @@ namespace mango
         //!\brief The power of the ambient occlusion.
         float m_power;
     };
+    //! \brief The settings for the \a bloom_pass.
+    class bloom_settings
+    {
+      public:
+        //! \brief Default constructor to set some default values.
+        bloom_settings()
+            : m_filter_radius(1)
+            , m_power(0.5f)
+        {
+        }
+
+        //! \brief Constructs \a bloom_settings with specific values.
+        //! \param[in] filter_radius The radius for the bloom.
+        //! \param[in] power The power of the bloom.
+        bloom_settings(int32 filter_radius, float power)
+            : m_filter_radius(filter_radius)
+            , m_power(power)
+        {
+        }
+
+        //! \brief Sets the radius to render the bloom with.
+        //! \param[in] filter_radius The radius to render the bloom with.
+        //! \return A reference to the modified \a bloom_settings.
+        inline bloom_settings& set_filter_radius(int32 filter_radius)
+        {
+            m_filter_radius = filter_radius;
+            return *this;
+        }
+
+        //! \brief Sets the power to render the bloom with.
+        //! \param[in] power The power to render the bloom with.
+        //! \return A reference to the modified \a bloom_settings.
+        inline bloom_settings& set_power(float power)
+        {
+            m_power = power;
+            return *this;
+        }
+
+        //! \brief Retrieves the radius to render the bloom with.
+        //! \return The radius to render the bloom with.
+        inline int32 get_filter_radius() const
+        {
+            return m_filter_radius;
+        }
+
+        //! \brief Retrieves the power to render the bloom with.
+        //! \return The power to render the bloom with.
+        inline float get_power() const
+        {
+            return m_power;
+        }
+
+      private:
+        //!\brief The filter radius for the bloom in texel space.
+        int32 m_filter_radius;
+        //!\brief The power of the bloom.
+        float m_power;
+    };
 
     //! \brief The configuration for the \a renderer.
     //! \details Has to be used to configure the \a renderer in the \a application create() method.
@@ -606,6 +664,17 @@ namespace mango
         {
             m_render_extensions[render_pipeline_extension::gtao] = true;
             m_gtao_settings                                      = settings;
+            return *this;
+        }
+
+        //! \brief Enables bloom in the \a renderer_configuration.
+        //! \details This is then used to add the \a render_pipeline_extension to the base \a render_pipeline of the \a renderer.
+        //! \param[in] settings The \a bloom_settings to use for the \a bloom_pass.
+        //! \return A reference to the modified \a renderer_configuration.
+        inline renderer_configuration& enable_bloom(const bloom_settings& settings)
+        {
+            m_render_extensions[render_pipeline_extension::bloom] = true;
+            m_bloom_settings                                      = settings;
             return *this;
         }
 
@@ -717,6 +786,13 @@ namespace mango
             return m_gtao_settings;
         }
 
+        //! \brief Retrieves and returns the base \a bloom_settings set in the \a renderer_configuration.
+        //! \return The bloom_settings, when the \a  bloom_pass is enabled.
+        inline const bloom_settings& get_bloom_settings() const
+        {
+            return m_bloom_settings;
+        }
+
       private:
         //! \brief The base \a render_pipeline of the \a renderer to configure.
         render_pipeline m_base_pipeline;
@@ -743,6 +819,8 @@ namespace mango
         fxaa_settings m_fxaa_settings;
         //! \brief The \a gtao_settings of the \a renderer to configure.
         gtao_settings m_gtao_settings;
+        //! \brief The \a bloom_settings of the \a renderer to configure.
+        bloom_settings m_bloom_settings;
     };
 
     //! \brief Information used and filled by the \a renderer.

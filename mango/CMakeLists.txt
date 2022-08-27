@@ -98,6 +98,7 @@ set(PRIVATE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/auto_luminance_pass.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/hi_z_pass.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/gtao_pass.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/bloom_pass.hpp
 
     #generated
     ${CMAKE_CURRENT_SOURCE_DIR}/gen/shader_interop.hpp
@@ -156,6 +157,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/auto_luminance_pass.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/hi_z_pass.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/gtao_pass.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/passes/bloom_pass.cpp
     )
 
 add_library(mango

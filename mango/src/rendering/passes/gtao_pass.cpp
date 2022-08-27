@@ -43,8 +43,8 @@ void gtao_pass::execute(graphics_device_context_handle& device_context)
     device_context->bind_pipeline(m_gtao_pass_pipeline);
 
     auto real_vp   = m_viewport;
-    real_vp.width  = (int)m_viewport.width >> 1;
-    real_vp.height = (int)m_viewport.height >> 1;
+    real_vp.width  = (int32)m_viewport.width >> 1;
+    real_vp.height = (int32)m_viewport.height >> 1;
     device_context->set_viewport(0, 1, &real_vp);
 
     device_context->set_render_targets(1, &m_gtao_texture0, nullptr);
