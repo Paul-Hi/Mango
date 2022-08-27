@@ -91,6 +91,8 @@ void light_stack::update(scene_impl* scene)
 
 void light_stack::update_directional_lights()
 {
+    // TODO: Check these things but atm we don' need that at all?!
+    /*
     for (auto& d : m_directional_stack)
     {
         int64 checksum = calculate_checksum(reinterpret_cast<uint8*>(&d.cast_shadows), sizeof(bool));
@@ -114,6 +116,7 @@ void light_stack::update_directional_lights()
             m_light_cache.insert({ checksum, new_entry });
         }
     }
+    */
 
     if (m_directional_stack.empty())
         return;
@@ -202,7 +205,8 @@ void light_stack::update_skylights(scene_impl* scene)
     {
         int64 checksum = calculate_checksum(reinterpret_cast<uint8*>(&s.dynamic), sizeof(bool));
         checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.hdr_texture), sizeof(key));
-        checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.intensity), sizeof(float));
+        // TODO: Check these things but atm we do not have to recreate all the textures, when the intensity is changing -.-
+        // checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.intensity), sizeof(float));
         checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.local), sizeof(bool));
         checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.use_texture), sizeof(bool));
 

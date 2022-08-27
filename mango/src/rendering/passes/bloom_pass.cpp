@@ -38,18 +38,13 @@ void bloom_pass::execute(graphics_device_context_handle& device_context)
     GL_NAMED_PROFILE_ZONE("Bloom Pass");
     NAMED_PROFILE_ZONE("Bloom Pass");
 
-    auto& graphics_device = m_shared_context->get_graphics_device();
-
     device_context->bind_pipeline(m_downsample_pipeline);
 
-    gfx_handle<const gfx_texture>* input = &m_hdr_texture;
-    int32 w                              = (int32)m_viewport.width;
-    int32 h                              = (int32)m_viewport.height;
+    int32 w = (int32)m_viewport.width;
+    int32 h = (int32)m_viewport.height;
     w >>= 1;
     h >>= 1;
-    auto output_vp   = m_viewport;
-    output_vp.width  = w >> 1;
-    output_vp.height = h >> 1;
+    auto output_vp = m_viewport;
 
     for (int32 i = 0; i < m_mip_count; ++i)
     {
@@ -59,7 +54,7 @@ void bloom_pass::execute(graphics_device_context_handle& device_context)
         output_vp.width  = w >> i;
         output_vp.height = h >> i;
         device_context->set_viewport(0, 1, &output_vp);
-        auto bloom_buffer_view = graphics_device->create_image_texture_view(m_bloom_buffer, i);
+        auto bloom_buffer_view = m_bloom_buffer_levels[i];
         device_context->set_render_targets(1, &bloom_buffer_view, nullptr);
 
         m_bloom_data.current_mip = max(i - 1, 0);
@@ -67,7 +62,7 @@ void bloom_pass::execute(graphics_device_context_handle& device_context)
         device_context->set_buffer_data(m_bloom_data_buffer, 0, sizeof(m_bloom_data), &m_bloom_data);
 
         m_downsample_pipeline->get_resource_mapping()->set("bloom_data", m_bloom_data_buffer);
-        m_downsample_pipeline->get_resource_mapping()->set("texture_input", *input);
+        m_downsample_pipeline->get_resource_mapping()->set("texture_input", i == 0 ? m_hdr_texture : m_bloom_buffer);
         m_downsample_pipeline->get_resource_mapping()->set("sampler_input", m_mipmapped_linear_sampler);
 
         device_context->submit_pipeline_state_resources();
@@ -76,8 +71,6 @@ void bloom_pass::execute(graphics_device_context_handle& device_context)
         device_context->set_vertex_buffers(0, nullptr, nullptr, nullptr);
 
         device_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in vertex shader.
-
-        input = &m_bloom_buffer;
     }
 
     w <<= 1;
@@ -94,7 +87,7 @@ void bloom_pass::execute(graphics_device_context_handle& device_context)
         output_vp.height = h >> i;
 
         device_context->set_viewport(0, 1, &output_vp);
-        auto bloom_buffer_view = graphics_device->create_image_texture_view(m_bloom_buffer, i - 1);
+        auto bloom_buffer_view = m_bloom_buffer_levels[i - 1];
         device_context->set_render_targets(1, &bloom_buffer_view, nullptr);
 
         m_bloom_data.current_mip = i;
@@ -102,7 +95,7 @@ void bloom_pass::execute(graphics_device_context_handle& device_context)
         device_context->set_buffer_data(m_bloom_data_buffer, 0, sizeof(m_bloom_data), &m_bloom_data);
 
         m_upsample_and_blur_pipeline->get_resource_mapping()->set("bloom_data", m_bloom_data_buffer);
-        m_upsample_and_blur_pipeline->get_resource_mapping()->set("texture_input", *input);
+        m_upsample_and_blur_pipeline->get_resource_mapping()->set("texture_input", m_bloom_buffer);
         m_upsample_and_blur_pipeline->get_resource_mapping()->set("sampler_input", m_mipmapped_linear_sampler);
 
         device_context->submit_pipeline_state_resources();
@@ -127,7 +120,7 @@ void bloom_pass::execute(graphics_device_context_handle& device_context)
         device_context->set_buffer_data(m_bloom_data_buffer, 0, sizeof(m_bloom_data), &m_bloom_data);
 
         m_upsample_and_blur_pipeline->get_resource_mapping()->set("bloom_data", m_bloom_data_buffer);
-        m_upsample_and_blur_pipeline->get_resource_mapping()->set("texture_input", *input);
+        m_upsample_and_blur_pipeline->get_resource_mapping()->set("texture_input", m_bloom_buffer);
         m_upsample_and_blur_pipeline->get_resource_mapping()->set("sampler_input", m_mipmapped_linear_sampler);
 
         device_context->submit_pipeline_state_resources();
@@ -159,6 +152,12 @@ bool bloom_pass::create_bloom_texture()
     m_bloom_buffer = graphics_device->create_texture(bloom_texture_info);
     if (!check_creation(m_bloom_buffer.get(), "bloom buffer"))
         return false;
+
+    m_bloom_buffer_levels.clear();
+    for (int32 i = 0; i < m_mip_count; ++i)
+    {
+        m_bloom_buffer_levels.push_back(graphics_device->create_image_texture_view(m_bloom_buffer, i));
+    }
 
     return true;
 }

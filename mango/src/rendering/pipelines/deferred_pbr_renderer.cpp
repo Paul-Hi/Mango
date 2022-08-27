@@ -668,7 +668,7 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
     // bloom
     auto pass_bloom = std::static_pointer_cast<bloom_pass>(m_pipeline_extensions[mango::render_pipeline_extension::bloom]);
-    if (pass_bloom)
+    if (!m_renderer_data.debug_view_enabled && pass_bloom)
     {
         pass_bloom->execute(m_frame_context);
 

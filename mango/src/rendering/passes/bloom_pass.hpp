@@ -88,6 +88,9 @@ namespace mango
         //! \brief The bloom buffer with the bloom mipchain.
         gfx_handle<const gfx_texture> m_bloom_buffer;
 
+        //! \brief The bloom buffer mip level views.
+        std::vector<gfx_handle<const gfx_image_texture_view>> m_bloom_buffer_levels;
+
         //! \brief The \a gfx_texture to calculate and apply the bloom.
         gfx_handle<const gfx_texture> m_hdr_texture;
 
