@@ -146,6 +146,16 @@ vec4 linear_to_srgb(in vec4 linear)
     return vec4(pow(linear.rgb, vec3(1.0 / 2.2)), linear.a);
 }
 
+vec3 srgb_to_linear(in vec3 srgb)
+{
+    return pow(srgb.rgb, vec3(2.2));
+}
+
+vec3 linear_to_srgb(in vec3 linear)
+{
+    return pow(linear.rgb, vec3(1.0 / 2.2));
+}
+
 // See: http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html
 float radical_inverse_VdC(in uint bits)
 {

@@ -666,6 +666,14 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
 
     m_debug_drawer->update_buffer();
 
+    // auto exposure
+    if (scene->calculate_auto_exposure())
+    {
+        m_auto_luminance_pass.set_delta_time(dt);
+
+        m_auto_luminance_pass.execute(m_frame_context);
+    }
+
     // bloom
     auto pass_bloom = std::static_pointer_cast<bloom_pass>(m_pipeline_extensions[mango::render_pipeline_extension::bloom]);
     if (!m_renderer_data.debug_view_enabled && pass_bloom)
@@ -675,14 +683,6 @@ void deferred_pbr_renderer::render(scene_impl* scene, float dt)
         auto pass_info = pass_bloom->get_info();
         m_renderer_info.last_frame.draw_calls += pass_info.draw_calls;
         m_renderer_info.last_frame.vertices += pass_info.vertices;
-    }
-
-    // auto exposure
-    if (scene->calculate_auto_exposure())
-    {
-        m_auto_luminance_pass.set_delta_time(dt);
-
-        m_auto_luminance_pass.execute(m_frame_context);
     }
 
     auto antialiasing          = std::static_pointer_cast<fxaa_pass>(m_pipeline_extensions[mango::render_pipeline_extension::fxaa]);

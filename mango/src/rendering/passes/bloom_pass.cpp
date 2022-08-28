@@ -20,7 +20,8 @@ bloom_pass::bloom_pass(const bloom_settings& settings)
     // TODO: Do not hardcode.
     m_bloom_data.filter_radius = settings.get_filter_radius();
     m_bloom_data.power         = settings.get_power();
-    m_bloom_data.current_mip   = 0; // private setting
+    m_bloom_data.current_mip   = 0;    // private setting
+    m_bloom_data.apply_karis   = true; // private setting
 
     m_viewport  = gfx_viewport{ 0.0f, 0.0f, 2.0f, 2.0f };
     m_mip_count = 0;
@@ -46,6 +47,7 @@ void bloom_pass::execute(graphics_device_context_handle& device_context)
     h >>= 1;
     auto output_vp = m_viewport;
 
+    m_bloom_data.apply_karis = true;
     for (int32 i = 0; i < m_mip_count; ++i)
     {
         GL_NAMED_PROFILE_ZONE("Downsample Pass");
@@ -71,6 +73,8 @@ void bloom_pass::execute(graphics_device_context_handle& device_context)
         device_context->set_vertex_buffers(0, nullptr, nullptr, nullptr);
 
         device_context->draw(3, 0, 1, 0, 0, 0); // Triangle gets created in vertex shader.
+
+        m_bloom_data.apply_karis = false;
     }
 
     w <<= 1;

@@ -2093,6 +2093,7 @@ struct bloom_data
     sl_int32 filter_radius;
     sl_float power;
     sl_int32 current_mip;
+    sl_bool apply_karis;
 };
 //! \encond
 
