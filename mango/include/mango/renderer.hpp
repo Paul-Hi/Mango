@@ -9,6 +9,7 @@
 
 #include <mango/assert.hpp>
 #include <mango/types.hpp>
+#include <mango/scene_structures.hpp>
 
 namespace mango
 {
@@ -531,15 +532,21 @@ namespace mango
         bloom_settings()
             : m_filter_radius(2)
             , m_power(0.5f)
+            , m_lens_texture(NULL_HND<texture>)
+            , m_lens_texture_intensity(1.0f)
         {
         }
 
         //! \brief Constructs \a bloom_settings with specific values.
         //! \param[in] filter_radius The radius for the bloom.
         //! \param[in] power The power of the bloom.
-        bloom_settings(int32 filter_radius, float power)
+        //! \param[in] lens_texture The lens texture.
+        //! \param[in] lens_texture_intensity The lens textures intensity.
+        bloom_settings(int32 filter_radius, float power, handle<texture> lens_texture, float lens_texture_intensity)
             : m_filter_radius(filter_radius)
             , m_power(power)
+            , m_lens_texture(lens_texture)
+            , m_lens_texture_intensity(lens_texture_intensity)
         {
         }
 
@@ -561,6 +568,24 @@ namespace mango
             return *this;
         }
 
+        //! \brief Sets the lens texture.
+        //! \param[in] lens_texture The lens texture.
+        //! \return A reference to the modified \a bloom_settings.
+        inline bloom_settings& set_lens_texture(handle<texture> lens_texture)
+        {
+            m_lens_texture = lens_texture;
+            return *this;
+        }
+
+        //! \brief Sets the lens textures intensity.
+        //! \param[in] lens_texture_intensity The lens textures intensity.
+        //! \return A reference to the modified \a bloom_settings.
+        inline bloom_settings& set_lens_texture_intensity(float lens_texture_intensity)
+        {
+            m_lens_texture_intensity = lens_texture_intensity;
+            return *this;
+        }
+
         //! \brief Retrieves the radius to render the bloom with.
         //! \return The radius to render the bloom with.
         inline int32 get_filter_radius() const
@@ -575,11 +600,29 @@ namespace mango
             return m_power;
         }
 
+        //! \brief Retrieves the lens texture to render the bloom with.
+        //! \return The lens texture to render the bloom with.
+        inline handle<texture> get_lens_texture() const
+        {
+            return m_lens_texture;
+        }
+
+        //! \brief Retrieves the lens textures intensity.
+        //! \return The lens textures intensity.
+        inline float get_lens_texture_intensity() const
+        {
+            return m_lens_texture_intensity;
+        }
+
       private:
         //!\brief The filter radius for the bloom in texel space.
         int32 m_filter_radius;
         //!\brief The power of the bloom.
         float m_power;
+        //!\brief The optional lens texture.
+        handle<texture> m_lens_texture;
+        //!\brief The lens textures intensity.
+        float m_lens_texture_intensity;
     };
 
     //! \brief The configuration for the \a renderer.

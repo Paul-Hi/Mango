@@ -1,7 +1,7 @@
 #include <../include/common_constants_and_functions.glsl>
 #include <../include/bloom_data.glsl>
 
-out vec3 fragcolor;
+out vec3 frag_color;
 
 in vec2 texcoord;
 
@@ -49,13 +49,13 @@ void main()
         groups[2] *= karis_average(groups[2]);
         groups[3] *= karis_average(groups[3]);
         groups[4] *= karis_average(groups[4]);
-        fragcolor = (groups[0] + groups[1] + groups[2] + groups[3] + groups[4]);
+        frag_color = (groups[0] + groups[1] + groups[2] + groups[3] + groups[4]);
     }
     else
     {
-        fragcolor = 0.125 * (samples[0] + samples[1] + samples[2] + samples[3] + samples[4]); // 0.5 * 0.25
-        fragcolor += 0.0625 * (samples[5] + samples[6] + samples[9] + samples[11]); // 0.25 * 0.25
-        fragcolor += 0.03125 * (samples[7] + samples[8] + samples[10] + samples[12]); // 0.125 * 0.25
+        frag_color = 0.125 * (samples[0] + samples[1] + samples[2] + samples[3] + samples[4]); // 0.5 * 0.25
+        frag_color += 0.0625 * (samples[5] + samples[6] + samples[9] + samples[11]); // 0.25 * 0.25
+        frag_color += 0.03125 * (samples[7] + samples[8] + samples[10] + samples[12]); // 0.125 * 0.25
     }
 
 }

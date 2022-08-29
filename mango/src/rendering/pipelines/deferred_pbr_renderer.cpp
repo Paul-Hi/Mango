@@ -400,6 +400,7 @@ bool deferred_pbr_renderer::update_passes()
         pass_bloom->set_hdr_texture(m_hdr_buffer_render_targets[0]);
         pass_bloom->set_mipmapped_linear_sampler(m_mipmapped_linear_sampler);
         pass_bloom->set_viewport(window_viewport);
+        pass_bloom->set_default_texture_2D(default_texture_2D);
     }
 
     return true; // TODO Paul: This is always true atm.

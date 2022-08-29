@@ -2094,6 +2094,8 @@ struct bloom_data
     sl_float power;
     sl_int32 current_mip;
     sl_bool apply_karis;
+    sl_bool lens_texture;
+    sl_float lens_texture_intensity;
 };
 //! \encond
 

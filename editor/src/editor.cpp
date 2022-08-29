@@ -27,6 +27,9 @@ bool editor::create()
     m_main_display = mango_context->create_display(display_config);
     MANGO_ASSERT(m_main_display, "Display creation failed!");
 
+    m_current_scene = mango_context->create_scene("Base Scene");
+    MANGO_ASSERT(m_current_scene, "Scene creation failed!");
+
     renderer_configuration renderer_config;
     renderer_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(true).set_frustum_culling(true).draw_wireframe(false).draw_debug_bounds(false);
 
@@ -47,7 +50,9 @@ bool editor::create()
     renderer_config.enable_fxaa(fs);
     gtao_settings gtaos;
     renderer_config.enable_gtao(gtaos);
+    handle<texture> lens_texture = m_current_scene->load_texture_from_image("res/textures/lens_texture_d.jpg", false, false);
     bloom_settings blooms;
+    blooms.set_power(1.0f).set_lens_texture(lens_texture).set_lens_texture_intensity(2.0f);
     renderer_config.enable_bloom(blooms);
 
     m_main_renderer = mango_context->create_renderer(renderer_config);
@@ -70,9 +75,6 @@ bool editor::create()
 
     m_main_ui = mango_context->create_ui(ui_config);
     MANGO_ASSERT(m_main_ui, "UI creation failed!");
-
-    m_current_scene = mango_context->create_scene("text_scene");
-    MANGO_ASSERT(m_current_scene, "Scene creation failed!");
 
     // camera
     m_main_camera_node_hnd = m_current_scene->add_node("Editor Camera");

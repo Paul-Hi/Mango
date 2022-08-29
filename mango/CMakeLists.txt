@@ -132,6 +132,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ui_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_opengl3.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_glfw.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_widgets.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/dear_imgui/imgui_helper.cpp
     # OpenGL
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graphics/opengl/gl_graphics_resources.cpp

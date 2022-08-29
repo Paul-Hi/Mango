@@ -127,15 +127,15 @@ handle<perspective_camera> scene_impl::add_perspective_camera(perspective_camera
     view_projection_perspective_camera(new_perspective_camera, camera_position, view, projection);
     const mat4 view_projection = projection * view;
 
-    data.per_camera_data.view_matrix               = view;
-    data.per_camera_data.projection_matrix         = projection;
-    data.per_camera_data.inverse_view_matrix       = view.inverse();
-    data.per_camera_data.inverse_projection_matrix = projection.inverse();
-    data.per_camera_data.view_projection_matrix    = view_projection;
-    data.per_camera_data.inverse_view_projection_matrix   = view_projection.inverse();
-    data.per_camera_data.camera_position           = camera_position;
-    data.per_camera_data.camera_near               = new_perspective_camera.z_near;
-    data.per_camera_data.camera_far                = new_perspective_camera.z_far;
+    data.per_camera_data.view_matrix                    = view;
+    data.per_camera_data.projection_matrix              = projection;
+    data.per_camera_data.inverse_view_matrix            = view.inverse();
+    data.per_camera_data.inverse_projection_matrix      = projection.inverse();
+    data.per_camera_data.view_projection_matrix         = view_projection;
+    data.per_camera_data.inverse_view_projection_matrix = view_projection.inverse();
+    data.per_camera_data.camera_position                = camera_position;
+    data.per_camera_data.camera_near                    = new_perspective_camera.z_near;
+    data.per_camera_data.camera_far                     = new_perspective_camera.z_far;
 
     if (new_perspective_camera.adaptive_exposure) // Has to be calculated each frame if enabled.
         data.per_camera_data.camera_exposure = 1.0f;
@@ -201,15 +201,15 @@ handle<orthographic_camera> scene_impl::add_orthographic_camera(orthographic_cam
     view_projection_orthographic_camera(new_orthographic_camera, camera_position, view, projection);
     const mat4 view_projection = projection * view;
 
-    data.per_camera_data.view_matrix               = view;
-    data.per_camera_data.projection_matrix         = projection;
-    data.per_camera_data.inverse_view_matrix       = view.inverse();
-    data.per_camera_data.inverse_projection_matrix = projection.inverse();
-    data.per_camera_data.view_projection_matrix    = view_projection;
-    data.per_camera_data.inverse_view_projection_matrix   = view_projection.inverse();
-    data.per_camera_data.camera_position           = camera_position;
-    data.per_camera_data.camera_near               = new_orthographic_camera.z_near;
-    data.per_camera_data.camera_far                = new_orthographic_camera.z_far;
+    data.per_camera_data.view_matrix                    = view;
+    data.per_camera_data.projection_matrix              = projection;
+    data.per_camera_data.inverse_view_matrix            = view.inverse();
+    data.per_camera_data.inverse_projection_matrix      = projection.inverse();
+    data.per_camera_data.view_projection_matrix         = view_projection;
+    data.per_camera_data.inverse_view_projection_matrix = view_projection.inverse();
+    data.per_camera_data.camera_position                = camera_position;
+    data.per_camera_data.camera_near                    = new_orthographic_camera.z_near;
+    data.per_camera_data.camera_far                     = new_orthographic_camera.z_far;
 
     if (new_orthographic_camera.adaptive_exposure) // Has to be calculated each frame if enabled.
         data.per_camera_data.camera_exposure = 1.0f;
@@ -371,6 +371,8 @@ handle<texture> scene_impl::load_texture_from_image(const string& path, bool sta
     sampler_info.enable_seamless_cubemap = false;
 
     auto texture_sampler_pair = create_gfx_texture_and_sampler(path, standard_color_space, high_dynamic_range, sampler_info);
+    if (!texture_sampler_pair.first)
+        return NULL_HND<texture>;
 
     texture_gpu_data data;
     data.graphics_texture = texture_sampler_pair.first;
@@ -1420,6 +1422,11 @@ std::pair<gfx_handle<const gfx_texture>, gfx_handle<const gfx_sampler>> scene_im
 
     auto res                  = m_shared_context->get_resources();
     const image_resource* img = res->acquire(desc);
+    if (!img)
+    {
+        return { nullptr, nullptr };
+    }
+
     gfx_format internal       = gfx_format::invalid;
     gfx_format pixel_format   = gfx_format::invalid;
     gfx_format component_type = gfx_format::invalid;
@@ -2475,15 +2482,15 @@ void scene_impl::update(float dt)
             view_projection_perspective_camera(cam, camera_position, view, projection);
             const mat4 view_projection = projection * view;
 
-            data.per_camera_data.view_matrix               = view;
-            data.per_camera_data.projection_matrix         = projection;
-            data.per_camera_data.inverse_view_matrix       = view.inverse();
-            data.per_camera_data.inverse_projection_matrix = projection.inverse();
-            data.per_camera_data.view_projection_matrix    = view_projection;
-            data.per_camera_data.inverse_view_projection_matrix   = view_projection.inverse();
-            data.per_camera_data.camera_position           = camera_position;
-            data.per_camera_data.camera_near               = cam.z_near;
-            data.per_camera_data.camera_far                = cam.z_far;
+            data.per_camera_data.view_matrix                    = view;
+            data.per_camera_data.projection_matrix              = projection;
+            data.per_camera_data.inverse_view_matrix            = view.inverse();
+            data.per_camera_data.inverse_projection_matrix      = projection.inverse();
+            data.per_camera_data.view_projection_matrix         = view_projection;
+            data.per_camera_data.inverse_view_projection_matrix = view_projection.inverse();
+            data.per_camera_data.camera_position                = camera_position;
+            data.per_camera_data.camera_near                    = cam.z_near;
+            data.per_camera_data.camera_far                     = cam.z_far;
 
             float ape;
             float shu;
@@ -2548,15 +2555,15 @@ void scene_impl::update(float dt)
             view_projection_orthographic_camera(cam, camera_position, view, projection);
             const mat4 view_projection = projection * view;
 
-            data.per_camera_data.view_matrix               = view;
-            data.per_camera_data.projection_matrix         = projection;
-            data.per_camera_data.inverse_view_matrix       = view.inverse();
-            data.per_camera_data.inverse_projection_matrix = projection.inverse();
-            data.per_camera_data.view_projection_matrix    = view_projection;
-            data.per_camera_data.inverse_view_projection_matrix   = view_projection.inverse();
-            data.per_camera_data.camera_position           = camera_position;
-            data.per_camera_data.camera_near               = cam.z_near;
-            data.per_camera_data.camera_far                = cam.z_far;
+            data.per_camera_data.view_matrix                    = view;
+            data.per_camera_data.projection_matrix              = projection;
+            data.per_camera_data.inverse_view_matrix            = view.inverse();
+            data.per_camera_data.inverse_projection_matrix      = projection.inverse();
+            data.per_camera_data.view_projection_matrix         = view_projection;
+            data.per_camera_data.inverse_view_projection_matrix = view_projection.inverse();
+            data.per_camera_data.camera_position                = camera_position;
+            data.per_camera_data.camera_near                    = cam.z_near;
+            data.per_camera_data.camera_far                     = cam.z_far;
 
             float ape;
             float shu;

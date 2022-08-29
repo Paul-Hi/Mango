@@ -1,7 +1,7 @@
 #include <../include/common_constants_and_functions.glsl>
 #include <../include/bloom_data.glsl>
 
-out vec3 fragcolor;
+out vec3 frag_color;
 
 in vec2 texcoord;
 
@@ -28,8 +28,7 @@ void main()
     samples[7] = textureLodOffset(sampler_input, texcoord, current_mip, offsets.zz).rgb;
     samples[8] = textureLodOffset(sampler_input, texcoord, current_mip, offsets.yz).rgb;
 
-    fragcolor = 0.25 * samples[0]; // 4.0 / 16.0
-    fragcolor += 0.125 * (samples[1] + samples[2] + samples[3] + samples[4]); // 2.0 / 16.0
-    fragcolor += 0.0625 * (samples[5] + samples[6] + samples[7] + samples[8]); // 1.0 / 16.0
-    fragcolor *= power;
+    frag_color = 0.25 * samples[0]; // 4.0 / 16.0
+    frag_color += 0.125 * (samples[1] + samples[2] + samples[3] + samples[4]); // 2.0 / 16.0
+    frag_color += 0.0625 * (samples[5] + samples[6] + samples[7] + samples[8]); // 1.0 / 16.0
 }

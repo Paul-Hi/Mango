@@ -1,7 +1,6 @@
 #include <../include/scene_post.glsl>
 
 vec4 tonemap_with_gamma_correction(in vec4 color);
-vec3 sharpen(in vec3 color, in float strength);
 
 void main()
 {
@@ -11,9 +10,13 @@ void main()
     bool no_correction = debug_view_enabled; // TODO Paul: This is weird.
 
     vec4 color =  texture(sampler_hdr_input, texcoord);
-    color.rgb = sharpen(color.rgb, 0.025);
-    color = no_correction ? color : tonemap_with_gamma_correction(color);
+    if (no_correction)
+    {
+        frag_color = color;
+        return;
+    }
 
+    color = tonemap_with_gamma_correction(color);
 
     frag_color = color;
 }
@@ -31,20 +34,6 @@ vec3 uncharted2_tonemap(in vec3 color)
 
 vec3 adjust_contrast(in vec3 color, in float value) {
   return 0.5 + (1.0 + value) * (color - 0.5);
-}
-
-vec3 sharpen(in vec3 color, in float strength)
-{
-    vec3 f = textureOffset(sampler_hdr_input, texcoord, ivec2(-1,-1)).rgb *  -1. +
-             textureOffset(sampler_hdr_input, texcoord, ivec2( 0,-1)).rgb *  -1. +
-             textureOffset(sampler_hdr_input, texcoord, ivec2( 1,-1)).rgb *  -1. +
-             textureOffset(sampler_hdr_input, texcoord, ivec2(-1, 0)).rgb *  -1. +
-             textureOffset(sampler_hdr_input, texcoord, ivec2( 0, 0)).rgb *   9. +
-             textureOffset(sampler_hdr_input, texcoord, ivec2( 1, 0)).rgb *  -1. +
-             textureOffset(sampler_hdr_input, texcoord, ivec2(-1, 1)).rgb *  -1. +
-             textureOffset(sampler_hdr_input, texcoord, ivec2( 0, 1)).rgb *  -1. +
-             textureOffset(sampler_hdr_input, texcoord, ivec2( 1, 1)).rgb *  -1. ;
-    return mix(color, f ,strength);
 }
 
 vec4 tonemap_with_gamma_correction(in vec4 color)

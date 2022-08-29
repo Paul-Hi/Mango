@@ -59,6 +59,13 @@ namespace mango
             m_mipmapped_linear_sampler = mipmapped_linear_sampler;
         }
 
+        //! \brief Set a default 2d texture.
+        //! \param[in] default_texture_2D The default 2d texture.
+        inline void set_default_texture_2D(const gfx_handle<const gfx_texture>& default_texture_2D)
+        {
+            m_default_texture_2D = default_texture_2D;
+        }
+
       private:
         //! \brief Execution info of this pass.
         render_pass_execution_info m_rpei;
@@ -73,17 +80,29 @@ namespace mango
         //! \brief The vertex \a gfx_shader_stage producing a screen space triangle.
         gfx_handle<const gfx_shader_stage> m_screen_space_triangle_vertex;
 
+        //! \brief The fragment \a gfx_shader_stage to blit hdr to bloom buffer.
+        gfx_handle<const gfx_shader_stage> m_blit_fragment;
+
         //! \brief The fragment \a gfx_shader_stage to downsample for the bloom mipchain.
         gfx_handle<const gfx_shader_stage> m_downsample_fragment;
 
         //! \brief The fragment \a gfx_shader_stage to upsample and blur the bloom mipchain.
         gfx_handle<const gfx_shader_stage> m_upsample_and_blur_fragment;
 
+        //! \brief The fragment \a gfx_shader_stage to apply bloom to hdr.
+        gfx_handle<const gfx_shader_stage> m_apply_fragment;
+
+        //! \brief Graphics pipeline to blit the hdr texture to the bloom buffer.
+        gfx_handle<const gfx_pipeline> m_blit_pipeline;
+
         //! \brief Graphics pipeline to downsample the bloom.
         gfx_handle<const gfx_pipeline> m_downsample_pipeline;
 
         //! \brief Graphics pipeline to upsample and blur the bloom.
         gfx_handle<const gfx_pipeline> m_upsample_and_blur_pipeline;
+
+        //! \brief Graphics pipeline to apply the bloom to the hdr texture.
+        gfx_handle<const gfx_pipeline> m_apply_pipeline;
 
         //! \brief The bloom buffer with the bloom mipchain.
         gfx_handle<const gfx_texture> m_bloom_buffer;
@@ -94,11 +113,17 @@ namespace mango
         //! \brief The \a gfx_texture to calculate and apply the bloom.
         gfx_handle<const gfx_texture> m_hdr_texture;
 
+        //! \brief The optional lens \a gfx_texture to use.
+        gfx_handle<const gfx_texture> m_lens_texture;
+
         //! \brief Linear sampler.
         gfx_handle<const gfx_sampler> m_mipmapped_linear_sampler;
 
         //! \brief The \a gfx_viewport to render to.
         gfx_viewport m_viewport;
+
+        //! \brief The default 2d \a gfx_texture.
+        gfx_handle<const gfx_texture> m_default_texture_2D;
 
         //! \brief The uniform buffer for the bloom data.
         gfx_handle<const gfx_buffer> m_bloom_data_buffer;
