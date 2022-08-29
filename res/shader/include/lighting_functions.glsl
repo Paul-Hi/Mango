@@ -35,7 +35,7 @@ vec3 calculate_skylight(in vec3 base_color, in vec3 normal, in vec3 view, in flo
     vec3 energy_compensation = 1.0 + f0 * (1.0 / dfg.y - 1.0);
     specular_ibl *= energy_compensation;
 
-    return (diffuse_ibl * occlusion + specular_ibl) * skylight_intensity;
+    return (diffuse_ibl + specular_ibl) * occlusion * skylight_intensity; // TODO Paul: Normally we should only apply occlusion to diffuse - but it does look better atm, since we have no directional occlusion...
 }
 
 vec3 calculate_directional_light(in vec3 base_color, in vec3 normal, in vec3 view, in float n_dot_v, in float perceptual_roughness, in float metallic, in vec3 f0, in float occlusion)
