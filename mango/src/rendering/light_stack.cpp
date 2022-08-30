@@ -34,7 +34,8 @@ bool light_stack::init(const shared_ptr<context_impl>& context)
     if (!m_skylight_builder.init(m_shared_context))
         return false;
 
-    // success &= m_atmosphere_builder.init();
+    if (!m_atmosphere_builder.init(m_shared_context))
+        return false;
 
     return true;
 }
@@ -54,20 +55,32 @@ void light_stack::push(const atmospheric_light& light)
     m_atmosphere_stack.emplace_back(light);
 }
 
-void light_stack::update(scene_impl* scene)
+void light_stack::update(scene_impl* scene, float dt)
 {
+    // TODO Paul: Think of a better way to limit and handle the updates...
+    // Update only with 8 fps
+    static float fps_lock = 0.0f;
+    fps_lock += dt;
+    if (fps_lock * 1000.0f < 1.0f / 8.0f)
+    {
+        m_directional_stack.clear();
+        m_atmosphere_stack.clear();
+        m_skylight_stack.clear();
+        return;
+    }
+    fps_lock -= 1.0f / 8.0f;
+
     PROFILE_ZONE;
     GL_NAMED_PROFILE_ZONE("Light Stack Update");
     for (auto& c : m_light_cache)
         c.second.expired = true;
 
     m_current_shadow_casters.clear();
-    m_last_skylight   = m_global_skylight;
     m_global_skylight = 0;
 
     // order is important!
     update_directional_lights();
-    // update_atmosphere_lights();
+    update_atmosphere_lights(scene);
     update_skylights(scene);
 
     for (auto it = m_light_cache.begin(); it != m_light_cache.end();)
@@ -91,15 +104,14 @@ void light_stack::update(scene_impl* scene)
 
 void light_stack::update_directional_lights()
 {
-    // TODO: Check these things but atm we don' need that at all?!
-    /*
+    int32 i = 0;
     for (auto& d : m_directional_stack)
     {
         int64 checksum = calculate_checksum(reinterpret_cast<uint8*>(&d.cast_shadows), sizeof(bool));
-        checksum += calculate_checksum(reinterpret_cast<uint8*>(&d.color), sizeof(color_rgb));
-        checksum += calculate_checksum(reinterpret_cast<uint8*>(&d.contribute_to_atmosphere), sizeof(bool));
-        checksum += calculate_checksum(reinterpret_cast<uint8*>(&d.direction), sizeof(vec3));
-        checksum += calculate_checksum(reinterpret_cast<uint8*>(&d.intensity), sizeof(float));
+        checksum += 2 * calculate_checksum(reinterpret_cast<uint8*>(&d.color), sizeof(color_rgb));
+        checksum += 3 * calculate_checksum(reinterpret_cast<uint8*>(&d.contribute_to_atmosphere), sizeof(bool));
+        checksum += 4 * calculate_checksum(reinterpret_cast<uint8*>(&d.direction), sizeof(vec3));
+        checksum += 5 * calculate_checksum(reinterpret_cast<uint8*>(&d.intensity), sizeof(float));
 
         // find in light cache
         auto entry = m_light_cache.find(checksum);
@@ -113,10 +125,17 @@ void light_stack::update_directional_lights()
             cache_entry new_entry;
             new_entry.expired = false;
             // No additional render data required for directional lights.
-            m_light_cache.insert({ checksum, new_entry });
+            m_light_cache[checksum] = new_entry;
+
+
+
+            if (i == m_directional_stack.size() - 1)
+            {
+                m_atmosphere_builder.update_directional_influence(&d);
+            }
         }
+        ++i;
     }
-    */
 
     if (m_directional_stack.empty())
         return;
@@ -131,12 +150,22 @@ void light_stack::update_directional_lights()
         m_current_shadow_casters.push_back(light);
 }
 
-void light_stack::update_atmosphere_lights()
+void light_stack::update_atmosphere_lights(scene_impl* scene)
 {
-    // TODO Paul: TBD!
+    int32 i = 0;
     for (auto& a : m_atmosphere_stack)
     {
-        int64 checksum = 0; // calculate_checksum(...)
+        int64 checksum = calculate_checksum(reinterpret_cast<uint8*>(&a.intensity_multiplier), sizeof(float));
+        checksum += 2 * calculate_checksum(reinterpret_cast<uint8*>(&a.scatter_points), sizeof(int32));
+        checksum += 3 * calculate_checksum(reinterpret_cast<uint8*>(&a.scatter_points_second_ray), sizeof(int32));
+        checksum += 4 * calculate_checksum(reinterpret_cast<uint8*>(&a.rayleigh_scattering_coefficients), sizeof(vec3));
+        checksum += 5 * calculate_checksum(reinterpret_cast<uint8*>(&a.mie_scattering_coefficient), sizeof(float));
+        checksum += 6 * calculate_checksum(reinterpret_cast<uint8*>(&a.density_multiplier), sizeof(vec2));
+        checksum += 7 * calculate_checksum(reinterpret_cast<uint8*>(&a.ground_radius), sizeof(float));
+        checksum += 8 * calculate_checksum(reinterpret_cast<uint8*>(&a.atmosphere_radius), sizeof(float));
+        checksum += 9 * calculate_checksum(reinterpret_cast<uint8*>(&a.view_height), sizeof(float));
+        checksum += 10 * calculate_checksum(reinterpret_cast<uint8*>(&a.mie_preferred_scattering_dir), sizeof(float));
+        checksum += 11 * calculate_checksum(reinterpret_cast<uint8*>(&a.draw_sun_disc), sizeof(bool));
 
         // find in light cache
         auto entry = m_light_cache.find(checksum);
@@ -144,58 +173,28 @@ void light_stack::update_atmosphere_lights()
         if (found)
             m_light_cache.at(checksum).expired = false;
 
-        MANGO_UNUSED(a);
+        found &= !m_atmosphere_builder.needs_rebuild();
 
-        // check dependencies
-        // (dependencies are only directional lights for now)
-        // Cases:
-        // Dependency added -> a.dirty |= d.dirty
-        // Dependency still here -> a.dirty |= d.dirty
-        // Dependency removed -> new_dependency size smaller -> a.dirty = true
-        // Dependency removed but other added -> new_dependency size the same -> a.dirty |= d.dirty (= true, because light is new)
-
-        /*
-                std::vector<entity> new_dependencies;
-                for (auto& d : directional_stack)
-                {
-                    auto data = static_cast<directional_light_component*>(d.light_pointer);
-                    if (data->atmospherical)
-                    {
-                        new_dependencies.push_back(d.light_entity);
-                        a.dirty |= d.dirty;
-                    }
-                }
-
-        if (found && new_dependencies.size() != entry->second.dependencies.size())
-            a.dirty = true;
-
-
-        // create light cache entry if non existent or update it on change
-        if (a.dirty)
+        if (!found)
         {
-            // recreate atmosphere LUTs
-            // auto light                    = static_cast<atmosphere_light*>(a.light);
-            atmosphere_cache* cached_data = static_cast<atmosphere_cache*>(m_allocator.allocate(sizeof(atmosphere_cache)));
+            // recreate atmosphere
+            void* cached_data = m_allocator.allocate(sizeof(atmosphere_cache));
             MANGO_ASSERT(cached_data, "Light Stack Out Of Memory!");
-            // (cached_data, 0, sizeof(atmosphere_cache));
-            // m_atmosphere_builder.build(light, cached_data);
+            memset(cached_data, 0, sizeof(atmosphere_cache));
+            m_atmosphere_builder.build(scene, a, static_cast<atmosphere_cache*>(cached_data));
 
-            if (found)
+            cache_entry new_entry;
+            new_entry.data    = static_cast<atmosphere_cache*>(cached_data);
+            new_entry.expired = false;
+            m_light_cache[checksum] = new_entry;
+
+            if (i == m_atmosphere_stack.size() - 1)
             {
-                m_light_cache.at(a.id).light_checksum = checksum;
-                m_allocator.free_memory(m_light_cache.at(a.id).data);
-                m_light_cache.at(a.id).data = cached_data;
-            }
-            else
-            {
-                cache_entry new_entry;
-                new_entry.light_checksum = checksum;
-                new_entry.data           = cached_data;
-                new_entry.expired        = false;
-                m_light_cache.insert({ a.id, new_entry });
+                auto last = m_light_cache.at(checksum);
+                m_skylight_builder.update_atmosphere_influence(static_cast<atmosphere_cache*>(last.data));
             }
         }
-        */
+        ++i;
     }
 }
 
@@ -204,14 +203,12 @@ void light_stack::update_skylights(scene_impl* scene)
     for (auto& s : m_skylight_stack)
     {
         int64 checksum = calculate_checksum(reinterpret_cast<uint8*>(&s.dynamic), sizeof(bool));
-        checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.hdr_texture), sizeof(key));
+        checksum += 2 * calculate_checksum(reinterpret_cast<uint8*>(&s.hdr_texture), sizeof(key));
         // TODO: Check these things but atm we do not have to recreate all the textures, when the intensity is changing -.-
         // checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.intensity), sizeof(float));
-        checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.local), sizeof(bool));
-        checksum += calculate_checksum(reinterpret_cast<uint8*>(&s.use_texture), sizeof(bool));
-
-        if (m_global_skylight == 0)
-            m_global_skylight = checksum;
+        checksum += 3 * calculate_checksum(reinterpret_cast<uint8*>(&s.local), sizeof(bool));
+        checksum += 4 * calculate_checksum(reinterpret_cast<uint8*>(&s.use_texture), sizeof(bool));
+        checksum += 5 * calculate_checksum(reinterpret_cast<uint8*>(&s.use_atmospheric), sizeof(bool));
 
         // find in light cache
         auto entry = m_light_cache.find(checksum);
@@ -219,20 +216,11 @@ void light_stack::update_skylights(scene_impl* scene)
         if (found)
             m_light_cache.at(checksum).expired = false;
 
-        // if skylight captures (does not depend on hdr image) check dependencies
-        // (dependencies are only atmosphere lights for now)
+        if (!s.use_texture && s.use_atmospheric)
+        {
+            found &= !m_skylight_builder.needs_rebuild();
+        }
 
-        // if (!s.use_texture)
-        // {
-        //     for (auto& a : m_atmosphere_stack)
-        //     {
-        //         // m_skylight_builder.add_atmosphere_influence(static_cast<atmosphere_light*>(a.light));
-        //         s.dirty |= a.dirty;
-        //     }
-        //     s.dirty |= m_skylight_builder.needs_rebuild();
-        // }
-
-        // create light cache entry if non existent or update it on change
         if (!found)
         {
             // recreate skylight cubemaps
@@ -244,10 +232,12 @@ void light_stack::update_skylights(scene_impl* scene)
             cache_entry new_entry;
             new_entry.data    = static_cast<skylight_cache*>(cached_data);
             new_entry.expired = false;
-            m_light_cache.insert({ checksum, new_entry });
+            m_light_cache[checksum] = new_entry;
         }
 
         // atm there is only one skylight bound and ist has to be the global one :D
+        if (m_global_skylight == 0)
+            m_global_skylight = checksum;
         if (!s.local)
         {
             m_current_light_data.skylight_valid     = true;

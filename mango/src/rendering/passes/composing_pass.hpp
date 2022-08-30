@@ -120,8 +120,6 @@ namespace mango
 
         //! \brief The fxaa data buffer.
         gfx_handle<const gfx_buffer> m_composing_data_buffer;
-
-        // TODO NEXT: Create settings in code: not everyone uses editor...
         //! \brief The current \a composing_data.
         composing_data m_composing_data;
     };

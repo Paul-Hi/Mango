@@ -2615,7 +2615,7 @@ void scene_impl::update(float dt)
     }
 
     // Lights are only updated if they are instantiated in the hierarchy.
-    m_light_stack.update(this);
+    m_light_stack.update(this, dt);
     m_light_gpu_data.scene_light_data = m_light_stack.get_light_data();
 
     auto device_context = m_scene_graphics_device->create_graphics_device_context();

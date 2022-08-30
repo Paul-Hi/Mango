@@ -16,6 +16,8 @@ using namespace mango;
 bool skylight_builder::init(const shared_ptr<context_impl>& context)
 {
     m_shared_context = context;
+    m_dependency     = nullptr;
+    m_needs_rebuild  = false;
 
     auto& graphics_device    = m_shared_context->get_graphics_device();
     auto& internal_resources = m_shared_context->get_internal_resources();
@@ -61,44 +63,6 @@ bool skylight_builder::init(const shared_ptr<context_impl>& context)
         cubemap_compute_pass_info.shader_stage_descriptor.compute_shader_stage = m_equi_to_cubemap;
 
         m_equi_to_cubemap_pipeline = graphics_device->create_compute_pipeline(cubemap_compute_pass_info);
-    }
-
-    {
-        res_resource_desc.path        = "res/shader/atmospheric_scattering/c_atmospheric_scattering_cubemap.glsl";
-        const shader_resource* source = internal_resources->acquire(res_resource_desc);
-
-        source_desc.entry_point = "main";
-        source_desc.source      = source->source.c_str();
-        source_desc.size        = static_cast<int32>(source->source.size());
-
-        shader_info.stage         = gfx_shader_stage_type::shader_stage_compute;
-        shader_info.shader_source = source_desc;
-
-        shader_info.resource_count = 3;
-
-        shader_info.resources = { {
-            { gfx_shader_stage_type::shader_stage_compute, 0, "cubemap_out", gfx_shader_resource_type::shader_resource_image_storage, 1 },
-            { gfx_shader_stage_type::shader_stage_compute, IBL_GEN_DATA_BUFFER_BINDING_POINT, "ibl_generation_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
-            { gfx_shader_stage_type::shader_stage_compute, 4, "atmosphere_ub_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
-        } };
-
-        m_atmospheric_cubemap = graphics_device->create_shader_stage(shader_info);
-        if (!check_creation(m_atmospheric_cubemap.get(), "atmospheric cubemap compute shader"))
-            return false;
-
-        compute_pipeline_create_info atmospheric_cubemap_compute_pass_info = graphics_device->provide_compute_pipeline_create_info();
-        auto atmospheric_cubemap_compute_pass_pipeline_layout              = graphics_device->create_pipeline_resource_layout({
-                         { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_static },
-                         { gfx_shader_stage_type::shader_stage_compute, IBL_GEN_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
-                           gfx_shader_resource_access::shader_access_static },
-                         { gfx_shader_stage_type::shader_stage_compute, 4, gfx_shader_resource_type::shader_resource_constant_buffer, gfx_shader_resource_access::shader_access_static },
-        });
-
-        atmospheric_cubemap_compute_pass_info.pipeline_layout = atmospheric_cubemap_compute_pass_pipeline_layout;
-
-        atmospheric_cubemap_compute_pass_info.shader_stage_descriptor.compute_shader_stage = m_atmospheric_cubemap;
-
-        m_generate_atmospheric_cubemap_pipeline = graphics_device->create_compute_pipeline(atmospheric_cubemap_compute_pass_info);
     }
 
     {
@@ -279,45 +243,39 @@ void skylight_builder::create_brdf_lookup()
 
 bool skylight_builder::needs_rebuild()
 {
-    if (old_dependencies.size() != new_dependencies.size())
-        return true;
-
-    // order change is important here
-    for (int32 i = 0; i < static_cast<int32>(old_dependencies.size()); ++i)
-    {
-        if (old_dependencies.at(i) != new_dependencies.at(i))
-            return true;
-    }
-    return false;
+    return m_needs_rebuild;
 }
 
-/*
-void skylight_builder::add_atmosphere_influence(atmosphere_light* light)
+void skylight_builder::update_atmosphere_influence(atmosphere_cache* render_data)
 {
-    new_dependencies.push_back(light);
+    m_dependency    = render_data;
+    m_needs_rebuild = true;
 }
-*/
 
 void skylight_builder::build(scene_impl* scene, const skylight& light, skylight_cache* render_data)
 {
     PROFILE_ZONE;
-    old_dependencies = new_dependencies;
-    new_dependencies.clear();
 
     // HDR Texture
     if (light.use_texture)
     {
         if (!light.hdr_texture.valid())
-        {
-            clear(render_data);
             return;
-        }
         load_from_hdr(scene, light, render_data);
+    }
+    else if (light.use_atmospheric)
+    {
+        if (!m_dependency || !m_dependency->cubemap)
+            return;
+        render_data->cubemap = m_dependency->cubemap;
+        calculate_ibl_maps(render_data);
     }
     else // TODO Paul: capture ... will be done soon....
     {
         // capture(compute_commands, render_data);
     }
+
+    m_needs_rebuild = false;
 }
 
 /*
@@ -560,123 +518,134 @@ void skylight_builder::clear(skylight_cache* render_data)
     return;
 }
 
-/*
-bool atmosphere_builder::init()
+bool atmosphere_builder::init(const shared_ptr<context_impl>& context)
 {
-    return false;
+    m_shared_context = context;
+    m_dependency     = nullptr;
+    m_needs_rebuild  = false;
+
+    auto& graphics_device    = m_shared_context->get_graphics_device();
+    auto& internal_resources = m_shared_context->get_internal_resources();
+    shader_stage_create_info shader_info;
+    shader_resource_resource_description res_resource_desc;
+    shader_source_description source_desc;
+
+    {
+        res_resource_desc.path        = "res/shader/atmospheric_scattering/c_atmospheric_scattering_cubemap.glsl";
+        const shader_resource* source = internal_resources->acquire(res_resource_desc);
+
+        source_desc.entry_point = "main";
+        source_desc.source      = source->source.c_str();
+        source_desc.size        = static_cast<int32>(source->source.size());
+
+        shader_info.stage         = gfx_shader_stage_type::shader_stage_compute;
+        shader_info.shader_source = source_desc;
+
+        shader_info.resource_count = 2;
+
+        shader_info.resources = { {
+            { gfx_shader_stage_type::shader_stage_compute, 0, "cubemap_out", gfx_shader_resource_type::shader_resource_image_storage, 1 },
+            { gfx_shader_stage_type::shader_stage_compute, ATMOSPHERE_DATA_BUFFER_BINDING_POINT, "atmosphere_data", gfx_shader_resource_type::shader_resource_constant_buffer, 1 },
+        } };
+
+        m_atmospheric_cubemap = graphics_device->create_shader_stage(shader_info);
+        if (!check_creation(m_atmospheric_cubemap.get(), "atmospheric cubemap compute shader"))
+            return false;
+
+        compute_pipeline_create_info atmospheric_cubemap_compute_pass_info = graphics_device->provide_compute_pipeline_create_info();
+        auto atmospheric_cubemap_compute_pass_pipeline_layout              = graphics_device->create_pipeline_resource_layout({
+                         { gfx_shader_stage_type::shader_stage_compute, 0, gfx_shader_resource_type::shader_resource_image_storage, gfx_shader_resource_access::shader_access_dynamic },
+                         { gfx_shader_stage_type::shader_stage_compute, ATMOSPHERE_DATA_BUFFER_BINDING_POINT, gfx_shader_resource_type::shader_resource_constant_buffer,
+                           gfx_shader_resource_access::shader_access_dynamic },
+        });
+
+        atmospheric_cubemap_compute_pass_info.pipeline_layout = atmospheric_cubemap_compute_pass_pipeline_layout;
+
+        atmospheric_cubemap_compute_pass_info.shader_stage_descriptor.compute_shader_stage = m_atmospheric_cubemap;
+
+        m_generate_atmospheric_cubemap_pipeline = graphics_device->create_compute_pipeline(atmospheric_cubemap_compute_pass_info);
+    }
+
+    buffer_create_info buffer_info;
+    buffer_info.buffer_target = gfx_buffer_target::buffer_target_uniform;
+    buffer_info.buffer_access = gfx_buffer_access::buffer_access_dynamic_storage;
+
+    buffer_info.size         = sizeof(atmosphere_data);
+    m_atmosphere_data_buffer = graphics_device->create_buffer(buffer_info);
+    if (!check_creation(m_atmosphere_data_buffer.get(), "atmosphere data buffer"))
+        return false;
+
+    return true;
 }
 
 bool atmosphere_builder::needs_rebuild()
 {
-    return false;
+    return m_needs_rebuild;
 }
 
-void atmosphere_builder::build(atmosphere_light* light, atmosphere_cache* render_data)
+void atmosphere_builder::update_directional_influence(directional_light* light)
 {
-    MANGO_UNUSED(light);
-    MANGO_UNUSED(render_data);
+    m_dependency    = light;
+    m_needs_rebuild = true;
 }
 
-// buffer_ptr m_atmosphere_data_buffer;
-// struct atmosphere_ub_data
-// {
-//     sl_vec3 sun_dir;
-//     sl_vec3 rayleigh_scattering_coefficients;
-//     sl_vec3 ray_origin;
-//     sl_vec2 density_multiplier;
-//     sl_float sun_intensity;
-//     sl_float mie_scattering_coefficient;
-//     sl_float ground_radius;
-//     sl_float atmosphere_radius;
-//     sl_float mie_preferred_scattering_dir;
-//     sl_int scatter_points;
-//     sl_int scatter_points_second_ray;
-// };
-// atmosphere_ub_data* m_atmosphere_data_mapping;
+void atmosphere_builder::build(scene_impl* scene, const atmospheric_light& light, atmosphere_cache* render_data)
+{
+    PROFILE_ZONE;
 
-// void environment_display_step::create_with_atmosphere(const mango::environment_light_data* el_data)
-// {
-//     PROFILE_ZONE;
-//     m_atmosphere_data_mapping->sun_dir                          = el_data->sun_data.direction.normalized();
-//     m_atmosphere_data_mapping->sun_intensity                    = el_data->sun_data.intensity * 0.0025f;
-//     m_atmosphere_data_mapping->scatter_points                   = el_data->scatter_points;
-//     m_atmosphere_data_mapping->scatter_points_second_ray        = el_data->scatter_points_second_ray;
-//     m_atmosphere_data_mapping->rayleigh_scattering_coefficients = el_data->rayleigh_scattering_coefficients;
-//     m_atmosphere_data_mapping->mie_scattering_coefficient       = el_data->mie_scattering_coefficient;
-//     m_atmosphere_data_mapping->density_multiplier               = el_data->density_multiplier;
-//     m_atmosphere_data_mapping->ground_radius                    = el_data->ground_radius;
-//     m_atmosphere_data_mapping->atmosphere_radius                = el_data->atmosphere_radius;
-//     m_atmosphere_data_mapping->ray_origin                       = vec3(0.0f, el_data->ground_radius + el_data->view_height, 0.0f);
-//     m_atmosphere_data_mapping->mie_preferred_scattering_dir     = el_data->mie_preferred_scattering_dir;
-//
-//     texture_configuration texture_config;
-//     texture_config.generate_mipmaps        = calculate_mip_count(m_cube_width, m_cube_height);
-//     texture_config.is_standard_color_space = false;
-//     texture_config.is_cubemap              = true;
-//     texture_config.texture_min_filter      = texture_parameter::filter_linear_mipmap_linear;
-//     texture_config.texture_mag_filter      = texture_parameter::filter_linear;
-//     texture_config.texture_wrap_s          = texture_parameter::wrap_clamp_to_edge;
-//     texture_config.texture_wrap_t          = texture_parameter::wrap_clamp_to_edge;
-//
-//     if (m_cubemap)
-//         m_cubemap->release();
-//     m_cubemap = texture::create(texture_config);
-//     if (!check_creation(m_cubemap.get(), "environment cubemap texture"))
-//         return;
-//
-//     m_cubemap->set_data(format::rgba16f, m_cube_width, m_cube_height, format::rgba, format::t_float, nullptr);
-//
-//     // creating a temporal command buffer for compute shader execution.
-//     command_buffer_ptr<min_key> compute_commands = command_buffer<min_key>::create(4096);
-//
-//     // atmospheric scattering to cubemap
-//     bind_shader_program_command* bsp = compute_commands->create<bind_shader_program_command>(command_keys::no_sort);
-//     bsp->shader_program_name         = m_atmospheric_cubemap->get_name();
-//
-//     // bind output cubemap
-//     bind_image_texture_command* bit = compute_commands->create<bind_image_texture_command>(command_keys::no_sort);
-//     bit->binding                    = 0;
-//     bit->texture_name               = m_cubemap->get_name();
-//     bit->level                      = 0;
-//     bit->layered                    = true;
-//     bit->layer                      = 0;
-//     bit->access                     = base_access::write_only;
-//     bit->element_format             = format::rgba16f;
-//
-//     // bind uniforms
-//     vec2 out                    = vec2(m_cubemap->get_width(), m_cubemap->get_height());
-//     bind_single_uniform_command* bsu = compute_commands->create<bind_single_uniform_command>(command_keys::no_sort, sizeof(out));
-//     bsu->count                       = 1;
-//     bsu->location                    = 0;
-//     bsu->type                        = shader_resource_type::fvec2;
-//     bsu->uniform_value               = compute_commands->map_spare<bind_single_uniform_command>();
-//     memcpy(bsu->uniform_value, &out, sizeof(out));
-//
-//     bind_buffer_command* bb = compute_commands->create<bind_buffer_command>(command_keys::no_sort);
-//     bb->index               = UB_SLOT_COMPUTE_DATA;
-//     bb->buffer_name         = m_atmosphere_data_buffer->get_name();
-//     bb->offset              = 0;
-//     bb->target              = buffer_target::uniform_buffer;
-//     bb->size                = m_atmosphere_data_buffer->byte_length();
-//
-//     // execute compute
-//     dispatch_compute_command* dp = compute_commands->create<dispatch_compute_command>(command_keys::no_sort);
-//     dp->num_x_groups             = m_cubemap->get_width() / 32;
-//     dp->num_y_groups             = m_cubemap->get_height() / 32;
-//     dp->num_z_groups             = 6;
-//
-//     // We need to recalculate mipmaps
-//     calculate_mipmaps_command* cm = compute_commands->create<calculate_mipmaps_command>(command_keys::no_sort);
-//     cm->texture_name              = m_cubemap->get_name();
-//
-//     add_memory_barrier_command* amb = compute_commands->create<add_memory_barrier_command>(command_keys::no_sort);
-//     amb->barrier_bit                = memory_barrier_bit::shader_image_access_barrier_bit;
-//
-//     calculate_ibl_maps(compute_commands);
-//
-//     {
-//         GL_NAMED_PROFILE_ZONE("Generating IBL");
-//         compute_commands->execute();
-//     }
-// }
-*/
+    auto& graphics_device = m_shared_context->get_graphics_device();
+
+    texture_create_info texture_info;
+    texture_info.texture_type   = gfx_texture_type::texture_type_cube_map;
+    texture_info.width          = global_cubemap_size;
+    texture_info.height         = global_cubemap_size;
+    texture_info.miplevels      = graphics::calculate_mip_count(global_cubemap_size, global_cubemap_size);
+    texture_info.array_layers   = 1;
+    texture_info.texture_format = gfx_format::rgba16f;
+
+    render_data->cubemap = graphics_device->create_texture(texture_info);
+    if (!check_creation(render_data->cubemap.get(), "atmosphere cubemap texture"))
+        return;
+
+    m_atmosphere_data.sun_dir                          = m_dependency ? m_dependency->direction.normalized() : vec3(0.0f, 1.0f, 0.0f);
+    m_atmosphere_data.sun_intensity                    = m_dependency ? m_dependency->intensity : default_directional_intensity;
+    m_atmosphere_data.scatter_points                   = light.scatter_points;
+    m_atmosphere_data.scatter_points_second_ray        = light.scatter_points_second_ray;
+    m_atmosphere_data.rayleigh_scattering_coefficients = light.rayleigh_scattering_coefficients;
+    m_atmosphere_data.mie_scattering_coefficient       = light.mie_scattering_coefficient;
+    m_atmosphere_data.density_multiplier               = light.density_multiplier;
+    m_atmosphere_data.ground_radius                    = light.ground_radius;
+    m_atmosphere_data.atmosphere_radius                = light.atmosphere_radius;
+    m_atmosphere_data.ray_origin                       = vec3(0.0f, light.ground_radius + light.view_height, 0.0f);
+    m_atmosphere_data.mie_preferred_scattering_dir     = light.mie_preferred_scattering_dir;
+    m_atmosphere_data.mie_preferred_scattering_dir     = light.mie_preferred_scattering_dir;
+    m_atmosphere_data.draw_sun_disc                    = light.draw_sun_disc;
+    m_atmosphere_data.out_size                         = vec2(static_cast<float>(global_cubemap_size), static_cast<float>(global_cubemap_size));
+
+    graphics_device_context_handle device_context = graphics_device->create_graphics_device_context();
+
+    device_context->begin();
+    GL_NAMED_PROFILE_ZONE("Generating Atmosphere Cubemap");
+
+    device_context->bind_pipeline(m_generate_atmospheric_cubemap_pipeline);
+
+    device_context->set_buffer_data(m_atmosphere_data_buffer, 0, sizeof(m_atmosphere_data), &m_atmosphere_data);
+    auto cubemap_view = graphics_device->create_image_texture_view(render_data->cubemap);
+    m_generate_atmospheric_cubemap_pipeline->get_resource_mapping()->set("cubemap_out", cubemap_view);
+    m_generate_atmospheric_cubemap_pipeline->get_resource_mapping()->set("atmosphere_data", m_atmosphere_data_buffer);
+
+    device_context->submit_pipeline_state_resources();
+
+    device_context->dispatch(global_cubemap_size / 32, global_cubemap_size / 32, 6);
+
+    barrier_description bd;
+    bd.barrier_bit = gfx_barrier_bit::shader_image_access_barrier_bit;
+    device_context->barrier(bd);
+
+    device_context->calculate_mipmaps(render_data->cubemap);
+
+    device_context->end();
+    device_context->submit();
+
+    m_needs_rebuild = false;
+}

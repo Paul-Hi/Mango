@@ -25,6 +25,8 @@ namespace mango
 #define LUMINANCE_DATA_BUFFER_BINDING_POINT 6
     //! \brief The binding point for the \a ibl_generation_data buffer.
 #define IBL_GEN_DATA_BUFFER_BINDING_POINT 3
+    //! \brief The binding point for the \a atmosphere_generation_data buffer.
+#define ATMOSPHERE_DATA_BUFFER_BINDING_POINT 2
     //! \brief The binding point for the \a cubemap_data buffer.
 #define CUBEMAP_DATA_BUFFER_BINDING_POINT 3
     //! \brief The binding point for the \a fxaa_data buffer.

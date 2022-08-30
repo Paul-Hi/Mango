@@ -350,6 +350,7 @@ void shadow_map_pass::execute(graphics_device_context_handle& device_context)
 
 void shadow_map_pass::update_cascades(const vec3& directional_light_direction)
 {
+    // TODO Paul: Think of a better way to limit and handle the updates...
     // Update only with 30 fps
     static float fps_lock = 0.0f;
     fps_lock += m_dt;

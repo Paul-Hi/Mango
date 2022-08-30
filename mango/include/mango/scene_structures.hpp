@@ -179,6 +179,8 @@ namespace mango
         float intensity;
         //! \brief True if the \a skylight should use a texture, else false.
         bool use_texture;
+        //! \brief True if the \a skylight cubemap is provided by an \a atmospheric_light.
+        bool use_atmospheric;
         //! \brief True if the \a skylight should be updated dynamically, else false.
         bool dynamic;
         //! \brief True if the \a skylight is a local skylight, else, if it is the global one, false.
@@ -187,6 +189,7 @@ namespace mango
         skylight()
             : intensity(default_skylight_intensity)
             , use_texture(false)
+            , use_atmospheric(false)
             , dynamic(false)
             , local(false)
         {
@@ -212,6 +215,7 @@ namespace mango
         float atmosphere_radius;
         float view_height;
         float mie_preferred_scattering_dir;
+        bool draw_sun_disc;
 
         //! \endcond
 
@@ -226,6 +230,7 @@ namespace mango
             , atmosphere_radius(6420e3f)
             , view_height(1e3f)
             , mie_preferred_scattering_dir(0.758f)
+            , draw_sun_disc(false)
 
         {
         }
@@ -394,7 +399,6 @@ namespace mango
         mesh() = default;
         //! \brief \a Mesh is a scene structure.
         DECLARE_SCENE_STRUCTURE(mesh);
-
     };
 
     //! \brief The type of a \a scene_node.

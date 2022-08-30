@@ -42,7 +42,8 @@ namespace mango
 
         //! \brief Updates the stack.
         //! \param[in] scene A pointer to the current scene.
-        void update(scene_impl* scene);
+        //! \param[in] dt The delta time since last call to limit updates.
+        void update(scene_impl* scene, float dt);
 
         //! \brief Retrieves the current \a light_data of the \a light_stack.
         //! \return The current \a light_data of the \a light_stack.
@@ -103,7 +104,8 @@ namespace mango
         //! \brief Updates directional lights.
         void update_directional_lights();
         //! \brief Updates atmospherical lights.
-        void update_atmosphere_lights();
+        //! \param[in] scene A pointer to the current scene.
+        void update_atmosphere_lights(scene_impl* scene);
         //! \brief Updates skylights.
         //! \param[in] scene A pointer to the current scene.
         void update_skylights(scene_impl* scene);
@@ -132,8 +134,6 @@ namespace mango
 
         //! \brief The current global active skylight.
         int64 m_global_skylight;
-        //! \brief The last global active skylight.
-        int64 m_last_skylight;
 
         //! \brief List of current shadows casters.
         std::vector<directional_light> m_current_shadow_casters;
@@ -141,7 +141,8 @@ namespace mango
         //! \brief The render data builder for skylights.
         skylight_builder m_skylight_builder;
 
-        // atmosphere_builder m_atmosphere_builder;
+        //! \brief The render data builder for atmospheric lights.
+        atmosphere_builder m_atmosphere_builder;
     };
 } // namespace mango
 

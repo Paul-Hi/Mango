@@ -2052,6 +2052,23 @@ struct ibl_generation_data
     sl_vec2 data;
 };
 
+struct atmosphere_data
+{
+    sl_vec3 sun_dir;
+    sl_float sun_intensity;
+    sl_vec3 rayleigh_scattering_coefficients;
+    sl_float ground_radius;
+    sl_vec3 ray_origin;
+    sl_float mie_scattering_coefficient;
+    sl_vec2 density_multiplier;
+    sl_float atmosphere_radius;
+    sl_float mie_preferred_scattering_dir;
+    sl_vec2 out_size;
+    sl_int32 scatter_points;
+    sl_int32 scatter_points_second_ray;
+    sl_bool draw_sun_disc;
+};
+
 struct cubemap_data
 {
     sl_mat4 model_matrix;

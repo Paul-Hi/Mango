@@ -261,6 +261,7 @@ namespace mango
                         {
                             char const* filter[1] = { "*.hdr" };
                             l->hdr_texture        = load_texture_dialog(application_scene, false, true, filter, 1).first;
+                            l->intensity          = mango::default_skylight_intensity;
                         }
                         else
                         {
@@ -277,6 +278,7 @@ namespace mango
                                 application_scene->remove_texture(l->hdr_texture);
                                 char const* filter[1] = { "*.hdr" };
                                 l->hdr_texture        = load_texture_dialog(application_scene, false, true, filter, 1).first;
+                                l->intensity          = mango::default_skylight_intensity;
                             }
 
                             if (!l->hdr_texture.valid())
@@ -287,6 +289,11 @@ namespace mango
                         float default_value[1] = { mango::default_skylight_intensity };
                         changed |= slider_float_n("Skylight Intensity", &l->intensity, 1, default_value, 0.0f, 50000.0f, "%.1f", false);
                     }
+
+                    changed |= checkbox("Use Atmosphere", &l->use_atmospheric, false);
+
+                    if (!l->use_texture && l->use_atmospheric)
+                        l->intensity = 1.0f; // intensity calculated from sun
 
                     l->changed |= changed;
                 },
@@ -309,39 +316,37 @@ namespace mango
                 "Atmospheric Light",
                 [&application_scene, &l]()
                 {
-                    ImGui::Text("Not required yet!");
-                    // float default_fl3[3] = { 1.0f, 1.0f, 1.0f };
-                    // ImGui::PushID("atmosphere");
-                    // int32 default_ivalue[1] = { 32 };
-                    // changed |= slider_int_n("Scatter Points", &el_data->scatter_points, 1, default_ivalue, 1, 64);
-                    // default_ivalue[0] = 8;
-                    // changed |= slider_int_n("Scatter Points Second Ray", &el_data->scatter_points_second_ray, 1, default_ivalue, 1, 32);
-                    // float default_fl3[3]              = { 5.8f, 13.5f, 33.1f };
-                    // vec3 coefficients_normalized = el_data->rayleigh_scattering_coefficients * 1e6f;
-                    // changed |= drag_float_n("Rayleigh Scattering Coefficients (entity-6)", &coefficients_normalized.x, 3, default_fl3);
-                    // el_data->rayleigh_scattering_coefficients = coefficients_normalized * 1e-6f;
-                    // default_value[0]                          = 21.0f;
-                    // float coefficient_normalized              = el_data->mie_scattering_coefficient * 1e6f;
-                    // changed |= drag_float_n("Mie Scattering Coefficients (entity-6)", &coefficient_normalized, 1, default_value);
-                    // el_data->mie_scattering_coefficient = coefficient_normalized * 1e-6f;
-                    // float default_fl2[2]                = { 8e3f, 1.2e3f };
-                    // changed |= drag_float_n("Density Multipler", &el_data->density_multiplier.x, 2, default_fl2);
-                    // default_value[0] = 0.758f;
-                    // changed |= slider_float_n("Preferred Mie Scattering Direction", &el_data->mie_preferred_scattering_dir, 1, default_value, 0.0f, 1.0f);
-                    // default_value[0] = 6360e3f;
-                    // changed |= drag_float_n("Ground Height", &el_data->ground_radius, 1, default_value);
-                    // default_value[0] = 6420e3f;
-                    // changed |= drag_float_n("Atmosphere Height", &el_data->atmosphere_radius, 1, default_value);
-                    // default_value[0] = 1e3f;
-                    // changed |= drag_float_n("View Height", &el_data->view_height, 1, default_value);
-                    //
-                    // default_fl3[0] = 1.0f;
-                    // default_fl3[1] = 1.0f;
-                    // default_fl3[2] = 1.0f;
-                    // changed |= drag_float_n("Sun Direction", &el_data->sun_data.direction[0], 3, default_fl3, 0.08f, 0.0f, 0.0f, "%.2f", true);
-                    // default_value[0] = mango::default_directional_intensity;
-                    // changed |= slider_float_n("Sun Intensity", &el_data->sun_data.intensity, 1, default_value, 0.0f, 500000.0f, "%.1f", false);
-                    // changed |= checkbox("Draw Sun Disc (Always On ATM)", &el_data->draw_sun_disc, false);
+                    bool changed = false;
+                    float default_fl3[3] = { 1.0f, 1.0f, 1.0f };
+                    ImGui::PushID("atmosphere");
+                    int32 default_ivalue[1] = { 32 };
+                    changed |= slider_int_n("Scatter Points", &l->scatter_points, 1, default_ivalue, 1, 64);
+                    default_ivalue[0] = 8;
+                    changed |= slider_int_n("Scatter Points Second Ray", &l->scatter_points_second_ray, 1, default_ivalue, 1, 32);
+                    default_fl3[0]         = 5.8f;
+                    default_fl3[1]         = 13.5f;
+                    default_fl3[2]         = 33.1f;
+                    vec3 coefficients_normalized = l->rayleigh_scattering_coefficients * 1e6f;
+                    changed |= drag_float_n("Rayleigh Scattering Coefficients (entity-6)", &coefficients_normalized.x(), 3, default_fl3);
+                    l->rayleigh_scattering_coefficients = coefficients_normalized * 1e-6f;
+                        float default_value[1] = { 21.0f };
+                    float coefficient_normalized        = l->mie_scattering_coefficient * 1e6f;
+                    changed |= drag_float_n("Mie Scattering Coefficients (entity-6)", &coefficient_normalized, 1, default_value);
+                    l->mie_scattering_coefficient = coefficient_normalized * 1e-6f;
+                    float default_fl2[2]          = { 8e3f, 1.2e3f };
+                    changed |= drag_float_n("Density Multipler", &l->density_multiplier.x(), 2, default_fl2);
+                    default_value[0] = 0.758f;
+                    slider_float_n("Preferred Mie Scattering Direction", &l->mie_preferred_scattering_dir, 1, default_value, 0.0f, 1.0f);
+                    default_value[0] = 6360e3f;
+                    changed |= drag_float_n("Ground Height", &l->ground_radius, 1, default_value);
+                    default_value[0] = 6420e3f;
+                    changed |= drag_float_n("Atmosphere Height", &l->atmosphere_radius, 1, default_value);
+                    default_value[0] = 1e3f;
+                    changed |= drag_float_n("View Height", &l->view_height, 1, default_value);
+
+                    changed |= checkbox("Draw Sun Disc", &l->draw_sun_disc, false);
+
+                    l->changed |= changed;
                 },
                 [node_hnd, &application_scene]()
                 {

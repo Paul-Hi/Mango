@@ -443,6 +443,7 @@ def generate_interop():
              './res/shader/include/renderer.glsl',
              './res/shader/include/shadow.glsl',
              './res/shader/include/ibl_gen.glsl',
+             './res/shader/include/atmosphere.glsl',
              './res/shader/include/cubemap.glsl',
              './res/shader/include/fxaa_data.glsl',
              './res/shader/include/luminance.glsl',
