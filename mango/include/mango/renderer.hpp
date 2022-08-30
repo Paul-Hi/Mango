@@ -8,8 +8,8 @@
 #define MANGO_RENDERER_HPP
 
 #include <mango/assert.hpp>
-#include <mango/types.hpp>
 #include <mango/scene_structures.hpp>
+#include <mango/types.hpp>
 
 namespace mango
 {
@@ -625,6 +625,163 @@ namespace mango
         float m_lens_texture_intensity;
     };
 
+    //! \brief The settings for the \a composing_pass.
+    class composing_settings
+    {
+      public:
+        //! \brief Default constructor to set some default values.
+        composing_settings()
+            : m_exposure_bias(make_vec3(0.0f))
+            , m_tint(make_vec3(1.0f))
+            , m_contrast(make_vec3(1.0f))
+            , m_saturation(make_vec3(1.0f))
+            , m_lift(make_vec3(0.0f))
+            , m_gamma(make_vec3(1.0f))
+            , m_gain(make_vec3(1.0f))
+        {
+        }
+
+        //! \brief Constructs \a composing_settings with specific values.
+        //! \param[in] exposure_bias The bias to add to the camera exposure.
+        //! \param[in] tint The color tint to add.
+        //! \param[in] contrast The contrast to add.
+        //! \param[in] saturation The saturation to use.
+        //! \param[in] lift The lift to add to all colors.
+        //! \param[in] gamma The gamma to adapt the midtones.
+        //! \param[in] gain The gain to boost heights.
+        composing_settings(vec3 exposure_bias, vec3 tint, vec3 contrast, vec3 saturation, vec3 lift, vec3 gamma, vec3 gain)
+            : m_exposure_bias(exposure_bias)
+            , m_tint(tint)
+            , m_contrast(contrast)
+            , m_saturation(saturation)
+            , m_lift(lift)
+            , m_gamma(gamma)
+            , m_gain(gain)
+        {
+        }
+
+        //! \brief Sets the bias to add to the camera exposure.
+        //! \param[in] exposure_bias The bias to add to the camera exposure.
+        //! \return A reference to the modified \a composing_settings.
+        inline composing_settings& set_exposure_bias(const vec3& exposure_bias)
+        {
+            m_exposure_bias = exposure_bias;
+            return *this;
+        }
+
+        //! \brief Sets the color tint to add.
+        //! \param[in] tint The color tint to add.
+        //! \return A reference to the modified \a composing_settings.
+        inline composing_settings& set_tint(const vec3& tint)
+        {
+            m_tint = tint;
+            return *this;
+        }
+
+        //! \brief Sets the contrast to add.
+        //! \param[in] contrast The contrast to add.
+        //! \return A reference to the modified \a composing_settings.
+        inline composing_settings& set_contrast(const vec3& contrast)
+        {
+            m_contrast = contrast;
+            return *this;
+        }
+
+        //! \brief Sets the saturation to use.
+        //! \param[in] saturation The saturation to use.
+        //! \return A reference to the modified \a composing_settings.
+        inline composing_settings& set_saturation(const vec3& saturation)
+        {
+            m_saturation = saturation;
+            return *this;
+        }
+
+        //! \brief Sets the lift to add to all colors.
+        //! \param[in] lift The lift to add to all colors.
+        //! \return A reference to the modified \a composing_settings.
+        inline composing_settings& set_lift(const vec3& lift)
+        {
+            m_lift = lift;
+            return *this;
+        }
+
+        //! \brief Sets the gamma to adapt the midtones.
+        //! \param[in] gamma The gamma to adapt the midtones.
+        //! \return A reference to the modified \a composing_settings.
+        inline composing_settings& set_gamma(const vec3& gamma)
+        {
+            m_gamma = gamma;
+            return *this;
+        }
+
+        //! \brief Sets the gain to boost heights.
+        //! \param[in] gain The gain to boost heights.
+        //! \return A reference to the modified \a composing_settings.
+        inline composing_settings& set_gain(const vec3& gain)
+        {
+            m_gain = gain;
+            return *this;
+        }
+
+        //! \brief Retrieves the bias to add to the camera exposure.
+        //! \return The bias to add to the camera exposure.
+        inline const vec3& get_exposure_bias() const
+        {
+            return m_exposure_bias;
+        }
+
+        //! \brief Retrieves the color tint to add.
+        //! \return The color tint to add.
+        inline const vec3& get_tint() const
+        {
+            return m_tint;
+        }
+
+        //! \brief Retrieves the contrast to add.
+        //! \return The contrast to add.
+        inline const vec3& get_contrast() const
+        {
+            return m_contrast;
+        }
+
+        //! \brief Retrieves the saturation to use.
+        //! \return The saturation to use.
+        inline const vec3& get_saturation() const
+        {
+            return m_saturation;
+        }
+
+        //! \brief Retrieves the lift to add to all colors.
+        //! \return The lift to add to all colors.
+        inline const vec3& get_lift() const
+        {
+            return m_lift;
+        }
+
+        //! \brief Retrieves the gamma to adapt the midtones.
+        //! \return The gamma to adapt the midtones.
+        inline const vec3& get_gamma() const
+        {
+            return m_gamma;
+        }
+
+        //! \brief Retrieves the gain to boost heights.
+        //! \return The gain to boost heights.
+        inline const vec3& get_gain() const
+        {
+            return m_gain;
+        }
+
+      private:
+        vec3 m_exposure_bias;
+        vec3 m_tint;
+        vec3 m_contrast;
+        vec3 m_saturation;
+        vec3 m_lift;
+        vec3 m_gamma;
+        vec3 m_gain;
+    };
+
     //! \brief The configuration for the \a renderer.
     //! \details Has to be used to configure the \a renderer in the \a application create() method.
     class renderer_configuration
@@ -663,6 +820,15 @@ namespace mango
         inline renderer_configuration& set_base_render_pipeline(render_pipeline base_render_pipeline)
         {
             m_base_pipeline = base_render_pipeline;
+            return *this;
+        }
+
+        //! \brief Sets the \a composing_settings of the \a renderer in the \a renderer_configuration.
+        //! \param[in] settings The \a composing_settings of the \a renderer to configure.
+        //! \return A reference to the modified \a renderer_configuration.
+        inline renderer_configuration& set_composing_settings(composing_settings settings)
+        {
+            m_composing_settings = settings;
             return *this;
         }
 
@@ -801,6 +967,13 @@ namespace mango
             return m_render_extensions;
         }
 
+        //! \brief Retrieves and returns the base \a composing_settings set in the \a renderer_configuration.
+        //! \return The composing_settings.
+        inline const composing_settings& get_composing_settings() const
+        {
+            return m_composing_settings;
+        }
+
         //! \brief Retrieves and returns the base \a shadow_settings set in the \a renderer_configuration.
         //! \return The shadow_settings, when the \a shadow_map_pass is enabled.
         inline const shadow_settings& get_shadow_settings() const
@@ -853,6 +1026,9 @@ namespace mango
 
         //! \brief The additional \a render_pipeline_extensions of the \a renderer_configuration to enable or disable vertical synchronization.
         bool m_render_extensions[render_pipeline_extension::number_of_extensions];
+
+        //! \brief The \a composing_settings of the \a renderer to configure.
+        composing_settings m_composing_settings;
 
         //! \brief The \a shadow_settings of the \a renderer to configure.
         shadow_settings m_shadow_settings;

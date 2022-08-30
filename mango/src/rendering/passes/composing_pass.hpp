@@ -16,13 +16,13 @@ namespace mango
     class composing_pass : public render_pass
     {
       public:
-        composing_pass() = default;
+        composing_pass(const composing_settings& settings);
         ~composing_pass() = default;
 
         void attach(const shared_ptr<context_impl>& context) override;
         void execute(graphics_device_context_handle& device_context) override;
 
-        void on_ui_widget() override{};
+        void on_ui_widget() override;
 
         inline render_pass_execution_info get_info() override
         {
@@ -117,6 +117,13 @@ namespace mango
         gfx_handle<const gfx_texture> m_depth_input;
         //! \brief The depth input \a gfx_sampler.
         gfx_handle<const gfx_sampler> m_depth_input_sampler;
+
+        //! \brief The fxaa data buffer.
+        gfx_handle<const gfx_buffer> m_composing_data_buffer;
+
+        // TODO NEXT: Create settings in code: not everyone uses editor...
+        //! \brief The current \a composing_data.
+        composing_data m_composing_data;
     };
 } // namespace mango
 

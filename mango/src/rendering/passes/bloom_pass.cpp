@@ -183,7 +183,7 @@ bool bloom_pass::create_bloom_texture()
     bloom_texture_info.height         = (int)m_viewport.height;
     bloom_texture_info.miplevels      = min(4, graphics::calculate_mip_count(bloom_texture_info.width, bloom_texture_info.height));
     bloom_texture_info.array_layers   = 1;
-    bloom_texture_info.texture_format = gfx_format::rgb32f;
+    bloom_texture_info.texture_format = gfx_format::rgb16f;
 
     m_mip_count = bloom_texture_info.miplevels;
 

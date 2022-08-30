@@ -266,18 +266,18 @@ bool mango::slider_int_n(const string& label, int32* values, int32 components, i
         -line_height * components, column_width);
 }
 
-bool mango::color_edit(const string& label, float* values, int32 components, float* reset_value, float column_width)
+bool mango::color_edit(const string& label, float* values, int32 components, float* reset_value, bool hdr, float column_width)
 {
     return custom_aligned(
         label,
-        [&values, components, reset_value](bool reset)
+        [&values, components, reset_value, hdr](bool reset)
         {
             bool value_changed = false;
             ImGui::PushItemWidth(ImGui::CalcItemWidth());
             if (components == 4)
-                value_changed = ImGui::ColorEdit4("##edit4", values, ImGuiColorEditFlags_NoInputs);
+                value_changed = ImGui::ColorEdit4("##edit4", values, ImGuiColorEditFlags_NoInputs | (hdr ? ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float : 0));
             else
-                value_changed = ImGui::ColorEdit3("##edit3", values, ImGuiColorEditFlags_NoInputs);
+                value_changed = ImGui::ColorEdit3("##edit3", values, ImGuiColorEditFlags_NoInputs | (hdr ? ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float : 0));
             ImGui::PopItemWidth();
             if (reset)
             {

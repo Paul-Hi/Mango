@@ -4,7 +4,7 @@
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
-layout(binding = HDR_IMAGE_LUMINANCE_COMPUTE, rgba32f) uniform readonly image2D image_hdr_color;
+layout(binding = HDR_IMAGE_LUMINANCE_COMPUTE, rgba16f) uniform readonly image2D image_hdr_color;
 
 shared uint shared_histogram[256];
 

@@ -134,7 +134,7 @@ bool gtao_pass::create_ao_textures()
     ao_texture_info.height         = (int)m_viewport.height >> 1;
     ao_texture_info.miplevels      = 1;
     ao_texture_info.array_layers   = 1;
-    ao_texture_info.texture_format = gfx_format::r32f;
+    ao_texture_info.texture_format = gfx_format::r16f;
 
     m_gtao_texture0 = graphics_device->create_texture(ao_texture_info);
     if (!check_creation(m_gtao_texture0.get(), "gtao texture 0"))

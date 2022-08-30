@@ -35,6 +35,8 @@ namespace mango
 #define GTAO_DATA_BUFFER_BINDING_POINT 2
     //! \brief The binding point for the \a bloom_data buffer.
 #define BLOOM_DATA_BUFFER_BINDING_POINT 2
+    //! \brief The binding point for the \a composing_data buffer.
+#define COMPOSING_DATA_BUFFER_BINDING_POINT 2
 
     //! \brief The vertex input binding point for the position vertex attribute.
 #define VERTEX_INPUT_POSITION 0

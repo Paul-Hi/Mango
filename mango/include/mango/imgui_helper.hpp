@@ -93,9 +93,10 @@ namespace mango
     //! \param[in,out] values A pointer to the n floating point values.
     //! \param[in] components The number of components in values.
     //! \param[in] reset_value Pointer to 3(4) reset values.
+    //! \param[in] hdr True if the color edit should display hdr float values, else false.
     //! \param[in] column_width The width of the first column.
     //! \return True, when value/s changed, else false.
-    bool color_edit(const string& label, float* values, int32 components, float* reset_value, float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
+    bool color_edit(const string& label, float* values, int32 components, float* reset_value, bool hdr = false, float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
 
     //! \brief Draws a checkbox with mangos ui alignments.
     //! \param[in] label The label of the value/s.

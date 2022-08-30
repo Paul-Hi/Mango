@@ -30,7 +30,7 @@ out shared_data
 
 layout(location = GBUFFER_OUTPUT_TARGET0) out vec4 gbuffer_color_target0; // base color rgba (rgba8)
 layout(location = GBUFFER_OUTPUT_TARGET1) out vec4 gbuffer_color_target1; // normal rgb, alpha unused (rgb10a2)
-layout(location = GBUFFER_OUTPUT_TARGET2) out vec4 gbuffer_color_target2; // emissive rgb, alpha unused (rgba32f)
+layout(location = GBUFFER_OUTPUT_TARGET2) out vec4 gbuffer_color_target2; // emissive rgb, alpha unused (rgba16f)
 layout(location = GBUFFER_OUTPUT_TARGET3) out vec4 gbuffer_color_target3; // occlusion r, roughness g, metallic b, alpha unused (rgba8)
 
 in shared_data

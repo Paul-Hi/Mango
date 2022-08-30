@@ -2097,6 +2097,23 @@ struct bloom_data
     sl_bool lens_texture;
     sl_float lens_texture_intensity;
 };
+
+struct composing_data
+{
+    sl_vec3 exposure_bias;
+    sl_uint32 pad0;
+    sl_vec3 tint;
+    sl_uint32 pad1;
+    sl_vec3 contrast;
+    sl_uint32 pad2;
+    sl_vec3 saturation;
+    sl_uint32 pad3;
+    sl_vec3 lift;
+    sl_uint32 pad4;
+    sl_vec3 gamma;
+    sl_uint32 pad5;
+    sl_vec3 gain;
+};
 //! \encond
 
 } // namespace mango

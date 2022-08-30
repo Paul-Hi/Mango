@@ -4,7 +4,7 @@
 layout(local_size_x = 16, local_size_y = 16) in;
 
 layout(binding = HI_Z_DEPTH_SAMPLER) uniform sampler2D sampler_depth_input; // texture "texure_depth_input"
-layout(binding = HI_Z_IMAGE_COMPUTE, rg32f) uniform writeonly image2D image_hi_z_output;
+layout(binding = HI_Z_IMAGE_COMPUTE, rg16f) uniform writeonly image2D image_hi_z_output;
 
 #define validate_fetch(coords, size) clamp(coords, ivec2(0,0), ivec2(size) - 1)
 

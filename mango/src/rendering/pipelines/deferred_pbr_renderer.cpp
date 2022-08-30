@@ -33,6 +33,7 @@ deferred_pbr_renderer::deferred_pbr_renderer(const renderer_configuration& confi
     , m_debug_drawer(std::make_shared<debug_drawer>(context))
     , m_debug_bounds(false)
     , m_graphics_device(m_shared_context->get_graphics_device())
+    , m_composing_pass(configuration.get_composing_settings())
 {
     PROFILE_ZONE;
 
@@ -156,7 +157,7 @@ bool deferred_pbr_renderer::create_textures_and_samplers()
     m_gbuffer_render_targets.push_back(m_graphics_device->create_texture(attachment_info));
     attachment_info.texture_format = gfx_format::rgb10_a2;
     m_gbuffer_render_targets.push_back(m_graphics_device->create_texture(attachment_info));
-    attachment_info.texture_format = gfx_format::rgba32f;
+    attachment_info.texture_format = gfx_format::rgba16f;
     m_gbuffer_render_targets.push_back(m_graphics_device->create_texture(attachment_info));
     attachment_info.texture_format = gfx_format::rgba8;
     m_gbuffer_render_targets.push_back(m_graphics_device->create_texture(attachment_info));
@@ -172,7 +173,7 @@ bool deferred_pbr_renderer::create_textures_and_samplers()
     // HDR for auto exposure
     m_hdr_buffer_render_targets.clear();
     attachment_info.miplevels      = graphics::calculate_mip_count(w, h);
-    attachment_info.texture_format = gfx_format::rgba32f;
+    attachment_info.texture_format = gfx_format::rgba16f;
     m_hdr_buffer_render_targets.push_back(m_graphics_device->create_texture(attachment_info));
     attachment_info.miplevels      = 1;
     attachment_info.texture_format = gfx_format::depth_component32f;
@@ -774,6 +775,8 @@ void deferred_pbr_renderer::on_ui_widget()
         device_context->submit();
     }
     changed |= checkbox("Frustum Culling", &m_frustum_culling, true);
+    ImGui::Separator();
+    m_composing_pass.on_ui_widget();
     ImGui::Separator();
     bool has_environment_display = m_pipeline_extensions[mango::render_pipeline_extension::environment_display] != nullptr;
     bool has_shadow_map          = m_pipeline_extensions[mango::render_pipeline_extension::shadow_map] != nullptr;
