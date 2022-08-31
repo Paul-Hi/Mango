@@ -230,8 +230,6 @@ namespace mango
 
                     changed |= checkbox("Cast Shadows", &l->cast_shadows, false);
 
-                    changed |= checkbox("Contribute To Atmosphere", &l->contribute_to_atmosphere, false);
-
                     l->changed |= changed;
                 },
                 [node_hnd, &application_scene]()
@@ -290,9 +288,9 @@ namespace mango
                         changed |= slider_float_n("Skylight Intensity", &l->intensity, 1, default_value, 0.0f, 50000.0f, "%.1f", false);
                     }
 
-                    changed |= checkbox("Use Atmosphere", &l->use_atmospheric, false);
+                    changed |= application_scene->select_atmospheric_light(&l->atmosphere, "Atmosphere");
 
-                    if (!l->use_texture && l->use_atmospheric)
+                    if (!l->use_texture && l->atmosphere.valid())
                         l->intensity = 1.0f; // intensity calculated from sun
 
                     l->changed |= changed;
@@ -316,20 +314,19 @@ namespace mango
                 "Atmospheric Light",
                 [&application_scene, &l]()
                 {
-                    bool changed = false;
+                    bool changed         = false;
                     float default_fl3[3] = { 1.0f, 1.0f, 1.0f };
-                    ImGui::PushID("atmosphere");
                     int32 default_ivalue[1] = { 32 };
                     changed |= slider_int_n("Scatter Points", &l->scatter_points, 1, default_ivalue, 1, 64);
                     default_ivalue[0] = 8;
                     changed |= slider_int_n("Scatter Points Second Ray", &l->scatter_points_second_ray, 1, default_ivalue, 1, 32);
-                    default_fl3[0]         = 5.8f;
-                    default_fl3[1]         = 13.5f;
-                    default_fl3[2]         = 33.1f;
+                    default_fl3[0]               = 5.8f;
+                    default_fl3[1]               = 13.5f;
+                    default_fl3[2]               = 33.1f;
                     vec3 coefficients_normalized = l->rayleigh_scattering_coefficients * 1e6f;
                     changed |= drag_float_n("Rayleigh Scattering Coefficients (entity-6)", &coefficients_normalized.x(), 3, default_fl3);
                     l->rayleigh_scattering_coefficients = coefficients_normalized * 1e-6f;
-                        float default_value[1] = { 21.0f };
+                    float default_value[1]              = { 21.0f };
                     float coefficient_normalized        = l->mie_scattering_coefficient * 1e6f;
                     changed |= drag_float_n("Mie Scattering Coefficients (entity-6)", &coefficient_normalized, 1, default_value);
                     l->mie_scattering_coefficient = coefficient_normalized * 1e-6f;
@@ -345,6 +342,8 @@ namespace mango
                     changed |= drag_float_n("View Height", &l->view_height, 1, default_value);
 
                     changed |= checkbox("Draw Sun Disc", &l->draw_sun_disc, false);
+
+                    changed |= application_scene->select_directional_light(&l->sun, "Sun");
 
                     l->changed |= changed;
                 },

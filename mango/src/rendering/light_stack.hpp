@@ -99,6 +99,7 @@ namespace mango
         {
             light_render_data* data = nullptr; //!< Pointer to render data.
             bool expired;                      //!< True if the cache entry is expired, else false.
+            bool updated;                      //!< True if the cache entry was updated, else false.
         };
 
         //! \brief Updates directional lights.
@@ -114,14 +115,21 @@ namespace mango
         //! \param[in] bytes Pointer to the bytes to calculate checksum for.
         //! \param[in] size The size of the bytes array.
         //! \return The checksum value.
-        int64 calculate_checksum(uint8* bytes, int64 size); // TODO Paul: Maybe should be moved elsewhere.
+        int64 calculate_checksum(const uint8* bytes, int64 size);
 
+        int64 calculate_checksum(const directional_light* light);
+        int64 calculate_checksum(const atmospheric_light* light);
+        int64 calculate_checksum(const skylight* light);
+
+        using directional_stack_item = std::pair<directional_light, int64>;
         //! \brief Directional light stack.
-        std::vector<directional_light> m_directional_stack;
+        std::vector<directional_stack_item> m_directional_stack;
+        using atmospheric_stack_item = std::pair<atmospheric_light, int64>;
         //! \brief Atmospheric light stack.
-        std::vector<atmospheric_light> m_atmosphere_stack;
+        std::vector<atmospheric_stack_item> m_atmosphere_stack;
+        using skylight_stack_item = std::pair<skylight, int64>;
         //! \brief Skylight stack.
-        std::vector<skylight> m_skylight_stack;
+        std::vector<skylight_stack_item> m_skylight_stack;
 
         //! \brief The allocator for render data.
         free_list_allocator m_allocator;

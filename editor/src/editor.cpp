@@ -115,7 +115,6 @@ bool editor::create()
         dl.intensity                = default_directional_intensity;
         dl.color                    = mango::color_rgb(1.0f, 0.387f, 0.207f);
         dl.cast_shadows             = true;
-        dl.contribute_to_atmosphere = false;
         m_current_scene->add_directional_light(dl, directional_light_node);
 
         handle<node> skylight_node = m_current_scene->add_node("Venice Sunset Skylight");

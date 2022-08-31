@@ -255,9 +255,10 @@ handle<directional_light> scene_impl::add_directional_light(directional_light& n
         return NULL_HND<directional_light>;
     }
 
+    new_directional_light.node_hnd = node_hnd;
     key light_id = m_directional_lights.insert(new_directional_light);
 
-    node& nd = m_nodes[node_hnd.id_unchecked()];
+    node& nd                       = m_nodes[node_hnd.id_unchecked()];
 
     nd.directional_light_hnd = handle<directional_light>(light_id);
     nd.type |= node_type::directional_light;
@@ -275,9 +276,10 @@ handle<skylight> scene_impl::add_skylight(skylight& new_skylight, handle<node> n
         return NULL_HND<skylight>;
     }
 
+    new_skylight.node_hnd = node_hnd;
     key light_id = m_skylights.insert(new_skylight);
 
-    node& nd = m_nodes[node_hnd.id_unchecked()];
+    node& nd              = m_nodes[node_hnd.id_unchecked()];
 
     nd.skylight_hnd = handle<skylight>(light_id);
     nd.type |= node_type::skylight;
@@ -295,9 +297,10 @@ handle<atmospheric_light> scene_impl::add_atmospheric_light(atmospheric_light& n
         return NULL_HND<atmospheric_light>;
     }
 
+    new_atmospheric_light.node_hnd = node_hnd;
     key light_id = m_atmospheric_lights.insert(new_atmospheric_light);
 
-    node& nd = m_nodes[node_hnd.id_unchecked()];
+    node& nd                       = m_nodes[node_hnd.id_unchecked()];
 
     nd.atmospheric_light_hnd = handle<atmospheric_light>(light_id);
     nd.type |= node_type::atmospheric_light;
@@ -414,6 +417,7 @@ handle<skylight> scene_impl::add_skylight_from_hdr(const string& path, handle<no
     skylight new_skylight;
     new_skylight.hdr_texture = texture_hnd;
     new_skylight.use_texture = true;
+    new_skylight.node_hnd    = node_hnd;
 
     key light_id = m_skylights.insert(new_skylight);
 
@@ -2744,6 +2748,7 @@ std::vector<handle<node>> scene_impl::draw_scene_hierarchy_internal(handle<node>
         handle<node> payload[2] = { current, parent };
         ImGui::SetDragDropPayload("DRAG_DROP_NODE", (void*)payload, sizeof(handle<node>) * 2);
         ImGui::EndDragDropSource();
+        return to_remove;
     }
     if (!removed && ImGui::BeginDragDropTarget())
     {

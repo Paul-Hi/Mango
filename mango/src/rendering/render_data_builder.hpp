@@ -45,9 +45,6 @@ namespace mango
         //! \param[in] context The internally shared context of mango.
         //! \return True on success, else false.
         virtual bool init(const shared_ptr<context_impl>& context) = 0;
-        //! \brief Queries, if the data needs to be rebuild
-        //! \return True data needs to be rebuild, else false.
-        virtual bool needs_rebuild() = 0;
         //! \brief Builds the render data for a specific type.
         //! \param[in] scene A pointer to the current scene.
         //! \param[in] type The input data of type T.
@@ -64,16 +61,18 @@ namespace mango
     {
       public:
         bool init(const shared_ptr<context_impl>& context) override;
-        bool needs_rebuild() override;
         void build(scene_impl* scene, const skylight& light, skylight_cache* render_data) override;
-
-        void update_atmosphere_influence(atmosphere_cache* render_data);
 
         //! \brief Returns a handle to the skylight brdf lookup.
         //! \return A \a gfx_handle of the skylight brdf lookup texture.
         inline gfx_handle<const gfx_texture> get_skylight_brdf_lookup() const
         {
             return m_brdf_integration_lut;
+        }
+
+        inline void set_dependency(atmosphere_cache* dependency)
+        {
+            m_dependency = dependency;
         }
 
       private:
@@ -95,12 +94,6 @@ namespace mango
         gfx_handle<const gfx_pipeline> m_build_irradiance_map_pipeline;
         //! \brief Compute pipeline to generate the prefiltered specular map from a cubemap.
         gfx_handle<const gfx_pipeline> m_build_specular_prefiltered_map_pipeline;
-
-        //! \brief Dependency on atmospheric light.
-        atmosphere_cache* m_dependency;
-
-        //! \brief True if builder needs to be executed, else False.
-        bool m_needs_rebuild;
 
         //! \brief Creates the brdf lookup for skylights.
         void create_brdf_lookup();
@@ -138,6 +131,8 @@ namespace mango
         //! \brief Compute pipeline building the look up brdf integration texture for \a skylights.
         gfx_handle<const gfx_pipeline> m_brdf_integration_lut_pipeline;
 
+        atmosphere_cache* m_dependency;
+
         //! \brief The compute \a shader_stage for the generation of the brdf integration lookup.
         gfx_handle<const gfx_shader_stage> m_brdf_lookup_generation_compute;
 
@@ -154,10 +149,12 @@ namespace mango
     {
       public:
         bool init(const shared_ptr<context_impl>& context) override;
-        bool needs_rebuild() override;
         void build(scene_impl* scene, const atmospheric_light& light, atmosphere_cache* render_data) override;
 
-        void update_directional_influence(directional_light* light);
+        inline void set_dependency(directional_light* dependency)
+        {
+            m_dependency = dependency;
+        }
 
       private:
         //! \brief Compute \a shader_stage creating a cubemap with atmospheric scattering.
@@ -166,11 +163,7 @@ namespace mango
         //! \brief Compute pipeline creating a cubemap with atmospheric scattering.
         gfx_handle<const gfx_pipeline> m_generate_atmospheric_cubemap_pipeline;
 
-        //! \brief Dependency on directional light.
         directional_light* m_dependency;
-
-        //! \brief True if builder needs to be executed, else False.
-        bool m_needs_rebuild;
 
         //! \brief Calculates the atmosphere cubemap.
         //! \param[in,out] render_data Pointer to the render data.

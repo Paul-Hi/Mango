@@ -8,6 +8,7 @@
 #define MANGO_SCENE_IMPL_HPP
 
 #include <graphics/graphics.hpp>
+#include <mango/imgui_helper.hpp>
 #include <mango/scene.hpp>
 #include <mango/slotmap.hpp>
 #include <map>
@@ -178,6 +179,54 @@ namespace mango
         inline bool calculate_auto_exposure()
         {
             return m_requires_auto_exposure;
+        }
+
+        bool select_directional_light(handle<node>* value, const string& combo_label)
+        {
+            int32 i = 0;
+            std::vector<const char*> names(m_directional_lights.size());
+            std::vector<handle<node>> hnds(m_directional_lights.size());
+            static int32 idx = -1;
+            for (auto& dl : m_directional_lights)
+            {
+                MANGO_ASSERT(dl.node_hnd.valid() && m_nodes.valid(dl.node_hnd.id_unchecked()), "Directional light is not attached to node!");
+                node& nd = m_nodes[dl.node_hnd.id_unchecked()];
+
+                if (value == &dl.node_hnd)
+                    idx = i;
+
+                names[i] = nd.name.c_str();
+                hnds[i]  = dl.node_hnd;
+                ++i;
+            }
+
+            bool changed = combo(combo_label.c_str(), names.data(), names.size(), idx, -1);
+            *value       = idx > -1 ? hnds[idx] : NULL_HND<node>;
+            return changed;
+        }
+
+        bool select_atmospheric_light(handle<node>* value, const string& combo_label)
+        {
+            int32 i = 0;
+            std::vector<const char*> names(m_atmospheric_lights.size());
+            std::vector<handle<node>> hnds(m_atmospheric_lights.size());
+            static int32 idx = -1;
+            for (auto& al : m_atmospheric_lights)
+            {
+                MANGO_ASSERT(al.node_hnd.valid() && m_nodes.valid(al.node_hnd.id_unchecked()), "Atmospheric light is not attached to node!");
+                node& nd = m_nodes[al.node_hnd.id_unchecked()];
+
+                if (value == &al.node_hnd)
+                    idx = i;
+
+                names[i] = nd.name.c_str();
+                hnds[i]  = al.node_hnd;
+                ++i;
+            }
+
+            bool changed = combo(combo_label.c_str(), names.data(), names.size(), idx, -1);
+            *value       = idx > -1 ? hnds[idx] : NULL_HND<node>;
+            return changed;
         }
 
       private:

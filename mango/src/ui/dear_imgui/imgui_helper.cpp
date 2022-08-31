@@ -316,8 +316,9 @@ bool mango::combo(const string& label, const char** list, int32 size, int32& cur
         [list, size, &current_idx, reset_value](bool reset)
         {
             bool value_changed = false;
+            char* empty = "";
             ImGui::PushItemWidth(ImGui::CalcItemWidth());
-            if (ImGui::BeginCombo("", list[current_idx]))
+            if (ImGui::BeginCombo("", current_idx < 0 ? empty : list[current_idx]))
             {
                 for (int32 n = 0; n < size; ++n)
                 {

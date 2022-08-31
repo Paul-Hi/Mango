@@ -17,7 +17,6 @@ bool skylight_builder::init(const shared_ptr<context_impl>& context)
 {
     m_shared_context = context;
     m_dependency     = nullptr;
-    m_needs_rebuild  = false;
 
     auto& graphics_device    = m_shared_context->get_graphics_device();
     auto& internal_resources = m_shared_context->get_internal_resources();
@@ -241,17 +240,6 @@ void skylight_builder::create_brdf_lookup()
     device_context->submit();
 }
 
-bool skylight_builder::needs_rebuild()
-{
-    return m_needs_rebuild;
-}
-
-void skylight_builder::update_atmosphere_influence(atmosphere_cache* render_data)
-{
-    m_dependency    = render_data;
-    m_needs_rebuild = true;
-}
-
 void skylight_builder::build(scene_impl* scene, const skylight& light, skylight_cache* render_data)
 {
     PROFILE_ZONE;
@@ -263,7 +251,7 @@ void skylight_builder::build(scene_impl* scene, const skylight& light, skylight_
             return;
         load_from_hdr(scene, light, render_data);
     }
-    else if (light.use_atmospheric)
+    else if (light.atmosphere.valid())
     {
         if (!m_dependency || !m_dependency->cubemap)
             return;
@@ -274,8 +262,6 @@ void skylight_builder::build(scene_impl* scene, const skylight& light, skylight_
     {
         // capture(compute_commands, render_data);
     }
-
-    m_needs_rebuild = false;
 }
 
 /*
@@ -522,7 +508,6 @@ bool atmosphere_builder::init(const shared_ptr<context_impl>& context)
 {
     m_shared_context = context;
     m_dependency     = nullptr;
-    m_needs_rebuild  = false;
 
     auto& graphics_device    = m_shared_context->get_graphics_device();
     auto& internal_resources = m_shared_context->get_internal_resources();
@@ -576,17 +561,6 @@ bool atmosphere_builder::init(const shared_ptr<context_impl>& context)
         return false;
 
     return true;
-}
-
-bool atmosphere_builder::needs_rebuild()
-{
-    return m_needs_rebuild;
-}
-
-void atmosphere_builder::update_directional_influence(directional_light* light)
-{
-    m_dependency    = light;
-    m_needs_rebuild = true;
 }
 
 void atmosphere_builder::build(scene_impl* scene, const atmospheric_light& light, atmosphere_cache* render_data)
@@ -646,6 +620,4 @@ void atmosphere_builder::build(scene_impl* scene, const atmospheric_light& light
 
     device_context->end();
     device_context->submit();
-
-    m_needs_rebuild = false;
 }

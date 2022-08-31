@@ -124,7 +124,6 @@ namespace mango
     //! \param[in] column_width The width of the first column.
     //! \return True, when value changed, else false.
     bool image_load(const string& label, void* texture_native_handle, const vec2& size, bool& load_new, float column_width = ImGui::GetContentRegionAvail().x * 0.33f);
-
 } // namespace mango
 
 #endif // MANGO_IMGUI_HELPER_HPP

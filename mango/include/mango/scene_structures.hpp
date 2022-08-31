@@ -14,13 +14,13 @@
 namespace mango
 {
     //! \brief Macro to add some default operators and constructors to every scene structure.
-#define DECLARE_SCENE_STRUCTURE(c)    \
-    bool changed           = true;    \
-    ~c()                   = default; \
-    c(const c&)            = default; \
-    c(c&&)                 = default; \
-    c& operator=(const c&) = default; \
-    c& operator=(c&&)      = default;
+#define DECLARE_SCENE_STRUCTURE(c)       \
+    bool changed              = true;    \
+    ~c()                      = default; \
+    c(const c&)               = default; \
+    c(c&&)                    = default; \
+    c& operator=(const c&)    = default; \
+    c& operator=(c&&)         = default;
 
     // fwd
     struct node;
@@ -155,55 +155,29 @@ namespace mango
         float intensity;
         //! \brief True if the \a directional_light should cast shadows, else false.
         bool cast_shadows;
-        //! \brief True if the \a directional_light should contribute to the atmosphere, when enabled, else false.
-        bool contribute_to_atmosphere;
+
+        //! \brief The \a handle of the \a node of the \a directional_light.
+        handle<node> node_hnd;
 
         directional_light()
             : direction(make_vec3(0.0f))
             , color(0.0f)
             , intensity(default_directional_intensity)
             , cast_shadows(false)
-            , contribute_to_atmosphere(false)
         {
         }
         //! \brief \a Directional_light is a scene structure.
         DECLARE_SCENE_STRUCTURE(directional_light);
-    };
 
-    //! \brief Public structure holding informations for a skylight.
-    struct skylight
-    {
-        //! \brief The \a handle of the environment texture of the \a skylight.
-        handle<texture> hdr_texture;
-        //! \brief The intensity of the \a skylight in cd/m^2.
-        float intensity;
-        //! \brief True if the \a skylight should use a texture, else false.
-        bool use_texture;
-        //! \brief True if the \a skylight cubemap is provided by an \a atmospheric_light.
-        bool use_atmospheric;
-        //! \brief True if the \a skylight should be updated dynamically, else false.
-        bool dynamic;
-        //! \brief True if the \a skylight is a local skylight, else, if it is the global one, false.
-        bool local;
-
-        skylight()
-            : intensity(default_skylight_intensity)
-            , use_texture(false)
-            , use_atmospheric(false)
-            , dynamic(false)
-            , local(false)
+        bool operator==(const directional_light& other)
         {
+            return node_hnd == other.node_hnd;
         }
-        //! \brief \a Skylight is a scene structure.
-        DECLARE_SCENE_STRUCTURE(skylight);
     };
 
     //! \brief Public structure holding informations for a atmospheric light.
     struct atmospheric_light
     {
-        // TODO Paul: Add documentation, when these work again.
-        //! \cond NO_COND
-
         float intensity_multiplier;
         // scattering parameters -> will be extended if necessary
         int32 scatter_points;
@@ -217,7 +191,10 @@ namespace mango
         float mie_preferred_scattering_dir;
         bool draw_sun_disc;
 
-        //! \endcond
+        handle<node> sun;
+
+        //! \brief The \a handle of the \a node of the \a atmospheric_light.
+        handle<node> node_hnd;
 
         atmospheric_light()
             : intensity_multiplier(1.0f)
@@ -231,11 +208,45 @@ namespace mango
             , view_height(1e3f)
             , mie_preferred_scattering_dir(0.758f)
             , draw_sun_disc(false)
-
         {
         }
         //! \brief \a Atmospheric_light is a scene structure.
         DECLARE_SCENE_STRUCTURE(atmospheric_light);
+
+        bool operator==(const atmospheric_light& other)
+        {
+            return node_hnd == other.node_hnd;
+        }
+    };
+
+    //! \brief Public structure holding informations for a skylight.
+    struct skylight
+    {
+        //! \brief The \a handle of the environment texture of the \a skylight.
+        handle<texture> hdr_texture;
+        //! \brief The intensity of the \a skylight in cd/m^2.
+        float intensity;
+        //! \brief True if the \a skylight should use a texture, else false.
+        bool use_texture;
+        //! \brief True if the \a skylight should be updated dynamically, else false.
+        bool dynamic;
+        //! \brief True if the \a skylight is a local skylight, else, if it is the global one, false.
+        bool local;
+
+        handle<node> atmosphere;
+
+        //! \brief The \a handle of the \a node of the \a skylight.
+        handle<node> node_hnd;
+
+        skylight()
+            : intensity(default_skylight_intensity)
+            , use_texture(false)
+            , dynamic(false)
+            , local(false)
+        {
+        }
+        //! \brief \a Skylight is a scene structure.
+        DECLARE_SCENE_STRUCTURE(skylight);
     };
 
     //! \brief Public structure holding informations for a texture loaded from an image.
