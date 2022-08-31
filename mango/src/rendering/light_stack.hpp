@@ -117,8 +117,19 @@ namespace mango
         //! \return The checksum value.
         int64 calculate_checksum(const uint8* bytes, int64 size);
 
+        //! \brief Calculates the checksum for a \a directional_light.
+        //! \param[in] light Pointer to the \a directional_light to calculate checksum for.
+        //! \return The checksum value.
         int64 calculate_checksum(const directional_light* light);
+
+        //! \brief Calculates the checksum for a \a atmospheric_light.
+        //! \param[in] light Pointer to the \a atmospheric_light to calculate checksum for.
+        //! \return The checksum value.
         int64 calculate_checksum(const atmospheric_light* light);
+
+        //! \brief Calculates the checksum for a \a skylight.
+        //! \param[in] light Pointer to the \a skylight to calculate checksum for.
+        //! \return The checksum value.
         int64 calculate_checksum(const skylight* light);
 
         using directional_stack_item = std::pair<directional_light, int64>;

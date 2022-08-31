@@ -169,6 +169,8 @@ namespace mango
         //! \brief \a Directional_light is a scene structure.
         DECLARE_SCENE_STRUCTURE(directional_light);
 
+        //! \brief Simple comparison operator only defined on the parent node.
+        //! \param[in] other The other \a directional_light.
         bool operator==(const directional_light& other)
         {
             return node_hnd == other.node_hnd;
@@ -178,27 +180,35 @@ namespace mango
     //! \brief Public structure holding informations for a atmospheric light.
     struct atmospheric_light
     {
-        float intensity_multiplier;
-        // scattering parameters -> will be extended if necessary
+        //! \brief Number of points to scatter points for the first ray.
         int32 scatter_points;
+        //! \brief Number of points to scatter points for the second ray.
         int32 scatter_points_second_ray;
+        //! \brief Scattering coefficients for the rayleigh scattering. Affects the sky color.
         vec3 rayleigh_scattering_coefficients;
+        //! \brief Scattering coefficients for the mie scattering. Affects the scattering intensity near the sun.
         float mie_scattering_coefficient;
+        //! \brief Density multiplier to change the traveling behavior and attenuate different colors.
         vec2 density_multiplier;
+        //! \brief Radius of the ground sphere. Normally no need to change. Earth radius is default.
         float ground_radius;
+        //! \brief Radius of the atmosphere sphere. Normally no need to change. Earths atmosphere radius is default.
         float atmosphere_radius;
+        //! \brief Height of the camera. Can be changed to simulate atmosphere in space or on surface.
         float view_height;
+        //! \brief Preferred dorection for mie scattering. Affects mie scattering visuals.
         float mie_preferred_scattering_dir;
+        //! \brief True if sun disc should be drawn, else false.
         bool draw_sun_disc;
 
+        //! \brief The \a handle of the \a node of the \a directional_light that contributes or NULL_HND when not existent.
         handle<node> sun;
 
         //! \brief The \a handle of the \a node of the \a atmospheric_light.
         handle<node> node_hnd;
 
         atmospheric_light()
-            : intensity_multiplier(1.0f)
-            , scatter_points(32)
+            : scatter_points(32)
             , scatter_points_second_ray(8)
             , rayleigh_scattering_coefficients(vec3(5.8e-6f, 13.5e-6f, 33.1e-6f))
             , mie_scattering_coefficient(21e-6f)
@@ -213,6 +223,8 @@ namespace mango
         //! \brief \a Atmospheric_light is a scene structure.
         DECLARE_SCENE_STRUCTURE(atmospheric_light);
 
+        //! \brief Simple comparison operator only defined on the parent node.
+        //! \param[in] other The other \a atmospheric_light.
         bool operator==(const atmospheric_light& other)
         {
             return node_hnd == other.node_hnd;
@@ -247,6 +259,13 @@ namespace mango
         }
         //! \brief \a Skylight is a scene structure.
         DECLARE_SCENE_STRUCTURE(skylight);
+
+        //! \brief Simple comparison operator only defined on the parent node.
+        //! \param[in] other The other \a skylight.
+        bool operator==(const skylight& other)
+        {
+            return node_hnd == other.node_hnd;
+        }
     };
 
     //! \brief Public structure holding informations for a texture loaded from an image.

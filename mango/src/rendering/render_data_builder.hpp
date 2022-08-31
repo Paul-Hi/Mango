@@ -70,6 +70,8 @@ namespace mango
             return m_brdf_integration_lut;
         }
 
+        //! \brief Set the current \a atmosphere_cache dependency.
+        //! \param[in] dependency The current \a atmosphere_cache dependency.
         inline void set_dependency(atmosphere_cache* dependency)
         {
             m_dependency = dependency;
@@ -131,6 +133,7 @@ namespace mango
         //! \brief Compute pipeline building the look up brdf integration texture for \a skylights.
         gfx_handle<const gfx_pipeline> m_brdf_integration_lut_pipeline;
 
+        //! \brief The current \a atmosphere_cache dependency.
         atmosphere_cache* m_dependency;
 
         //! \brief The compute \a shader_stage for the generation of the brdf integration lookup.
@@ -145,12 +148,16 @@ namespace mango
         gfx_handle<const gfx_buffer> m_ibl_generation_data_buffer;
     };
 
+    //! \brief A builder class for atmospheric light render data.
     class atmosphere_builder : render_data_builder<atmospheric_light, atmosphere_cache>
     {
       public:
         bool init(const shared_ptr<context_impl>& context) override;
         void build(scene_impl* scene, const atmospheric_light& light, atmosphere_cache* render_data) override;
 
+
+        //! \brief Set the current \a directional_light dependency.
+        //! \param[in] dependency The current \a directional_light dependency.
         inline void set_dependency(directional_light* dependency)
         {
             m_dependency = dependency;
@@ -163,6 +170,7 @@ namespace mango
         //! \brief Compute pipeline creating a cubemap with atmospheric scattering.
         gfx_handle<const gfx_pipeline> m_generate_atmospheric_cubemap_pipeline;
 
+        //! \brief The current \a directional_light dependency.
         directional_light* m_dependency;
 
         //! \brief Calculates the atmosphere cubemap.

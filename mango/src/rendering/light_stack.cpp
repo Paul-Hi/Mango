@@ -226,8 +226,8 @@ void light_stack::update_skylights(scene_impl* scene)
             auto a = scene->get_atmospheric_light(s.atmosphere);
             if (!a.has_value())
             {
-                s.atmosphere  = NULL_HND<node>;
-                update = true;
+                s.atmosphere = NULL_HND<node>;
+                update       = true;
             }
             else
             {
@@ -236,8 +236,8 @@ void light_stack::update_skylights(scene_impl* scene)
                 auto a_entry = m_light_cache.find(a_checksum);
                 if (a_entry == m_light_cache.end())
                 {
-                    s.atmosphere  = NULL_HND<node>;
-                    update = true;
+                    s.atmosphere = NULL_HND<node>;
+                    update       = true;
                 }
                 else
                 {
@@ -278,7 +278,7 @@ void light_stack::update_skylights(scene_impl* scene)
 int64 light_stack::calculate_checksum(const directional_light* light)
 {
     int64 checksum = calculate_checksum(reinterpret_cast<const uint8*>(&light->direction), sizeof(vec3));
-    // checksum += 2 * calculate_checksum(reinterpret_cast<const uint8*>(&light->color), sizeof(color_rgb));
+    checksum += 2 * calculate_checksum(reinterpret_cast<const uint8*>(&light->color), sizeof(color_rgb));
     // checksum += 3 * calculate_checksum(reinterpret_cast<const uint8*>(&light->cast_shadows), sizeof(bool));
     checksum += 4 * calculate_checksum(reinterpret_cast<const uint8*>(&light->intensity), sizeof(float));
 
@@ -287,18 +287,17 @@ int64 light_stack::calculate_checksum(const directional_light* light)
 
 int64 light_stack::calculate_checksum(const atmospheric_light* light)
 {
-    int64 checksum = calculate_checksum(reinterpret_cast<const uint8*>(&light->intensity_multiplier), sizeof(float));
-    checksum += 2 * calculate_checksum(reinterpret_cast<const uint8*>(&light->scatter_points), sizeof(int32));
-    checksum += 3 * calculate_checksum(reinterpret_cast<const uint8*>(&light->scatter_points_second_ray), sizeof(int32));
-    checksum += 4 * calculate_checksum(reinterpret_cast<const uint8*>(&light->rayleigh_scattering_coefficients), sizeof(vec3));
-    checksum += 5 * calculate_checksum(reinterpret_cast<const uint8*>(&light->mie_scattering_coefficient), sizeof(float));
-    checksum += 6 * calculate_checksum(reinterpret_cast<const uint8*>(&light->density_multiplier), sizeof(vec2));
-    checksum += 7 * calculate_checksum(reinterpret_cast<const uint8*>(&light->ground_radius), sizeof(float));
-    checksum += 8 * calculate_checksum(reinterpret_cast<const uint8*>(&light->atmosphere_radius), sizeof(float));
-    checksum += 9 * calculate_checksum(reinterpret_cast<const uint8*>(&light->view_height), sizeof(float));
-    checksum += 10 * calculate_checksum(reinterpret_cast<const uint8*>(&light->mie_preferred_scattering_dir), sizeof(float));
-    checksum += 11 * calculate_checksum(reinterpret_cast<const uint8*>(&light->draw_sun_disc), sizeof(bool));
-    checksum += 12 * calculate_checksum(reinterpret_cast<const uint8*>(&light->sun), sizeof(handle<node>));
+    int64 checksum = calculate_checksum(reinterpret_cast<const uint8*>(&light->scatter_points), sizeof(int32));
+    checksum += 2 * calculate_checksum(reinterpret_cast<const uint8*>(&light->scatter_points_second_ray), sizeof(int32));
+    checksum += 3 * calculate_checksum(reinterpret_cast<const uint8*>(&light->rayleigh_scattering_coefficients), sizeof(vec3));
+    checksum += 4 * calculate_checksum(reinterpret_cast<const uint8*>(&light->mie_scattering_coefficient), sizeof(float));
+    checksum += 5 * calculate_checksum(reinterpret_cast<const uint8*>(&light->density_multiplier), sizeof(vec2));
+    checksum += 6 * calculate_checksum(reinterpret_cast<const uint8*>(&light->ground_radius), sizeof(float));
+    checksum += 7 * calculate_checksum(reinterpret_cast<const uint8*>(&light->atmosphere_radius), sizeof(float));
+    checksum += 8 * calculate_checksum(reinterpret_cast<const uint8*>(&light->view_height), sizeof(float));
+    checksum += 9 * calculate_checksum(reinterpret_cast<const uint8*>(&light->mie_preferred_scattering_dir), sizeof(float));
+    checksum += 10 * calculate_checksum(reinterpret_cast<const uint8*>(&light->draw_sun_disc), sizeof(bool));
+    checksum += 11 * calculate_checksum(reinterpret_cast<const uint8*>(&light->sun), sizeof(handle<node>));
 
     return checksum;
 }

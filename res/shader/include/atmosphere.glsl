@@ -7,6 +7,8 @@ layout(binding = ATMOSPHERE_DATA_BUFFER_BINDING_POINT, std140) uniform atmospher
 {
     vec3 sun_dir;
     float sun_intensity;
+    vec3 sun_color;
+    bool draw_sun_disc;
     vec3 rayleigh_scattering_coefficients;
     float ground_radius;
     vec3 ray_origin;
@@ -17,7 +19,6 @@ layout(binding = ATMOSPHERE_DATA_BUFFER_BINDING_POINT, std140) uniform atmospher
     vec2 out_size;
     int scatter_points;
     int scatter_points_second_ray;
-    bool draw_sun_disc;
 };
 
 #endif // MANGO_ATMOSPHERE_GLSL

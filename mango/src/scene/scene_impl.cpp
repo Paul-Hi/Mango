@@ -2321,31 +2321,6 @@ handle<material> scene_impl::default_material()
     return m_default_material;
 }
 
-// entity scene_impl::create_atmospheric_environment(const vec3& sun_direction, float sun_intensity) // TODO Paul: More settings needed!
-// {
-//     PROFILE_ZONE;
-//     entity environment_entity = create_empty();
-//
-//     auto& environment = m_lights.create_component_for(environment_entity);
-//
-//     environment.type_of_light          = light_type::environment;
-//     environment.data                   = std::make_shared<environment_light_data>();
-//     auto el_data                       = static_cast<mango::environment_light_data*>(environment.data);
-//     el_data->intensity                 = default_skylight_intensity;
-//     el_data->render_sun_as_directional = true;
-//     el_data->create_atmosphere         = true;
-//     // sun data as well as scattering parameters are all default initialized.
-//     if (sun_intensity > 0.0)
-//     {
-//         el_data->sun_data.direction = sun_direction;
-//         el_data->sun_data.intensity = sun_intensity;
-//     }
-//
-//     el_data->hdr_texture = nullptr;
-//
-//     return environment_entity;
-// }
-
 void scene_impl::update_scene_graph(handle<node> node_hnd, handle<node> parent_hnd, bool force_update)
 {
     key node_id   = node_hnd.id_unchecked();

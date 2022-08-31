@@ -566,6 +566,7 @@ bool atmosphere_builder::init(const shared_ptr<context_impl>& context)
 void atmosphere_builder::build(scene_impl* scene, const atmospheric_light& light, atmosphere_cache* render_data)
 {
     PROFILE_ZONE;
+    MANGO_UNUSED(scene);
 
     auto& graphics_device = m_shared_context->get_graphics_device();
 
@@ -583,6 +584,8 @@ void atmosphere_builder::build(scene_impl* scene, const atmospheric_light& light
 
     m_atmosphere_data.sun_dir                          = m_dependency ? m_dependency->direction.normalized() : vec3(0.0f, 1.0f, 0.0f);
     m_atmosphere_data.sun_intensity                    = m_dependency ? m_dependency->intensity : default_directional_intensity;
+    m_atmosphere_data.sun_color                        = m_dependency ? m_dependency->color.as_vec3() : make_vec3(1.0f);
+    m_atmosphere_data.draw_sun_disc                    = light.draw_sun_disc;
     m_atmosphere_data.scatter_points                   = light.scatter_points;
     m_atmosphere_data.scatter_points_second_ray        = light.scatter_points_second_ray;
     m_atmosphere_data.rayleigh_scattering_coefficients = light.rayleigh_scattering_coefficients;
@@ -593,7 +596,6 @@ void atmosphere_builder::build(scene_impl* scene, const atmospheric_light& light
     m_atmosphere_data.ray_origin                       = vec3(0.0f, light.ground_radius + light.view_height, 0.0f);
     m_atmosphere_data.mie_preferred_scattering_dir     = light.mie_preferred_scattering_dir;
     m_atmosphere_data.mie_preferred_scattering_dir     = light.mie_preferred_scattering_dir;
-    m_atmosphere_data.draw_sun_disc                    = light.draw_sun_disc;
     m_atmosphere_data.out_size                         = vec2(static_cast<float>(global_cubemap_size), static_cast<float>(global_cubemap_size));
 
     graphics_device_context_handle device_context = graphics_device->create_graphics_device_context();

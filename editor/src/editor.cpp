@@ -34,7 +34,7 @@ bool editor::create()
     renderer_config.set_base_render_pipeline(render_pipeline::deferred_pbr).set_vsync(true).set_frustum_culling(true).draw_wireframe(false).draw_debug_bounds(false);
 
     composing_settings comp_settings;
-    comp_settings.set_contrast(make_vec3(1.1));
+    comp_settings.set_contrast(make_vec3(1.1f));
     renderer_config.set_composing_settings(comp_settings);
 
     environment_display_settings eds;

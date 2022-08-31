@@ -86,7 +86,7 @@ vec3 atmospheric_scattering(in vec3 ray_dir)
             scatter_point += ray_dir * step_size;
         }
 
-        return sun_intensity * (rayleigh_phase * rayleigh_scattering_coefficients.xyz * rayleigh_total
+        return sun_intensity * sun_color * (rayleigh_phase * rayleigh_scattering_coefficients.xyz * rayleigh_total
             + mie_phase * mie_scattering_coefficient * mie_total + sun * mie_total * 0.007);
     }
 }
