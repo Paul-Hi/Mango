@@ -100,7 +100,7 @@ bool editor::create()
         // handle<model> bb = m_current_scene->load_model_from_gltf("res/models/WaterBottle/WaterBottle.glb");
         handle<model> bb = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/2.0/Sponza/glTF/Sponza.gltf");
         // handle<model> bb                      = m_current_scene->load_model_from_gltf("D:/Users/paulh/Documents/gltf_2_0_sample_models/lumberyard_bistro/Bistro_v5_1/BistroExterior.gltf");
-        optional<mango::model&> mod = m_current_scene->get_model(bb);
+        optional<model&> mod = m_current_scene->get_model(bb);
         MANGO_ASSERT(mod, "Model not existent!");
         handle<node> model_instance_root = m_current_scene->add_node("Sponza");
         m_current_scene->add_model_to_scene(bb, mod->scenarios.at(mod->default_scenario), model_instance_root);
@@ -111,14 +111,21 @@ bool editor::create()
 
         handle<node> directional_light_node = m_current_scene->add_node("Directional Sun Light");
         directional_light dl;
-        dl.direction                = vec3(0.2f, 1.0f, 0.15f); // vec3(0.9f, 0.05f, 0.65f);
-        dl.intensity                = default_directional_intensity;
-        dl.color                    = mango::color_rgb(1.0f, 0.387f, 0.207f);
-        dl.cast_shadows             = true;
+        dl.direction    = vec3(0.2f, 1.0f, 0.15f);
+        dl.intensity    = default_directional_intensity;
+        dl.color        = mango::color_rgb(1.0f, 0.387f, 0.207f);
+        dl.cast_shadows = true;
         m_current_scene->add_directional_light(dl, directional_light_node);
 
-        handle<node> skylight_node = m_current_scene->add_node("Venice Sunset Skylight");
-        m_current_scene->add_skylight_from_hdr("res/textures/venice_sunset_4k.hdr", skylight_node);
+        handle<node> environment_node = m_current_scene->add_node("Atmospheric Skylight");
+        atmospheric_light al;
+        al.sun           = directional_light_node;
+        al.draw_sun_disc = true;
+        m_current_scene->add_atmospheric_light(al, environment_node);
+        skylight sl;
+        sl.atmosphere = environment_node;
+        sl.intensity  = 1.0;
+        m_current_scene->add_skylight(sl, environment_node);
     }
     // test end
 

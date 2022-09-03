@@ -192,7 +192,7 @@ namespace mango
                 MANGO_ASSERT(dl.node_hnd.valid() && m_nodes.valid(dl.node_hnd.id_unchecked()), "Directional light is not attached to node!");
                 node& nd = m_nodes[dl.node_hnd.id_unchecked()];
 
-                if (value == &dl.node_hnd)
+                if (*value == dl.node_hnd)
                     idx = i;
 
                 names[i] = nd.name.c_str();
@@ -216,7 +216,7 @@ namespace mango
                 MANGO_ASSERT(al.node_hnd.valid() && m_nodes.valid(al.node_hnd.id_unchecked()), "Atmospheric light is not attached to node!");
                 node& nd = m_nodes[al.node_hnd.id_unchecked()];
 
-                if (value == &al.node_hnd)
+                if (*value == al.node_hnd)
                     idx = i;
 
                 names[i] = nd.name.c_str();

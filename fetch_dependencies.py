@@ -10,7 +10,7 @@ def runGitSubmoduleCommands():
     result = runSubprocessVerbose(['git', 'submodule', 'init'])
     if result != 0:
         return False
-    result = runSubprocessVerbose(['git', 'submodule', 'update'])
+    result = runSubprocessVerbose(['git', 'submodule', 'update', '--remote', '--merge'])
     if result != 0:
         return False
     return True
