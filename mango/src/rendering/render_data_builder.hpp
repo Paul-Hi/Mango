@@ -123,9 +123,9 @@ namespace mango
         //! \brief The size of the radiance cubemap faces.
         const int32 global_specular_convolution_map_size = 1024;
 
-        // const int32 local_cubemap_size = 1024;
+        // const int32 local_cubemap_size = 512;
         // const int32 local_irradiance_map_size = 32;
-        // const int32 local_specular_convolution_map_size = 1024;
+        // const int32 local_specular_convolution_map_size = 512;
 
         //! \brief The brdf lookup texture for skylights.
         gfx_handle<const gfx_texture> m_brdf_integration_lut;
@@ -182,7 +182,7 @@ namespace mango
         void clear(atmosphere_cache* render_data);
 
         //! \brief The size of the base cubemap faces.
-        const int32 global_cubemap_size = 1024; // (Same as skylights)
+        const int32 global_cubemap_size = 512; // (Smaller than skylights, since the frequency is lower, is upsampled for specular convolution map, which is fine)
 
         //! \brief The current \a atmosphere_data.
         atmosphere_data m_atmosphere_data;

@@ -74,6 +74,12 @@ bool editor::create()
                        [this](bool& enabled)
                        {
                            ImGui::Begin("Editor", &enabled);
+                           custom_info("Current Camera Speed",
+                                       [this]()
+                                       {
+                                           ImGui::AlignTextToFramePadding();
+                                           ImGui::Text("%.1f ms", m_camera_speed);
+                                       });
                            ImGui::End();
                        });
 
@@ -133,8 +139,8 @@ bool editor::create()
     MANGO_ASSERT(mango_input, "Input does not exist!");
 
     // temporary editor camera controls
-    m_camera_rotation     = vec2(deg_to_rad(90.0f), deg_to_rad(45.0f));
-    m_target_offset       = vec2(0.0f, 0.0f);
+    m_camera_rotation     = vec2(0.0f, 0.0f);
+    m_w_a_s_d             = ivec4(0, 0, 0, 0);
     m_last_mouse_position = vec2(0.0f, 0.0f);
     mango_input->register_cursor_position_callback(
         [this](double x_position, double y_position)
@@ -149,14 +155,13 @@ bool editor::create()
             MANGO_ASSERT(mango_input, "Input does not exist!");
 
             bool no_rotation         = mango_input->get_mouse_button(mouse_button::mouse_button_left) == input_action::release;
-            bool no_panning          = mango_input->get_mouse_button(mouse_button::mouse_button_middle) == input_action::release;
             vec2 diff                = vec2(x_position, y_position) - m_last_mouse_position;
             bool offset_not_relevant = diff.norm() < 1.0f; // In pixels.
 
             m_last_mouse_position = vec2(x_position, y_position);
             // mango_input->hide_cursor(false); TODO
 
-            if ((no_rotation && no_panning) || offset_not_relevant)
+            if (no_rotation || offset_not_relevant)
                 return;
 
             if (!no_rotation)
@@ -170,16 +175,9 @@ bool editor::create()
                 m_camera_rotation.x() = fmodf(m_camera_rotation.x(), deg_to_rad(360.0f));
                 return;
             }
-
-            if (!no_panning)
-            {
-                // mango_input->hide_cursor(true); TODO
-                vec2 pan        = diff;
-                m_target_offset = pan * 0.005f;
-            }
         });
 
-    m_camera_radius = 10.0f;
+    m_camera_speed = 2.0f;
     mango_input->register_scroll_callback(
         [this](double, double y_offset)
         {
@@ -191,13 +189,40 @@ bool editor::create()
 
             if (y_offset < 0)
             {
-                m_camera_radius *= 1.04f;
+                m_camera_speed -= 0.5f;
             }
             else
             {
-                m_camera_radius /= 1.04f;
+                m_camera_speed += 0.5f;
+                ;
             }
-            m_camera_radius = clamp(m_camera_radius, 0.01f, 20.0f);
+            m_camera_speed = clamp(m_camera_speed, 0.5f, 20.0f);
+        });
+
+    mango_input->register_key_callback(
+        [this](key_code key, input_action action, modifier mods)
+        {
+            shared_ptr<context> mango_context = get_context().lock();
+            MANGO_ASSERT(mango_context, "Context is expired!");
+            optional<perspective_camera&> cam = mango_context->get_current_scene()->get_perspective_camera(m_main_camera_node_hnd);
+            if (!cam)
+                return;
+
+            input_handle mango_input = mango_context->get_input();
+            MANGO_ASSERT(mango_input, "Input does not exist!");
+
+            bool no_key_input = mango_input->get_mouse_button(mouse_button::mouse_button_left) == input_action::release;
+            if (no_key_input)
+                m_w_a_s_d = ivec4(0, 0, 0, 0);
+
+            if (key == key_code::key_w)
+                m_w_a_s_d.x() = +(action != input_action::release);
+            if (key == key_code::key_a)
+                m_w_a_s_d.y() = +(action != input_action::release);
+            if (key == key_code::key_s)
+                m_w_a_s_d.z() = -(action != input_action::release);
+            if (key == key_code::key_d)
+                m_w_a_s_d.w() = -(action != input_action::release);
         });
 
     return true;
@@ -206,7 +231,7 @@ bool editor::create()
 void editor::update(float dt)
 {
     PROFILE_ZONE;
-    MANGO_UNUSED(dt);
+
     shared_ptr<context> mango_context = get_context().lock();
 
     MANGO_ASSERT(mango_context, "Context is expired!");
@@ -217,31 +242,18 @@ void editor::update(float dt)
         if (!cam || !cam_transform)
             return;
 
-        if (m_target_offset.norm() > 0.0f)
-        {
-            vec3 front = (cam->target - cam_transform->position).normalized();
+        vec3 rotation_vector;
+        rotation_vector.x() = sinf(m_camera_rotation.y()) * cosf(m_camera_rotation.x());
+        rotation_vector.y() = -cosf(m_camera_rotation.y());
+        rotation_vector.z() = sinf(m_camera_rotation.y()) * sinf(m_camera_rotation.x());
 
-            if (front.norm() > 1e-5)
-            {
-                front = front.normalized();
-            }
-            else
-            {
-                front = GLOBAL_FORWARD;
-            }
+        vec3 front = rotation_vector.normalized();
+        auto right = (GLOBAL_UP.cross(front)).normalized();
+        cam_transform->position += right * (m_w_a_s_d.y() + m_w_a_s_d.w()) * m_camera_speed * dt;
+        cam_transform->position += front * (m_w_a_s_d.x() + m_w_a_s_d.z()) * m_camera_speed * dt;
+        cam->target = cam_transform->position + rotation_vector;
 
-            auto right = (GLOBAL_UP.cross(front)).normalized();
-            auto up    = (front.cross(right)).normalized();
-
-            cam->target += right * m_target_offset.x() * min(m_camera_radius, 10.0f);
-            cam->target += up * m_target_offset.y() * min(m_camera_radius, 10.0f);
-            m_target_offset = vec2(0.0f, 0.0f);
-        }
-
-        cam_transform->position.x() = cam->target.x() + m_camera_radius * (sinf(m_camera_rotation.y()) * cosf(m_camera_rotation.x()));
-        cam_transform->position.y() = cam->target.y() + m_camera_radius * (cosf(m_camera_rotation.y()));
-        cam_transform->position.z() = cam->target.z() + m_camera_radius * (sinf(m_camera_rotation.y()) * sinf(m_camera_rotation.x()));
-        cam_transform->changed      = true;
+        cam_transform->changed = true;
 
         auto ui = mango_context->get_ui();
         if (ui)
