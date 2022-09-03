@@ -34,7 +34,7 @@ class editor : public mango::application
     mango::vec2 m_last_mouse_position;
     //! \brief Offsets for camera rotation.
     mango::vec2 m_camera_rotation;
-    //! \brief WASD != 1 - down(direction), 0 - up.
+    //! \brief WASD != 0 - down(direction), 0 - up.
     mango::ivec4 m_w_a_s_d;
     //! \brief Speed for camera.
     float m_camera_speed;

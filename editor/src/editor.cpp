@@ -74,11 +74,11 @@ bool editor::create()
                        [this](bool& enabled)
                        {
                            ImGui::Begin("Editor", &enabled);
-                           custom_info("Current Camera Speed",
+                           custom_info("Base Camera Speed (change with scroll wheel/ shift is 'sprint')",
                                        [this]()
                                        {
                                            ImGui::AlignTextToFramePadding();
-                                           ImGui::Text("%.1f ms", m_camera_speed);
+                                           ImGui::Text("%.1f", m_camera_speed);
                                        });
                            ImGui::End();
                        });
@@ -139,7 +139,7 @@ bool editor::create()
     MANGO_ASSERT(mango_input, "Input does not exist!");
 
     // temporary editor camera controls
-    m_camera_rotation     = vec2(0.0f, 0.0f);
+    m_camera_rotation     = vec2(deg_to_rad(-90.0f), deg_to_rad(45.0f));
     m_w_a_s_d             = ivec4(0, 0, 0, 0);
     m_last_mouse_position = vec2(0.0f, 0.0f);
     mango_input->register_cursor_position_callback(
@@ -159,14 +159,12 @@ bool editor::create()
             bool offset_not_relevant = diff.norm() < 1.0f; // In pixels.
 
             m_last_mouse_position = vec2(x_position, y_position);
-            // mango_input->hide_cursor(false); TODO
 
             if (no_rotation || offset_not_relevant)
                 return;
 
             if (!no_rotation)
             {
-                // mango_input->hide_cursor(true); TODO
                 vec2 rot = diff;
                 rot.y() *= -1.0f;
                 m_camera_rotation += rot * 0.005f;
@@ -213,16 +211,32 @@ bool editor::create()
 
             bool no_key_input = mango_input->get_mouse_button(mouse_button::mouse_button_left) == input_action::release;
             if (no_key_input)
+            {
                 m_w_a_s_d = ivec4(0, 0, 0, 0);
+                return;
+            }
+
+            bool shift_pressed = (mods & modifier::modifier_shift) != modifier::none;
 
             if (key == key_code::key_w)
-                m_w_a_s_d.x() = +(action != input_action::release);
+                m_w_a_s_d.x() = +(int32)(action != input_action::release) * (shift_pressed ? 2 : 1);
             if (key == key_code::key_a)
-                m_w_a_s_d.y() = +(action != input_action::release);
+                m_w_a_s_d.y() = +(int32)(action != input_action::release) * (shift_pressed ? 2 : 1);
             if (key == key_code::key_s)
-                m_w_a_s_d.z() = -(action != input_action::release);
+                m_w_a_s_d.z() = -(int32)(action != input_action::release) * (shift_pressed ? 2 : 1);
             if (key == key_code::key_d)
-                m_w_a_s_d.w() = -(action != input_action::release);
+                m_w_a_s_d.w() = -(int32)(action != input_action::release) * (shift_pressed ? 2 : 1);
+            if (key == key_code::key_left_shift || key == key_code::key_right_shift)
+            {
+                if (action == input_action::press)
+                    m_w_a_s_d *= 2;
+                if (action == input_action::release)
+                    m_w_a_s_d /= 2;
+                m_w_a_s_d.x() = clamp(m_w_a_s_d.x(), -2, 2);
+                m_w_a_s_d.y() = clamp(m_w_a_s_d.y(), -2, 2);
+                m_w_a_s_d.z() = clamp(m_w_a_s_d.z(), -2, 2);
+                m_w_a_s_d.w() = clamp(m_w_a_s_d.w(), -2, 2);
+            }
         });
 
     return true;
